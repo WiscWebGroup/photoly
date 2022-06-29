@@ -12,5 +12,5 @@ import com.baomidou.mybatisplus.extension.service.IService;
  * @since 2022-06-24
  */
 public interface INamespaceService extends IService<Namespace> {
-
+    Integer insertNamespace(String name, Integer parentId, Integer userId);
 }

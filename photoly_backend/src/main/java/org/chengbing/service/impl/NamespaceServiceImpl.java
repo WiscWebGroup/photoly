@@ -6,6 +6,8 @@ import org.chengbing.service.INamespaceService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.Resource;
+
 /**
  * <p>
  *  服务实现类
@@ -17,4 +19,15 @@ import org.springframework.stereotype.Service;
 @Service
 public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace> implements INamespaceService {
 
+    @Resource
+    NamespaceMapper mapper;
+
+    @Override
+    public Integer insertNamespace(String name, Integer parentId, Integer userId) {
+        Namespace namespace = new Namespace();
+        namespace.setNsName(name);
+        namespace.setNsParentId(parentId);
+        namespace.setUserId(userId);
+        return mapper.insert(namespace);
+    }
 }

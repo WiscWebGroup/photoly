@@ -30,5 +30,7 @@ public class Namespace implements Serializable {
 
     private Integer nsParentId;
 
+    private Integer userId;
+
 
 }
