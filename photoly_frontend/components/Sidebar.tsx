@@ -31,11 +31,11 @@ export default function Sidebar(){
             </HStack>
 
             <Button variant={"ghost"} w={"100%"} justifyContent={"flex-start"}
-                    leftIcon={<Icon as={AiFillHeart} color={"red.400"}/>} fontWeight={"normal"} isActive={""}>My
+                    leftIcon={<Icon as={AiFillHeart} color={"red.400"}/>} fontWeight={"normal"} isActive={false}>My
                 Favorite</Button>
             <Button variant={"ghost"} w={"100%"} justifyContent={"flex-start"}
                     leftIcon={<Icon as={BiBaseball} color={"red.400"}/>} fontWeight={"normal"}>
-                Ye's Favorite</Button>
+                Yes Favorite</Button>
         </VStack>
     )
 }
