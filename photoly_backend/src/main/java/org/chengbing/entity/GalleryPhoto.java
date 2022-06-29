@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import java.io.Serializable;
 import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -18,8 +17,8 @@ import lombok.EqualsAndHashCode;
 ***REMOVED***
 @Data
 @EqualsAndHashCode(callSuper = false)
-@ApiModel(value="GallaryPhoto对象", description="")
-public class GallaryPhoto implements Serializable {
+@ApiModel(value="GalleryPhoto对象", description="")
+public class GalleryPhoto implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

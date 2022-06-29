@@ -1,7 +1,7 @@
 package org.chengbing.dao;
 
 import org.apache.ibatis.annotations.Mapper;
-import org.chengbing.entity.Gallary;
+import org.chengbing.entity.Gallery;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
 ***REMOVED***
@@ -13,6 +13,6 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
  * @since 2022-06-24
 ***REMOVED***
 @Mapper
-public interface GallaryMapper extends BaseMapper<Gallary> {
+public interface GalleryMapper extends BaseMapper<Gallery> {
 
 ***REMOVED***
