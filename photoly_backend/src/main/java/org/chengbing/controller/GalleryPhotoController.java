@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
  * @since 2022-06-24
  */
 @RestController
-@RequestMapping("/gallary-photo")
-public class GallaryPhotoController {
+@RequestMapping("/gallery-photo")
+public class GalleryPhotoController {
 
 }
 

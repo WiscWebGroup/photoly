@@ -3,6 +3,8 @@ package org.chengbing.controller;
 
 import org.chengbing.dao.UserMapper;
 import org.chengbing.entity.User;
+import org.chengbing.service.IGalleryService;
+import org.chengbing.service.INamespaceService;
 import org.chengbing.service.IUserService;
 import org.chengbing.util.AESUtil;
 import org.chengbing.util.Result;
@@ -32,6 +34,12 @@ public class UserController {
     IUserService service;
 
     @Resource
+    INamespaceService namespaceService;
+
+    @Resource
+    IGalleryService galleryService;
+
+    @Resource
     RedisTemplate<String, Object> template;
 
     @PostMapping("/signUp")
@@ -48,6 +56,8 @@ public class UserController {
         if (succeed) {
             String token = UUID.randomUUID().toString();
             Integer id = service.selectUserByEmail(user.getEmail()).getUserId();
+            galleryService.insertGallery("My Favorite", id, "#FFFFFF");
+            namespaceService.insertNamespace("/", -1, id);
             template.opsForValue().set(token,id,1, TimeUnit.DAYS);
             return new ResultToken<>("Succeed", token, 200);
         }else
