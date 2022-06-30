@@ -1,13 +1,18 @@
 import {Button, Center, Input, InputGroup, InputRightElement, Text, useBoolean, VStack***REMOVED*** from "@chakra-ui/react";
-import {useState***REMOVED*** from "react";
+import React, {ChangeEvent, useState***REMOVED*** from "react";
 import {useRouter***REMOVED*** from "next/router";
+
 
 export default function Login() {
     const [show, setShow] = useBoolean(false)
-    const [email, setEmail] = useState()
-    const [password, setPassword] = useState()
-    const handleEmailChange = (event) => setEmail(event.target.value)
-    const handlePasswordChange = (event) => setPassword(event.target.value)
+    const [email, setEmail] = useState<string | undefined>()
+    const [password, setPassword] = useState<string | undefined>()
+    const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
+        setEmail(event.currentTarget.value)
+***REMOVED***
+    const handlePasswordChange = (event: ChangeEvent<HTMLInputElement>) => {
+        setPassword(event.currentTarget.value)
+***REMOVED***
     const router = useRouter()
 
 

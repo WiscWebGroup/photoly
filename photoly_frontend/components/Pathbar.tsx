@@ -7,7 +7,7 @@ export default function Pathbar(){
     const [show, setShow] = useState(false)
     const [anchorPoint, setAnchorPoint] = useState({ x: 0, y: 0 ***REMOVED***)
     const handleClick = useCallback(() => (show ? setShow(false) : null), [show])
-    const handleContextMenu = (e) => {
+    const handleContextMenu = (e: MouseEvent) => {
         e.preventDefault()
         setAnchorPoint({ x: e.pageX, y: e.pageY ***REMOVED***)
         setShow(true)
@@ -26,10 +26,10 @@ export default function Pathbar(){
             </HStack>
             <Divider/>
             <Flex w={"100%"***REMOVED*** justifyContent={"flex-start"***REMOVED*** wrap={"wrap"***REMOVED***>
-                <Box maxW='sm' overflow='hidden' p={2***REMOVED*** onContextMenu={handleContextMenu***REMOVED***>
+                <Box maxW='sm' overflow='hidden' p={2***REMOVED*** onContextMenu={() => handleContextMenu***REMOVED***>
                     <Image src={"https://bit.ly/2Z4KKcF"***REMOVED*** alt={"image"***REMOVED*** borderRadius='lg'/>
                 </Box>
-                <Box maxW='sm' overflow='hidden' p={2***REMOVED*** onContextMenu={handleContextMenu***REMOVED***>
+                <Box maxW='sm' overflow='hidden' p={2***REMOVED*** onContextMenu={() => handleContextMenu***REMOVED***>
                     <Image src={"https://bit.ly/2Z4KKcF"***REMOVED*** alt={"image"***REMOVED*** borderRadius='lg'/>
                 </Box>
             </Flex>
