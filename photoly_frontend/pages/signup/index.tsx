@@ -1,8 +1,8 @@
 import {Button, Center, Input, InputGroup, InputRightElement, Text, useBoolean, VStack} from "@chakra-ui/react";
-import {ChangeEvent, useState} from "react";
+import React, {ChangeEvent, useState} from "react";
 import {useRouter} from "next/router";
 
-export default function Login() {
+const Login: React.FC = () => {
     const [show, setShow] = useBoolean(false)
     const [username, setUsername] = useState<string | undefined>()
     const [email, setEmail] = useState<string | undefined>()
@@ -36,3 +36,4 @@ export default function Login() {
         </Center>
     )
 }
+export default Login

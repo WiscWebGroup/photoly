@@ -1,12 +1,17 @@
-import {Button, Heading, HStack, Avatar} from "@chakra-ui/react";
+import {Button, Text, HStack, Avatar} from "@chakra-ui/react";
 import {useRouter} from "next/router";
+import Image from 'next/image'
+import React from "react";
 
-export default function Navbar() {
+const Navbar: React.FC = () => {
     const router = useRouter()
     return (
         <HStack bg={"teal.400"} w={"100%"} h={16} color={"white"} p={4}
                 justifyContent={"space-between"}>
-            <Heading ml={4}>PHOTOLY LOGO</Heading>
+            <HStack>
+                <Image src={"/logo.png"} alt={"logo"} width={"50px"} height={"50px"}/>
+                <Text fontSize={"xl"} fontWeight={"medium"}>PHOTOLY</Text>
+            </HStack>
             <HStack h={"inherit"} p={2} spacing={4} mr={4}>
                 <Button variant={"link"} color={"white"}>Logout</Button>
                 <Button variant={"link"} color={"white"} onClick={() => router.push("/manage")}>Manage</Button>
@@ -19,5 +24,5 @@ export default function Navbar() {
             </HStack>
         </HStack>
     )
-
 }
+export default Navbar

@@ -2,8 +2,9 @@ import {Button, Divider, HStack, Icon, Text, VStack} from "@chakra-ui/react";
 import {AiFillHeart, AiFillTags} from "react-icons/ai";
 import TagItem from "./TagItem";
 import {BiBaseball, BiPhotoAlbum} from "react-icons/bi";
+import React from "react";
 
-export default function Sidebar(){
+const Sidebar: React.FC = () => {
     const tags = ["Animals", "Cute", "Furry", "SM", "BL", "🔞", "White hair", "Monster ear"]
     return (
         <VStack w={52} mt={4} ml={4} rounded={"lg"} bg={"blackAlpha.50"} p={4} boxShadow={"lg"}>
@@ -39,3 +40,4 @@ export default function Sidebar(){
         </VStack>
     )
 }
+export default Sidebar

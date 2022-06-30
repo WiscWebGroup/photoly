@@ -3,8 +3,9 @@ import Sidebar from "../../components/Sidebar";
 import {HStack} from "@chakra-ui/react";
 import Pathbar from "../../components/Pathbar";
 import Images from "../../components/Images";
+import React from "react";
 
-export default function Home() {
+const Home: React.FC = () => {
 
     return (
         <>
@@ -19,3 +20,4 @@ export default function Home() {
 
     )
 }
+export default Home

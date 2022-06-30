@@ -1,11 +1,13 @@
 import {Checkbox} from "@chakra-ui/react";
+import React from "react";
 
-interface props {
+interface TagItemProps {
     tagName: string
 }
 
-export default function TagItem({tagName}:props){
+ const TagItem: React.FC<TagItemProps> = ({tagName}) => {
     return (
         <Checkbox variant={"ghost"} w={"100%"} pl={4}>{tagName}</Checkbox >
     )
 }
+export default TagItem

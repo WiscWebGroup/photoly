@@ -3,7 +3,7 @@ import React, {ChangeEvent, useState} from "react";
 import {useRouter} from "next/router";
 
 
-export default function Login() {
+const Login: React.FC = () => {
     const [show, setShow] = useBoolean(false)
     const [email, setEmail] = useState<string | undefined>()
     const [password, setPassword] = useState<string | undefined>()
@@ -38,3 +38,4 @@ export default function Login() {
         </Center>
     )
 }
+export default Login

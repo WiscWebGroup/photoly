@@ -1,7 +1,8 @@
 import {Button, Center} from "@chakra-ui/react";
 import Link from "next/link";
+import React from "react";
 
-export default function Home() {
+const Home:React.FC = () => {
   return (
       <Center h={"100vh"}>
           <Link href="/login">
@@ -11,3 +12,5 @@ export default function Home() {
 
   )
 }
+
+export default Home
