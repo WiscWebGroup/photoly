@@ -11,6 +11,6 @@ import com.baomidou.mybatisplus.extension.service.IService;
  * @author HaroldCI
  * @since 2022-06-24
 ***REMOVED***
-public interface IGallaryPhotoService extends IService<GalleryPhoto> {
+public interface IGalleryPhotoService extends IService<GalleryPhoto> {
 
 ***REMOVED***
