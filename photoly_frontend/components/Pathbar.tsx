@@ -1,11 +1,11 @@
 import {Divider, HStack, Icon, Text, VStack***REMOVED*** from "@chakra-ui/react";
 import {BiChevronRight***REMOVED*** from "react-icons/bi";
-import {ReactNode***REMOVED*** from "react";
+import React from "react";
 
 interface PathbarProps {
-    children?: ReactNode
+    children?: React.ReactNode
 ***REMOVED***
-export default function Pathbar({children***REMOVED***: PathbarProps){
+const Pathbar: React.FC<PathbarProps> = ({children***REMOVED***) => {
 
     return (
         <VStack pt={8***REMOVED*** pl={8***REMOVED*** w={"100%"***REMOVED*** pr={8***REMOVED***>
@@ -18,3 +18,4 @@ export default function Pathbar({children***REMOVED***: PathbarProps){
         </VStack>
     )
 ***REMOVED***
+export default Pathbar

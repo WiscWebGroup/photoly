@@ -1,9 +1,9 @@
 import {Box, Flex, Image***REMOVED*** from "@chakra-ui/react";
-import {ReactNode***REMOVED*** from "react";
 import ImageContextMenu from "./ImageContextMenu";
 import {useContextMenu***REMOVED*** from "../hooks/useContextMenu";
+import React from "react";
 
-export default function Images(): ReactNode{
+const Images: React.FC = () => {
     const [showContext, handleContextMenu, anchorPoint] = useContextMenu();
     return (
         <>
@@ -20,3 +20,4 @@ export default function Images(): ReactNode{
 
     )
 ***REMOVED***
+export default Images
