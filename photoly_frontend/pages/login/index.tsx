@@ -3,7 +3,7 @@ import React, {ChangeEvent, useState***REMOVED*** from "react";
 import {useRouter***REMOVED*** from "next/router";
 
 
-export default function Login() {
+const Login: React.FC = () => {
     const [show, setShow] = useBoolean(false)
     const [email, setEmail] = useState<string | undefined>()
     const [password, setPassword] = useState<string | undefined>()
@@ -27,7 +27,7 @@ export default function Login() {
                            onChange={handlePasswordChange***REMOVED***></Input>
                     <InputRightElement pr={1***REMOVED***>
                         <Button padding={4***REMOVED*** size='sm' onClick={setShow.toggle***REMOVED*** fontSize="xs">
-                        ***REMOVED***show ? 'Hide' : 'Show'***REMOVED***
+         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***show ? 'Hide' : 'Show'***REMOVED***
                         </Button>
                     </InputRightElement>
                 </InputGroup>
@@ -38,3 +38,4 @@ export default function Login() {
         </Center>
     )
 ***REMOVED***
+export default Login

@@ -2,8 +2,9 @@ import {Button, Divider, HStack, Icon, Text, VStack***REMOVED*** from "@chakra-u
 import {AiFillHeart, AiFillTags***REMOVED*** from "react-icons/ai";
 import TagItem from "./TagItem";
 import {BiBaseball, BiPhotoAlbum***REMOVED*** from "react-icons/bi";
+import React from "react";
 
-export default function Sidebar(){
+const Sidebar: React.FC = () => {
     const tags = ["Animals", "Cute", "Furry", "SM", "BL", "🔞", "White hair", "Monster ear"]
     return (
         <VStack w={52***REMOVED*** mt={4***REMOVED*** ml={4***REMOVED*** rounded={"lg"***REMOVED*** bg={"blackAlpha.50"***REMOVED*** p={4***REMOVED*** boxShadow={"lg"***REMOVED***>
@@ -19,7 +20,7 @@ export default function Sidebar(){
             </HStack>
 
 
-        ***REMOVED***tags.map((tag) =>
+   ***REMOVED*****REMOVED***tags.map((tag) =>
                 <TagItem tagName={tag***REMOVED*** key={tag***REMOVED***></TagItem>
             )***REMOVED***
 
@@ -39,3 +40,4 @@ export default function Sidebar(){
         </VStack>
     )
 ***REMOVED***
+export default Sidebar

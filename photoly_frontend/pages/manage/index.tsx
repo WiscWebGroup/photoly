@@ -1,7 +1,8 @@
 import {Avatar, Center, Heading, HStack, VStack, Text, IconButton, Divider***REMOVED*** from "@chakra-ui/react";
 import {AiOutlineEdit***REMOVED*** from 'react-icons/ai'
+import React from "react";
 
-export default function Manage () {
+const Manage: React.FC =  () => {
 
     return (
         <Center>
@@ -34,3 +35,4 @@ export default function Manage () {
         </Center>
     )
 ***REMOVED***
+export default Manage
