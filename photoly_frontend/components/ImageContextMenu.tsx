@@ -2,11 +2,11 @@ import {Menu, MenuItem, MenuList***REMOVED*** from "@chakra-ui/menu";
 import {ArrowForwardIcon, DownloadIcon, EditIcon, ViewIcon***REMOVED*** from "@chakra-ui/icons";
 import {Box***REMOVED*** from "@chakra-ui/react";
 
-interface props {
+interface ImageContextProps {
     x: number,
     y: number
 ***REMOVED***
-export default function ImageContext({x, y***REMOVED***: props) {
+export default function ImageContextMenu({x, y***REMOVED***: ImageContextProps) {
     return (
         <Box position={"absolute"***REMOVED*** top={y***REMOVED*** left={x***REMOVED***>
             <Menu isOpen={true***REMOVED***>
