@@ -1,6 +1,6 @@
-import {Menu, MenuButton, MenuItem, MenuList***REMOVED*** from "@chakra-ui/menu";
-import {AddIcon, EditIcon, ExternalLinkIcon, HamburgerIcon, RepeatIcon***REMOVED*** from "@chakra-ui/icons";
-import {Box, IconButton***REMOVED*** from "@chakra-ui/react";
+import {Menu, MenuItem, MenuList***REMOVED*** from "@chakra-ui/menu";
+import {ArrowForwardIcon, DownloadIcon, EditIcon, ViewIcon***REMOVED*** from "@chakra-ui/icons";
+import {Box***REMOVED*** from "@chakra-ui/react";
 
 interface props {
     x: number,
@@ -11,17 +11,17 @@ export default function ImageContext({x, y***REMOVED***: props) {
         <Box position={"absolute"***REMOVED*** top={y***REMOVED*** left={x***REMOVED***>
             <Menu isOpen={true***REMOVED***>
                 <MenuList>
-                    <MenuItem icon={<AddIcon />***REMOVED*** command='⌘T'>
-                        New Tab
+                    <MenuItem icon={<ViewIcon />***REMOVED***>
+                        View
                     </MenuItem>
-                    <MenuItem icon={<ExternalLinkIcon />***REMOVED*** command='⌘N'>
-                        New Window
+                    <MenuItem icon={<DownloadIcon />***REMOVED***>
+                        Download
                     </MenuItem>
-                    <MenuItem icon={<RepeatIcon />***REMOVED*** command='⌘⇧N'>
-                        Open Closed Tab
+                    <MenuItem icon={<EditIcon />***REMOVED***>
+                        Rename
                     </MenuItem>
-                    <MenuItem icon={<EditIcon />***REMOVED*** command='⌘O'>
-                        Open File...
+                    <MenuItem icon={<ArrowForwardIcon />***REMOVED***>
+                        Move to...
                     </MenuItem>
                 </MenuList>
             </Menu>
