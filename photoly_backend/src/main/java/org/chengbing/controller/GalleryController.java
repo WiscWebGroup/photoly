@@ -67,7 +67,7 @@ public class GalleryController {
         return service.queryGalleryPage(userId, page, rowsPerPage);
 ***REMOVED***
 
-    @DeleteMapping("/delete")
+    @PostMapping("/delete")
     public Result<Integer> deleteGallery(HttpServletRequest request, Integer gaId)
 ***REMOVED***
         Integer userId = verify.verifyUser(request);
