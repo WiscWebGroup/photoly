@@ -29,5 +29,11 @@ public class GalleryPhoto implements Serializable {
 
     private Integer photoId;
 
+    public GalleryPhoto() {
+    }
 
+    public GalleryPhoto(Integer gaId, Integer photoId) {
+        this.gaId = gaId;
+        this.photoId = photoId;
+    }
 }

@@ -32,5 +32,12 @@ public class TagPhoto implements Serializable {
 
     private Integer photoId;
 
+    public TagPhoto() {
+    }
 
+    public TagPhoto(Integer userId, Integer tagId, Integer photoId) {
+        this.userId = userId;
+        this.tagId = tagId;
+        this.photoId = photoId;
+    }
 }

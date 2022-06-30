@@ -8,6 +8,7 @@ import org.chengbing.dao.UserMapper;
 import org.chengbing.entity.Namespace;
 import org.chengbing.dao.NamespaceMapper;
 import org.chengbing.entity.NamespacePhoto;
+import org.chengbing.entity.Photo;
 import org.chengbing.entity.Tag;
 import org.chengbing.service.INamespaceService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -129,16 +130,14 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
         {
             String userUUID = userMapper.selectById(userId).getUuid();
             // Delete all the namespaces whose parent folder is this one and delete all photos
-            deletePhotoHelper(userId, nsId, userUUID);
-            int res = mapper.deleteById(nsId);
-            if (res == 1)
-                return res;
+            return deletePhotoHelper(userId, nsId, userUUID);
         }
         return null;
     }
 
-    public void deletePhotoHelper(Integer userId, Integer nsId, String userUUID)
+    public Integer deletePhotoHelper(Integer userId, Integer nsId, String userUUID)
     {
+        int results = 0;
         // Get all sub namespaces
         QueryWrapper<Namespace> wrapper = new QueryWrapper<>();
         wrapper.eq("user_id", userId);
@@ -152,15 +151,19 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
         for(NamespacePhoto namespacePhoto : connection)
         {
             int photoId = namespacePhoto.getPhotoId();
-            String format = photoMapper.selectById(photoId).getFormat();
+            Photo photo1 = photoMapper.selectById(photoId);
+            String photoUUID = photo1.getPhotoUuid();
+            String format = photo1.getFormat();
             // Delete photo in real place
-            String photoPath = folderPath + System.getProperty("file.separator") + userUUID + System.getProperty("file.separator") + photoId + "." + format;
+            String photoPath = folderPath + System.getProperty("file.separator") + userUUID + System.getProperty("file.separator") + photoUUID + "." + format;
             File photo = new File(photoPath);
-            photo.delete();
+            results += photo.delete() ? 1 : 0;
             photoMapper.deleteById(photoId);
         }
         // Recursive on sub namespaces
         for(Namespace namespace : data)
-            deletePhotoHelper(userId, namespace.getNsId(), userUUID);
+            results += deletePhotoHelper(userId, namespace.getNsId(), userUUID);
+        results += mapper.deleteById(nsId);
+        return results;
     }
 }
