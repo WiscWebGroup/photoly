@@ -1,6 +1,5 @@
 import {Avatar, Center, Heading, HStack, VStack, Text, IconButton, Divider} from "@chakra-ui/react";
 import {AiOutlineEdit} from 'react-icons/ai'
-import {IconBase} from "react-icons";
 
 export default function Manage () {
 
