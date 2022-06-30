@@ -1,7 +1,9 @@
 package org.chengbing.controller;
 
 
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import org.chengbing.dao.UserMapper;
+import org.chengbing.entity.Photo;
 import org.chengbing.entity.User;
 import org.chengbing.service.IGalleryService;
 import org.chengbing.service.INamespaceService;
@@ -9,8 +11,11 @@ import org.chengbing.service.IUserService;
 import org.chengbing.util.AESUtil;
 import org.chengbing.util.Result;
 import org.chengbing.util.ResultToken;
+import org.chengbing.util.UserIdentity;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -41,6 +46,9 @@ public class UserController {
 
     @Resource
     RedisTemplate<String, Object> template;
+
+    @Resource
+    UserIdentity verify;
 
     @PostMapping("/signUp")
     public ResultToken<String> signUp(@RequestBody User user)
@@ -75,7 +83,7 @@ public class UserController {
             template.opsForValue().set(token,userId,1, TimeUnit.DAYS);
             return new ResultToken<>("Succeed", token, 200);
         }else{
-            return new ResultToken<>("Invalid Username or Email", null, 400);
+            return new ResultToken<>("Invalid Email or Password", null, 400);
         }
     }
 
@@ -104,6 +112,55 @@ public class UserController {
         {
             return new Result<>(user, 200);
         }
+    }
+
+    @PostMapping("/updateUsername")
+    public Result<Integer> updateUsername(HttpServletRequest request, String username)
+    {
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(null, 403);
+        int change = service.updateUsername(userId, username);
+        return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
+    }
+
+    @PostMapping("/updateEmail")
+    public Result<Integer> updateEmail(HttpServletRequest request, String email)
+    {
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(null, 403);
+        int change = service.updateEmail(userId, email);
+        return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
+    }
+
+    @PostMapping("/updatePassword")
+    public Result<Integer> updatePassword(HttpServletRequest request, String oldPass, String newPass)
+    {
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(null, 403);
+        int change = service.updatePassword(userId, oldPass, newPass);
+        return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
+    }
+
+    @PostMapping("/updateAvatar")
+    public Result<Integer> updateAvatar(HttpServletRequest request, MultipartFile file)
+    {
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(null, 403);
+        int change = service.updateAvatar(userId, file);
+        return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
+    }
+
+    @GetMapping(value="/getAvatar", produces = MediaType.IMAGE_JPEG_VALUE)
+    public byte[] getAvatar(HttpServletRequest request)
+    {
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return null;
+        return service.getAvatar(userId);
     }
 }
 
