@@ -2,7 +2,7 @@ import {Avatar, Center, Heading, HStack, VStack, Text, IconButton, Divider} from
 import {AiOutlineEdit} from 'react-icons/ai'
 import React from "react";
 
-const Manage: React.FC =  () => {
+const Manage: React.FC = () => {
 
     return (
         <Center>
