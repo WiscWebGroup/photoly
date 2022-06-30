@@ -3,6 +3,9 @@ package org.chengbing.dao;
 import org.apache.ibatis.annotations.Mapper;
 import org.chengbing.entity.GalleryPhoto;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.chengbing.entity.Photo;
+
+import java.util.List;
 
 /**
  * <p>
@@ -13,6 +16,6 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
  * @since 2022-06-24
  */
 @Mapper
-public interface GallaryPhotoMapper extends BaseMapper<GalleryPhoto> {
-
+public interface GalleryPhotoMapper extends BaseMapper<GalleryPhoto> {
+    List<Photo> selectPhotoByGallery(Integer gaId);
 }

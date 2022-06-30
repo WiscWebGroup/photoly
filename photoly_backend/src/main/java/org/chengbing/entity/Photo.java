@@ -39,5 +39,9 @@ public class Photo implements Serializable {
 
     private String token;
 
+    private String photoUuid;
+
+    private Integer userId;
+
 
 }

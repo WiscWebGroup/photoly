@@ -1,8 +1,8 @@
 package org.chengbing.service.impl;
 
 import org.chengbing.entity.GalleryPhoto;
-import org.chengbing.dao.GallaryPhotoMapper;
-import org.chengbing.service.IGallaryPhotoService;
+import org.chengbing.dao.GalleryPhotoMapper;
+import org.chengbing.service.IGalleryPhotoService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +15,6 @@ import org.springframework.stereotype.Service;
  * @since 2022-06-24
  */
 @Service
-public class GallaryPhotoServiceImpl extends ServiceImpl<GallaryPhotoMapper, GalleryPhoto> implements IGallaryPhotoService {
+public class GalleryPhotoServiceImpl extends ServiceImpl<GalleryPhotoMapper, GalleryPhoto> implements IGalleryPhotoService {
 
 }
