@@ -1,8 +1,11 @@
 package org.chengbing.dao;
 
 import org.apache.ibatis.annotations.Mapper;
+import org.chengbing.entity.Photo;
 import org.chengbing.entity.TagPhoto;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+
+import java.util.List;
 
 ***REMOVED***
  * <p>
@@ -14,5 +17,5 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 ***REMOVED***
 @Mapper
 public interface TagPhotoMapper extends BaseMapper<TagPhoto> {
-
+    List<Photo> selectByTags(Integer userId, List list, Integer totalNum);
 ***REMOVED***
