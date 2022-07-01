@@ -110,6 +110,7 @@ public class UserController {
             return new Result<>(null, 404);
 ***REMOVED***else
     ***REMOVED***
+            user.setPassword(null);
             return new Result<>(user, 200);
 ***REMOVED***
 ***REMOVED***
@@ -117,6 +118,8 @@ public class UserController {
     @PostMapping("/updateUsername")
     public Result<Integer> updateUsername(HttpServletRequest request, String username)
 ***REMOVED***
+        if (username == null || username.equals(""))
+            return  new Result<>(-1, 400);
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(null, 403);
