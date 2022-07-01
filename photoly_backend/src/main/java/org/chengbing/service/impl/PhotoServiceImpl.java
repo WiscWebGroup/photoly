@@ -44,7 +44,7 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
     @Resource
     NamespacePhotoMapper namespacePhotoMapper;
 
-    @Value("file.uploadFolder")
+    @Value("${file.uploadFolder}")
     String uploadFolder;
 
     @Override

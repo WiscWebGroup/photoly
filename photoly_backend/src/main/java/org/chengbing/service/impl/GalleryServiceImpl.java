@@ -61,7 +61,7 @@ public class GalleryServiceImpl extends ServiceImpl<GalleryMapper, Gallery> impl
         wrapper.eq("ga_id", gaId);
         wrapper.eq("user_id", userId);
         Gallery gallery = mapper.selectOne(wrapper);
-        if (Objects.equals(gallery.getGaId(), gaId) && Objects.equals(gallery.getUserId(), userId))
+        if (gallery != null && Objects.equals(gallery.getGaId(), gaId) && Objects.equals(gallery.getUserId(), userId))
             return mapper.deleteById(gaId);
         return -1;
     }
@@ -72,7 +72,7 @@ public class GalleryServiceImpl extends ServiceImpl<GalleryMapper, Gallery> impl
         wrapper.eq("ga_id", gaId);
         wrapper.eq("user_id", userId);
         Gallery selectGallery = mapper.selectOne(wrapper);
-        if (Objects.equals(selectGallery.getGaId(), gaId) && Objects.equals(selectGallery.getUserId(), userId))
+        if (selectGallery != null && Objects.equals(selectGallery.getGaId(), gaId) && Objects.equals(selectGallery.getUserId(), userId))
         {
             UpdateWrapper<Gallery> updateWrapper = new UpdateWrapper<>();
             updateWrapper.eq("ga_id", gaId);
@@ -81,6 +81,6 @@ public class GalleryServiceImpl extends ServiceImpl<GalleryMapper, Gallery> impl
             updateWrapper.set("cover_id", gallery.getCoverId());
             return mapper.update(null, updateWrapper);
         }
-        return null;
+        return -1;
     }
 }

@@ -43,7 +43,7 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
     @Resource
     UserMapper userMapper;
 
-    @Value("file.uploadFolder")
+    @Value("${file.uploadFolder}")
     String folderPath;
 
     @Override
