@@ -25,7 +25,7 @@ const Login: React.FC = () => {
                            onChange={handlePasswordChange***REMOVED***></Input>
                     <InputRightElement pr={1***REMOVED***>
                         <Button padding={4***REMOVED*** size='sm' onClick={setShow.toggle***REMOVED*** fontSize="xs">
-                        ***REMOVED***show ? 'Hide' : 'Show'***REMOVED***
+         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***show ? 'Hide' : 'Show'***REMOVED***
                         </Button>
                     </InputRightElement>
                 </InputGroup>
