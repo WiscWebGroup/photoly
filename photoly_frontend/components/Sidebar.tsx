@@ -20,7 +20,7 @@ const Sidebar: React.FC = () => {
             </HStack>
 
 
-   ***REMOVED*****REMOVED***tags.map((tag) =>
+        ***REMOVED***tags.map((tag) =>
                 <TagItem tagName={tag***REMOVED*** key={tag***REMOVED***></TagItem>
             )***REMOVED***
 
