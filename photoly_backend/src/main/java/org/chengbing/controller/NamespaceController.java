@@ -85,7 +85,7 @@ public class NamespaceController {
         if (userId < 0)
             return new Result<>(null, 403);
         int change = service.deleteNamespace(userId, nsId);
-        return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
+        return change >= 0 ? new Result<>(change, 200) : new Result<>(change, 400);
 ***REMOVED***
 ***REMOVED***
 
