@@ -4,11 +4,14 @@ import React from "react";
 
 const Home:React.FC = () => {
   return (
-      <Center h={"100vh"***REMOVED***>
-          <Link href="/login">
-              <Button size="lg" variant={"link"***REMOVED*** fontSize={"5xl"***REMOVED***>Login Here!</Button>
-          </Link>
-      </Center>
+      <>
+          <Center h={"100vh"***REMOVED***>
+              <Link href="/login">
+                  <Button size="lg" variant={"link"***REMOVED*** fontSize={"5xl"***REMOVED***>Login Here!</Button>
+              </Link>
+          </Center>
+      </>
+
 
   )
 ***REMOVED***
