@@ -1,5 +1,5 @@
 import {Menu, MenuItem, MenuList***REMOVED*** from "@chakra-ui/menu";
-import {ArrowForwardIcon, DownloadIcon, EditIcon, ViewIcon***REMOVED*** from "@chakra-ui/icons";
+import {ArrowForwardIcon, DownloadIcon, EditIcon, ViewIcon, DeleteIcon***REMOVED*** from "@chakra-ui/icons";
 import {Box***REMOVED*** from "@chakra-ui/react";
 import React from "react";
 
@@ -12,6 +12,9 @@ const ImageContextMenu: React.FC<ImageContextProps> = ({x, y***REMOVED***) => {
         <Box position={"absolute"***REMOVED*** top={y***REMOVED*** left={x***REMOVED***>
             <Menu isOpen={true***REMOVED***>
                 <MenuList>
+                    <MenuItem icon={<DeleteIcon />***REMOVED***>
+                        Delete
+                    </MenuItem>
                     <MenuItem icon={<ViewIcon />***REMOVED***>
                         View
                     </MenuItem>
