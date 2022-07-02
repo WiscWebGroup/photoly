@@ -13,7 +13,7 @@ const Navbar: React.FC = () => {
                 <Text fontSize={"xl"***REMOVED*** fontWeight={"medium"***REMOVED***>PHOTOLY</Text>
             </HStack>
             <HStack h={"inherit"***REMOVED*** p={2***REMOVED*** spacing={4***REMOVED*** mr={4***REMOVED***>
-                <Button variant={"link"***REMOVED*** color={"white"***REMOVED***>Logout</Button>
+                <Button variant={"link"***REMOVED*** color={"white"***REMOVED*** onClick={() => router.push("/login")***REMOVED***>Logout</Button>
                 <Button variant={"link"***REMOVED*** color={"white"***REMOVED*** onClick={() => router.push("/manage")***REMOVED***>Manage</Button>
                 <Avatar
                     borderRadius='full'
