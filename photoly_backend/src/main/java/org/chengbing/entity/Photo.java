@@ -43,5 +43,15 @@ public class Photo implements Serializable {
 
     private Integer userId;
 
+    public Photo() {
+    }
 
+    public Photo(Integer nsId, Integer visibility) {
+        this.nsId = nsId;
+        this.visibility = visibility;
+    }
+
+    public Photo(Integer nsId) {
+        this.nsId = nsId;
+    }
 }
