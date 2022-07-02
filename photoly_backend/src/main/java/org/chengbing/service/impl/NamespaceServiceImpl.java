@@ -142,16 +142,15 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
         wrapper.eq("ns_parent_id", nsId);
         List<Namespace> data = mapper.selectList(wrapper);
         // Get all photos in the current namespace
-        QueryWrapper<NamespacePhoto> wrapper2 = new QueryWrapper<>();
+        QueryWrapper<Photo> wrapper2 = new QueryWrapper<>();
         wrapper2.eq("ns_id", nsId);
-        List<NamespacePhoto> connection = namespacePhotoMapper.selectList(wrapper2);
+        List<Photo> connection = photoMapper.selectList(wrapper2);
         // Delete photos both in table record and in hard drive
-        for(NamespacePhoto namespacePhoto : connection)
+        for(Photo currPhoto : connection)
     ***REMOVED***
-            int photoId = namespacePhoto.getPhotoId();
-            Photo photo1 = photoMapper.selectById(photoId);
-            String photoUUID = photo1.getPhotoUuid();
-            String format = photo1.getFormat();
+            int photoId = currPhoto.getPhotoId();
+            String photoUUID = currPhoto.getPhotoUuid();
+            String format = currPhoto.getFormat();
             // Delete photo in real place
             String photoPath = folderPath + System.getProperty("file.separator") + userUUID + System.getProperty("file.separator") + photoUUID + "." + format;
             File photo = new File(photoPath);
