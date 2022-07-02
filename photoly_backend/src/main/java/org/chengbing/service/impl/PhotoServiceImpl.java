@@ -44,19 +44,22 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
     @Resource
     NamespacePhotoMapper namespacePhotoMapper;
 
+    @Resource
+    NamespaceMapper namespaceMapper;
+
     @Value("${file.uploadFolder***REMOVED***")
     String uploadFolder;
 
     @Override
     public Integer insertPhoto(Integer userId, MultipartFile file, Photo photo) {
         String uuid = userMapper.selectById(userId).getUuid();
-        String fileName = file.getName();
-        String suffix = fileName.substring(fileName.lastIndexOf("."));
+        String fileName = file.getOriginalFilename();
+        String suffix = fileName.substring(fileName.lastIndexOf(".")+1);
         Integer visibility = photo.getVisibility();
         if (visibility == null || visibility < 0 || visibility > 3)
             photo.setVisibility(0);
         String photoUUID = (UUID.randomUUID().toString());
-        photo.setPhotoName(fileName);
+        photo.setPhotoName(fileName.substring(0, fileName.lastIndexOf(".")));
         photo.setPhotoUuid(photoUUID);
         photo.setFormat(suffix);
         photo.setToken(UUID.randomUUID().toString());
@@ -72,11 +75,51 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
         File photoFile = new File(localPath);
 ***REMOVED***
             file.transferTo(photoFile);
+            return mapper.insert(photo);
 ***REMOVED*** catch (IOException e) {
             throw new RuntimeException(e);
 ***REMOVED***
-        mapper.insert(photo);
-        return 1;
+***REMOVED***
+
+    @Override
+    public Integer insertPhotos(Integer userId, MultipartFile[] files, List<Photo> photos) {
+        String uuid = userMapper.selectById(userId).getUuid();
+        int total = photos.size();
+        if (total != files.length)
+            return -1;
+        int change = 0;
+        for (int i = 0; i < total; i ++)
+    ***REMOVED***
+            MultipartFile file = files[i];
+            Photo photo = photos.get(i);
+            String fileName = file.getOriginalFilename();
+            String suffix = fileName.substring(fileName.lastIndexOf(".")+1);
+            Integer visibility = photo.getVisibility();
+            if (visibility == null || visibility < 0 || visibility > 3)
+                photo.setVisibility(0);
+            String photoUUID = (UUID.randomUUID().toString());
+            photo.setPhotoName(fileName.substring(0, fileName.lastIndexOf(".")));
+            photo.setPhotoUuid(photoUUID);
+            photo.setFormat(suffix);
+            photo.setToken(UUID.randomUUID().toString());
+            photo.setUploadDate(LocalDateTime.now());
+            photo.setUserId(userId);
+
+            // String fileType = file.getContentType();
+            String folderLoc = uploadFolder + System.getProperty("file.separator") + uuid;
+            File file1 = new File(folderLoc);
+            if (!file1.exists())
+                file1.mkdir();
+            String localPath = folderLoc + System.getProperty("file.separator") + photoUUID + "." + suffix;
+            File photoFile = new File(localPath);
+    ***REMOVED***
+                file.transferTo(photoFile);
+                change += mapper.insert(photo);
+    ***REMOVED*** catch (IOException e) {
+                throw new RuntimeException(e);
+    ***REMOVED***
+***REMOVED***
+        return change;
 ***REMOVED***
 
     @Override
@@ -98,15 +141,13 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
             if (isDeleted)
                 return mapper.deleteById(photoId);
 ***REMOVED***
-***REMOVED***
+        return -1;
 ***REMOVED***
 
     @Override
     public Integer updatePhotoNameAndVisibility(Integer userId, Photo photo) {
-        if (!userId.equals(photo.getUserId()))
-            return -1;
         QueryWrapper<Photo> wrapper = new QueryWrapper<>();
-        wrapper.eq("photo_id", photo.getPhotoName());
+        wrapper.eq("photo_id", photo.getPhotoId());
         wrapper.eq("user_id", userId);
         Photo selected = mapper.selectOne(wrapper);
         if (selected != null)
@@ -117,7 +158,7 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
             updateWrapper.set("visibility", photo.getVisibility());
             return mapper.update(null, updateWrapper);
 ***REMOVED***
-***REMOVED***
+        return -1;
 ***REMOVED***
 
     @Override
@@ -130,16 +171,29 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
 
     @Override
     public Integer changeNamespace(Integer userId, Integer photoId, Integer nsId) {
-        QueryWrapper<NamespacePhoto> wrapper = new QueryWrapper<>();
+        /*QueryWrapper<NamespacePhoto> wrapper = new QueryWrapper<>();
         wrapper.eq("photo_id", photoId);
         NamespacePhoto namespacePhoto = namespacePhotoMapper.selectOne(wrapper);
         namespacePhoto.setNsId(nsId);
-        namespacePhotoMapper.updateById(namespacePhoto);
+        namespacePhotoMapper.updateById(namespacePhoto);*/
 
-        UpdateWrapper<Photo> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("photo_id", photoId);
-        updateWrapper.set("ns_id", nsId);
-        return mapper.update(null, updateWrapper);
+        QueryWrapper<Namespace> namespaceQueryWrapper = new QueryWrapper<>();
+        namespaceQueryWrapper.eq("ns_id", nsId);
+        namespaceQueryWrapper.eq("user_id", userId);
+        Namespace namespace = namespaceMapper.selectOne(namespaceQueryWrapper);
+
+        QueryWrapper<Photo> wrapper = new QueryWrapper<>();
+        wrapper.eq("photo_id", photoId);
+        wrapper.eq("user_id", userId);
+        Photo selected = mapper.selectOne(wrapper);
+        if (namespace != null && selected != null)
+    ***REMOVED***
+            UpdateWrapper<Photo> updateWrapper = new UpdateWrapper<>();
+            updateWrapper.eq("photo_id", photoId);
+            updateWrapper.set("ns_id", nsId);
+            return mapper.update(null, updateWrapper);
+***REMOVED***
+        return -1;
 ***REMOVED***
 
 

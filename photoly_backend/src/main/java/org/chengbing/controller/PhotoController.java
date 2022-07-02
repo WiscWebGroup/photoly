@@ -1,7 +1,10 @@
 package org.chengbing.controller;
 
 
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.TypeReference;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.fasterxml.jackson.databind.util.JSONPObject;
 import org.chengbing.entity.Photo;
 import org.chengbing.service.IPhotoService;
 import org.chengbing.service.IUserService;
@@ -19,6 +22,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 ***REMOVED***
@@ -48,27 +52,26 @@ public class PhotoController {
     String serverPath;
 
     @PostMapping("/insert")
-    public Result<Integer> insertPhoto(HttpServletRequest request, MultipartFile file, @RequestBody Photo photo)
+    public Result<Integer> insertPhoto(HttpServletRequest request, MultipartFile file, @RequestParam String photo)
 ***REMOVED***
+        Photo photo1 = JSONObject.parseObject(photo, Photo.class);
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(null, 403);
-        int change = service.insertPhoto(userId, file, photo);
+        int change = service.insertPhoto(userId, file, photo1);
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
 ***REMOVED***
 
     @PostMapping("/inserts")
-    public Result<Integer> insertPhotos(HttpServletRequest request, MultipartFile[] files, @RequestBody List<Photo> photo)
+    public Result<Integer> insertPhotos(HttpServletRequest request, MultipartFile[] files, @RequestParam String photosStr)
 ***REMOVED***
-        if (files.length != photo.size())
+        List<Photo> photos = JSONObject.parseObject(photosStr, new TypeReference<ArrayList<Photo>>(){***REMOVED***);
+        if (files.length != photos.size())
     ***REMOVED***
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(null, 403);
-        int total = photo.size();
-        int change = 0;
-        for (int i = 0; i < total; i ++)
-            change += service.insertPhoto(userId, files[i], photo.get(i));
+        int change = service.insertPhotos(userId, files, photos);
         return change >= 1 ? new Result<>(change, 200) : new Result<>(change, 400);
 ***REMOVED***
 
@@ -92,7 +95,7 @@ public class PhotoController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
 ***REMOVED***
 
-    @PostMapping("/getByNamespace")
+    @GetMapping("/getByNamespace")
     public Result<List<Photo>> queryPhotoByNamespace(HttpServletRequest request, Integer nsId)
 ***REMOVED***
         Integer userId = verify.verifyUser(request);
@@ -101,8 +104,8 @@ public class PhotoController {
         return new Result<>(service.queryPhotoByNamespace(userId, nsId), 200);
 ***REMOVED***
 
-    @PostMapping("/getByTags")
-    public Result<List<Photo>> queryPhotoByTags(HttpServletRequest request, List<Integer> tagIds)
+    @GetMapping("/getByTags")
+    public Result<List<Photo>> queryPhotoByTags(HttpServletRequest request, @RequestParam List<Integer> tagIds)
 ***REMOVED***
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
@@ -110,7 +113,7 @@ public class PhotoController {
         return new Result<>(service.queryPhotoByTags(userId, tagIds), 200);
 ***REMOVED***
 
-    @PostMapping("/getByGallery")
+    @GetMapping("/getByGallery")
     public Result<List<Photo>> queryPhotoByGallery(HttpServletRequest request, Integer gaId)
 ***REMOVED***
         Integer userId = verify.verifyUser(request);
@@ -130,7 +133,7 @@ public class PhotoController {
 ***REMOVED***
 
     @PostMapping("/addTags")
-    public Result<Integer> addTags(HttpServletRequest request, Integer photoId, List<Integer> tagIds)
+    public Result<Integer> addTags(HttpServletRequest request, Integer photoId, @RequestParam List<Integer> tagIds)
 ***REMOVED***
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
@@ -188,14 +191,17 @@ public class PhotoController {
 
     @GetMapping(value = "/renderToken", produces = MediaType.IMAGE_JPEG_VALUE)
     public byte[] renderImageToken(String path, String token) throws IOException {
+        String photoUUID = path.split("/")[1];
+        String uuid = photoUUID.substring(0, photoUUID.lastIndexOf("."));
         QueryWrapper<Photo> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("token", token);
+        queryWrapper.eq("photo_uuid", uuid);
         Photo photo = service.getOne(queryWrapper);
-        Integer userId = photo.getUserId();
+        if (photo == null)
+    ***REMOVED***
         if (photo.getVisibility() == 0)
     ***REMOVED***
         else if (photo.getVisibility() == 1) {
-            if (token.equals(photo.getToken()))
+            if (token != null && token.equals(photo.getToken()))
    ***REMOVED*****REMOVED***
                 File file = new File(uploadFolder + System.getProperty("file.separator") + path);
                 FileInputStream inputStream = new FileInputStream(file);
@@ -224,9 +230,13 @@ public class PhotoController {
         queryWrapper.eq("photo_id", photoId);
         queryWrapper.eq("user_id", userId);
         Photo photo = service.getOne(queryWrapper);
-        String path = serverPath + "/photo/renderToken?path=" + UUID + "/" + photo.getPhotoUuid() + "." + photo.getFormat()
-                 + "&token=" + photo.getToken();
-        return new Result<>(path, 200);
+        if (photo != null)
+    ***REMOVED***
+            String path = serverPath + "/photo/renderToken?path=" + UUID + "/" + photo.getPhotoUuid() + "." + photo.getFormat()
+                     + "&token=" + photo.getToken();
+            return new Result<>(path, 200);
+***REMOVED***else
+            return new Result<>(null, 403);
 ***REMOVED***
 ***REMOVED***
 
