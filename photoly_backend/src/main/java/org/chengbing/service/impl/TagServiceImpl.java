@@ -46,8 +46,7 @@ public class TagServiceImpl extends ServiceImpl<TagMapper, Tag> implements ITagS
 
     @Override
     public Integer updateTag(int userId, Tag tag) {
-        if (userId != tag.getUserId())
-            return -1;
+        tag.setUserId(userId);
         QueryWrapper<Tag> wrapper = new QueryWrapper<>();
         wrapper.eq("tag_id", tag.getTagId());
         wrapper.eq("user_id", userId);

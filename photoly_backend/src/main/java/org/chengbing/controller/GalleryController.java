@@ -73,7 +73,8 @@ public class GalleryController {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-1, 403);
-        return new Result<>(service.deleteGallery(userId, gaId), 200);
+        int res = service.deleteGallery(userId, gaId);
+        return res == 1 ? new Result<>(res, 200) : new Result<>(res, 400);
 ***REMOVED***
 
     @PostMapping("/update")
@@ -82,7 +83,8 @@ public class GalleryController {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-1, 403);
-        return new Result<>(service.updateGallery(userId, gallery.getGaId(), gallery), 200);
+        int res = service.updateGallery(userId, gallery.getGaId(), gallery);
+        return res == 1 ? new Result<>(res, 200) : new Result<>(res, 400);
 ***REMOVED***
 ***REMOVED***
 
