@@ -32,7 +32,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Resource
     UserMapper mapper;
 
-    @Value("file.uploadFolder")
+    @Value("${file.uploadFolder}")
     String uploadFolder;
 
     @Override
@@ -84,7 +84,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Override
     public Integer updatePassword(Integer userId, String oldPass, String newPass) {
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("userId", userId);
+        queryWrapper.eq("user_id", userId);
         queryWrapper.eq("password", AESUtil.aesEncryptStr(oldPass, AESUtil.getPkey()));
         User data = mapper.selectOne(queryWrapper);
         if (data == null)
