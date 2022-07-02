@@ -6,7 +6,7 @@ import ImageView from "./ImageView";
 
 const Images: React.FC = () => {
     const [showContext, handleContextMenu, anchorPoint] = useContextMenu()
-    const [isModalOpen, setIsModalOpen] = React.useState(true)
+    const [isModalOpen, setIsModalOpen] = React.useState(false)
     return (
         <>
             <Flex w={"100%"} justifyContent={"flex-start"} wrap={"wrap"}>
