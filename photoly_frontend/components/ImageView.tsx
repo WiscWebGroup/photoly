@@ -22,7 +22,7 @@ const ImageView: React.FC<ImageViewProps> = ({isModalOpen, setIsModelOpen}) => {
             {isModalOpen && (
                 <HStack position={"fixed"} w={"1600px"} h={"800px"} rounded={"lg"} bg={"gray.50"} top={"50%"}
                         left={"50%"}
-                        transform={"translate(-50%, -50%)"} ref={ref} backdropBlur={"lg"} backdropFilter={"auto"}>
+                        transform={"translate(-50%, -50%)"} ref={ref}>
                     <Image src={"https://www.industrialempathy.com/img/remote/ZiClJf-1920w.jpg"} alt={"image"}
                            rounded={"10px"}
                            w={"80%"} h={"100%"} objectFit={"fill"}/>

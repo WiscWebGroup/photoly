@@ -37,4 +37,16 @@ describe("<Navbar/> functionality", () => {
         await userEvent.click(getByText(/manage/i))
         expect(mockRouter.push).toHaveBeenCalledWith("/manage")
     })
+
+    test("test logout page redirection", async () => {
+        const mockRouter = {
+            push: jest.fn() // the component uses `router.push` only
+        };
+        // make useRouter return an object with a fake push function in it
+        (useRouter as jest.Mock).mockReturnValue(mockRouter)
+        const {getByText} = render(<Navbar/>);
+
+        await userEvent.click(getByText(/logout/i))
+        expect(mockRouter.push).toHaveBeenCalledWith("/login")
+    })
 })
