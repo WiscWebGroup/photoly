@@ -22,14 +22,14 @@ const ImageView: React.FC<ImageViewProps> = ({isModalOpen, setIsModelOpen***REMO
    ***REMOVED*****REMOVED***isModalOpen && (
                 <HStack position={"fixed"***REMOVED*** w={"1600px"***REMOVED*** h={"800px"***REMOVED*** rounded={"lg"***REMOVED*** bg={"gray.50"***REMOVED*** top={"50%"***REMOVED***
                         left={"50%"***REMOVED***
-                        transform={"translate(-50%, -50%)"***REMOVED*** ref={ref***REMOVED*** backdropBlur={"lg"***REMOVED*** backdropFilter={"auto"***REMOVED***>
+                        transform={"translate(-50%, -50%)"***REMOVED*** ref={ref***REMOVED***>
                     <Image src={"https://www.industrialempathy.com/img/remote/ZiClJf-1920w.jpg"***REMOVED*** alt={"image"***REMOVED***
                            rounded={"10px"***REMOVED***
                            w={"80%"***REMOVED*** h={"100%"***REMOVED*** objectFit={"fill"***REMOVED***/>
                     <VStack w={"100%"***REMOVED*** h={"100%"***REMOVED*** p={4***REMOVED***>
                         <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Tags</Text>
                         <Flex flexWrap={"wrap"***REMOVED***>
-    ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
+         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
                                 <Tag
                                     size={"md"***REMOVED***
                                     key={tag***REMOVED***
@@ -45,7 +45,7 @@ const ImageView: React.FC<ImageViewProps> = ({isModalOpen, setIsModelOpen***REMO
                         <Divider/>
                         <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Albums</Text>
                         <Flex flexWrap={"wrap"***REMOVED***>
-    ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
+         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
                                 <Tag
                                     size={"md"***REMOVED***
                                     key={tag***REMOVED***
