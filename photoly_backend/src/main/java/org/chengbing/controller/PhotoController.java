@@ -41,10 +41,10 @@ public class PhotoController {
     @Resource
     IUserService userService;
 
-    @Value("file.uploadFolder")
+    @Value("${file.uploadFolder***REMOVED***")
     String uploadFolder;
 
-    @Value("server.path")
+    @Value("${server.path***REMOVED***")
     String serverPath;
 
     @PostMapping("/insert")

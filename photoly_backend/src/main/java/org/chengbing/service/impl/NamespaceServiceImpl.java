@@ -73,15 +73,14 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
 
     @Override
     public Integer updateNamespaceName(int userId, Namespace namespace) {
-        if (userId != namespace.getUserId())
-            return -1;
         if (namespace.getNsName() == null || namespace.getNsName().equals("") || namespace.getNsName().equals("/"))
             return -1;
         QueryWrapper<Namespace> wrapper = new QueryWrapper<>();
         wrapper.eq("ns_id", namespace.getNsId());
         wrapper.eq("user_id", userId);
         Namespace selected = mapper.selectOne(wrapper);
-        if (selected!=null && selected.getNsId() != null && selected.getUserId() != null && selected.getUserId() == userId && Objects.equals(selected.getNsId(), namespace.getNsId()))
+        if (selected!=null && selected.getNsId() != null && selected.getUserId() != null && selected.getUserId() == userId &&
+                Objects.equals(selected.getNsId(), namespace.getNsId()) && !namespace.getNsName().equals("/") && !selected.getNsName().equals("/"))
     ***REMOVED***
             UpdateWrapper<Namespace> updateWrapper = new UpdateWrapper<>();
             updateWrapper.eq("ns_id", namespace.getNsId());
@@ -93,15 +92,14 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
 
     @Override
     public Integer updateNamespaceParent(int userId, Namespace namespace) {
-        if (userId != namespace.getUserId())
-            return -1;
         if (namespace.getNsParentId() == null || namespace.getNsParentId() < 0)
             return -1;
         QueryWrapper<Namespace> wrapper = new QueryWrapper<>();
         wrapper.eq("ns_id", namespace.getNsId());
         wrapper.eq("user_id", userId);
         Namespace selected = mapper.selectOne(wrapper);
-        if (selected!=null && selected.getNsId() != null && selected.getUserId() != null && selected.getUserId() == userId && Objects.equals(selected.getNsId(), namespace.getNsId()))
+        if (selected!=null && selected.getNsId() != null && selected.getUserId() != null && selected.getUserId() == userId && Objects.equals(selected.getNsId(), namespace.getNsId())
+        && !selected.getNsName().equals("/"))
     ***REMOVED***
             UpdateWrapper<Namespace> updateWrapper = new UpdateWrapper<>();
             updateWrapper.eq("ns_id", namespace.getNsId());
@@ -113,7 +111,7 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
 
     @Override
     public Integer insertNamespace(Integer userId, Namespace namespace) {
-        if (namespace.getNsName() == null || namespace.getNsName().equals("") || namespace.getNsName().equals("/"))
+        if (namespace.getNsName() == null || namespace.getNsName().equals("") || namespace.getNsName().equals("/") || namespace.getNsParentId() == null)
             return -1;
         namespace.setUserId(userId);
         return mapper.insert(namespace);
@@ -126,13 +124,13 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
         wrapper.eq("user_id", userId);
         Namespace selected = mapper.selectOne(wrapper);
         if (selected!=null && selected.getNsId() != null && selected.getUserId() != null && Objects.equals(selected.getUserId(), userId) &&
-                Objects.equals(selected.getNsId(), nsId))
+                Objects.equals(selected.getNsId(), nsId) && !selected.getNsName().equals("/"))
     ***REMOVED***
             String userUUID = userMapper.selectById(userId).getUuid();
             // Delete all the namespaces whose parent folder is this one and delete all photos
             return deletePhotoHelper(userId, nsId, userUUID);
 ***REMOVED***
-***REMOVED***
+        return -1;
 ***REMOVED***
 
     public Integer deletePhotoHelper(Integer userId, Integer nsId, String userUUID)
@@ -141,7 +139,7 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
         // Get all sub namespaces
         QueryWrapper<Namespace> wrapper = new QueryWrapper<>();
         wrapper.eq("user_id", userId);
-        wrapper.eq("ns_id", nsId);
+        wrapper.eq("ns_parent_id", nsId);
         List<Namespace> data = mapper.selectList(wrapper);
         // Get all photos in the current namespace
         QueryWrapper<NamespacePhoto> wrapper2 = new QueryWrapper<>();
