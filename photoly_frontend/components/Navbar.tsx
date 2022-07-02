@@ -9,7 +9,7 @@ const Navbar: React.FC = () => {
         <HStack bg={"teal.400"***REMOVED*** w={"100%"***REMOVED*** h={16***REMOVED*** color={"white"***REMOVED*** p={4***REMOVED***
                 justifyContent={"space-between"***REMOVED***>
             <HStack>
-                <Image src={"/logo.png"***REMOVED*** alt={"logo"***REMOVED*** width={"50px"***REMOVED*** height={"50px"***REMOVED*** data-testid={"logo"***REMOVED***/>
+                <Image src={"/favicon.ico"***REMOVED*** alt={"logo"***REMOVED*** width={"50px"***REMOVED*** height={"50px"***REMOVED*** data-testid={"logo"***REMOVED***/>
                 <Text fontSize={"xl"***REMOVED*** fontWeight={"medium"***REMOVED***>PHOTOLY</Text>
             </HStack>
             <HStack h={"inherit"***REMOVED*** p={2***REMOVED*** spacing={4***REMOVED*** mr={4***REMOVED***>
