@@ -196,7 +196,7 @@ public class PhotoController {
     ***REMOVED***
         else if (photo.getVisibility() == 1) {
             if (token.equals(photo.getToken()))
-   ***REMOVED*****REMOVED***
+        ***REMOVED***
                 File file = new File(uploadFolder + System.getProperty("file.separator") + path);
                 FileInputStream inputStream = new FileInputStream(file);
                 byte[] bytes = new byte[inputStream.available()];
