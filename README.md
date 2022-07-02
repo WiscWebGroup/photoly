@@ -1,2 +1,2 @@
-# photoly
-This is a Picture Bed Application
+# Photoly
+This is a picture host application.
