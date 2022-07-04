@@ -2,7 +2,6 @@ import {Button, Center, Input, InputGroup, InputRightElement, Text, useBoolean, 
 import React, {ChangeEvent, useState} from "react";
 import {useRouter} from "next/router";
 
-
 const Login: React.FC = () => {
     const [show, setShow] = useBoolean(false)
     const [email, setEmail] = useState<string | undefined>()
