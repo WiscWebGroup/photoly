@@ -2,7 +2,6 @@ import {Button, Center, Input, InputGroup, InputRightElement, Text, useBoolean, 
 import React, {ChangeEvent, useState***REMOVED*** from "react";
 import {useRouter***REMOVED*** from "next/router";
 
-
 const Login: React.FC = () => {
     const [show, setShow] = useBoolean(false)
     const [email, setEmail] = useState<string | undefined>()
@@ -27,7 +26,7 @@ const Login: React.FC = () => {
                            onChange={handlePasswordChange***REMOVED***></Input>
                     <InputRightElement pr={1***REMOVED***>
                         <Button padding={4***REMOVED*** size='sm' onClick={setShow.toggle***REMOVED*** fontSize="xs">
-         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***show ? 'Hide' : 'Show'***REMOVED***
+    ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***show ? 'Hide' : 'Show'***REMOVED***
                         </Button>
                     </InputRightElement>
                 </InputGroup>
