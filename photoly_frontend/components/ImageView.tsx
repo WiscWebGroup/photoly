@@ -1,25 +1,25 @@
-import React, {Dispatch, SetStateAction} from "react";
+import React from "react";
 import {Box, Divider, Flex, HStack, Image, Tag, TagLabel, Text, useOutsideClick, VStack} from "@chakra-ui/react";
 
 interface ImageViewProps {
-    isModalOpen: boolean,
-    setIsModelOpen: Dispatch<SetStateAction<boolean>>
+    isViewOpen: boolean,
+    onViewClose: () => void
 }
 
-const ImageView: React.FC<ImageViewProps> = ({isModalOpen, setIsModelOpen}) => {
+const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose}) => {
     const ref = React.useRef() as React.MutableRefObject<HTMLDivElement>
     useOutsideClick({
         ref: ref,
-        handler: () => setIsModelOpen(false),
+        handler: onViewClose,
     })
     const tags = ["Animals", "Cute", "Furry", "SM", "BL", "🔞", "White hair", "Monster ear"]
     return (
         <>
-            {isModalOpen && (
+            {isViewOpen && (
                 <Box w={"100vw"} h={"100vh"} position={"fixed"} bg={"gray.100"} zIndex={"-1"} top={"50%"} left={"50%"}
                      transform={"translate(-50%, -50%)"}></Box>
             )}
-            {isModalOpen && (
+            {isViewOpen && (
                 <HStack position={"fixed"} w={"1600px"} h={"800px"} rounded={"lg"} bg={"gray.50"} top={"50%"}
                         left={"50%"}
                         transform={"translate(-50%, -50%)"} ref={ref}>
