@@ -1,25 +1,25 @@
-import React, {Dispatch, SetStateAction***REMOVED*** from "react";
+import React from "react";
 import {Box, Divider, Flex, HStack, Image, Tag, TagLabel, Text, useOutsideClick, VStack***REMOVED*** from "@chakra-ui/react";
 
 interface ImageViewProps {
-    isModalOpen: boolean,
-    setIsModelOpen: Dispatch<SetStateAction<boolean>>
+    isViewOpen: boolean,
+    onViewClose: () => void
 ***REMOVED***
 
-const ImageView: React.FC<ImageViewProps> = ({isModalOpen, setIsModelOpen***REMOVED***) => {
+const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose***REMOVED***) => {
     const ref = React.useRef() as React.MutableRefObject<HTMLDivElement>
     useOutsideClick({
         ref: ref,
-        handler: () => setIsModelOpen(false),
+        handler: onViewClose,
 ***REMOVED***)
     const tags = ["Animals", "Cute", "Furry", "SM", "BL", "🔞", "White hair", "Monster ear"]
     return (
         <>
-   ***REMOVED*****REMOVED***isModalOpen && (
+        ***REMOVED***isViewOpen && (
                 <Box w={"100vw"***REMOVED*** h={"100vh"***REMOVED*** position={"fixed"***REMOVED*** bg={"gray.100"***REMOVED*** zIndex={"-1"***REMOVED*** top={"50%"***REMOVED*** left={"50%"***REMOVED***
                      transform={"translate(-50%, -50%)"***REMOVED***></Box>
             )***REMOVED***
-   ***REMOVED*****REMOVED***isModalOpen && (
+        ***REMOVED***isViewOpen && (
                 <HStack position={"fixed"***REMOVED*** w={"1600px"***REMOVED*** h={"800px"***REMOVED*** rounded={"lg"***REMOVED*** bg={"gray.50"***REMOVED*** top={"50%"***REMOVED***
                         left={"50%"***REMOVED***
                         transform={"translate(-50%, -50%)"***REMOVED*** ref={ref***REMOVED***>
@@ -29,7 +29,7 @@ const ImageView: React.FC<ImageViewProps> = ({isModalOpen, setIsModelOpen***REMO
                     <VStack w={"100%"***REMOVED*** h={"100%"***REMOVED*** p={4***REMOVED***>
                         <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Tags</Text>
                         <Flex flexWrap={"wrap"***REMOVED***>
-         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
+                        ***REMOVED***tags.map((tag) =>
                                 <Tag
                                     size={"md"***REMOVED***
                                     key={tag***REMOVED***
@@ -45,7 +45,7 @@ const ImageView: React.FC<ImageViewProps> = ({isModalOpen, setIsModelOpen***REMO
                         <Divider/>
                         <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Albums</Text>
                         <Flex flexWrap={"wrap"***REMOVED***>
-         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
+                        ***REMOVED***tags.map((tag) =>
                                 <Tag
                                     size={"md"***REMOVED***
                                     key={tag***REMOVED***
