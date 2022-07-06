@@ -12,7 +12,7 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose***REMOVED*
         ref: ref,
         handler: onViewClose,
 ***REMOVED***)
-    const tags = ["Animals", "Cute", "Furry", "SM", "BL", "🔞", "White hair", "Monster ear"]
+    const tags = ["Animals", "Cute", "Furry", "White hair", "Landscape"]
     return (
         <>
    ***REMOVED*****REMOVED***isViewOpen && (
@@ -20,8 +20,8 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose***REMOVED*
                      transform={"translate(-50%, -50%)"***REMOVED***></Box>
             )***REMOVED***
    ***REMOVED*****REMOVED***isViewOpen && (
-                <HStack position={"fixed"***REMOVED*** w={"1600px"***REMOVED*** h={"800px"***REMOVED*** rounded={"lg"***REMOVED*** bg={"gray.50"***REMOVED*** top={"50%"***REMOVED***
-                        left={"50%"***REMOVED***
+                <HStack position={"fixed"***REMOVED*** w={"85vw"***REMOVED*** h={"85vh"***REMOVED*** rounded={"lg"***REMOVED*** bg={"gray.50"***REMOVED*** top={"50%"***REMOVED***
+                        left={"50%"***REMOVED*** zIndex={999***REMOVED***
                         transform={"translate(-50%, -50%)"***REMOVED*** ref={ref***REMOVED***>
                     <Image src={"https://www.industrialempathy.com/img/remote/ZiClJf-1920w.jpg"***REMOVED*** alt={"image"***REMOVED***
                            rounded={"10px"***REMOVED***
