@@ -1,13 +1,9 @@
-import {Box, Button, Flex, Image, Text***REMOVED*** from "@chakra-ui/react";
-import ImageContextMenu from "./ImageContextMenu";
-import {useContextMenu***REMOVED*** from "../hooks/useContextMenu";
+import {Button, Flex, Text***REMOVED*** from "@chakra-ui/react";
 import React from "react";
-import ImageView from "./ImageView";
 import {AiOutlineFolderOpen***REMOVED*** from 'react-icons/ai'
+import ImageItem from "./ImageItem";
 
 const Images: React.FC = () => {
-    const [showContext, handleContextMenu, anchorPoint] = useContextMenu()
-    const [isModalOpen, setIsModalOpen] = React.useState(false)
     return (
         <>
             <Text alignSelf={"flex-start"***REMOVED*** fontSize={"xl"***REMOVED*** fontWeight={"semibold"***REMOVED*** pl={2***REMOVED***>Folders</Text>
@@ -27,15 +23,9 @@ const Images: React.FC = () => {
             </Flex>
             <Text alignSelf={"flex-start"***REMOVED*** fontSize={"xl"***REMOVED*** fontWeight={"semibold"***REMOVED*** pl={2***REMOVED***>Images</Text>
             <Flex w={"100%"***REMOVED*** justifyContent={"flex-start"***REMOVED*** wrap={"wrap"***REMOVED***>
-                <Box maxW='sm' overflow='hidden' p={2***REMOVED*** onContextMenu={handleContextMenu***REMOVED***>
-                    <Image src={"https://bit.ly/2Z4KKcF"***REMOVED*** alt={"image"***REMOVED*** borderRadius='lg' onClick={() => setIsModalOpen(true)***REMOVED***/>
-                </Box>
-                <Box maxW='sm' overflow='hidden' p={2***REMOVED*** onContextMenu={handleContextMenu***REMOVED*** onClick={() => setIsModalOpen(true)***REMOVED***>
-                    <Image src={"https://bit.ly/2Z4KKcF"***REMOVED*** alt={"image"***REMOVED*** borderRadius='lg'/>
-                </Box>
+                <ImageItem src="https://bit.ly/2Z4KKcF" alt="image" />
+                <ImageItem src="https://bit.ly/2Z4KKcF" alt="image" />
             </Flex>
-        ***REMOVED***showContext && <ImageContextMenu x={anchorPoint.x***REMOVED*** y={anchorPoint.y***REMOVED***/>***REMOVED***
-            <ImageView isModalOpen={isModalOpen***REMOVED*** setIsModelOpen={setIsModalOpen***REMOVED***/>
         </>
 
     )

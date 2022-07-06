@@ -15,11 +15,11 @@ const ImageView: React.FC<ImageViewProps> = ({isModalOpen, setIsModelOpen***REMO
     const tags = ["Animals", "Cute", "Furry", "SM", "BL", "🔞", "White hair", "Monster ear"]
     return (
         <>
-        ***REMOVED***isModalOpen && (
+   ***REMOVED*****REMOVED***isModalOpen && (
                 <Box w={"100vw"***REMOVED*** h={"100vh"***REMOVED*** position={"fixed"***REMOVED*** bg={"gray.100"***REMOVED*** zIndex={"-1"***REMOVED*** top={"50%"***REMOVED*** left={"50%"***REMOVED***
                      transform={"translate(-50%, -50%)"***REMOVED***></Box>
             )***REMOVED***
-        ***REMOVED***isModalOpen && (
+   ***REMOVED*****REMOVED***isModalOpen && (
                 <HStack position={"fixed"***REMOVED*** w={"1600px"***REMOVED*** h={"800px"***REMOVED*** rounded={"lg"***REMOVED*** bg={"gray.50"***REMOVED*** top={"50%"***REMOVED***
                         left={"50%"***REMOVED***
                         transform={"translate(-50%, -50%)"***REMOVED*** ref={ref***REMOVED***>
@@ -29,7 +29,7 @@ const ImageView: React.FC<ImageViewProps> = ({isModalOpen, setIsModelOpen***REMO
                     <VStack w={"100%"***REMOVED*** h={"100%"***REMOVED*** p={4***REMOVED***>
                         <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Tags</Text>
                         <Flex flexWrap={"wrap"***REMOVED***>
-                        ***REMOVED***tags.map((tag) =>
+         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
                                 <Tag
                                     size={"md"***REMOVED***
                                     key={tag***REMOVED***
@@ -45,7 +45,7 @@ const ImageView: React.FC<ImageViewProps> = ({isModalOpen, setIsModelOpen***REMO
                         <Divider/>
                         <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Albums</Text>
                         <Flex flexWrap={"wrap"***REMOVED***>
-                        ***REMOVED***tags.map((tag) =>
+         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
                                 <Tag
                                     size={"md"***REMOVED***
                                     key={tag***REMOVED***
