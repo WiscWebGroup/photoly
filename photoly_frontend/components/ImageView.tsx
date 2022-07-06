@@ -29,7 +29,7 @@ const ImageView: React.FC<ImageViewProps> = ({isModalOpen, setIsModelOpen***REMO
                     <VStack w={"100%"***REMOVED*** h={"100%"***REMOVED*** p={4***REMOVED***>
                         <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Tags</Text>
                         <Flex flexWrap={"wrap"***REMOVED***>
-    ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
+         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
                                 <Tag
                                     size={"md"***REMOVED***
                                     key={tag***REMOVED***
@@ -45,7 +45,7 @@ const ImageView: React.FC<ImageViewProps> = ({isModalOpen, setIsModelOpen***REMO
                         <Divider/>
                         <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Albums</Text>
                         <Flex flexWrap={"wrap"***REMOVED***>
-    ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
+         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
                                 <Tag
                                     size={"md"***REMOVED***
                                     key={tag***REMOVED***
