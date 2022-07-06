@@ -1,5 +1,7 @@
-import {Checkbox***REMOVED*** from "@chakra-ui/react";
+import { Box, Checkbox ***REMOVED*** from "@chakra-ui/react";
+import { ContextMenu ***REMOVED*** from "chakra-ui-contextmenu";
 import React from "react";
+import TagContextMenu from "./contextMenus/TagContextMenu";
 
 interface TagItemProps {
     tagName: string
@@ -7,7 +9,16 @@ interface TagItemProps {
 
  const TagItem: React.FC<TagItemProps> = ({tagName***REMOVED***) => {
     return (
-        <Checkbox variant={"ghost"***REMOVED*** w={"100%"***REMOVED*** pl={4***REMOVED***>{tagName***REMOVED***</Checkbox >
+        <ContextMenu<HTMLDivElement>
+            renderMenu={() => (<TagContextMenu />)***REMOVED***
+        >
+   ***REMOVED*****REMOVED***ref => (
+                <Box ref={ref***REMOVED*** w='100%'>
+                    <Checkbox variant='ghost' w='100%'>{tagName***REMOVED***</Checkbox >
+                </Box>
+            )***REMOVED***
+        </ContextMenu>
+        
     )
 ***REMOVED***
 export default TagItem
