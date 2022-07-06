@@ -34,7 +34,7 @@ const Images: React.FC = () => {
                     <Image src={"https://bit.ly/2Z4KKcF"***REMOVED*** alt={"image"***REMOVED*** borderRadius='lg'/>
                 </Box>
             </Flex>
-        ***REMOVED***showContext && <ImageContextMenu x={anchorPoint.x***REMOVED*** y={anchorPoint.y***REMOVED***/>***REMOVED***
+   ***REMOVED*****REMOVED***showContext && <ImageContextMenu x={anchorPoint.x***REMOVED*** y={anchorPoint.y***REMOVED***/>***REMOVED***
             <ImageView isModalOpen={isModalOpen***REMOVED*** setIsModelOpen={setIsModalOpen***REMOVED***/>
         </>
 
