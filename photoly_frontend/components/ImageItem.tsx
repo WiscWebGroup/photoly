@@ -11,7 +11,7 @@ const ImageItem = (props: Exclude<ImageProps, "onClick" | "borderRadius">) => {
         >
             {ref => (
                 <Box ref={ref} maxW='sm' overflow='hidden' position='relative' p={2}>
-                    <Image {...props} borderRadius='lg' onClick={onOpen}/>
+                    <Image {...props} borderRadius='lg' onClick={onOpen} alt={"image"}/>
                     <ImageView isViewOpen={isOpen} onViewClose={onClose}/>
                 </Box>
             )}

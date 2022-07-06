@@ -12,7 +12,7 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose}) => {
         ref: ref,
         handler: onViewClose,
     })
-    const tags = ["Animals", "Cute", "Furry", "SM", "BL", "🔞", "White hair", "Monster ear"]
+    const tags = ["Animals", "Cute", "Furry", "White hair", "Landscape"]
     return (
         <>
             {isViewOpen && (
@@ -20,8 +20,8 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose}) => {
                      transform={"translate(-50%, -50%)"}></Box>
             )}
             {isViewOpen && (
-                <HStack position={"fixed"} w={"1600px"} h={"800px"} rounded={"lg"} bg={"gray.50"} top={"50%"}
-                        left={"50%"}
+                <HStack position={"fixed"} w={"85vw"} h={"85vh"} rounded={"lg"} bg={"gray.50"} top={"50%"}
+                        left={"50%"} zIndex={999}
                         transform={"translate(-50%, -50%)"} ref={ref}>
                     <Image src={"https://www.industrialempathy.com/img/remote/ZiClJf-1920w.jpg"} alt={"image"}
                            rounded={"10px"}
