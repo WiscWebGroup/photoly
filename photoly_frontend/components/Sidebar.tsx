@@ -3,9 +3,19 @@ import {AiFillHeart, AiFillTags***REMOVED*** from "react-icons/ai";
 import TagItem from "./TagItem";
 import {BiBaseball, BiPhotoAlbum***REMOVED*** from "react-icons/bi";
 import React from "react";
+import TagHeader from "./TagHeader";
 
 const Sidebar: React.FC = () => {
     const tags = ["Animals", "Cute", "Furry", "SM", "BL", "🔞", "White hair", "Monster ear"]
+
+    const addNewTag = () => {
+        console.log("DEBUG/TODO: add a new tag to the sidebar (use backend api).")
+***REMOVED***
+
+    const addNewCategory = () => {
+        console.log("DEBUG/TODO: add a new category to the sidebar (use backend api).")
+***REMOVED***
+
     return (
         <VStack w={52***REMOVED*** mt={4***REMOVED*** ml={4***REMOVED*** rounded={"lg"***REMOVED*** bg={"blackAlpha.50"***REMOVED*** p={4***REMOVED*** boxShadow={"lg"***REMOVED***>
             <HStack alignSelf={"flex-start"***REMOVED***>
@@ -13,23 +23,29 @@ const Sidebar: React.FC = () => {
             </HStack>
 
             <Divider/>
+            
+            <TagHeader 
+                headerIcon={AiFillTags***REMOVED*** 
+                iconColor="teal.400"
+                onAdd={addNewTag***REMOVED***
+            >
+                Your Tags
+            </TagHeader>
 
-            <HStack alignSelf={"flex-start"***REMOVED***>
-                <Icon as={AiFillTags***REMOVED*** color={"teal.400"***REMOVED***></Icon>
-                <Text>Your Tags</Text>
-            </HStack>
 
-
-        ***REMOVED***tags.map((tag) =>
-                <TagItem tagName={tag***REMOVED*** key={tag***REMOVED***></TagItem>
+        ***REMOVED***tags.map((tag, ind) =>
+                <TagItem tagName={tag***REMOVED*** key={ind***REMOVED***></TagItem>
             )***REMOVED***
 
             <Divider/>
 
-            <HStack alignSelf={"flex-start"***REMOVED***>
-                <Icon as={BiPhotoAlbum***REMOVED*** color={"teal.400"***REMOVED***></Icon>
-                <Text>Your Albums</Text>
-            </HStack>
+            <TagHeader 
+                headerIcon={BiPhotoAlbum***REMOVED*** 
+                iconColor="teal.400"
+                onAdd={addNewCategory***REMOVED***
+            >
+                Your Albums
+            </TagHeader>
 
             <Button variant={"ghost"***REMOVED*** w={"100%"***REMOVED*** justifyContent={"flex-start"***REMOVED***
                     leftIcon={<Icon as={AiFillHeart***REMOVED*** color={"red.400"***REMOVED***/>***REMOVED*** fontWeight={"normal"***REMOVED*** isActive={false***REMOVED***>My
