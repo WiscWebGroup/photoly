@@ -1,13 +1,9 @@
-import {Box, Button, Flex, Image, Text} from "@chakra-ui/react";
-import ImageContextMenu from "./ImageContextMenu";
-import {useContextMenu} from "../hooks/useContextMenu";
+import {Button, Flex, Text} from "@chakra-ui/react";
 import React from "react";
-import ImageView from "./ImageView";
 import {AiOutlineFolderOpen} from 'react-icons/ai'
+import ImageItem from "./ImageItem";
 
 const Images: React.FC = () => {
-    const [showContext, handleContextMenu, anchorPoint] = useContextMenu()
-    const [isModalOpen, setIsModalOpen] = React.useState(false)
     return (
         <>
             <Text alignSelf={"flex-start"} fontSize={"xl"} fontWeight={"semibold"} pl={2}>Folders</Text>
@@ -27,15 +23,9 @@ const Images: React.FC = () => {
             </Flex>
             <Text alignSelf={"flex-start"} fontSize={"xl"} fontWeight={"semibold"} pl={2}>Images</Text>
             <Flex w={"100%"} justifyContent={"flex-start"} wrap={"wrap"}>
-                <Box maxW='sm' overflow='hidden' p={2} onContextMenu={handleContextMenu}>
-                    <Image src={"https://bit.ly/2Z4KKcF"} alt={"image"} borderRadius='lg' onClick={() => setIsModalOpen(true)}/>
-                </Box>
-                <Box maxW='sm' overflow='hidden' p={2} onContextMenu={handleContextMenu} onClick={() => setIsModalOpen(true)}>
-                    <Image src={"https://bit.ly/2Z4KKcF"} alt={"image"} borderRadius='lg'/>
-                </Box>
+                <ImageItem src="https://bit.ly/2Z4KKcF" alt="image" />
+                <ImageItem src="https://bit.ly/2Z4KKcF" alt="image" />
             </Flex>
-            {showContext && <ImageContextMenu x={anchorPoint.x} y={anchorPoint.y}/>}
-            <ImageView isModalOpen={isModalOpen} setIsModelOpen={setIsModalOpen}/>
         </>
 
     )
