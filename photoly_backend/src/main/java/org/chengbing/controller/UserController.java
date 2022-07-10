@@ -23,6 +23,8 @@ import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 ***REMOVED***
  * <p>
@@ -53,6 +55,13 @@ public class UserController {
     @PostMapping("/signUp")
     public ResultToken<String> signUp(@RequestBody User user)
 ***REMOVED***
+        String email = user.getEmail();
+        if (email == null)
+            return new ResultToken<>("Email is null", null, 400);
+        Pattern pattern = Pattern.compile(".+@.+\\..+");
+        Matcher matcher = pattern.matcher(email);
+        if (!matcher.find())
+            return new ResultToken<>("Email is incorrect", null, 400);
         user.setUserId(null);
         user.setCreateDate(LocalDateTime.now());
         user.setPassword(AESUtil.aesEncryptStr(user.getPassword(), AESUtil.getPkey()));
