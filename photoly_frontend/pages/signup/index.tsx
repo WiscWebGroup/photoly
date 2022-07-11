@@ -1,18 +1,8 @@
-import {
-    Button,
-    Center,
-    Input,
-    InputGroup,
-    InputRightElement,
-    Text,
-    useBoolean,
-    useToast,
-    VStack
-} from "@chakra-ui/react";
+import {Button, Center, Input, InputGroup, InputRightElement, Text, useBoolean, VStack} from "@chakra-ui/react";
 import React from "react";
-import axios from "axios";
 import useLocalStorage, {TOKEN_KEY} from "../../hooks/useLocalStorage";
 import useLoginForm from "../../hooks/useLoginForm";
+import useApi from "../../hooks/useApi";
 
 const Login: React.FC = () => {
     const [
@@ -27,26 +17,18 @@ const Login: React.FC = () => {
         setLoading
     ] = useLoginForm()
     const [show, setShow] = useBoolean(false)
-    const toast = useToast()
     const {set} = useLocalStorage(TOKEN_KEY)
+    const {post} = useApi()
 
     const submitSignUp = async () => {
         setLoading.on()
-        await axios.post("/user/signUp", {
+        await post("/user/signUp", {
             userName: username,
             email: email,
             password: password
         }).then(res => {
             setLoading.off()
-            if (res.data.msgCode !== 200) {
-                toast({title: res.data.t, status: "error", isClosable: true, position: "top"})
-            } else {
-                toast({title: res.data.t, status: "success", isClosable: true, position: "top"})
-                set(res.data.token)
-                router.push("/home")
-            }
-        }).catch(err => {
-            toast({title: err, status: "error", isClosable: true, position: "top"})
+            set(res.data.token)
         })
     }
 
