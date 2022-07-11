@@ -28,7 +28,10 @@ const Login: React.FC = () => {
             password: password
 ***REMOVED***).then(res => {
             setLoading.off()
-            set(res.data.token)
+            if (!!res.data.token) {
+                set(res.data.token)
+                router.push("/home")
+    ***REMOVED***
 ***REMOVED***)
 ***REMOVED***
 
@@ -48,7 +51,7 @@ const Login: React.FC = () => {
                                onChange={handlePasswordChange***REMOVED*** isDisabled={isLoading***REMOVED***></Input>
                         <InputRightElement pr={1***REMOVED***>
                             <Button padding={4***REMOVED*** size='sm' onClick={setShow.toggle***REMOVED*** fontSize="xs">
-                            ***REMOVED***show ? 'Hide' : 'Show'***REMOVED***
+             ***REMOVED*****REMOVED*****REMOVED*****REMOVED***show ? 'Hide' : 'Show'***REMOVED***
                             </Button>
                         </InputRightElement>
                     </InputGroup>

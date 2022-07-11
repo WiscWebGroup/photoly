@@ -16,11 +16,16 @@ function useResponseHandler() {
     const router = useRouter()
     const toast = useToast()
     return ((res: AxiosResponse, path: string) => {
-        if (res.status === 401) {
-            toast({title: "Unauthorized", status: "warning", isClosable: true, position: "top"***REMOVED***)
-            remove()
-            router.push("/login")
-            console.debug("Unauthenticated access")
+        if (res.status === 200) {
+            // If request successful, check msgCode
+            if (res.data.msgCode === 401) {
+                toast({title: res.data.t, status: "warning", isClosable: true, position: "top"***REMOVED***)
+    ***REMOVED*** else if (res.data.msgCode == 403) {
+                toast({title: "Unauthorized", status: "warning", isClosable: true, position: "top"***REMOVED***)
+                remove()
+                router.push("/login")
+                console.debug("Unauthenticated access")
+    ***REMOVED***
             return res
 ***REMOVED*** else if (res.status === 404) {
             toast({title: "404 Not Found", status: "warning", isClosable: true, position: "top"***REMOVED***)
@@ -32,11 +37,6 @@ function useResponseHandler() {
             console.debug("Server error")
             return res
 ***REMOVED*** else {
-            if (res.data.msgCode === 401) {
-                toast({title: res.data.t, status: "warning", isClosable: true, position: "top"***REMOVED***)
-    ***REMOVED*** else {
-                toast({title: "Success!", status: "success", isClosable: true, position: "top"***REMOVED***)
-    ***REMOVED***
             return res
 ***REMOVED***
 ***REMOVED***)
