@@ -12,22 +12,18 @@ const Login: React.FC = () => {
         handleUsernameChange,
         handleEmailChange,
         handlePasswordChange,
-        router,
-        isLoading,
-        setLoading
+        router
     ] = useLoginForm()
     const [show, setShow] = useBoolean(false)
     const {set} = useLocalStorage(TOKEN_KEY)
-    const {post} = useApi()
+    const {post, isLoading} = useApi()
 
     const submitSignUp = async () => {
-        setLoading.on()
         await post("/user/signUp", {
             userName: username,
             email: email,
             password: password
         }).then(res => {
-            setLoading.off()
             if (!!res.data.token) {
                 set(res.data.token)
                 router.push("/home")
