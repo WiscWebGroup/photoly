@@ -12,22 +12,18 @@ const Login: React.FC = () => {
         handleUsernameChange,
         handleEmailChange,
         handlePasswordChange,
-        router,
-        isLoading,
-        setLoading
+        router
     ] = useLoginForm()
     const [show, setShow] = useBoolean(false)
     const {set***REMOVED*** = useLocalStorage(TOKEN_KEY)
-    const {post***REMOVED*** = useApi()
+    const {post, isLoading***REMOVED*** = useApi()
 
     const submitSignUp = async () => {
-        setLoading.on()
         await post("/user/signUp", {
             userName: username,
             email: email,
             password: password
 ***REMOVED***).then(res => {
-            setLoading.off()
             if (!!res.data.token) {
                 set(res.data.token)
                 router.push("/home")
@@ -51,7 +47,7 @@ const Login: React.FC = () => {
                                onChange={handlePasswordChange***REMOVED*** isDisabled={isLoading***REMOVED***></Input>
                         <InputRightElement pr={1***REMOVED***>
                             <Button padding={4***REMOVED*** size='sm' onClick={setShow.toggle***REMOVED*** fontSize="xs">
-             ***REMOVED*****REMOVED*****REMOVED*****REMOVED***show ? 'Hide' : 'Show'***REMOVED***
+                            ***REMOVED***show ? 'Hide' : 'Show'***REMOVED***
                             </Button>
                         </InputRightElement>
                     </InputGroup>

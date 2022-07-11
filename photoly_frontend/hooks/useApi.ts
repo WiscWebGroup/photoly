@@ -1,7 +1,7 @@
 import axios, {AxiosRequestHeaders, AxiosResponse***REMOVED*** from "axios";
 import useLocalStorage, {TOKEN_KEY***REMOVED*** from "./useLocalStorage";
 import {useRouter***REMOVED*** from "next/router";
-import {useToast***REMOVED*** from "@chakra-ui/react";
+import {useBoolean, useToast***REMOVED*** from "@chakra-ui/react";
 
 export type TData = { [key: string]: any ***REMOVED*** | null
 export type THeader = AxiosRequestHeaders | undefined
@@ -44,31 +44,45 @@ function useResponseHandler() {
 
 export function useApi() {
     const handler = useResponseHandler()
+    const [isLoading, setLoading] = useBoolean(false)
     return {
-        get: async (path: string, headers?: THeader): Promise<AxiosResponse> =>
-            await axios.get(path, {
+        isLoading,
+        get: async (path: string, headers?: THeader): Promise<AxiosResponse> => {
+            setLoading.on()
+            return await axios.get(path, {
                 headers: headers
     ***REMOVED***).then(res => {
+                setLoading.off()
                 return handler(res, path)
-    ***REMOVED***),
-        post: async (path: string, data: TData, headers?: THeader): Promise<AxiosResponse> =>
-            await axios.post(path, data, {
+    ***REMOVED***)
+***REMOVED***,
+        post: async (path: string, data: TData, headers?: THeader): Promise<AxiosResponse> => {
+            setLoading.on()
+            return await axios.post(path, data, {
                 headers: headers
     ***REMOVED***).then(res => {
+                setLoading.off()
                 return handler(res, path)
-    ***REMOVED***),
-        put: async (path: string, data: TData, headers?: THeader): Promise<AxiosResponse> =>
-            await axios.put(path, data, {
+    ***REMOVED***)
+***REMOVED***,
+        put: async (path: string, data: TData, headers?: THeader): Promise<AxiosResponse> =>{
+            setLoading.on()
+            return await axios.put(path, data, {
                 headers: headers
     ***REMOVED***).then(res => {
+                setLoading.off()
                 return handler(res, path)
-    ***REMOVED***),
-        del: async (path: string, headers?: THeader): Promise<AxiosResponse> =>
-            await axios.delete(path, {
+    ***REMOVED***)
+***REMOVED***,
+        del: async (path: string, headers?: THeader): Promise<AxiosResponse> => {
+            setLoading.on()
+            return await axios.delete(path, {
                 headers: headers
     ***REMOVED***).then(res => {
+                setLoading.off()
                 return handler(res, path)
-    ***REMOVED***),
+    ***REMOVED***)
+***REMOVED***,
 ***REMOVED***
 ***REMOVED***
 
