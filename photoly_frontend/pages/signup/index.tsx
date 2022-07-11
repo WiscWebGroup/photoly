@@ -28,7 +28,10 @@ const Login: React.FC = () => {
             password: password
 ***REMOVED***).then(res => {
             setLoading.off()
-            set(res.data.token)
+            if (!!res.data.token) {
+                set(res.data.token)
+                router.push("/home")
+    ***REMOVED***
 ***REMOVED***)
 ***REMOVED***
 
