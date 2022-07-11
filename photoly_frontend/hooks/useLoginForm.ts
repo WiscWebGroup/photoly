@@ -1,6 +1,5 @@
 import {ChangeEvent, useState***REMOVED*** from "react";
 import {NextRouter, useRouter***REMOVED*** from "next/router";
-import {useBoolean***REMOVED*** from "@chakra-ui/react";
 
 const useLoginForm = (): [
     username: string | undefined,
@@ -9,9 +8,7 @@ const useLoginForm = (): [
     handleUsernameChange: (e: ChangeEvent<HTMLInputElement>) => void,
     handleEmailChange: (e: ChangeEvent<HTMLInputElement>) => void,
     handlePasswordChange: (e: ChangeEvent<HTMLInputElement>) => void,
-    router: NextRouter,
-    isLoading: boolean,
-    setLoading: { on: () => void, off: () => void, toggle: () => void ***REMOVED***
+    router: NextRouter
 ] => {
     const router = useRouter()
     const [username, setUsername] = useState<string | undefined>()
@@ -20,8 +17,7 @@ const useLoginForm = (): [
     const handleUsernameChange = (event: ChangeEvent<HTMLInputElement>) => setUsername(event.currentTarget.value)
     const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => setEmail(event.currentTarget.value)
     const handlePasswordChange = (event: ChangeEvent<HTMLInputElement>) => setPassword(event.currentTarget.value)
-    const [isLoading, setLoading] = useBoolean(false)
-    return [username, email, password, handleUsernameChange, handleEmailChange, handlePasswordChange, router, isLoading, setLoading]
+    return [username, email, password, handleUsernameChange, handleEmailChange, handlePasswordChange, router]
 ***REMOVED***
 
 export default useLoginForm
