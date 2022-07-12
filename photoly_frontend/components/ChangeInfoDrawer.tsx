@@ -8,7 +8,7 @@ import {
     DrawerContent,
     DrawerCloseButton,
     Input,
-    Button
+    Button, Text
 ***REMOVED*** from '@chakra-ui/react'
 import useApi from "../hooks/useApi";
 import useToken from "../hooks/useToken";
@@ -23,6 +23,8 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose***REMOVED*
     const [file, setFile] = useState<File>()
     const [username, setUsername] = useState<string>()
     const [email, setEmail] = useState<string>()
+    const [oldPwd, setOldPwd] = useState<string>();
+    const [newPwd, setNewPwd] = useState<string>();
     const token = useToken()
     const {post, isLoading***REMOVED*** = useApi()
     const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -34,8 +36,17 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose***REMOVED*
     const handleEmailChange = (e: ChangeEvent<HTMLInputElement>) => {
         setEmail(e.target.value)
 ***REMOVED***
+    const handleOldPwdChange = (e: ChangeEvent<HTMLInputElement>) => {
+        setOldPwd(e.target.value)
+***REMOVED***
+    const handleNewPwdChange = (e: ChangeEvent<HTMLInputElement>) => {
+        setNewPwd(e.target.value)
+***REMOVED***
     const handleSubmit = async () => {
-        if (!!file){
+        let requested = false
+        let success = true
+        if (file !== undefined){
+            requested = true
             await post("/user/updateAvatar", {
                 file: file
     ***REMOVED***, {
@@ -43,23 +54,33 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose***REMOVED*
                     "HRD-token": token,
                     "Content-type": "multipart/form-data"
    ***REMOVED*****REMOVED***
-    ***REMOVED***)
+    ***REMOVED***).then(res=>{success &&= (!!res && res.data.msgCode === 200)***REMOVED***)
 ***REMOVED***
-        if (!!username) {
+        if (username !== undefined) {
+            requested = true
             await post(`/user/updateUsername?username=${username***REMOVED***`, {***REMOVED***, {
                 headers: {
                     "HRD-token": token
    ***REMOVED*****REMOVED***
-    ***REMOVED***)
+    ***REMOVED***).then(res=>{success &&= (!!res && res.data.msgCode === 200)***REMOVED***)
 ***REMOVED***
-        if (!!email) {
+        if (email !== undefined) {
+            requested = true
             await post(`/user/updateEmail?email=${email***REMOVED***`, {***REMOVED***, {
                 headers: {
                     "HRD-token": token
    ***REMOVED*****REMOVED***
-    ***REMOVED***)
+    ***REMOVED***).then(res=>{success &&= (!!res && res.data.msgCode === 200)***REMOVED***)
 ***REMOVED***
-        if (!!email || !!username || !!file) Router.reload()
+        if (oldPwd !== undefined && newPwd !== undefined) {
+            requested = true
+            await post(`/user/updatePassword?oldPass=${oldPwd***REMOVED***&newPass=${newPwd***REMOVED***`, {***REMOVED***, {
+                headers:{
+                    "HRD-token": token
+   ***REMOVED*****REMOVED***
+    ***REMOVED***).then(res=>{success &&= (!!res && res.data.msgCode === 200)***REMOVED***)
+***REMOVED***
+        if (success && requested) Router.reload()
 ***REMOVED***
 
     return (
@@ -73,9 +94,12 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose***REMOVED*
                 <DrawerCloseButton/>
                 <DrawerHeader>Change Info</DrawerHeader>
                 <DrawerBody>
-                    <Input placeholder='Username' onChange={handleUsernameChange***REMOVED***/>
-                    <Input placeholder='Email' mt={4***REMOVED*** onChange={handleEmailChange***REMOVED***/>
+                    <Input placeholder='Username' onChange={handleUsernameChange***REMOVED*** value={username***REMOVED***/>
+                    <Input placeholder='Email' mt={4***REMOVED*** onChange={handleEmailChange***REMOVED*** value={email***REMOVED***/>
                     <Input type={"file"***REMOVED*** mt={4***REMOVED*** accept={"image/png, image/jpeg"***REMOVED*** onChange={handleFileChange***REMOVED***/>
+                    <Text fontWeight={"semibold"***REMOVED*** mt={4***REMOVED*** fontSize={"xl"***REMOVED***>Change Password</Text>
+                    <Input placeholder='Old Password' mt={4***REMOVED*** onChange={handleOldPwdChange***REMOVED*** value={oldPwd***REMOVED***/>
+                    <Input placeholder='New Password' mt={4***REMOVED*** onChange={handleNewPwdChange***REMOVED*** value={newPwd***REMOVED***/>
                 </DrawerBody>
 
                 <DrawerFooter>
