@@ -8,7 +8,7 @@ import {
     DrawerContent,
     DrawerCloseButton,
     Input,
-    Button, Text
+    Button, Text, useBoolean, InputRightElement, InputGroup
 ***REMOVED*** from '@chakra-ui/react'
 import useApi from "../hooks/useApi";
 import useToken from "../hooks/useToken";
@@ -27,6 +27,8 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose***REMOVED*
     const [newPwd, setNewPwd] = useState<string>();
     const token = useToken()
     const {post, isLoading***REMOVED*** = useApi()
+    const [show, setShow] = useBoolean(false)
+
     const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
         if (!!e.target.files) setFile(e.target.files[0])
 ***REMOVED***
@@ -98,8 +100,16 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose***REMOVED*
                     <Input placeholder='Email' mt={4***REMOVED*** onChange={handleEmailChange***REMOVED*** value={email***REMOVED***/>
                     <Input type={"file"***REMOVED*** mt={4***REMOVED*** accept={"image/png, image/jpeg"***REMOVED*** onChange={handleFileChange***REMOVED***/>
                     <Text fontWeight={"semibold"***REMOVED*** mt={4***REMOVED*** fontSize={"xl"***REMOVED***>Change Password</Text>
-                    <Input placeholder='Old Password' mt={4***REMOVED*** onChange={handleOldPwdChange***REMOVED*** value={oldPwd***REMOVED***/>
-                    <Input placeholder='New Password' mt={4***REMOVED*** onChange={handleNewPwdChange***REMOVED*** value={newPwd***REMOVED***/>
+                    <Input placeholder='Old Password' type={"password"***REMOVED*** mt={4***REMOVED*** onChange={handleOldPwdChange***REMOVED*** value={oldPwd***REMOVED***/>
+                    <InputGroup mt={4***REMOVED***>
+                        <Input variant="outline" type={show ? 'text' : 'password'***REMOVED*** placeholder="Enter password"
+                               onChange={handleNewPwdChange***REMOVED*** isDisabled={isLoading***REMOVED***></Input>
+                        <InputRightElement pr={1***REMOVED***>
+                            <Button padding={4***REMOVED*** size='sm' onClick={setShow.toggle***REMOVED*** fontSize="xs">
+                            ***REMOVED***show ? 'Hide' : 'Show'***REMOVED***
+                            </Button>
+                        </InputRightElement>
+                    </InputGroup>
                 </DrawerBody>
 
                 <DrawerFooter>
