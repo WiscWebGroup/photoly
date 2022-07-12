@@ -1,4 +1,4 @@
-import axios, {AxiosError, AxiosRequestHeaders, AxiosResponse} from "axios";
+import axios, {AxiosError, AxiosRequestConfig, AxiosRequestHeaders, AxiosResponse} from "axios";
 import useLocalStorage, {TOKEN_KEY} from "./useLocalStorage";
 import {useRouter} from "next/router";
 import {useBoolean, useToast} from "@chakra-ui/react";
@@ -13,16 +13,16 @@ const defaultHeaders = {
 
 // Handles status code == 200
 function useResponseHandler() {
-    const {remove} = useLocalStorage(TOKEN_KEY)
+    const {removeLS} = useLocalStorage(TOKEN_KEY)
     const router = useRouter()
     const toast = useToast()
     return ((res: AxiosResponse) => {
         // If request successful, check msgCode
-        if (res.data.msgCode === 401) {
+        if (res.data.msgCode === 401 || res.data.msgCode === 400) {
             toast({title: res.data.t, status: "warning", isClosable: true, position: "top"})
         } else if (res.data.msgCode == 403) {
             toast({title: "Unauthorized", status: "warning", isClosable: true, position: "top"})
-            remove()
+            removeLS()
             router.push("/login")
             console.debug("Unauthenticated access")
         }
@@ -53,11 +53,13 @@ export function useApi() {
     const [isLoading, setLoading] = useBoolean(false)
     return {
         isLoading,
-        get: async (path: string, headers?: THeader): Promise<AxiosResponse | void> => {
+        get: async (path: string, config?: AxiosRequestConfig, token?:string): Promise<AxiosResponse | void> => {
             setLoading.on()
-            return await axios.get(path, {
-                headers: headers
-            }).then(res => {
+            let conf: AxiosRequestConfig = {...config}
+            if (!!token) {
+                conf = {...conf, headers: {"HRD-token": token}}
+            }
+            return await axios.get(path, conf).then(res => {
                 setLoading.off()
                 return respHandler(res)
             }).catch(err => {
@@ -65,11 +67,13 @@ export function useApi() {
                 errHandler(err, path)
             })
         },
-        post: async (path: string, data: TData, headers?: THeader): Promise<AxiosResponse | void> => {
+        post: async (path: string, data: TData, config?: AxiosRequestConfig, token?:string): Promise<AxiosResponse | void> => {
             setLoading.on()
-            return await axios.post(path, data, {
-                headers: headers
-            }).then(res => {
+            let conf: AxiosRequestConfig = {...config}
+            if (!!token) {
+                conf = {...conf, headers: {"HRD-token": token}}
+            }
+            return await axios.post(path, data, conf).then(res => {
                 setLoading.off()
                 return respHandler(res)
             }).catch(err => {
@@ -77,11 +81,13 @@ export function useApi() {
                 errHandler(err, path)
             })
         },
-        put: async (path: string, data: TData, headers?: THeader): Promise<AxiosResponse | void> => {
+        put: async (path: string, data: TData, config?: AxiosRequestConfig, token?:string): Promise<AxiosResponse | void> => {
             setLoading.on()
-            return await axios.put(path, data, {
-                headers: headers
-            }).then(res => {
+            let conf: AxiosRequestConfig = {...config}
+            if (!!token) {
+                conf = {...conf, headers: {"HRD-token": token}}
+            }
+            return await axios.put(path, data, conf).then(res => {
                 setLoading.off()
                 return respHandler(res)
             }).catch(err => {
@@ -89,11 +95,13 @@ export function useApi() {
                 errHandler(err, path)
             })
         },
-        del: async (path: string, headers?: THeader): Promise<AxiosResponse | void> => {
+        del: async (path: string, config?: AxiosRequestConfig, token?:string): Promise<AxiosResponse | void> => {
             setLoading.on()
-            return await axios.delete(path, {
-                headers: headers
-            }).then(res => {
+            let conf: AxiosRequestConfig = {...config}
+            if (!!token) {
+                conf = {...conf, headers: {"HRD-token": token}}
+            }
+            return await axios.delete(path, conf).then(res => {
                 setLoading.off()
                 return respHandler(res)
             }).catch(err => {

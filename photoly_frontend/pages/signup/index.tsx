@@ -15,7 +15,7 @@ const Login: React.FC = () => {
         router
     ] = useLoginForm()
     const [show, setShow] = useBoolean(false)
-    const {set} = useLocalStorage(TOKEN_KEY)
+    const {setLS} = useLocalStorage(TOKEN_KEY)
     const {post, isLoading} = useApi()
 
     const submitSignUp = async () => {
@@ -24,8 +24,8 @@ const Login: React.FC = () => {
             email: email,
             password: password
         }).then(res => {
-            if (!!res) {
-                set(res.data.token)
+            if (!!res && res.data.msgCode == 200) {
+                setLS(res.data.token)
                 router.push("/home")
             }
         })

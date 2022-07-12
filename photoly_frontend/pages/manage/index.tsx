@@ -1,8 +1,11 @@
-import {Avatar, Center, Heading, HStack, VStack, Text, IconButton, Divider} from "@chakra-ui/react";
+import {Avatar, Center, Divider, Heading, HStack, IconButton, Text, VStack} from "@chakra-ui/react";
 import {AiOutlineEdit} from 'react-icons/ai'
 import React from "react";
+import useToken from "../../hooks/useToken";
+
 
 const Manage: React.FC = () => {
+    const token = useToken()
 
     return (
         <Center>
@@ -14,7 +17,7 @@ const Manage: React.FC = () => {
                             borderRadius='full'
                             h={32}
                             w={32}
-                            src='https://bit.ly/dan-abramov'
+                            src={`user/getAvatar/${token}`}
                         />
                         <Text fontWeight={"semibold"} fontSize={"xl"}>Username</Text>
                         <IconButton variant={"ghost"} h={6} aria-label={"edit name"} icon={<AiOutlineEdit/>}/>
