@@ -21,6 +21,7 @@ const Navbar: React.FC = () => {
                 <Text fontSize={"xl"} fontWeight={"medium"}>PHOTOLY</Text>
             </HStack>
             <HStack h={"inherit"} p={2} spacing={4} mr={4}>
+                <Button variant={"link"} color={"white"} onClick={() => router.push("/home")}>Home</Button>
                 <Button variant={"link"} color={"white"} onClick={handleLogout}>Logout</Button>
                 <Button variant={"link"} color={"white"} onClick={() => router.push("/manage")}>Manage</Button>
                 <Avatar
