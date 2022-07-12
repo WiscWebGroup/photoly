@@ -24,7 +24,7 @@ const Login: React.FC = () => {
             email: email,
             password: password
         }).then(res => {
-            if (!!res.data.token) {
+            if (!!res) {
                 set(res.data.token)
                 router.push("/home")
             }
