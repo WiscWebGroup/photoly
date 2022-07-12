@@ -29,7 +29,7 @@ const Navbar: React.FC = () => {
                     maxW={"100%"***REMOVED***
                     src={`/user/getAvatar/${token***REMOVED***`***REMOVED***
                     data-testid={"avatar"***REMOVED***
-
+                    onClick={() => router.push("/manage")***REMOVED***
                 />
             </HStack>
         </HStack>

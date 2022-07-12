@@ -23,7 +23,7 @@ const Login: React.FC = () => {
             userName: username,
             email: email,
             password: password
-***REMOVED***).then(res => {
+***REMOVED***, {***REMOVED***).then(res => {
             if (!!res && res.data.msgCode == 200) {
                 setLS(res.data.token)
                 router.push("/home")
@@ -47,7 +47,7 @@ const Login: React.FC = () => {
                                onChange={handlePasswordChange***REMOVED*** isDisabled={isLoading***REMOVED***></Input>
                         <InputRightElement pr={1***REMOVED***>
                             <Button padding={4***REMOVED*** size='sm' onClick={setShow.toggle***REMOVED*** fontSize="xs">
-   ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***show ? 'Hide' : 'Show'***REMOVED***
+                            ***REMOVED***show ? 'Hide' : 'Show'***REMOVED***
                             </Button>
                         </InputRightElement>
                     </InputGroup>
