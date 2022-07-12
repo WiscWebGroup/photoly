@@ -4,6 +4,7 @@ import React, {useEffect, useState***REMOVED*** from "react";
 import useToken from "../../hooks/useToken";
 import useApi from "../../hooks/useApi";
 import ChangeInfoDrawer from "../../components/ChangeInfoDrawer";
+import Navbar from "../../components/Navbar";
 
 interface userInfo {
     userId: number,
@@ -35,6 +36,7 @@ const Manage: React.FC = () => {
 
     return (
         <>
+            <Navbar/>
             <ChangeInfoDrawer isOpen={isOpen***REMOVED*** onClose={onClose***REMOVED***/>
             <Center>
                 <VStack shadow={"lg"***REMOVED*** w={"50%"***REMOVED*** rounded={"lg"***REMOVED*** m={8***REMOVED*** p={8***REMOVED***>
