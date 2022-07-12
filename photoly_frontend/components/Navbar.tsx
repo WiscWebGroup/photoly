@@ -3,13 +3,15 @@ import {useRouter***REMOVED*** from "next/router";
 import Image from 'next/image'
 import React from "react";
 import useLocalStorage, {TOKEN_KEY***REMOVED*** from "../hooks/useLocalStorage";
+import useToken from "../hooks/useToken";
 
 const Navbar: React.FC = () => {
     const router = useRouter()
-    const {remove***REMOVED*** = useLocalStorage(TOKEN_KEY)
+    const {removeLS***REMOVED*** = useLocalStorage(TOKEN_KEY)
+    const token = useToken()
     const handleLogout = () => {
         router.push("/login")
-        remove()
+        removeLS()
 ***REMOVED***
     return (
         <HStack bg={"teal.400"***REMOVED*** w={"100%"***REMOVED*** h={16***REMOVED*** color={"white"***REMOVED*** p={4***REMOVED***
@@ -25,8 +27,9 @@ const Navbar: React.FC = () => {
                     borderRadius='full'
                     maxH={"100%"***REMOVED***
                     maxW={"100%"***REMOVED***
-                    src='https://bit.ly/dan-abramov'
+                    src={`/user/getAvatar/${token***REMOVED***`***REMOVED***
                     data-testid={"avatar"***REMOVED***
+
                 />
             </HStack>
         </HStack>
