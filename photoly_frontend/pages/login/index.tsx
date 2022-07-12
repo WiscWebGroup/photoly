@@ -15,7 +15,7 @@ const Login: React.FC = () => {
         setPassword(event.currentTarget.value)
 ***REMOVED***
     const router = useRouter()
-    const {get, set***REMOVED*** = useLocalStorage(TOKEN_KEY)
+    const {getLS, setLS***REMOVED*** = useLocalStorage(TOKEN_KEY)
     const {isLoading, post***REMOVED*** = useApi()
     const handleLogin = async () => {
         await post("/user/signIn", {
@@ -23,17 +23,17 @@ const Login: React.FC = () => {
             password: password
 ***REMOVED***).then(res => {
             if (!!res) {
-                set(res.data.token)
+                setLS(res.data.token)
                 router.push("/home")
     ***REMOVED***
 ***REMOVED***)
 ***REMOVED***
     // If the user has logged in, redirect to home
     useEffect(() => {
-        if (get() !== null) {
+        if (getLS() !== null) {
             router.push("/home")
 ***REMOVED***
-***REMOVED***, [get, router])
+***REMOVED***, [getLS, router])
 
 
     return (
