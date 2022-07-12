@@ -139,6 +139,12 @@ public class UserController {
     @PostMapping("/updateEmail")
     public Result<Integer> updateEmail(HttpServletRequest request, String email)
     {
+        if (email == null)
+            return new Result<>(-1,  400);
+        Pattern pattern = Pattern.compile(".+@.+\\..+");
+        Matcher matcher = pattern.matcher(email);
+        if (!matcher.find())
+            return new Result<>(-2,  400);
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(null, 403);
