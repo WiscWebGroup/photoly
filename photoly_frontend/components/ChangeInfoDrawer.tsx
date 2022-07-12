@@ -8,7 +8,7 @@ import {
     DrawerContent,
     DrawerCloseButton,
     Input,
-    Button, Text
+    Button, Text, useBoolean, InputRightElement, InputGroup
 } from '@chakra-ui/react'
 import useApi from "../hooks/useApi";
 import useToken from "../hooks/useToken";
@@ -27,6 +27,8 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose}) => {
     const [newPwd, setNewPwd] = useState<string>();
     const token = useToken()
     const {post, isLoading} = useApi()
+    const [show, setShow] = useBoolean(false)
+
     const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
         if (!!e.target.files) setFile(e.target.files[0])
     }
@@ -98,8 +100,16 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose}) => {
                     <Input placeholder='Email' mt={4} onChange={handleEmailChange} value={email}/>
                     <Input type={"file"} mt={4} accept={"image/png, image/jpeg"} onChange={handleFileChange}/>
                     <Text fontWeight={"semibold"} mt={4} fontSize={"xl"}>Change Password</Text>
-                    <Input placeholder='Old Password' mt={4} onChange={handleOldPwdChange} value={oldPwd}/>
-                    <Input placeholder='New Password' mt={4} onChange={handleNewPwdChange} value={newPwd}/>
+                    <Input placeholder='Old Password' type={"password"} mt={4} onChange={handleOldPwdChange} value={oldPwd}/>
+                    <InputGroup mt={4}>
+                        <Input variant="outline" type={show ? 'text' : 'password'} placeholder="Enter password"
+                               onChange={handleNewPwdChange} isDisabled={isLoading}></Input>
+                        <InputRightElement pr={1}>
+                            <Button padding={4} size='sm' onClick={setShow.toggle} fontSize="xs">
+                                {show ? 'Hide' : 'Show'}
+                            </Button>
+                        </InputRightElement>
+                    </InputGroup>
                 </DrawerBody>
 
                 <DrawerFooter>
