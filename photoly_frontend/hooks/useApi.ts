@@ -40,6 +40,7 @@ function useErrorHandler() {
             console.debug("Endpoint " + path + " was not found")
             return err
         } else if (!!err.response && err.response.status === 500) {
+            console.debug(err)
             toast({title: "Sever Error", status: "error", isClosable: true, position: "top"})
             console.debug("Server error")
             return err
@@ -53,13 +54,9 @@ export function useApi() {
     const [isLoading, setLoading] = useBoolean(false)
     return {
         isLoading,
-        get: async (path: string, config?: AxiosRequestConfig, token?:string): Promise<AxiosResponse | void> => {
+        get: async (path: string, config: AxiosRequestConfig): Promise<AxiosResponse | void> => {
             setLoading.on()
-            let conf: AxiosRequestConfig = {...config}
-            if (!!token) {
-                conf = {...conf, headers: {"HRD-token": token}}
-            }
-            return await axios.get(path, conf).then(res => {
+            return await axios.get(path, config).then(res => {
                 setLoading.off()
                 return respHandler(res)
             }).catch(err => {
@@ -67,13 +64,9 @@ export function useApi() {
                 errHandler(err, path)
             })
         },
-        post: async (path: string, data: TData, config?: AxiosRequestConfig, token?:string): Promise<AxiosResponse | void> => {
+        post: async (path: string, data: TData, config: AxiosRequestConfig): Promise<AxiosResponse | void> => {
             setLoading.on()
-            let conf: AxiosRequestConfig = {...config}
-            if (!!token) {
-                conf = {...conf, headers: {"HRD-token": token}}
-            }
-            return await axios.post(path, data, conf).then(res => {
+            return await axios.post(path, data, config).then(res => {
                 setLoading.off()
                 return respHandler(res)
             }).catch(err => {
@@ -81,13 +74,9 @@ export function useApi() {
                 errHandler(err, path)
             })
         },
-        put: async (path: string, data: TData, config?: AxiosRequestConfig, token?:string): Promise<AxiosResponse | void> => {
+        put: async (path: string, data: TData, config: AxiosRequestConfig): Promise<AxiosResponse | void> => {
             setLoading.on()
-            let conf: AxiosRequestConfig = {...config}
-            if (!!token) {
-                conf = {...conf, headers: {"HRD-token": token}}
-            }
-            return await axios.put(path, data, conf).then(res => {
+            return await axios.put(path, data, config).then(res => {
                 setLoading.off()
                 return respHandler(res)
             }).catch(err => {
@@ -95,13 +84,9 @@ export function useApi() {
                 errHandler(err, path)
             })
         },
-        del: async (path: string, config?: AxiosRequestConfig, token?:string): Promise<AxiosResponse | void> => {
+        del: async (path: string, config: AxiosRequestConfig): Promise<AxiosResponse | void> => {
             setLoading.on()
-            let conf: AxiosRequestConfig = {...config}
-            if (!!token) {
-                conf = {...conf, headers: {"HRD-token": token}}
-            }
-            return await axios.delete(path, conf).then(res => {
+            return await axios.delete(path, config).then(res => {
                 setLoading.off()
                 return respHandler(res)
             }).catch(err => {

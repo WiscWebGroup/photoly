@@ -23,7 +23,7 @@ const Login: React.FC = () => {
             userName: username,
             email: email,
             password: password
-        }).then(res => {
+        }, {}).then(res => {
             if (!!res && res.data.msgCode == 200) {
                 setLS(res.data.token)
                 router.push("/home")

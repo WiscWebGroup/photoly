@@ -21,7 +21,7 @@ const Login: React.FC = () => {
         await post("/user/signIn", {
             email: email,
             password: password
-        }).then(res => {
+        }, {}).then(res => {
             if (!!res) {
                 setLS(res.data.token)
                 router.push("/home")
