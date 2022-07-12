@@ -172,9 +172,9 @@ public class PhotoController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
 ***REMOVED***
 
-    @GetMapping(value = "/render", produces = MediaType.IMAGE_JPEG_VALUE)
-    public byte[] renderImage(HttpServletRequest request, Integer photoId) throws IOException {
-        Integer userId = verify.verifyUser(request);
+    @GetMapping(value = "/render/{token***REMOVED***", produces = MediaType.IMAGE_JPEG_VALUE)
+    public byte[] renderImage(@PathVariable String token, Integer photoId) throws IOException {
+        Integer userId = verify.verifyUserByToken(token);
         Photo photo = service.getById(photoId);
         String UUID = userService.getById(userId).getUuid();
         if (userId != null && userId.equals(photo.getUserId()))
