@@ -3,7 +3,7 @@ import {AiOutlineEdit} from 'react-icons/ai'
 import React, {useEffect, useState} from "react";
 import useToken from "../../hooks/useToken";
 import useApi from "../../hooks/useApi";
-import NameAndAvatarDrawer from "../../components/NameAndAvatarDrawer";
+import ChangeInfoDrawer from "../../components/ChangeInfoDrawer";
 
 interface userInfo {
     userId: number,
@@ -35,10 +35,12 @@ const Manage: React.FC = () => {
 
     return (
         <>
-            <NameAndAvatarDrawer isOpen={isOpen} onClose={onClose}/>
+            <ChangeInfoDrawer isOpen={isOpen} onClose={onClose}/>
             <Center>
                 <VStack shadow={"lg"} w={"50%"} rounded={"lg"} m={8} p={8}>
                     <Heading>Profile</Heading>
+                    <IconButton variant={"ghost"} aria-label={"Edit profile"} icon={<AiOutlineEdit/>}
+                                onClick={onOpen}/>
                     <HStack justifyContent={"space-evenly"} w={"100%"}>
                         <VStack>
                             <Avatar
@@ -48,8 +50,6 @@ const Manage: React.FC = () => {
                                 src={`user/getAvatar/${token}`}
                             />
                             <Text fontWeight={"semibold"} fontSize={"xl"}>{info?.userName}</Text>
-                            <IconButton variant={"ghost"} h={6} aria-label={"edit name"} icon={<AiOutlineEdit/>}
-                                        onClick={onOpen}/>
 
                         </VStack>
 
@@ -59,7 +59,6 @@ const Manage: React.FC = () => {
                     <Divider/>
                     <Text fontSize={"2xl"}>Email</Text>
                     <Text>{info?.email}</Text>
-                    <IconButton variant={"ghost"} h={6} aria-label={"edit name"} icon={<AiOutlineEdit/>}/>
 
                     <Divider/>
                     <Text fontSize={"2xl"}>API</Text>

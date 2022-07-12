@@ -14,21 +14,25 @@ import useApi from "../hooks/useApi";
 import useToken from "../hooks/useToken";
 import Router from "next/router"
 
-interface NameAndAvatarDrawerProps {
+interface ChangeInfoProps {
     isOpen: boolean,
     onClose: () => void
 }
 
-const NameAndAvatarDrawer: React.FC<NameAndAvatarDrawerProps> = ({isOpen, onClose}) => {
+const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose}) => {
     const [file, setFile] = useState<File>()
     const [username, setUsername] = useState<string>()
+    const [email, setEmail] = useState<string>()
     const token = useToken()
-    const {post} = useApi()
+    const {post, isLoading} = useApi()
     const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
         if (!!e.target.files) setFile(e.target.files[0])
     }
     const handleUsernameChange = (e: ChangeEvent<HTMLInputElement>) => {
         setUsername(e.target.value)
+    }
+    const handleEmailChange = (e: ChangeEvent<HTMLInputElement>) => {
+        setEmail(e.target.value)
     }
     const handleSubmit = async () => {
         if (!!file){
@@ -48,7 +52,14 @@ const NameAndAvatarDrawer: React.FC<NameAndAvatarDrawerProps> = ({isOpen, onClos
                 }
             })
         }
-        Router.reload()
+        if (!!email) {
+            await post(`/user/updateEmail?email=${email}`, {}, {
+                headers: {
+                    "HRD-token": token
+                }
+            })
+        }
+        if (!!email || !!username || !!file) Router.reload()
     }
 
     return (
@@ -60,9 +71,10 @@ const NameAndAvatarDrawer: React.FC<NameAndAvatarDrawerProps> = ({isOpen, onClos
             <DrawerOverlay/>
             <DrawerContent>
                 <DrawerCloseButton/>
-                <DrawerHeader>Change Username & Avatar</DrawerHeader>
+                <DrawerHeader>Change Info</DrawerHeader>
                 <DrawerBody>
                     <Input placeholder='Username' onChange={handleUsernameChange}/>
+                    <Input placeholder='Email' mt={4} onChange={handleEmailChange}/>
                     <Input type={"file"} mt={4} accept={"image/png, image/jpeg"} onChange={handleFileChange}/>
                 </DrawerBody>
 
@@ -73,11 +85,11 @@ const NameAndAvatarDrawer: React.FC<NameAndAvatarDrawerProps> = ({isOpen, onClos
                     <Button colorScheme='blue' onClick={() => {
                         handleSubmit();
                         onClose()
-                    }}>Save</Button>
+                    }} isLoading={isLoading} loadingText={"Saving..."}>Save</Button>
                 </DrawerFooter>
             </DrawerContent>
         </Drawer>
     )
 }
 
-export default NameAndAvatarDrawer
+export default ChangeInfoDrawer
