@@ -12,9 +12,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
+import javax.naming.Name;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -66,6 +68,13 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
         photo.setUploadDate(LocalDateTime.now());
         photo.setUserId(userId);
 
+        QueryWrapper<Namespace> nsVerify = new QueryWrapper<>();
+        nsVerify.eq("ns_id", photo.getNsId());
+        nsVerify.eq("user_id", userId);
+        Namespace namespace = namespaceMapper.selectOne(nsVerify);
+        if (namespace == null || !namespace.getUserId().equals(userId))
+            return -2;
+
         // String fileType = file.getContentType();
         String folderLoc = uploadFolder + System.getProperty("file.separator") + uuid;
         File file1 = new File(folderLoc);
@@ -87,7 +96,15 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
         int total = photos.size();
         if (total != files.length)
             return -1;
+        if (total == 0)
+            return 0;
         int change = 0;
+        QueryWrapper<Namespace> nsVerify = new QueryWrapper<>();
+        nsVerify.eq("ns_id", photos.get(0).getNsId());
+        nsVerify.eq("user_id", userId);
+        Namespace namespace = namespaceMapper.selectOne(nsVerify);
+        if (namespace == null || !namespace.getUserId().equals(userId))
+            return -2;
         for (int i = 0; i < total; i ++)
         {
             MultipartFile file = files[i];
@@ -120,6 +137,96 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
             }
         }
         return change;
+    }
+
+    @Override
+    public String insertPhotoRU(Integer userId, MultipartFile file, Photo photo) {
+        String uuid = userMapper.selectById(userId).getUuid();
+        String fileName = file.getOriginalFilename();
+        String suffix = fileName.substring(fileName.lastIndexOf(".")+1);
+        Integer visibility = photo.getVisibility();
+        if (visibility == null || visibility < 0 || visibility > 3)
+            photo.setVisibility(0);
+        String photoUUID = (UUID.randomUUID().toString());
+        photo.setPhotoName(fileName.substring(0, fileName.lastIndexOf(".")));
+        photo.setPhotoUuid(photoUUID);
+        photo.setFormat(suffix);
+        photo.setToken(UUID.randomUUID().toString());
+        photo.setUploadDate(LocalDateTime.now());
+        photo.setUserId(userId);
+
+        QueryWrapper<Namespace> nsVerify = new QueryWrapper<>();
+        nsVerify.eq("ns_id", photo.getNsId());
+        nsVerify.eq("user_id", userId);
+        Namespace namespace = namespaceMapper.selectOne(nsVerify);
+        if (namespace == null || !namespace.getUserId().equals(userId))
+            return null;
+
+        // String fileType = file.getContentType();
+        String folderLoc = uploadFolder + System.getProperty("file.separator") + uuid;
+        File file1 = new File(folderLoc);
+        if (!file1.exists())
+            file1.mkdir();
+        String localPath = folderLoc + System.getProperty("file.separator") + photoUUID + "." + suffix;
+        File photoFile = new File(localPath);
+        try {
+            file.transferTo(photoFile);
+            int res = mapper.insert(photo);
+            return res >= 1 ? photoUUID : null;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public List<String> insertPhotosRU(Integer userId, MultipartFile[] files, List<Photo> photos) {
+        String uuid = userMapper.selectById(userId).getUuid();
+        int total = photos.size();
+        if (total != files.length)
+            return null;
+        if (total == 0)
+            return null;
+        QueryWrapper<Namespace> nsVerify = new QueryWrapper<>();
+        nsVerify.eq("ns_id", photos.get(0).getNsId());
+        nsVerify.eq("user_id", userId);
+        Namespace namespace = namespaceMapper.selectOne(nsVerify);
+        if (namespace == null || !namespace.getUserId().equals(userId))
+            return null;
+        List<String> uidList = new ArrayList<>();
+        for (int i = 0; i < total; i ++)
+        {
+            MultipartFile file = files[i];
+            Photo photo = photos.get(i);
+            String fileName = file.getOriginalFilename();
+            String suffix = fileName.substring(fileName.lastIndexOf(".")+1);
+            Integer visibility = photo.getVisibility();
+            if (visibility == null || visibility < 0 || visibility > 3)
+                photo.setVisibility(0);
+            String photoUUID = (UUID.randomUUID().toString());
+            photo.setPhotoName(fileName.substring(0, fileName.lastIndexOf(".")));
+            photo.setPhotoUuid(photoUUID);
+            photo.setFormat(suffix);
+            photo.setToken(UUID.randomUUID().toString());
+            photo.setUploadDate(LocalDateTime.now());
+            photo.setUserId(userId);
+
+            // String fileType = file.getContentType();
+            String folderLoc = uploadFolder + System.getProperty("file.separator") + uuid;
+            File file1 = new File(folderLoc);
+            if (!file1.exists())
+                file1.mkdir();
+            String localPath = folderLoc + System.getProperty("file.separator") + photoUUID + "." + suffix;
+            File photoFile = new File(localPath);
+            try {
+                file.transferTo(photoFile);
+                int res = mapper.insert(photo);
+                if (res >= 1)
+                    uidList.add(photoUUID);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return uidList;
     }
 
     @Override

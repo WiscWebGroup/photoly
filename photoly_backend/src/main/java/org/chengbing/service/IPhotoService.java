@@ -20,6 +20,8 @@ import java.util.List;
 public interface IPhotoService extends IService<Photo> {
     Integer insertPhoto(Integer userId, MultipartFile file, @RequestBody Photo photo);
     Integer insertPhotos(Integer userId, MultipartFile[] files, @RequestBody List<Photo> photos);
+    String insertPhotoRU(Integer userId, MultipartFile file, @RequestBody Photo photo);
+    List<String> insertPhotosRU(Integer userId, MultipartFile[] files, @RequestBody List<Photo> photos);
     Integer deletePhoto(Integer userId, Integer photoId);
     Integer updatePhotoNameAndVisibility(Integer userId, @RequestBody Photo photo);
     List<Photo> queryPhotoByNamespace(Integer userId, Integer nsId);
