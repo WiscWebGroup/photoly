@@ -33,7 +33,7 @@ const Sidebar: React.FC = () => {
             </TagHeader>
 
 
-   ***REMOVED*****REMOVED***tags.map((tag, ind) =>
+        ***REMOVED***tags.map((tag, ind) =>
                 <TagItem tagName={tag***REMOVED*** key={ind***REMOVED***></TagItem>
             )***REMOVED***
 

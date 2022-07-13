@@ -134,7 +134,7 @@ const Manage: React.FC = () => {
                 src={`user/getAvatar/${token***REMOVED***`***REMOVED***
               />
               <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED*** color={"#97266D"***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.userName***REMOVED***
+            ***REMOVED***info?.userName***REMOVED***
               </Text>
             </VStack>
           </HStack>
@@ -165,7 +165,7 @@ const Manage: React.FC = () => {
                 Name
               </Heading>
               <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.userName***REMOVED***
+            ***REMOVED***info?.userName***REMOVED***
               </Text>
             </GridItem>
             <GridItem colSpan={2***REMOVED*** padding={3***REMOVED*** bg="papayawhip">
@@ -178,7 +178,7 @@ const Manage: React.FC = () => {
                 Register Time
               </Heading>
               <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.createDate.substr(0, 10)***REMOVED***
+            ***REMOVED***info?.createDate.substr(0, 10)***REMOVED***
               </Text>
             </GridItem>
             <GridItem rowSpan={2***REMOVED*** padding={3***REMOVED*** colSpan={1***REMOVED*** bg="#FAF5FF">
@@ -203,7 +203,7 @@ const Manage: React.FC = () => {
                 Email
               </Heading>
               <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.email***REMOVED***
+            ***REMOVED***info?.email***REMOVED***
               </Text>
             </GridItem>
           </Grid>
