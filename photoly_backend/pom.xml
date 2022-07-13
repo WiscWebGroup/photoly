@@ -10,7 +10,7 @@
     </parent>
     <groupId>org.chengbing</groupId>
     <artifactId>photolet</artifactId>
-    <version>v1.1.0</version>
+    <version>v1.2.0</version>
     <packaging>war</packaging>
     <name>photolet</name>
     <description>photolet</description>
