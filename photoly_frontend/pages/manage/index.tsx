@@ -54,22 +54,23 @@ const Manage: React.FC = () => {
   }, [token]);
 
   return (
-    <div style={{ backgroundColor: "RGBA(0, 0, 0, 0.02)", height: "100vh" }}>
+    <>
       <Navbar />
-      <Slide
-        direction="left"
-        in={true}
-        style={{
-          height: "100vh",
-          width: "300px",
-          zIndex: 200,
-          marginTop: "7vh",
-          borderRight: "2px solid rgba(214, 214, 214, .5)",
-          backgroundColor: "#FFFFFF",
-        }}
-      >
-        <VStack spacing={0} align="stretch">
-          <Box h="45px">
+
+      <Box bg={"gray.50"} h={"calc(100vh - 4rem)"}>
+        <Slide
+          direction="left"
+          in={true}
+          style={{
+            height: "100%",
+            width: "150px",
+            zIndex: 200,
+            alignSelf: "flex-start",
+            background: "#FFFFFF",
+            marginTop: "4rem",
+          }}
+        >
+          <VStack spacing={0} bg={"white"} h={"100%"} w={"max-content"}>
             <Button
               leftIcon={<AiOutlineHome />}
               colorScheme="teal"
@@ -80,8 +81,6 @@ const Manage: React.FC = () => {
             >
               My Profile
             </Button>
-          </Box>
-          <Box h="45px">
             <Button
               leftIcon={<FiSettings />}
               colorScheme="teal"
@@ -92,8 +91,6 @@ const Manage: React.FC = () => {
             >
               Settings
             </Button>
-          </Box>
-          <Box h="45px">
             <Button
               leftIcon={<RiFileSettingsLine />}
               colorScheme="teal"
@@ -104,122 +101,137 @@ const Manage: React.FC = () => {
             >
               Admin Settings
             </Button>
-          </Box>
-        </VStack>
-      </Slide>
+          </VStack>
+        </Slide>
 
-      <ChangeInfoDrawer isOpen={isOpen} onClose={onClose} />
-      <Center>
-        <VStack
-          shadow={"lg"}
-          w={"45%"}
-          rounded={"lg"}
-          m={8}
-          p={8}
-          style={{ backgroundColor: "#FFFFFF" }}
-        >
-          <HStack
-            justifyContent={"space-evenly"}
-            w={"100%"}
-            h="25vh"
-            style={{
-              backgroundImage: "linear-gradient(to right, #B2F5EA, #BEE3F8)",
-            }}
+        <ChangeInfoDrawer isOpen={isOpen} onClose={onClose} />
+        <Center h={"100%"}>
+          <VStack
+            shadow={"lg"}
+            w={"45%"}
+            rounded={"lg"}
+            m={8}
+            p={8}
+            bg={"white"}
           >
-            <VStack>
-              <Avatar
-                borderRadius="full"
-                h={24}
-                w={24}
-                src={`user/getAvatar/${token}`}
-              />
-              <Text fontWeight={"semibold"} fontSize={"xl"} color={"#97266D"}>
-                {info?.userName}
-              </Text>
-            </VStack>
-          </HStack>
+            <HStack
+              justifyContent={"space-evenly"}
+              w={"100%"}
+              h="25vh"
+              style={{
+                backgroundImage: "linear-gradient(to right, #B2F5EA, #BEE3F8)",
+              }}
+              rounded={"lg"}
+            >
+              <VStack>
+                <Avatar
+                  borderRadius="full"
+                  h={24}
+                  w={24}
+                  src={`user/getAvatar/${token}`}
+                />
+                <Text fontWeight={"semibold"} fontSize={"xl"} color={"#97266D"}>
+                  {info?.userName}
+                </Text>
+              </VStack>
+            </HStack>
 
-          <Divider />
-          <Heading
-            as="h6"
-            size="md"
-            fontWeight={"450"}
-            alignSelf={"flex-start"}
-          >
-            Personal Profile
-          </Heading>
-          <Grid
-            h="200px"
-            templateRows="repeat(2, 1fr)"
-            templateColumns="repeat(5, 1fr)"
-            gap={4}
-            width="100%"
-          >
-            <GridItem colSpan={2} padding={3} bg="papayawhip">
-              <Heading
-                as="h6"
-                size="md"
-                fontWeight={"450"}
-                color="RGBA(0, 0, 0, 0.80)"
+            <Divider />
+            <Heading
+              as="h6"
+              size="md"
+              fontWeight={"450"}
+              alignSelf={"flex-start"}
+            >
+              Personal Profile
+            </Heading>
+            <Grid
+              h="200px"
+              templateRows="repeat(2, 1fr)"
+              templateColumns="repeat(5, 1fr)"
+              gap={4}
+              width="100%"
+            >
+              <GridItem
+                colSpan={2}
+                padding={3}
+                bg={"orange.200"}
+                rounded={"lg"}
               >
-                Name
-              </Heading>
-              <Text marginTop={2} marginLeft={1}>
-                {info?.userName}
-              </Text>
-            </GridItem>
-            <GridItem colSpan={2} padding={3} bg="papayawhip">
-              <Heading
-                as="h6"
-                size="md"
-                fontWeight={"450"}
-                color="RGBA(0, 0, 0, 0.80)"
+                <Heading
+                  as="h6"
+                  size="md"
+                  fontWeight={"450"}
+                  color="RGBA(0, 0, 0, 0.80)"
+                >
+                  Name
+                </Heading>
+                <Text marginTop={2} marginLeft={1}>
+                  {info?.userName}
+                </Text>
+              </GridItem>
+              <GridItem colSpan={2} padding={3} bg="orange.200" rounded={"lg"}>
+                <Heading
+                  as="h6"
+                  size="md"
+                  fontWeight={"450"}
+                  color="RGBA(0, 0, 0, 0.80)"
+                >
+                  Register Time
+                </Heading>
+                <Text marginTop={2} marginLeft={1}>
+                  {info?.createDate.substr(0, 10)}
+                </Text>
+              </GridItem>
+              <GridItem
+                rowSpan={2}
+                padding={3}
+                colSpan={1}
+                bg={"purple.50"}
+                rounded={"lg"}
               >
-                Register Time
-              </Heading>
-              <Text marginTop={2} marginLeft={1}>
-                {info?.createDate.substr(0, 10)}
-              </Text>
-            </GridItem>
-            <GridItem rowSpan={2} padding={3} colSpan={1} bg="#FAF5FF">
-              <Heading
-                as="h6"
-                size="md"
-                fontWeight={"450"}
-                color="RGBA(0, 0, 0, 0.80)"
-              >
-                Edit Profile
-              </Heading>
-              <IconButton
-                variant={"ghost"}
-                aria-label={"Edit profile"}
-                icon={<AiOutlineEdit />}
-                onClick={onOpen}
-                padding={5}
-              />
-            </GridItem>
-            <GridItem colSpan={4} padding={3} bg="#B2F5EA">
-              <Heading as="h6" size="md" fontWeight={"450"}>
-                Email
-              </Heading>
-              <Text marginTop={2} marginLeft={1}>
-                {info?.email}
-              </Text>
-            </GridItem>
-          </Grid>
+                <Heading
+                  as="h6"
+                  size="md"
+                  fontWeight={"450"}
+                  color="RGBA(0, 0, 0, 0.80)"
+                >
+                  Edit Profile
+                </Heading>
+                <IconButton
+                  variant={"ghost"}
+                  aria-label={"Edit profile"}
+                  icon={<AiOutlineEdit />}
+                  onClick={onOpen}
+                  size={"lg"}
+                  mt={4}
+                  padding={5}
+                  w={"100%"}
+                />
+              </GridItem>
+              <GridItem colSpan={4} padding={3} bg={"teal.100"} rounded={"lg"}>
+                <Heading as="h6" size="md" fontWeight={"450"}>
+                  Email
+                </Heading>
+                <Text marginTop={2} marginLeft={1}>
+                  {info?.email}
+                </Text>
+              </GridItem>
+            </Grid>
 
-          <Divider />
-          <Heading
-            as="h6"
-            size="md"
-            fontWeight={"450"}
-            alignSelf={"flex-start"}
-          >
-            API
-          </Heading>
-        </VStack>
-      </Center>
-    </div>
+            <Divider />
+            <Heading
+              as="h6"
+              size="md"
+              fontWeight={"450"}
+              alignSelf={"flex-start"}
+            >
+              API
+            </Heading>
+          </VStack>
+        </Center>
+      </Box>
+    </>
   );
 };
 export default Manage;

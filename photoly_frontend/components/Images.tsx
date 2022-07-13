@@ -1,4 +1,4 @@
-import {Button, Flex, Text} from "@chakra-ui/react";
+import {Box, Button, Flex, Text} from "@chakra-ui/react";
 import React from "react";
 import {AiOutlineFolderOpen} from 'react-icons/ai'
 import ImageItem from "./ImageItem";
@@ -8,18 +8,21 @@ const Images: React.FC = () => {
         <>
             <Text alignSelf={"flex-start"} fontSize={"xl"} fontWeight={"semibold"} pl={2}>Folders</Text>
             <Flex w={"100%"} justifyContent={"flex-start"} wrap={"wrap"}>
-                <Button leftIcon={<AiOutlineFolderOpen />} colorScheme='gray' variant='solid' ml={2}>
-                    Folder1
-                </Button>
-                <Button leftIcon={<AiOutlineFolderOpen />} colorScheme='gray' variant='solid' ml={2}>
-                    Folder2
-                </Button>
-                <Button leftIcon={<AiOutlineFolderOpen />} colorScheme='gray' variant='solid' ml={2}>
-                    Folder3
-                </Button>
-                <Button leftIcon={<AiOutlineFolderOpen />} colorScheme='gray' variant='solid' ml={2}>
-                    Folder4
-                </Button>
+                <Box w={64} m={2}>
+                    <Button leftIcon={<AiOutlineFolderOpen />} colorScheme='gray' variant='solid' w={"100%"}>
+                        Folder 1
+                    </Button>
+                </Box>
+                <Box w={64} m={2}>
+                    <Button leftIcon={<AiOutlineFolderOpen />} colorScheme='gray' variant='solid' w={"100%"}>
+                        Folder 2
+                    </Button>
+                </Box>
+                <Box w={64} m={2}>
+                    <Button leftIcon={<AiOutlineFolderOpen />} colorScheme='gray' variant='solid' w={"100%"}>
+                        Folder 3
+                    </Button>
+                </Box>
             </Flex>
             <Text alignSelf={"flex-start"} fontSize={"xl"} fontWeight={"semibold"} pl={2}>Images</Text>
             <Flex w={"100%"} justifyContent={"flex-start"} wrap={"wrap"}>
