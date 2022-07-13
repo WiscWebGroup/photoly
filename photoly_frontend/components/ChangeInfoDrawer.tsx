@@ -98,15 +98,16 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose***REMOVED*
                 <DrawerBody>
                     <Input placeholder='Username' onChange={handleUsernameChange***REMOVED*** value={username***REMOVED***/>
                     <Input placeholder='Email' mt={4***REMOVED*** onChange={handleEmailChange***REMOVED*** value={email***REMOVED***/>
+                    <Text fontWeight={"semibold"***REMOVED*** mt={4***REMOVED*** fontSize={"xl"***REMOVED***>Change Avatar</Text>
                     <Input type={"file"***REMOVED*** mt={4***REMOVED*** accept={"image/png, image/jpeg"***REMOVED*** onChange={handleFileChange***REMOVED***/>
                     <Text fontWeight={"semibold"***REMOVED*** mt={4***REMOVED*** fontSize={"xl"***REMOVED***>Change Password</Text>
                     <Input placeholder='Old Password' type={"password"***REMOVED*** mt={4***REMOVED*** onChange={handleOldPwdChange***REMOVED*** value={oldPwd***REMOVED***/>
                     <InputGroup mt={4***REMOVED***>
-                        <Input variant="outline" type={show ? 'text' : 'password'***REMOVED*** placeholder="Enter password"
+                        <Input variant="outline" type={show ? 'text' : 'password'***REMOVED*** placeholder="New password"
                                onChange={handleNewPwdChange***REMOVED*** isDisabled={isLoading***REMOVED***></Input>
                         <InputRightElement pr={1***REMOVED***>
                             <Button padding={4***REMOVED*** size='sm' onClick={setShow.toggle***REMOVED*** fontSize="xs">
-                            ***REMOVED***show ? 'Hide' : 'Show'***REMOVED***
+             ***REMOVED*****REMOVED*****REMOVED*****REMOVED***show ? 'Hide' : 'Show'***REMOVED***
                             </Button>
                         </InputRightElement>
                     </InputGroup>
@@ -116,7 +117,7 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose***REMOVED*
                     <Button variant='outline' mr={3***REMOVED*** onClick={onClose***REMOVED***>
                         Cancel
                     </Button>
-                    <Button colorScheme='blue' onClick={() => {
+                    <Button colorScheme='teal' onClick={() => {
                         handleSubmit();
                         onClose()
   ***REMOVED*****REMOVED*****REMOVED******REMOVED*** isLoading={isLoading***REMOVED*** loadingText={"Saving..."***REMOVED***>Save</Button>
