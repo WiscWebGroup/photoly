@@ -12,7 +12,7 @@ interface TagItemProps {
         <ContextMenu<HTMLDivElement>
             renderMenu={() => (<TagContextMenu />)***REMOVED***
         >
-        ***REMOVED***ref => (
+   ***REMOVED*****REMOVED***ref => (
                 <Box ref={ref***REMOVED*** w='100%'>
                     <Checkbox variant='ghost' w='100%'>{tagName***REMOVED***</Checkbox >
                 </Box>
