@@ -98,6 +98,7 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose***REMOVED*
                 <DrawerBody>
                     <Input placeholder='Username' onChange={handleUsernameChange***REMOVED*** value={username***REMOVED***/>
                     <Input placeholder='Email' mt={4***REMOVED*** onChange={handleEmailChange***REMOVED*** value={email***REMOVED***/>
+                    <Text fontWeight={"semibold"***REMOVED*** mt={4***REMOVED*** fontSize={"xl"***REMOVED***>Change Avatar</Text>
                     <Input type={"file"***REMOVED*** mt={4***REMOVED*** accept={"image/png, image/jpeg"***REMOVED*** onChange={handleFileChange***REMOVED***/>
                     <Text fontWeight={"semibold"***REMOVED*** mt={4***REMOVED*** fontSize={"xl"***REMOVED***>Change Password</Text>
                     <Input placeholder='Old Password' type={"password"***REMOVED*** mt={4***REMOVED*** onChange={handleOldPwdChange***REMOVED*** value={oldPwd***REMOVED***/>
