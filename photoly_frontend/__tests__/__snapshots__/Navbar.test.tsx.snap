@@ -5,7 +5,7 @@ exports[`<Navbar/> rendering should render navigation bar on the screen 1`] = `
   class="chakra-stack css-1a1oqyw"
 >
   <div
-    class="chakra-stack css-84zodg"
+    class="chakra-stack css-152xqq4"
   >
     <span
       style="box-sizing: border-box; display: inline-block; overflow: hidden; background: none; opacity: 1; border: 0px; margin: 0px; padding: 0px; position: relative; max-width: 100%;"
@@ -39,6 +39,12 @@ exports[`<Navbar/> rendering should render navigation bar on the screen 1`] = `
   <div
     class="chakra-stack css-1y4bou5"
   >
+    <button
+      class="chakra-button css-117sk0y"
+      type="button"
+    >
+      Home
+    </button>
     <button
       class="chakra-button css-117sk0y"
       type="button"
