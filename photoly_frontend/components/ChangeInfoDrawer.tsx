@@ -103,7 +103,7 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose}) => {
                     <Text fontWeight={"semibold"} mt={4} fontSize={"xl"}>Change Password</Text>
                     <Input placeholder='Old Password' type={"password"} mt={4} onChange={handleOldPwdChange} value={oldPwd}/>
                     <InputGroup mt={4}>
-                        <Input variant="outline" type={show ? 'text' : 'password'} placeholder="Enter password"
+                        <Input variant="outline" type={show ? 'text' : 'password'} placeholder="New password"
                                onChange={handleNewPwdChange} isDisabled={isLoading}></Input>
                         <InputRightElement pr={1}>
                             <Button padding={4} size='sm' onClick={setShow.toggle} fontSize="xs">
@@ -117,7 +117,7 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose}) => {
                     <Button variant='outline' mr={3} onClick={onClose}>
                         Cancel
                     </Button>
-                    <Button colorScheme='blue' onClick={() => {
+                    <Button colorScheme='teal' onClick={() => {
                         handleSubmit();
                         onClose()
                     }} isLoading={isLoading} loadingText={"Saving..."}>Save</Button>
