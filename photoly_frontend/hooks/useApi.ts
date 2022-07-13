@@ -19,7 +19,11 @@ function useResponseHandler() {
     return ((res: AxiosResponse) => {
         // If request successful, check msgCode
         if (res.data.msgCode === 401 || res.data.msgCode === 400) {
-            toast({title: res.data.t, status: "warning", isClosable: true, position: "top"})
+            if (res.data.t === null){
+                toast({title: "Something is wrong...", status: "warning", isClosable: true, position: "top"})
+            } else {
+                toast({title: res.data.t, status: "warning", isClosable: true, position: "top"})
+            }
         } else if (res.data.msgCode == 403) {
             toast({title: "Unauthorized", status: "warning", isClosable: true, position: "top"})
             removeLS()

@@ -16,7 +16,7 @@ const Navbar: React.FC = () => {
     return (
         <HStack bg={"teal.400"} w={"100%"} h={16} color={"white"} p={4}
                 justifyContent={"space-between"}>
-            <HStack>
+            <HStack  cursor={"pointer"} onClick={() => router.push("/home")}>
                 <Image src={"/favicon.ico"} alt={"logo"} width={"50px"} height={"50px"} data-testid={"logo"}/>
                 <Text fontSize={"xl"} fontWeight={"medium"}>PHOTOLY</Text>
             </HStack>
