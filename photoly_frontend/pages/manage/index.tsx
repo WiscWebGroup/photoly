@@ -54,22 +54,23 @@ const Manage: React.FC = () => {
   ***REMOVED***, [token]);
 
   return (
-    <div style={{ backgroundColor: "RGBA(0, 0, 0, 0.02)", height: "100vh" ***REMOVED******REMOVED***>
+    <>
       <Navbar />
-      <Slide
-        direction="left"
-        in={true***REMOVED***
-        style={{
-          height: "100vh",
-          width: "300px",
-          zIndex: 200,
-          marginTop: "7vh",
-          borderRight: "2px solid rgba(214, 214, 214, .5)",
-          backgroundColor: "#FFFFFF",
-***REMOVED******REMOVED***
-      >
-        <VStack spacing={0***REMOVED*** align="stretch">
-          <Box h="45px">
+
+      <Box bg={"gray.50"***REMOVED*** h={"calc(100vh - 4rem)"***REMOVED***>
+        <Slide
+          direction="left"
+          in={true***REMOVED***
+          style={{
+            height: "100%",
+            width: "150px",
+            zIndex: 200,
+            alignSelf: "flex-start",
+            background: "#FFFFFF",
+            marginTop: "4rem",
+  ***REMOVED******REMOVED***
+        >
+          <VStack spacing={0***REMOVED*** bg={"white"***REMOVED*** h={"100%"***REMOVED*** w={"max-content"***REMOVED***>
             <Button
               leftIcon={<AiOutlineHome />***REMOVED***
               colorScheme="teal"
@@ -80,8 +81,6 @@ const Manage: React.FC = () => {
             >
               My Profile
             </Button>
-          </Box>
-          <Box h="45px">
             <Button
               leftIcon={<FiSettings />***REMOVED***
               colorScheme="teal"
@@ -92,8 +91,6 @@ const Manage: React.FC = () => {
             >
               Settings
             </Button>
-          </Box>
-          <Box h="45px">
             <Button
               leftIcon={<RiFileSettingsLine />***REMOVED***
               colorScheme="teal"
@@ -104,122 +101,137 @@ const Manage: React.FC = () => {
             >
               Admin Settings
             </Button>
-          </Box>
-        </VStack>
-      </Slide>
+          </VStack>
+        </Slide>
 
-      <ChangeInfoDrawer isOpen={isOpen***REMOVED*** onClose={onClose***REMOVED*** />
-      <Center>
-        <VStack
-          shadow={"lg"***REMOVED***
-          w={"45%"***REMOVED***
-          rounded={"lg"***REMOVED***
-          m={8***REMOVED***
-          p={8***REMOVED***
-          style={{ backgroundColor: "#FFFFFF" ***REMOVED******REMOVED***
-        >
-          <HStack
-            justifyContent={"space-evenly"***REMOVED***
-            w={"100%"***REMOVED***
-            h="25vh"
-            style={{
-              backgroundImage: "linear-gradient(to right, #B2F5EA, #BEE3F8)",
-    ***REMOVED******REMOVED***
+        <ChangeInfoDrawer isOpen={isOpen***REMOVED*** onClose={onClose***REMOVED*** />
+        <Center h={"100%"***REMOVED***>
+          <VStack
+            shadow={"lg"***REMOVED***
+            w={"45%"***REMOVED***
+            rounded={"lg"***REMOVED***
+            m={8***REMOVED***
+            p={8***REMOVED***
+            bg={"white"***REMOVED***
           >
-            <VStack>
-              <Avatar
-                borderRadius="full"
-                h={24***REMOVED***
-                w={24***REMOVED***
-                src={`user/getAvatar/${token***REMOVED***`***REMOVED***
-              />
-              <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED*** color={"#97266D"***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.userName***REMOVED***
-              </Text>
-            </VStack>
-          </HStack>
+            <HStack
+              justifyContent={"space-evenly"***REMOVED***
+              w={"100%"***REMOVED***
+              h="25vh"
+              style={{
+                backgroundImage: "linear-gradient(to right, #B2F5EA, #BEE3F8)",
+ ***REMOVED*****REMOVED******REMOVED***
+              rounded={"lg"***REMOVED***
+            >
+              <VStack>
+                <Avatar
+                  borderRadius="full"
+                  h={24***REMOVED***
+                  w={24***REMOVED***
+                  src={`user/getAvatar/${token***REMOVED***`***REMOVED***
+                />
+                <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED*** color={"#97266D"***REMOVED***>
+    ***REMOVED*****REMOVED*****REMOVED***info?.userName***REMOVED***
+                </Text>
+              </VStack>
+            </HStack>
 
-          <Divider />
-          <Heading
-            as="h6"
-            size="md"
-            fontWeight={"450"***REMOVED***
-            alignSelf={"flex-start"***REMOVED***
-          >
-            Personal Profile
-          </Heading>
-          <Grid
-            h="200px"
-            templateRows="repeat(2, 1fr)"
-            templateColumns="repeat(5, 1fr)"
-            gap={4***REMOVED***
-            width="100%"
-          >
-            <GridItem colSpan={2***REMOVED*** padding={3***REMOVED*** bg="papayawhip">
-              <Heading
-                as="h6"
-                size="md"
-                fontWeight={"450"***REMOVED***
-                color="RGBA(0, 0, 0, 0.80)"
+            <Divider />
+            <Heading
+              as="h6"
+              size="md"
+              fontWeight={"450"***REMOVED***
+              alignSelf={"flex-start"***REMOVED***
+            >
+              Personal Profile
+            </Heading>
+            <Grid
+              h="200px"
+              templateRows="repeat(2, 1fr)"
+              templateColumns="repeat(5, 1fr)"
+              gap={4***REMOVED***
+              width="100%"
+            >
+              <GridItem
+                colSpan={2***REMOVED***
+                padding={3***REMOVED***
+                bg={"orange.200"***REMOVED***
+                rounded={"lg"***REMOVED***
               >
-                Name
-              </Heading>
-              <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.userName***REMOVED***
-              </Text>
-            </GridItem>
-            <GridItem colSpan={2***REMOVED*** padding={3***REMOVED*** bg="papayawhip">
-              <Heading
-                as="h6"
-                size="md"
-                fontWeight={"450"***REMOVED***
-                color="RGBA(0, 0, 0, 0.80)"
+                <Heading
+                  as="h6"
+                  size="md"
+                  fontWeight={"450"***REMOVED***
+                  color="RGBA(0, 0, 0, 0.80)"
+                >
+                  Name
+                </Heading>
+                <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
+    ***REMOVED*****REMOVED*****REMOVED***info?.userName***REMOVED***
+                </Text>
+              </GridItem>
+              <GridItem colSpan={2***REMOVED*** padding={3***REMOVED*** bg="orange.200" rounded={"lg"***REMOVED***>
+                <Heading
+                  as="h6"
+                  size="md"
+                  fontWeight={"450"***REMOVED***
+                  color="RGBA(0, 0, 0, 0.80)"
+                >
+                  Register Time
+                </Heading>
+                <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
+    ***REMOVED*****REMOVED*****REMOVED***info?.createDate.substr(0, 10)***REMOVED***
+                </Text>
+              </GridItem>
+              <GridItem
+                rowSpan={2***REMOVED***
+                padding={3***REMOVED***
+                colSpan={1***REMOVED***
+                bg={"purple.50"***REMOVED***
+                rounded={"lg"***REMOVED***
               >
-                Register Time
-              </Heading>
-              <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.createDate.substr(0, 10)***REMOVED***
-              </Text>
-            </GridItem>
-            <GridItem rowSpan={2***REMOVED*** padding={3***REMOVED*** colSpan={1***REMOVED*** bg="#FAF5FF">
-              <Heading
-                as="h6"
-                size="md"
-                fontWeight={"450"***REMOVED***
-                color="RGBA(0, 0, 0, 0.80)"
-              >
-                Edit Profile
-              </Heading>
-              <IconButton
-                variant={"ghost"***REMOVED***
-                aria-label={"Edit profile"***REMOVED***
-                icon={<AiOutlineEdit />***REMOVED***
-                onClick={onOpen***REMOVED***
-                padding={5***REMOVED***
-              />
-            </GridItem>
-            <GridItem colSpan={4***REMOVED*** padding={3***REMOVED*** bg="#B2F5EA">
-              <Heading as="h6" size="md" fontWeight={"450"***REMOVED***>
-                Email
-              </Heading>
-              <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.email***REMOVED***
-              </Text>
-            </GridItem>
-          </Grid>
+                <Heading
+                  as="h6"
+                  size="md"
+                  fontWeight={"450"***REMOVED***
+                  color="RGBA(0, 0, 0, 0.80)"
+                >
+                  Edit Profile
+                </Heading>
+                <IconButton
+                  variant={"ghost"***REMOVED***
+                  aria-label={"Edit profile"***REMOVED***
+                  icon={<AiOutlineEdit />***REMOVED***
+                  onClick={onOpen***REMOVED***
+                  size={"lg"***REMOVED***
+                  mt={4***REMOVED***
+                  padding={5***REMOVED***
+                  w={"100%"***REMOVED***
+                />
+              </GridItem>
+              <GridItem colSpan={4***REMOVED*** padding={3***REMOVED*** bg={"teal.100"***REMOVED*** rounded={"lg"***REMOVED***>
+                <Heading as="h6" size="md" fontWeight={"450"***REMOVED***>
+                  Email
+                </Heading>
+                <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
+    ***REMOVED*****REMOVED*****REMOVED***info?.email***REMOVED***
+                </Text>
+              </GridItem>
+            </Grid>
 
-          <Divider />
-          <Heading
-            as="h6"
-            size="md"
-            fontWeight={"450"***REMOVED***
-            alignSelf={"flex-start"***REMOVED***
-          >
-            API
-          </Heading>
-        </VStack>
-      </Center>
-    </div>
+            <Divider />
+            <Heading
+              as="h6"
+              size="md"
+              fontWeight={"450"***REMOVED***
+              alignSelf={"flex-start"***REMOVED***
+            >
+              API
+            </Heading>
+          </VStack>
+        </Center>
+      </Box>
+    </>
   );
 ***REMOVED***;
 export default Manage;
