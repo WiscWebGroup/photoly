@@ -109,10 +109,10 @@ public class UserController {
     {
         String key = request.getHeader("HRD-Token");
         if(key == null || key.equals(""))
-            return new Result<>(null, 401);
+            return new Result<>(null, 403);
         Integer id = (Integer) template.opsForValue().get(key);
         if (id == null)
-            return new Result<>(null, 401);
+            return new Result<>(null, 403);
         User user = service.getById(id);
         if (user == null || user.getEmail() == null || user.getEmail().equals(""))
         {
