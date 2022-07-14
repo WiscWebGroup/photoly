@@ -127,6 +127,7 @@ const MyProfile: React.FC = () => {
         title: `Delete Successful`,
         status: "success",
         isClosable: true,
+        position: "top",
         duration: 3000,
       });
       getCred();
@@ -164,6 +165,7 @@ const MyProfile: React.FC = () => {
         status: "success",
         isClosable: true,
         duration: 3000,
+        position: "top",
       });
       getCred();
     }
@@ -185,6 +187,7 @@ const MyProfile: React.FC = () => {
         status: "success",
         isClosable: true,
         duration: 3000,
+        position: "top",
       });
       getCred();
     }
@@ -197,6 +200,7 @@ const MyProfile: React.FC = () => {
       status: "success",
       isClosable: true,
       duration: 3000,
+      position: "top",
     });
   };
 
