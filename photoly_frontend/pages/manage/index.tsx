@@ -13,6 +13,16 @@ import {
   Button,
   Grid,
   GridItem,
+  Table,
+  Thead,
+  Tbody,
+  Tfoot,
+  Tr,
+  Th,
+  Td,
+  TableCaption,
+  TableContainer,
+  Stack,
 } from "@chakra-ui/react";
 import { AiOutlineEdit } from "react-icons/ai";
 import React, { useEffect, useState } from "react";
@@ -20,9 +30,11 @@ import useToken from "../../hooks/useToken";
 import useApi from "../../hooks/useApi";
 import ChangeInfoDrawer from "../../components/ChangeInfoDrawer";
 import Navbar from "../../components/Navbar";
-import { AiOutlineHome } from "react-icons/ai";
+import { AiOutlineHome, AiOutlineCopy, AiOutlineDelete } from "react-icons/ai";
 import { FiSettings } from "react-icons/fi";
 import { RiFileSettingsLine } from "react-icons/ri";
+import { GrUpdate,GrAdd } from "react-icons/gr";
+
 
 interface userInfo {
   userId: number;
@@ -33,11 +45,21 @@ interface userInfo {
   uuid: string;
 }
 
+interface cred {
+  credId: number;
+  userId: number;
+  token: string;
+  authorization: string;
+}
+
 const Manage: React.FC = () => {
   const token = useToken();
   const { get } = useApi();
   const [info, setInfo] = useState<userInfo>();
   const { isOpen, onOpen, onClose } = useDisclosure();
+
+  const [credList, setCredList] = useState<cred[]>();
+  const [selectedAuth, setSelectedAuth] = useState<string>();
 
   const getInfo = async () => {
     const response = await get("/user/getInfo", {
@@ -47,9 +69,20 @@ const Manage: React.FC = () => {
       setInfo(response.data.t);
     }
   };
+
+  const getCred = async () => {
+    const response = await get("/cred/query", {
+      headers: { "HRD-token": token },
+    });
+    if (!!response && response.data.msgCode === 200) {
+      setCredList(response.data.t);
+    }
+  };
+
   useEffect(() => {
     if (!!token) {
       getInfo();
+      getCred();
     }
   }, [token]);
 
@@ -57,20 +90,8 @@ const Manage: React.FC = () => {
     <>
       <Navbar />
 
-      <Box bg={"gray.50"} h={"calc(100vh - 4rem)"}>
-        <Slide
-          direction="left"
-          in={true}
-          style={{
-            height: "100%",
-            width: "150px",
-            zIndex: 200,
-            alignSelf: "flex-start",
-            background: "#FFFFFF",
-            marginTop: "4rem",
-          }}
-        >
-          <VStack spacing={0} bg={"white"} h={"100%"} w={"max-content"}>
+      <Stack bg={"gray.50"} h={"calc(100% - 4rem)"} direction="row" w="100vw-4rem">
+      <VStack spacing={0} bg={"white"} h={"calc(100%-4rem)"} w={"15vw"}>
             <Button
               leftIcon={<AiOutlineHome />}
               colorScheme="teal"
@@ -102,13 +123,12 @@ const Manage: React.FC = () => {
               Admin Settings
             </Button>
           </VStack>
-        </Slide>
-
+        
         <ChangeInfoDrawer isOpen={isOpen} onClose={onClose} />
-        <Center h={"100%"}>
+        <Center h="calc(100%-4rem)" w={"85vw"}>
           <VStack
             shadow={"lg"}
-            w={"45%"}
+            w={"55%"}
             rounded={"lg"}
             m={8}
             p={8}
@@ -227,10 +247,37 @@ const Manage: React.FC = () => {
               alignSelf={"flex-start"}
             >
               API
+              <Button colorScheme='teal' variant='ghost' ml={4} rightIcon={<GrAdd/>}>
+                New API
+              </Button>
             </Heading>
+            <Stack width={"100%"}>
+            <TableContainer w={"100vw"}>
+              <Table variant='simple'>
+                <Thead>
+                  <Tr>
+                    <Th>ID</Th>
+                    <Th>Authorization</Th>
+                    <Th>Token</Th>
+                    <Th>Action</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {credList?.map((cred) => {
+                    return <Tr key={cred.credId}>
+                    <Td>{cred.credId}</Td>
+                    <Td>{cred.authorization.replace("C", "Upload ").replace("R", "Read ").replace("D", "Delete")}</Td>
+                    <Td>{cred.token}</Td>
+                    <Td><Button leftIcon={<AiOutlineCopy/>}></Button><Button leftIcon={<GrUpdate/>}></Button><Button leftIcon={<AiOutlineDelete/>}></Button></Td>
+                  </Tr>;
+                  })}
+                </Tbody>
+              </Table>
+            </TableContainer>
+            </Stack>
           </VStack>
         </Center>
-      </Box>
+      </Stack>
     </>
   );
 };
