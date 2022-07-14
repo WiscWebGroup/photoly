@@ -7,6 +7,26 @@ const nextConfig = {
       {
         source: '/user/:path*',
         destination: `${serverAddr}/user/:path*`
+      },
+      {
+          source: '/cred/:path*',
+          destination: `${serverAddr}/cred/:path*`
+      },
+      {
+          source: '/photo/:path*',
+          destination: `${serverAddr}/photo/:path*`
+      },
+      {
+          source: '/namespace/:path*',
+          destination: `${serverAddr}/namespace/:path*`
+      },
+      {
+          source: '/gallery/:path*',
+          destination: `${serverAddr}/gallery/:path*`
+      },
+      {
+          source: '/tag/:path*',
+          destination: `${serverAddr}/tag/:path*`
       }
     ]
   }
