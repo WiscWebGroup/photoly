@@ -380,7 +380,7 @@ const MyProfile: React.FC = () => {
             </Popover>
           </Heading>
           <Stack width={"100%"}>
-            <TableContainer w={"100vw"}>
+            {credList?.length === 0 ? <><Text fontSize="xl">Nothing Here</Text><Divider/></> : <TableContainer w={"100vw"}>
               <Table variant="simple">
                 <Thead>
                   <Tr>
@@ -468,7 +468,8 @@ const MyProfile: React.FC = () => {
                   })}
                 </Tbody>
               </Table>
-            </TableContainer>
+            </TableContainer>}
+            
             <Heading
               as="h6"
               size="md"
