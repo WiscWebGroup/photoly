@@ -1,20 +1,69 @@
-import { Box, Checkbox ***REMOVED*** from "@chakra-ui/react";
+import { Box, Checkbox, Input, useDisclosure, useOutsideClick ***REMOVED*** from "@chakra-ui/react";
 import { ContextMenu ***REMOVED*** from "chakra-ui-contextmenu";
-import React from "react";
+import React, { KeyboardEvent, useRef, useState ***REMOVED*** from "react";
 import TagContextMenu from "./contextMenus/TagContextMenu";
+import { useTagListUpdate ***REMOVED*** from "./contexts/TagContext";
 
 interface TagItemProps {
+    tagId: number
     tagName: string
 ***REMOVED***
 
- const TagItem: React.FC<TagItemProps> = ({tagName***REMOVED***) => {
+ const TagItem: React.FC<TagItemProps> = ({tagId, tagName***REMOVED***) => {
+    const [tag, setTag] = useState(tagName)
+    const inputRef = useRef<HTMLInputElement>(null)
+    const { isOpen, onOpen, onClose ***REMOVED*** = useDisclosure()  // control edit mode
+    const { renameRequest, deleteRequest ***REMOVED*** = useTagListUpdate()
+
+    const handleRename = () => {
+        onOpen()
+        inputRef.current?.focus()
+***REMOVED***
+
+    const callThenClose = () => {
+        if (tag.length === 0)
+            setTag(tagName)
+        renameRequest({tagId, tagName: tag***REMOVED***)
+        onClose()
+***REMOVED***
+
+    const handleEnterClose = (e: KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter')
+            callThenClose()
+***REMOVED***
+
+    useOutsideClick({
+        ref: inputRef,
+        handler: callThenClose
+***REMOVED***)
+
+    const handleDelete = () => {
+        deleteRequest(tagId)
+***REMOVED***
+
     return (
         <ContextMenu<HTMLDivElement>
-            renderMenu={() => (<TagContextMenu />)***REMOVED***
+            renderMenu={() => (
+                <TagContextMenu 
+                    handleRename={handleRename***REMOVED***
+                    handleDelete={handleDelete***REMOVED***
+                />
+            )
+***REMOVED***
         >
         ***REMOVED***ref => (
-                <Box ref={ref***REMOVED*** w='100%'>
-                    <Checkbox variant='ghost' w='100%'>{tagName***REMOVED***</Checkbox >
+                <Box ref={ref***REMOVED*** w='100%' pl={4***REMOVED*** display='flex'>
+                    <Checkbox variant='ghost' pr={2***REMOVED***>{isOpen ? '' : tag***REMOVED***</Checkbox>
+                ***REMOVED***isOpen && 
+                    <Input 
+                        ref={inputRef***REMOVED***
+                        variant='flushed'
+                        value={tag***REMOVED***
+                        autoFocus
+                        onKeyDown={handleEnterClose***REMOVED***
+                        onChange={(e) => setTag(e.currentTarget.value)***REMOVED***
+                    />
+  ***REMOVED*****REMOVED*****REMOVED***
                 </Box>
             )***REMOVED***
         </ContextMenu>
