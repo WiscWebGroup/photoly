@@ -380,7 +380,7 @@ const MyProfile: React.FC = () => {
             </Popover>
           </Heading>
           <Stack width={"100%"***REMOVED***>
-            <TableContainer w={"100vw"***REMOVED***>
+   ***REMOVED*****REMOVED***credList?.length === 0 ? <><Text fontSize="xl">Nothing Here</Text><Divider/></> : <TableContainer w={"100vw"***REMOVED***>
               <Table variant="simple">
                 <Thead>
                   <Tr>
@@ -396,7 +396,7 @@ const MyProfile: React.FC = () => {
                       <Tr key={cred.credId***REMOVED***>
                         <Td>{cred.credId***REMOVED***</Td>
                         <Td>
-       ***REMOVED*****REMOVED*****REMOVED*****REMOVED***cred.authorization
+  ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***cred.authorization
                             .replace("C", "Upload ")
                             .replace("R", "Read ")
                             .replace("D", "Delete")***REMOVED***
@@ -468,7 +468,8 @@ const MyProfile: React.FC = () => {
 ***REMOVED*****REMOVED*****REMOVED***)***REMOVED***
                 </Tbody>
               </Table>
-            </TableContainer>
+            </TableContainer>***REMOVED***
+            
             <Heading
               as="h6"
               size="md"
