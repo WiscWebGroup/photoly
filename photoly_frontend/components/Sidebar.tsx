@@ -32,9 +32,8 @@ const Sidebar: React.FC = () => {
                 Your Tags
             </TagHeader>
 
-
    ***REMOVED*****REMOVED***tags.map((tag, ind) =>
-                <TagItem tagName={tag***REMOVED*** key={ind***REMOVED***></TagItem>
+                <TagItem tagName={tag***REMOVED*** tagId={ind***REMOVED*** key={ind***REMOVED***></TagItem>
             )***REMOVED***
 
             <Divider/>
@@ -56,4 +55,5 @@ const Sidebar: React.FC = () => {
         </VStack>
     )
 ***REMOVED***
+
 export default Sidebar
