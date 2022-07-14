@@ -58,7 +58,7 @@ public class CredServiceImpl extends ServiceImpl<CredMapper, Cred> implements IC
         String auth = cred.getAuthorization();
         String writeAuth = "";
         // CRD
-        if (auth == null || auth.equals("") || auth.length() > 3)
+        if (auth == null || auth.equals(""))
             return -1;
         if (auth.contains("c") || auth.contains("C"))
             writeAuth += "C";
