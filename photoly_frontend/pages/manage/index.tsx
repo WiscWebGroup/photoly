@@ -5,6 +5,8 @@ import useApi from "../../hooks/useApi";
 import Navbar from "../../components/Navbar";
 import NavManager from "../../components/manage/NavManager";
 import MyProfile from "../../components/manage/MyProfile";
+import Settings from "../../components/manage/Settings";
+import AdminSettings from "../../components/manage/AdminSettings";
 
 const Manage: React.FC = () => {
   const token = useToken();
@@ -27,6 +29,8 @@ const Manage: React.FC = () => {
       >
         <NavManager changeSelection={changeSelection***REMOVED*** />
     ***REMOVED***currentSelected === 0 ? <MyProfile /> : ""***REMOVED***
+    ***REMOVED***currentSelected === 1 ? <Settings /> : ""***REMOVED***
+    ***REMOVED***currentSelected === 2 ? <AdminSettings /> : ""***REMOVED***
       </Stack>
     </>
   );
