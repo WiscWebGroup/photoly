@@ -320,14 +320,22 @@ const MyProfile: React.FC = () => {
             alignSelf={"flex-start"***REMOVED***
           >
             API
-            <Popover isOpen={isOpenAdd***REMOVED*** onClose={onCloseAdd***REMOVED***>
+            <Popover
+              isOpen={isOpenAdd***REMOVED***
+              onClose={() => {
+                onCloseAdd();
+ ***REMOVED*****REMOVED******REMOVED***
+            >
               <PopoverTrigger>
                 <Button
                   colorScheme="teal"
                   variant="ghost"
                   ml={4***REMOVED***
                   rightIcon={<GrAdd />***REMOVED***
-                  onClick={onOpenAdd***REMOVED***
+                  onClick={() => {
+                    onOpenAdd();
+                    setValue([]);
+***REMOVED*****REMOVED*****REMOVED******REMOVED***
                 >
                   New API
                 </Button>
@@ -340,6 +348,7 @@ const MyProfile: React.FC = () => {
                   <CheckboxGroup
                     colorScheme="green"
                     defaultValue={[]***REMOVED***
+                    value={value***REMOVED***
                     onChange={(e) => {
                       setValue(e);
   ***REMOVED*****REMOVED*****REMOVED******REMOVED***
@@ -383,7 +392,7 @@ const MyProfile: React.FC = () => {
                       <Tr key={cred.credId***REMOVED***>
                         <Td>{cred.credId***REMOVED***</Td>
                         <Td>
-       ***REMOVED*****REMOVED*****REMOVED*****REMOVED***cred.authorization
+  ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***cred.authorization
                             .replace("C", "Upload ")
                             .replace("R", "Read ")
                             .replace("D", "Delete")***REMOVED***
