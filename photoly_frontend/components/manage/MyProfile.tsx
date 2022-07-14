@@ -127,6 +127,7 @@ const MyProfile: React.FC = () => {
         title: `Delete Successful`,
         status: "success",
         isClosable: true,
+        position: "top",
         duration: 3000,
   ***REMOVED***);
       getCred();
@@ -164,6 +165,7 @@ const MyProfile: React.FC = () => {
         status: "success",
         isClosable: true,
         duration: 3000,
+        position: "top",
   ***REMOVED***);
       getCred();
 ***REMOVED***
@@ -185,6 +187,7 @@ const MyProfile: React.FC = () => {
         status: "success",
         isClosable: true,
         duration: 3000,
+        position: "top",
   ***REMOVED***);
       getCred();
 ***REMOVED***
@@ -197,6 +200,7 @@ const MyProfile: React.FC = () => {
       status: "success",
       isClosable: true,
       duration: 3000,
+      position: "top",
 ***REMOVED***);
   ***REMOVED***;
 
@@ -392,7 +396,7 @@ const MyProfile: React.FC = () => {
                       <Tr key={cred.credId***REMOVED***>
                         <Td>{cred.credId***REMOVED***</Td>
                         <Td>
-  ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***cred.authorization
+       ***REMOVED*****REMOVED*****REMOVED*****REMOVED***cred.authorization
                             .replace("C", "Upload ")
                             .replace("R", "Read ")
                             .replace("D", "Delete")***REMOVED***
