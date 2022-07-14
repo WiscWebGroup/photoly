@@ -6,7 +6,7 @@ import React from "react";
 import TagHeader from "./TagHeader";
 
 const Sidebar: React.FC = () => {
-    const tags = ["Animals", "Cute", "Furry", "SM", "BL", "🔞", "White hair", "Monster ear"]
+    const tags = ["Animals", "Cute", "Furry", "White hair", "Landscape"]
 
     const addNewTag = () => {
         console.log("DEBUG/TODO: add a new tag to the sidebar (use backend api).")
