@@ -23,6 +23,8 @@ import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 ***REMOVED***
  * <p>
@@ -53,6 +55,13 @@ public class UserController {
     @PostMapping("/signUp")
     public ResultToken<String> signUp(@RequestBody User user)
 ***REMOVED***
+        String email = user.getEmail();
+        if (email == null)
+            return new ResultToken<>("Email is null", null, 400);
+        Pattern pattern = Pattern.compile(".+@.+\\..+");
+        Matcher matcher = pattern.matcher(email);
+        if (!matcher.find())
+            return new ResultToken<>("Email is incorrect", null, 400);
         user.setUserId(null);
         user.setCreateDate(LocalDateTime.now());
         user.setPassword(AESUtil.aesEncryptStr(user.getPassword(), AESUtil.getPkey()));
@@ -100,10 +109,10 @@ public class UserController {
 ***REMOVED***
         String key = request.getHeader("HRD-Token");
         if(key == null || key.equals(""))
-            return new Result<>(null, 401);
+            return new Result<>(null, 403);
         Integer id = (Integer) template.opsForValue().get(key);
         if (id == null)
-            return new Result<>(null, 401);
+            return new Result<>(null, 403);
         User user = service.getById(id);
         if (user == null || user.getEmail() == null || user.getEmail().equals(""))
     ***REMOVED***
@@ -130,6 +139,12 @@ public class UserController {
     @PostMapping("/updateEmail")
     public Result<Integer> updateEmail(HttpServletRequest request, String email)
 ***REMOVED***
+        if (email == null)
+            return new Result<>(-1,  400);
+        Pattern pattern = Pattern.compile(".+@.+\\..+");
+        Matcher matcher = pattern.matcher(email);
+        if (!matcher.find())
+            return new Result<>(-2,  400);
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(null, 403);
@@ -157,10 +172,10 @@ public class UserController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
 ***REMOVED***
 
-    @GetMapping(value="/getAvatar", produces = MediaType.IMAGE_JPEG_VALUE)
-    public byte[] getAvatar(HttpServletRequest request)
+    @GetMapping(value="/getAvatar/{token***REMOVED***", produces = MediaType.IMAGE_JPEG_VALUE)
+    public byte[] getAvatar(@PathVariable String token)
 ***REMOVED***
-        Integer userId = verify.verifyUser(request);
+        Integer userId = verify.verifyUserByToken(token);
         if (userId < 0)
     ***REMOVED***
         return service.getAvatar(userId);

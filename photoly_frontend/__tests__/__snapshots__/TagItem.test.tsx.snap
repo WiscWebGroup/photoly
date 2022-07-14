@@ -1,0 +1,27 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<TagItem/> renders correctly should render tag item on the screen 1`] = `
+<div
+  class="css-8atqhb"
+>
+  <label
+    class="chakra-checkbox css-1wj4kef"
+  >
+    <input
+      class="chakra-checkbox__input"
+      style="border: 0px; clip: rect(0px, 0px, 0px, 0px); height: 1px; width: 1px; margin: -1px; padding: 0px; overflow: hidden; white-space: nowrap; position: absolute;"
+      type="checkbox"
+      value=""
+    />
+    <span
+      aria-hidden="true"
+      class="chakra-checkbox__control css-dnty2r"
+    />
+    <span
+      class="chakra-checkbox__label css-1oeb2oe"
+    >
+      something
+    </span>
+  </label>
+</div>
+`;

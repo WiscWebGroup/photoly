@@ -9,7 +9,9 @@ import userEvent from "@testing-library/user-event";
 // useRouter now returns a mock function in this test file
 jest.mock('next/router', () => ({
     __esModule: true,
-    useRouter: jest.fn(),
+    useRouter: jest.fn(() => {return {
+        push: jest.fn() // the component uses `router.push` only
+***REMOVED******REMOVED***),
 ***REMOVED***))
 
 describe("<Navbar/> rendering", () => {

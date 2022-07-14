@@ -26,4 +26,14 @@ public class UserIdentity {
             return -2;
         return id;
 ***REMOVED***
+
+    public Integer verifyUserByToken(String key)
+***REMOVED***
+        if(key == null || key.equals(""))
+            return -1;
+        Integer id = (Integer) template.opsForValue().get(key);
+        if (id == null)
+            return -2;
+        return id;
+***REMOVED***
 ***REMOVED***
