@@ -233,7 +233,7 @@ const MyProfile: React.FC = () => {
                 src={`user/getAvatar/${token***REMOVED***`***REMOVED***
               />
               <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED*** color={"#97266D"***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.userName***REMOVED***
+            ***REMOVED***info?.userName***REMOVED***
               </Text>
             </VStack>
           </HStack>
@@ -264,7 +264,7 @@ const MyProfile: React.FC = () => {
                 Name
               </Heading>
               <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.userName***REMOVED***
+            ***REMOVED***info?.userName***REMOVED***
               </Text>
             </GridItem>
             <GridItem colSpan={2***REMOVED*** padding={3***REMOVED*** bg="orange.200" rounded={"lg"***REMOVED***>
@@ -277,7 +277,7 @@ const MyProfile: React.FC = () => {
                 Register Time
               </Heading>
               <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.createDate.substr(0, 10)***REMOVED***
+            ***REMOVED***info?.createDate.substr(0, 10)***REMOVED***
               </Text>
             </GridItem>
             <GridItem
@@ -311,7 +311,7 @@ const MyProfile: React.FC = () => {
                 Email
               </Heading>
               <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.email***REMOVED***
+            ***REMOVED***info?.email***REMOVED***
               </Text>
             </GridItem>
           </Grid>
@@ -380,7 +380,7 @@ const MyProfile: React.FC = () => {
             </Popover>
           </Heading>
           <Stack width={"100%"***REMOVED***>
-            <TableContainer w={"100vw"***REMOVED***>
+        ***REMOVED***credList?.length === 0 ? <><Text fontSize="xl">Nothing Here</Text><Divider/></> : <TableContainer w={"100vw"***REMOVED***>
               <Table variant="simple">
                 <Thead>
                   <Tr>
@@ -391,12 +391,12 @@ const MyProfile: React.FC = () => {
                   </Tr>
                 </Thead>
                 <Tbody>
-    ***REMOVED*****REMOVED*****REMOVED***credList?.map((cred) => {
+              ***REMOVED***credList?.map((cred) => {
                     return (
                       <Tr key={cred.credId***REMOVED***>
                         <Td>{cred.credId***REMOVED***</Td>
                         <Td>
-       ***REMOVED*****REMOVED*****REMOVED*****REMOVED***cred.authorization
+                      ***REMOVED***cred.authorization
                             .replace("C", "Upload ")
                             .replace("R", "Read ")
                             .replace("D", "Delete")***REMOVED***
@@ -407,7 +407,7 @@ const MyProfile: React.FC = () => {
                             leftIcon={<AiOutlineCopy />***REMOVED***
                             onClick={() => {
                               copyToken(cred.token);
-***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+     ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
                           ></Button>
                           <Popover>
                             <PopoverTrigger>
@@ -415,7 +415,7 @@ const MyProfile: React.FC = () => {
                                 leftIcon={<GrUpdate />***REMOVED***
                                 onClick={() => {
                                   getEditCred(cred.authorization);
-    ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+         ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
                               ></Button>
                             </PopoverTrigger>
                             <PopoverContent>
@@ -428,7 +428,7 @@ const MyProfile: React.FC = () => {
                                   value={value***REMOVED***
                                   onChange={(e) => {
                                     setValue(e);
- ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+           ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
                                 >
                                   <Stack
                                     spacing={[1, 5]***REMOVED***
@@ -446,7 +446,7 @@ const MyProfile: React.FC = () => {
                                   mt={5***REMOVED***
                                   onClick={() => {
                                     editCred(cred.credId);
- ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+           ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
                                 >
                                   Confirm
                                 </Button>
@@ -459,7 +459,7 @@ const MyProfile: React.FC = () => {
                             onClick={() => {
                               setDelCredId(cred.credId);
                               onOpenDeleteConfirm();
-***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+     ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
                             disabled={isOpenDeleteConfirm***REMOVED***
                           ></Button>
                         </Td>
@@ -468,7 +468,8 @@ const MyProfile: React.FC = () => {
 ***REMOVED*****REMOVED*****REMOVED***)***REMOVED***
                 </Tbody>
               </Table>
-            </TableContainer>
+            </TableContainer>***REMOVED***
+            
             <Heading
               as="h6"
               size="md"
