@@ -13,6 +13,16 @@ import {
   Button,
   Grid,
   GridItem,
+  Table,
+  Thead,
+  Tbody,
+  Tfoot,
+  Tr,
+  Th,
+  Td,
+  TableCaption,
+  TableContainer,
+  Stack,
 ***REMOVED*** from "@chakra-ui/react";
 import { AiOutlineEdit ***REMOVED*** from "react-icons/ai";
 import React, { useEffect, useState ***REMOVED*** from "react";
@@ -20,9 +30,11 @@ import useToken from "../../hooks/useToken";
 import useApi from "../../hooks/useApi";
 import ChangeInfoDrawer from "../../components/ChangeInfoDrawer";
 import Navbar from "../../components/Navbar";
-import { AiOutlineHome ***REMOVED*** from "react-icons/ai";
+import { AiOutlineHome, AiOutlineCopy, AiOutlineDelete ***REMOVED*** from "react-icons/ai";
 import { FiSettings ***REMOVED*** from "react-icons/fi";
 import { RiFileSettingsLine ***REMOVED*** from "react-icons/ri";
+import { GrUpdate,GrAdd ***REMOVED*** from "react-icons/gr";
+
 
 interface userInfo {
   userId: number;
@@ -33,11 +45,21 @@ interface userInfo {
   uuid: string;
 ***REMOVED***
 
+interface cred {
+  credId: number;
+  userId: number;
+  token: string;
+  authorization: string;
+***REMOVED***
+
 const Manage: React.FC = () => {
   const token = useToken();
   const { get ***REMOVED*** = useApi();
   const [info, setInfo] = useState<userInfo>();
   const { isOpen, onOpen, onClose ***REMOVED*** = useDisclosure();
+
+  const [credList, setCredList] = useState<cred[]>();
+  const [selectedAuth, setSelectedAuth] = useState<string>();
 
   const getInfo = async () => {
     const response = await get("/user/getInfo", {
@@ -47,9 +69,20 @@ const Manage: React.FC = () => {
       setInfo(response.data.t);
 ***REMOVED***
   ***REMOVED***;
+
+  const getCred = async () => {
+    const response = await get("/cred/query", {
+      headers: { "HRD-token": token ***REMOVED***,
+***REMOVED***);
+    if (!!response && response.data.msgCode === 200) {
+      setCredList(response.data.t);
+***REMOVED***
+  ***REMOVED***;
+
   useEffect(() => {
     if (!!token) {
       getInfo();
+      getCred();
 ***REMOVED***
   ***REMOVED***, [token]);
 
@@ -57,20 +90,8 @@ const Manage: React.FC = () => {
     <>
       <Navbar />
 
-      <Box bg={"gray.50"***REMOVED*** h={"calc(100vh - 4rem)"***REMOVED***>
-        <Slide
-          direction="left"
-          in={true***REMOVED***
-          style={{
-            height: "100%",
-            width: "150px",
-            zIndex: 200,
-            alignSelf: "flex-start",
-            background: "#FFFFFF",
-            marginTop: "4rem",
-  ***REMOVED******REMOVED***
-        >
-          <VStack spacing={0***REMOVED*** bg={"white"***REMOVED*** h={"100%"***REMOVED*** w={"max-content"***REMOVED***>
+      <Stack bg={"gray.50"***REMOVED*** h={"calc(100% - 4rem)"***REMOVED*** direction="row" w="100vw-4rem">
+      <VStack spacing={0***REMOVED*** bg={"white"***REMOVED*** h={"calc(100%-4rem)"***REMOVED*** w={"15vw"***REMOVED***>
             <Button
               leftIcon={<AiOutlineHome />***REMOVED***
               colorScheme="teal"
@@ -102,13 +123,12 @@ const Manage: React.FC = () => {
               Admin Settings
             </Button>
           </VStack>
-        </Slide>
-
+        
         <ChangeInfoDrawer isOpen={isOpen***REMOVED*** onClose={onClose***REMOVED*** />
-        <Center h={"100%"***REMOVED***>
+        <Center h="calc(100%-4rem)" w={"85vw"***REMOVED***>
           <VStack
             shadow={"lg"***REMOVED***
-            w={"45%"***REMOVED***
+            w={"55%"***REMOVED***
             rounded={"lg"***REMOVED***
             m={8***REMOVED***
             p={8***REMOVED***
@@ -227,10 +247,37 @@ const Manage: React.FC = () => {
               alignSelf={"flex-start"***REMOVED***
             >
               API
+              <Button colorScheme='teal' variant='ghost' ml={4***REMOVED*** rightIcon={<GrAdd/>***REMOVED***>
+                New API
+              </Button>
             </Heading>
+            <Stack width={"100%"***REMOVED***>
+            <TableContainer w={"100vw"***REMOVED***>
+              <Table variant='simple'>
+                <Thead>
+                  <Tr>
+                    <Th>ID</Th>
+                    <Th>Authorization</Th>
+                    <Th>Token</Th>
+                    <Th>Action</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+    ***REMOVED*****REMOVED*****REMOVED***credList?.map((cred) => {
+                    return <Tr key={cred.credId***REMOVED***>
+                    <Td>{cred.credId***REMOVED***</Td>
+                    <Td>{cred.authorization.replace("C", "Upload ").replace("R", "Read ").replace("D", "Delete")***REMOVED***</Td>
+                    <Td>{cred.token***REMOVED***</Td>
+                    <Td><Button leftIcon={<AiOutlineCopy/>***REMOVED***></Button><Button leftIcon={<GrUpdate/>***REMOVED***></Button><Button leftIcon={<AiOutlineDelete/>***REMOVED***></Button></Td>
+                  </Tr>;
+***REMOVED*****REMOVED*****REMOVED***)***REMOVED***
+                </Tbody>
+              </Table>
+            </TableContainer>
+            </Stack>
           </VStack>
         </Center>
-      </Box>
+      </Stack>
     </>
   );
 ***REMOVED***;
