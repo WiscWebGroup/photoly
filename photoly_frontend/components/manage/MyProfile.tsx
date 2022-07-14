@@ -320,14 +320,22 @@ const MyProfile: React.FC = () => {
             alignSelf={"flex-start"}
           >
             API
-            <Popover isOpen={isOpenAdd} onClose={onCloseAdd}>
+            <Popover
+              isOpen={isOpenAdd}
+              onClose={() => {
+                onCloseAdd();
+              }}
+            >
               <PopoverTrigger>
                 <Button
                   colorScheme="teal"
                   variant="ghost"
                   ml={4}
                   rightIcon={<GrAdd />}
-                  onClick={onOpenAdd}
+                  onClick={() => {
+                    onOpenAdd();
+                    setValue([]);
+                  }}
                 >
                   New API
                 </Button>
@@ -340,6 +348,7 @@ const MyProfile: React.FC = () => {
                   <CheckboxGroup
                     colorScheme="green"
                     defaultValue={[]}
+                    value={value}
                     onChange={(e) => {
                       setValue(e);
                     }}
