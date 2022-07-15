@@ -306,7 +306,7 @@ const GallerySetting: React.FC = () => {
                             setEditGalleryId(gallery.gaId);
                             setEditGalleryColor(gallery.coverColor);
                             if (gallery.coverId === null) {
-                              setEditGalleryCover(-1);
+                              setEditGalleryCover(0);
 ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*** else {
                               setEditGalleryCover(gallery.coverId);
 ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***
