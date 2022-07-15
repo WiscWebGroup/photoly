@@ -36,11 +36,6 @@ import {
   Text,
   FormControl,
   FormLabel,
-  NumberDecrementStepper,
-  NumberIncrementStepper,
-  NumberInput,
-  NumberInputField,
-  NumberInputStepper,
 } from "@chakra-ui/react";
 import React, { useEffect, useState, useRef } from "react";
 import useToken from "../../hooks/useToken";
