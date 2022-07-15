@@ -1,6 +1,6 @@
 import { VStack, Button ***REMOVED*** from "@chakra-ui/react";
 import React from "react";
-import { AiOutlineHome, AiOutlineTag ***REMOVED*** from "react-icons/ai";
+import { AiOutlineHome, AiOutlineTag, AiOutlineUser ***REMOVED*** from "react-icons/ai";
 import { RiFileSettingsLine, RiGalleryLine ***REMOVED*** from "react-icons/ri";
 
 const NavManager = ({
@@ -62,6 +62,19 @@ const NavManager = ({
   ***REMOVED******REMOVED***
         >
           Admin Settings
+        </Button>
+        <Button
+          leftIcon={<AiOutlineUser />***REMOVED***
+          colorScheme="teal"
+          variant="ghost"
+          padding={6***REMOVED***
+          minW="100%"
+          justifyContent="flex-start"
+          onClick={() => {
+            changeSelection(4);
+  ***REMOVED******REMOVED***
+        >
+          Admin User Settings
         </Button>
       </VStack>
     </>

@@ -1,7 +1,6 @@
 import {
   Center,
   VStack,
-  Divider,
   Heading,
   Table,
   Thead,
@@ -47,7 +46,6 @@ import { FaUmbrellaBeach ***REMOVED*** from "react-icons/fa";
 import { HiOutlineAcademicCap ***REMOVED*** from "react-icons/hi";
 import { GiMountainCave ***REMOVED*** from "react-icons/gi";
 import { GrAdd, GrFavorite, GrUpdate ***REMOVED*** from "react-icons/gr";
-import { IconType ***REMOVED*** from "react-icons/lib";
 import { BiPaperPlane ***REMOVED*** from "react-icons/bi";
 
 interface gallery {
@@ -212,7 +210,6 @@ const GallerySetting: React.FC = () => {
           bg={"white"***REMOVED***
           minH={"80vh"***REMOVED***
         >
-          <Divider />
           <Heading
             as="h6"
             size="md"
@@ -344,7 +341,7 @@ const GallerySetting: React.FC = () => {
               </AlertDialogHeader>
 
               <AlertDialogBody>
-                Are you sure? You can't undo this action afterwards.
+                Are you sure? You can&apos;t undo this action afterwards.
               </AlertDialogBody>
 
               <AlertDialogFooter>
