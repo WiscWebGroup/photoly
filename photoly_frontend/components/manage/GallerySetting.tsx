@@ -1,31 +1,15 @@
 import {
-  Center,
-  VStack,
-  Divider,
-  Heading,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  TableContainer,
-  Button,
-  Popover,
-  PopoverArrow,
-  PopoverBody,
-  PopoverCloseButton,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTrigger,
   AlertDialog,
   AlertDialogBody,
   AlertDialogContent,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogOverlay,
-  useDisclosure,
-  useToast,
+  Box,
+  Button,
+  Center,
+  Divider,
+  Heading,
   Input,
   Modal,
   ModalBody,
@@ -34,21 +18,36 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  Text,
+  Popover,
+  PopoverArrow,
+  PopoverBody,
+  PopoverCloseButton,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTrigger,
   Select,
-  Box,
+  Table,
+  TableContainer,
+  Tbody,
+  Td,
+  Text,
+  Th,
+  Thead,
+  Tr,
+  useDisclosure,
+  useToast,
+  VStack,
 ***REMOVED*** from "@chakra-ui/react";
-import React, { useEffect, useState, useRef ***REMOVED*** from "react";
+import React, {useEffect, useRef, useState***REMOVED*** from "react";
 import useToken from "../../hooks/useToken";
 import useApi from "../../hooks/useApi";
-import { AiOutlineDelete, AiOutlineFlag, AiOutlineStar ***REMOVED*** from "react-icons/ai";
-import { TbAlbum ***REMOVED*** from "react-icons/tb";
-import { FaUmbrellaBeach ***REMOVED*** from "react-icons/fa";
-import { HiOutlineAcademicCap ***REMOVED*** from "react-icons/hi";
-import { GiMountainCave ***REMOVED*** from "react-icons/gi";
-import { GrAdd, GrFavorite, GrUpdate ***REMOVED*** from "react-icons/gr";
-import { IconType ***REMOVED*** from "react-icons/lib";
-import { BiPaperPlane ***REMOVED*** from "react-icons/bi";
+import {AiOutlineDelete, AiOutlineFlag, AiOutlineStar***REMOVED*** from "react-icons/ai";
+import {TbAlbum***REMOVED*** from "react-icons/tb";
+import {FaUmbrellaBeach***REMOVED*** from "react-icons/fa";
+import {HiOutlineAcademicCap***REMOVED*** from "react-icons/hi";
+import {GiMountainCave***REMOVED*** from "react-icons/gi";
+import {GrAdd, GrFavorite, GrUpdate***REMOVED*** from "react-icons/gr";
+import {BiPaperPlane***REMOVED*** from "react-icons/bi";
 
 interface gallery {
   gaId: number;
@@ -265,7 +264,7 @@ const GallerySetting: React.FC = () => {
               </PopoverContent>
             </Popover>
           </Heading>
- ***REMOVED*****REMOVED***galleryList?.length === 0 ? (
+      ***REMOVED***galleryList?.length === 0 ? (
             <Text fontSize="3xl">Nothing Here</Text>
           ) : (
             ""
@@ -283,7 +282,7 @@ const GallerySetting: React.FC = () => {
                 </Tr>
               </Thead>
               <Tbody>
-  ***REMOVED*****REMOVED*****REMOVED***galleryList?.map((gallery) => {
+            ***REMOVED***galleryList?.map((gallery) => {
                   return (
                     <Tr key={gallery.gaId***REMOVED***>
                       <Td>{gallery.gaId***REMOVED***</Td>
@@ -307,9 +306,9 @@ const GallerySetting: React.FC = () => {
                             setEditGalleryColor(gallery.coverColor);
                             if (gallery.coverId === null) {
                               setEditGalleryCover(-1);
-***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*** else {
+     ***REMOVED*****REMOVED*****REMOVED*****REMOVED*** else {
                               setEditGalleryCover(gallery.coverId);
-***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***
+     ***REMOVED*****REMOVED*****REMOVED*****REMOVED***
 
                             onOpenEditModal();
    ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
@@ -344,7 +343,7 @@ const GallerySetting: React.FC = () => {
               </AlertDialogHeader>
 
               <AlertDialogBody>
-                Are you sure? You can't undo this action afterwards.
+                Are you sure? You can&apos;t undo this action afterwards.
               </AlertDialogBody>
 
               <AlertDialogFooter>
