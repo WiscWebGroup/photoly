@@ -1,7 +1,6 @@
-import { Stack } from "@chakra-ui/react";
-import React, { useEffect, useState, useRef } from "react";
+import {Stack} from "@chakra-ui/react";
+import React, {useState} from "react";
 import useToken from "../../hooks/useToken";
-import useApi from "../../hooks/useApi";
 import Navbar from "../../components/Navbar";
 import NavManager from "../../components/manage/NavManager";
 import MyProfile from "../../components/manage/MyProfile";
@@ -10,9 +9,8 @@ import AdminSettings from "../../components/manage/AdminSettings";
 import GallerySetting from "../../components/manage/GallerySetting";
 
 const Manage: React.FC = () => {
-  const token = useToken();
-  const { get, post } = useApi();
-  const [currentSelected, setCurrentSelected] = useState<number>(0);
+    useToken();
+    const [currentSelected, setCurrentSelected] = useState<number>(0);
 
   const changeSelection = (num: number) => {
     setCurrentSelected(num);

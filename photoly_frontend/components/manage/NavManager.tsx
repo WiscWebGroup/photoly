@@ -1,7 +1,7 @@
-import { VStack, Button } from "@chakra-ui/react";
+import {Button, VStack} from "@chakra-ui/react";
 import React from "react";
-import { AiOutlineHome, AiOutlineTag } from "react-icons/ai";
-import { RiFileSettingsLine, RiGalleryLine } from "react-icons/ri";
+import {AiOutlineHome, AiOutlineTag} from "react-icons/ai";
+import {RiFileSettingsLine, RiGalleryLine} from "react-icons/ri";
 
 const NavManager = ({
   changeSelection,
