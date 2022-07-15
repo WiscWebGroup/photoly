@@ -21,6 +21,7 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -179,6 +180,12 @@ public class UserController {
         if (userId < 0)
     ***REMOVED***
         return service.getAvatar(userId);
+***REMOVED***
+
+    @GetMapping("/deleteUser")
+    public Result<List<User>> deleteUser(HttpServletRequest request, @RequestBody Integer userId)
+***REMOVED***
+***REMOVED***
 ***REMOVED***
 ***REMOVED***
 
