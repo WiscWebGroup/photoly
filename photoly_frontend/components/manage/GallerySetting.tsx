@@ -306,7 +306,7 @@ const GallerySetting: React.FC = () => {
                             setEditGalleryId(gallery.gaId);
                             setEditGalleryColor(gallery.coverColor);
                             if (gallery.coverId === null) {
-                              setEditGalleryCover(-1);
+                              setEditGalleryCover(0);
                             } else {
                               setEditGalleryCover(gallery.coverId);
                             }
