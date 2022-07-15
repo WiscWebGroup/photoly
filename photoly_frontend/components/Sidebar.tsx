@@ -1,21 +1,12 @@
 import {Button, Divider, HStack, Icon, Text, VStack***REMOVED*** from "@chakra-ui/react";
-import {AiFillHeart, AiFillTags***REMOVED*** from "react-icons/ai";
-import TagItem from "./TagItem";
+import {AiFillHeart***REMOVED*** from "react-icons/ai";
 import {BiBaseball, BiPhotoAlbum***REMOVED*** from "react-icons/bi";
 import React from "react";
 import TagHeader from "./TagHeader";
+import TagContextProvider from "./contexts/TagContext";
+import TagSection from "./TagSection";
 
 const Sidebar: React.FC = () => {
-    const tags = ["Animals", "Cute", "Furry", "White hair", "Landscape"]
-
-    const addNewTag = () => {
-        console.log("DEBUG/TODO: add a new tag to the sidebar (use backend api).")
-***REMOVED***
-
-    const addNewCategory = () => {
-        console.log("DEBUG/TODO: add a new category to the sidebar (use backend api).")
-***REMOVED***
-
     return (
         <VStack w={52***REMOVED*** mt={4***REMOVED*** ml={4***REMOVED*** rounded={"lg"***REMOVED*** bg={"blackAlpha.50"***REMOVED*** p={4***REMOVED*** boxShadow={"lg"***REMOVED***>
             <HStack alignSelf={"flex-start"***REMOVED***>
@@ -24,25 +15,15 @@ const Sidebar: React.FC = () => {
 
             <Divider/>
             
-            <TagHeader 
-                headerIcon={AiFillTags***REMOVED*** 
-                iconColor="teal.400"
-                onAdd={addNewTag***REMOVED***
-            >
-                Your Tags
-            </TagHeader>
-
-
-   ***REMOVED*****REMOVED***tags.map((tag, ind) =>
-                <TagItem tagName={tag***REMOVED*** key={ind***REMOVED***></TagItem>
-            )***REMOVED***
+            <TagContextProvider>
+                <TagSection />
+            </TagContextProvider>
 
             <Divider/>
 
             <TagHeader 
                 headerIcon={BiPhotoAlbum***REMOVED*** 
                 iconColor="teal.400"
-                onAdd={addNewCategory***REMOVED***
             >
                 Your Albums
             </TagHeader>
@@ -56,4 +37,5 @@ const Sidebar: React.FC = () => {
         </VStack>
     )
 ***REMOVED***
+
 export default Sidebar
