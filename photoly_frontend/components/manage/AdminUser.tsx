@@ -34,6 +34,8 @@ import {
   ModalHeader,
   ModalOverlay,
   Text,
+  FormControl,
+  FormLabel,
 } from "@chakra-ui/react";
 import React, { useEffect, useState, useRef } from "react";
 import useToken from "../../hooks/useToken";
@@ -41,22 +43,21 @@ import useApi from "../../hooks/useApi";
 import { AiOutlineDelete } from "react-icons/ai";
 import { GrAdd, GrUpdate } from "react-icons/gr";
 
-interface tag {
-  tagId: number;
+interface user {
   userId: number;
-  tagName: string;
+  userName: string;
 }
 
-const TagSetting: React.FC = () => {
+const AdminUser: React.FC = () => {
   const token = useToken();
   const { get, post } = useApi();
-  const [tagList, setTagList] = useState<tag[]>();
+  const [userList, setUserList] = useState<user[]>();
 
-  const [editTagId, setEditTagId] = useState<number>(0);
-  const [editTagName, setEditTagName] = useState<string>("");
-  const [delTagId, setDelTagId] = useState<number>();
+  const [editUserId, setEditUserId] = useState<number>(0);
+  const [editUserName, setEditUserName] = useState<string>("");
+  const [delUserId, setDelUserId] = useState<number>();
 
-  const [addTagName, setAddTagName] = useState<string>("");
+  const [addUserName, setAddUserName] = useState<string>("");
 
   const {
     isOpen: isOpenEditModal,
@@ -74,26 +75,26 @@ const TagSetting: React.FC = () => {
   const cancelRefBtn = useRef<HTMLButtonElement>(null);
 
   const {
-    isOpen: isOpenAddTag,
-    onOpen: onOpenAddTag,
-    onClose: onCloseAddTag,
+    isOpen: isOpenAddUser,
+    onOpen: onOpenAddUser,
+    onClose: onCloseAddUser,
   } = useDisclosure();
 
-  const getTag = async () => {
-    const response = await get("/tag/getAll", {
+  const getUser = async () => {
+    const response = await get("/user/getAll", {
       headers: { "HRD-token": token },
     });
     if (!!response && response.data.msgCode === 200) {
-      setTagList(response.data.t);
+      setUserList(response.data.t);
     }
   };
 
-  const editTag = async (tagId: number) => {
+  const editUser = async (userId: number) => {
     const response = await post(
-      "/tag/update",
+      "/user/update",
       {
-        tagId: tagId,
-        tagName: editTagName,
+        userId: userId,
+        userName: editUserName,
       },
       {
         headers: { "HRD-token": token },
@@ -107,18 +108,18 @@ const TagSetting: React.FC = () => {
         duration: 3000,
         position: "top",
       });
-      getTag();
+      getUser();
     }
   };
 
-  const delTag = async () => {
+  const delUser = async () => {
     const response = await post(
-      "/tag/delete",
+      "/user/delete",
       {},
       {
         headers: { "HRD-token": token },
         params: {
-          tagId: delTagId,
+          userId: delUserId,
         },
       }
     );
@@ -130,14 +131,14 @@ const TagSetting: React.FC = () => {
         duration: 3000,
         position: "top",
       });
-      getTag();
+      getUser();
     }
   };
-  const addTag = async () => {
+  const addUser = async () => {
     const response = await post(
-      "/tag/insert",
+      "/user/insert",
       {
-        tagName: addTagName,
+        userName: addUserName,
       },
       {
         headers: { "HRD-token": token },
@@ -151,14 +152,14 @@ const TagSetting: React.FC = () => {
         duration: 3000,
         position: "top",
       });
-      getTag();
-      setAddTagName("");
-      onCloseAddTag();
+      getUser();
+      setAddUserName("");
+      onCloseAddUser();
     }
   };
   useEffect(() => {
     if (!!token) {
-      getTag();
+      getUser();
     }
   }, [token]);
 
@@ -167,7 +168,7 @@ const TagSetting: React.FC = () => {
       <Center h="calc(100%-4rem)" w={"85vw"}>
         <VStack
           shadow={"lg"}
-          w={"55%"}
+          w={"95%"}
           rounded={"lg"}
           m={8}
           p={8}
@@ -180,11 +181,11 @@ const TagSetting: React.FC = () => {
             fontWeight={"450"}
             alignSelf={"flex-start"}
           >
-            Manage My Tag
+            Manage Users
             <Popover
-              isOpen={isOpenAddTag}
+              isOpen={isOpenAddUser}
               onClose={() => {
-                onCloseAddTag();
+                onCloseAddUser();
               }}
             >
               <PopoverTrigger>
@@ -194,30 +195,47 @@ const TagSetting: React.FC = () => {
                   ml={4}
                   rightIcon={<GrAdd />}
                   onClick={() => {
-                    onOpenAddTag();
+                    onOpenAddUser();
                   }}
                 >
-                  New Tag
+                  New User
                 </Button>
               </PopoverTrigger>
               <PopoverContent>
                 <PopoverArrow />
                 <PopoverCloseButton />
-                <PopoverHeader>Add Tag</PopoverHeader>
+                <PopoverHeader>Add User</PopoverHeader>
                 <PopoverBody>
-                  <Input
-                    variant="flushed"
-                    placeholder="Tag Name"
-                    value={addTagName}
-                    onChange={(event) => setAddTagName(event.target.value)}
-                  />
+                  <FormControl>
+                    <FormLabel htmlFor="amount">UserName</FormLabel>
+                    <Input
+                      variant="flushed"
+                      placeholder="User Name"
+                      value={addUserName}
+                      onChange={(event) => setAddUserName(event.target.value)}
+                    />
+                    <FormLabel htmlFor="amount">Email</FormLabel>
+                    <Input
+                      variant="flushed"
+                      placeholder="User Name"
+                      value={addUserName}
+                      onChange={(event) => setAddUserName(event.target.value)}
+                    />
+                    <FormLabel htmlFor="amount">Password</FormLabel>
+                    <Input
+                      variant="flushed"
+                      placeholder="User Name"
+                      value={addUserName}
+                      onChange={(event) => setAddUserName(event.target.value)}
+                    />
+                  </FormControl>
                   <Button
                     colorScheme="twitter"
                     variant="outline"
                     width={"100%"}
                     mt={5}
                     onClick={() => {
-                      addTag();
+                      addUser();
                     }}
                   >
                     Create
@@ -226,7 +244,7 @@ const TagSetting: React.FC = () => {
               </PopoverContent>
             </Popover>
           </Heading>
-          {tagList?.length === 0 ? (
+          {userList?.length === 0 ? (
             <Text fontSize="3xl">Nothing Here</Text>
           ) : (
             ""
@@ -237,21 +255,25 @@ const TagSetting: React.FC = () => {
                 <Tr>
                   <Th>ID</Th>
                   <Th>Name</Th>
+                  <Th>Email</Th>
+                  <Th>Date Crd</Th>
+                  <Th>Role</Th>
+                  <Th>UUID</Th>
                   <Th>Action</Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {tagList?.map((tag) => {
+                {userList?.map((user) => {
                   return (
-                    <Tr key={tag.tagId}>
-                      <Td>{tag.tagId}</Td>
-                      <Td>{tag.tagName}</Td>
+                    <Tr key={user.userId}>
+                      <Td>{user.userId}</Td>
+                      <Td>{user.userName}</Td>
                       <Td>
                         <Button
                           leftIcon={<GrUpdate />}
                           onClick={() => {
-                            setEditTagName(tag.tagName);
-                            setEditTagId(tag.tagId);
+                            setEditUserName(user.userName);
+                            setEditUserId(user.userId);
                             onOpenEditModal();
                           }}
                         ></Button>
@@ -259,7 +281,7 @@ const TagSetting: React.FC = () => {
                         <Button
                           leftIcon={<AiOutlineDelete />}
                           onClick={() => {
-                            setDelTagId(tag.tagId);
+                            setDelUserId(user.userId);
                             onOpenDeleteConfirm();
                           }}
                           disabled={isOpenDeleteConfirm}
@@ -285,7 +307,7 @@ const TagSetting: React.FC = () => {
               </AlertDialogHeader>
 
               <AlertDialogBody>
-                Are you sure? You can&apos;t undo this action afterwards.
+                Are you sure? You can't undo this action afterwards.
               </AlertDialogBody>
 
               <AlertDialogFooter>
@@ -295,7 +317,7 @@ const TagSetting: React.FC = () => {
                 <Button
                   colorScheme="red"
                   onClick={() => {
-                    delTag();
+                    delUser();
                     onCloseDeleteConfirm();
                   }}
                   ml={3}
@@ -309,14 +331,14 @@ const TagSetting: React.FC = () => {
         <Modal isOpen={isOpenEditModal} onClose={onCloseEditModal}>
           <ModalOverlay />
           <ModalContent>
-            <ModalHeader>Edit Tag</ModalHeader>
+            <ModalHeader>Edit User</ModalHeader>
             <ModalCloseButton />
             <ModalBody>
               <Input
                 variant="flushed"
-                placeholder="Tag New Name"
-                value={editTagName}
-                onChange={(event) => setEditTagName(event.target.value)}
+                placeholder="User New Name"
+                value={editUserName}
+                onChange={(event) => setEditUserName(event.target.value)}
               />
               <br></br>
             </ModalBody>
@@ -334,7 +356,7 @@ const TagSetting: React.FC = () => {
                 colorScheme="twitter"
                 variant="outline"
                 onClick={() => {
-                  editTag(editTagId);
+                  editUser(editUserId);
                   onCloseEditModal();
                 }}
               >
@@ -348,4 +370,4 @@ const TagSetting: React.FC = () => {
   );
 };
 
-export default TagSetting;
+export default AdminUser;
