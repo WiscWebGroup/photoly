@@ -1,8 +1,10 @@
 import { createContext, ReactNode, useContext, useEffect, useState ***REMOVED*** from "react"
+import useApi from "../../hooks/useApi"
+import useToken from "../../hooks/useToken"
 
 interface ITag {
-    tagId: number
-    tagName: string
+    id: number
+    name: string
 ***REMOVED***
 
 interface ITagList {
@@ -10,6 +12,7 @@ interface ITagList {
 ***REMOVED***
 
 interface ITagListUpdate {
+    insertRequest: (e: string) => void
     renameRequest: (e: ITag) => void
     deleteRequest: (e: number) => void
 ***REMOVED***
@@ -19,31 +22,74 @@ const initTagListState: ITagList = {
 ***REMOVED***
 
 const TagContext = createContext(initTagListState)
-const TagContextUpdate = createContext<ITagListUpdate>({renameRequest: () => {***REMOVED***, deleteRequest: () => {***REMOVED******REMOVED***)
+const TagContextUpdate = createContext<ITagListUpdate>({
+    insertRequest: () => {***REMOVED***,
+    renameRequest: () => {***REMOVED***,
+    deleteRequest: () => {***REMOVED***
+***REMOVED***)
 
 export const useTagList = () => useContext(TagContext)
 export const useTagListUpdate = () => useContext(TagContextUpdate)
 
 const TagContextProvider = ({ children ***REMOVED***: { children?: ReactNode ***REMOVED***) => {
+    const token = useToken()
+    const { get, post ***REMOVED*** = useApi()
     const [tagList, setTagList] = useState(initTagListState)
 
-    useEffect(() => {
-        // TODO: async api call to get the tag list
-        // TODO: sort tag list in alphabetical ordering
-***REMOVED***, [])
+    const getTags = async () => {
+        const response = await get("/tag/getAll", {
+            headers: { "HRD-token": token ***REMOVED***,
+***REMOVED***)
+        if (!!response && response.data) {
+            const data = response.data.t
+            let tags: ITag[] = []
 
-    const renameRequest = ({ tagId, tagName ***REMOVED***: ITag) => {
-        // TODO: async api call to update ${tagId***REMOVED*** with new ${tagName***REMOVED***
-        console.log(`The tag with id ${tagId***REMOVED*** is updated with the new name ${tagName***REMOVED***`)
+            data.forEach((ele: any) => {
+                tags.push({ id: ele.tagId, name: ele.tagName ***REMOVED***)
+    ***REMOVED***)
+
+            setTagList({tags***REMOVED***)
+***REMOVED***
 ***REMOVED***
 
-    const deleteRequest = (tagId: number) => {
-        // TODO: async api call to delete the tag with id ${tagId***REMOVED***
+    useEffect(() => {
+        if (!!token) {
+            getTags()
+***REMOVED***
+***REMOVED***, [token])
+
+    const insertRequest = async (name: string) => {
+        const data = {tagName: name***REMOVED***
+        const response = await post("/tag/insert", data, {
+            headers: { "HRD-token": token ***REMOVED***
+***REMOVED***)
+        if (!!response && response.data) {
+            getTags()
+***REMOVED***
+***REMOVED***
+
+    const renameRequest = async ({ id, name ***REMOVED***: ITag) => {
+        const data = {tagId: id, tagName: name***REMOVED***
+        const response = await post("/tag/update", data, {
+            headers: { "HRD-token": token ***REMOVED***
+***REMOVED***)
+        if (!!response && response.data) {
+            getTags()
+***REMOVED***
+***REMOVED***
+
+    const deleteRequest = async (id: number) => {
+        const response = await post(`/tag/delete?tagId=${id***REMOVED***`, {***REMOVED***, {
+            headers: { "HRD-token": token ***REMOVED***
+***REMOVED***)
+        if (!!response && response.data) {
+            getTags()
+***REMOVED***
 ***REMOVED***
 
     return (
         <TagContext.Provider value={tagList***REMOVED***>
-            <TagContextUpdate.Provider value={{renameRequest, deleteRequest***REMOVED******REMOVED***>
+            <TagContextUpdate.Provider value={{insertRequest, renameRequest, deleteRequest***REMOVED******REMOVED***>
             ***REMOVED***children***REMOVED***
             </TagContextUpdate.Provider>
         </TagContext.Provider>

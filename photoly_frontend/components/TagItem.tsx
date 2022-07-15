@@ -21,9 +21,15 @@ interface TagItemProps {
 ***REMOVED***
 
     const callThenClose = () => {
-        if (tag.length === 0)
+        // empty or unmodified
+        if (tag.length === 0 || tag === tagName) {
             setTag(tagName)
-        renameRequest({tagId, tagName: tag***REMOVED***)
+            onClose()
+            return
+***REMOVED***
+
+        // modified
+        renameRequest({id: tagId, name: tag***REMOVED***)
         onClose()
 ***REMOVED***
 
