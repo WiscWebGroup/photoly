@@ -1,8 +1,7 @@
-import { VStack, Button } from "@chakra-ui/react";
+import {Button, VStack} from "@chakra-ui/react";
 import React from "react";
-import { AiOutlineHome } from "react-icons/ai";
-import { FiSettings } from "react-icons/fi";
-import { RiFileSettingsLine } from "react-icons/ri";
+import {AiOutlineHome, AiOutlineTag} from "react-icons/ai";
+import {RiFileSettingsLine, RiGalleryLine} from "react-icons/ri";
 
 const NavManager = ({
   changeSelection,
@@ -26,7 +25,7 @@ const NavManager = ({
           My Profile
         </Button>
         <Button
-          leftIcon={<FiSettings />}
+          leftIcon={<AiOutlineTag />}
           colorScheme="teal"
           variant="ghost"
           padding={6}
@@ -36,7 +35,20 @@ const NavManager = ({
             changeSelection(1);
           }}
         >
-          Settings
+          Tag Settings
+        </Button>
+        <Button
+          leftIcon={<RiGalleryLine />}
+          colorScheme="teal"
+          variant="ghost"
+          padding={6}
+          minW="100%"
+          justifyContent="flex-start"
+          onClick={() => {
+            changeSelection(2);
+          }}
+        >
+          Gallery Settings
         </Button>
         <Button
           leftIcon={<RiFileSettingsLine />}
@@ -46,7 +58,7 @@ const NavManager = ({
           minW="100%"
           justifyContent="flex-start"
           onClick={() => {
-            changeSelection(2);
+            changeSelection(3);
           }}
         >
           Admin Settings
