@@ -1,8 +1,10 @@
 import { createContext, ReactNode, useContext, useEffect, useState } from "react"
+import useApi from "../../hooks/useApi"
+import useToken from "../../hooks/useToken"
 
 interface ITag {
-    tagId: number
-    tagName: string
+    id: number
+    name: string
 }
 
 interface ITagList {
@@ -10,6 +12,7 @@ interface ITagList {
 }
 
 interface ITagListUpdate {
+    insertRequest: (e: string) => void
     renameRequest: (e: ITag) => void
     deleteRequest: (e: number) => void
 }
@@ -19,31 +22,74 @@ const initTagListState: ITagList = {
 }
 
 const TagContext = createContext(initTagListState)
-const TagContextUpdate = createContext<ITagListUpdate>({renameRequest: () => {}, deleteRequest: () => {}})
+const TagContextUpdate = createContext<ITagListUpdate>({
+    insertRequest: () => {},
+    renameRequest: () => {},
+    deleteRequest: () => {}
+})
 
 export const useTagList = () => useContext(TagContext)
 export const useTagListUpdate = () => useContext(TagContextUpdate)
 
 const TagContextProvider = ({ children }: { children?: ReactNode }) => {
+    const token = useToken()
+    const { get, post } = useApi()
     const [tagList, setTagList] = useState(initTagListState)
 
-    useEffect(() => {
-        // TODO: async api call to get the tag list
-        // TODO: sort tag list in alphabetical ordering
-    }, [])
+    const getTags = async () => {
+        const response = await get("/tag/getAll", {
+            headers: { "HRD-token": token },
+        })
+        if (!!response && response.data) {
+            const data = response.data.t
+            let tags: ITag[] = []
 
-    const renameRequest = ({ tagId, tagName }: ITag) => {
-        // TODO: async api call to update ${tagId} with new ${tagName}
-        console.log(`The tag with id ${tagId} is updated with the new name ${tagName}`)
+            data.forEach((ele: any) => {
+                tags.push({ id: ele.tagId, name: ele.tagName })
+            })
+
+            setTagList({tags})
+        }
     }
 
-    const deleteRequest = (tagId: number) => {
-        // TODO: async api call to delete the tag with id ${tagId}
+    useEffect(() => {
+        if (!!token) {
+            getTags()
+        }
+    }, [token])
+
+    const insertRequest = async (name: string) => {
+        const data = {tagName: name}
+        const response = await post("/tag/insert", data, {
+            headers: { "HRD-token": token }
+        })
+        if (!!response && response.data) {
+            getTags()
+        }
+    }
+
+    const renameRequest = async ({ id, name }: ITag) => {
+        const data = {tagId: id, tagName: name}
+        const response = await post("/tag/update", data, {
+            headers: { "HRD-token": token }
+        })
+        if (!!response && response.data) {
+            getTags()
+        }
+    }
+
+    const deleteRequest = async (id: number) => {
+        const response = await post(`/tag/delete?tagId=${id}`, {}, {
+            headers: { "HRD-token": token }
+        })
+        if (!!response && response.data) {
+            getTags()
+        }
     }
 
     return (
         <TagContext.Provider value={tagList}>
-            <TagContextUpdate.Provider value={{renameRequest, deleteRequest}}>
+            <TagContextUpdate.Provider value={{insertRequest, renameRequest, deleteRequest}}>
                 {children}
             </TagContextUpdate.Provider>
         </TagContext.Provider>
