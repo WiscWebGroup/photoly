@@ -238,7 +238,7 @@ const MyProfile: React.FC = () => {
             </VStack>
           </HStack>
 
-          <Divider />
+          <Divider style={{ marginTop: "2rem" ***REMOVED******REMOVED*** />
           <Heading
             as="h6"
             size="md"
@@ -316,7 +316,7 @@ const MyProfile: React.FC = () => {
             </GridItem>
           </Grid>
 
-          <Divider />
+          <Divider style={{ marginTop: "2rem" ***REMOVED******REMOVED*** />
           <Heading
             as="h6"
             size="md"
@@ -380,96 +380,103 @@ const MyProfile: React.FC = () => {
             </Popover>
           </Heading>
           <Stack width={"100%"***REMOVED***>
-        ***REMOVED***credList?.length === 0 ? <><Text fontSize="xl">Nothing Here</Text><Divider/></> : <TableContainer w={"100vw"***REMOVED***>
-              <Table variant="simple">
-                <Thead>
-                  <Tr>
-                    <Th>ID</Th>
-                    <Th>Authorization</Th>
-                    <Th>Token</Th>
-                    <Th>Action</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-              ***REMOVED***credList?.map((cred) => {
-                    return (
-                      <Tr key={cred.credId***REMOVED***>
-                        <Td>{cred.credId***REMOVED***</Td>
-                        <Td>
-                      ***REMOVED***cred.authorization
-                            .replace("C", "Upload ")
-                            .replace("R", "Read ")
-                            .replace("D", "Delete")***REMOVED***
-                        </Td>
-                        <Td>{cred.token***REMOVED***</Td>
-                        <Td>
-                          <Button
-                            leftIcon={<AiOutlineCopy />***REMOVED***
-                            onClick={() => {
-                              copyToken(cred.token);
-     ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
-                          ></Button>
-                          <Popover>
-                            <PopoverTrigger>
-                              <Button
-                                leftIcon={<GrUpdate />***REMOVED***
-                                onClick={() => {
-                                  getEditCred(cred.authorization);
-         ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
-                              ></Button>
-                            </PopoverTrigger>
-                            <PopoverContent>
-                              <PopoverArrow />
-                              <PopoverCloseButton />
-                              <PopoverHeader>Update Auth</PopoverHeader>
-                              <PopoverBody>
-                                <CheckboxGroup
-                                  colorScheme="green"
-                                  value={value***REMOVED***
-                                  onChange={(e) => {
-                                    setValue(e);
-           ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
-                                >
-                                  <Stack
-                                    spacing={[1, 5]***REMOVED***
-                                    direction={["column", "row"]***REMOVED***
-                                  >
-                                    <Checkbox value="C">Upload</Checkbox>
-                                    <Checkbox value="R">Read</Checkbox>
-                                    <Checkbox value="D">Delete</Checkbox>
-                                  </Stack>
-                                </CheckboxGroup>
+        ***REMOVED***credList?.length === 0 ? (
+              <>
+                <Text fontSize="xl">Nothing Here</Text>
+                <Divider />
+              </>
+            ) : (
+              <TableContainer w={"100vw"***REMOVED***>
+                <Table variant="simple">
+                  <Thead>
+                    <Tr>
+                      <Th>ID</Th>
+                      <Th>Authorization</Th>
+                      <Th>Token</Th>
+                      <Th>Action</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                ***REMOVED***credList?.map((cred) => {
+                      return (
+                        <Tr key={cred.credId***REMOVED***>
+                          <Td>{cred.credId***REMOVED***</Td>
+                          <Td>
+                        ***REMOVED***cred.authorization
+                              .replace("C", "Upload ")
+                              .replace("R", "Read ")
+                              .replace("D", "Delete")***REMOVED***
+                          </Td>
+                          <Td>{cred.token***REMOVED***</Td>
+                          <Td>
+                            <Button
+                              leftIcon={<AiOutlineCopy />***REMOVED***
+                              onClick={() => {
+                                copyToken(cred.token);
+       ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+                            ></Button>
+                            <Popover>
+                              <PopoverTrigger>
                                 <Button
-                                  colorScheme="twitter"
-                                  variant="outline"
-                                  width={"100%"***REMOVED***
-                                  mt={5***REMOVED***
+                                  leftIcon={<GrUpdate />***REMOVED***
                                   onClick={() => {
-                                    editCred(cred.credId);
+                                    getEditCred(cred.authorization);
            ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
-                                >
-                                  Confirm
-                                </Button>
-                              </PopoverBody>
-                            </PopoverContent>
-                          </Popover>
+                                ></Button>
+                              </PopoverTrigger>
+                              <PopoverContent>
+                                <PopoverArrow />
+                                <PopoverCloseButton />
+                                <PopoverHeader>Update Auth</PopoverHeader>
+                                <PopoverBody>
+                                  <CheckboxGroup
+                                    colorScheme="green"
+                                    value={value***REMOVED***
+                                    onChange={(e) => {
+                                      setValue(e);
+             ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+                                  >
+                                    <Stack
+                                      spacing={[1, 5]***REMOVED***
+                                      direction={["column", "row"]***REMOVED***
+                                    >
+                                      <Checkbox value="C">Upload</Checkbox>
+                                      <Checkbox value="R">Read</Checkbox>
+                                      <Checkbox value="D">Delete</Checkbox>
+                                    </Stack>
+                                  </CheckboxGroup>
+                                  <Button
+                                    colorScheme="twitter"
+                                    variant="outline"
+                                    width={"100%"***REMOVED***
+                                    mt={5***REMOVED***
+                                    onClick={() => {
+                                      editCred(cred.credId);
+             ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+                                  >
+                                    Confirm
+                                  </Button>
+                                </PopoverBody>
+                              </PopoverContent>
+                            </Popover>
 
-                          <Button
-                            leftIcon={<AiOutlineDelete />***REMOVED***
-                            onClick={() => {
-                              setDelCredId(cred.credId);
-                              onOpenDeleteConfirm();
-     ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
-                            disabled={isOpenDeleteConfirm***REMOVED***
-                          ></Button>
-                        </Td>
-                      </Tr>
-                    );
-***REMOVED*****REMOVED*****REMOVED***)***REMOVED***
-                </Tbody>
-              </Table>
-            </TableContainer>***REMOVED***
-            
+                            <Button
+                              leftIcon={<AiOutlineDelete />***REMOVED***
+                              onClick={() => {
+                                setDelCredId(cred.credId);
+                                onOpenDeleteConfirm();
+       ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+                              disabled={isOpenDeleteConfirm***REMOVED***
+                            ></Button>
+                          </Td>
+                        </Tr>
+                      );
+  ***REMOVED*****REMOVED*****REMOVED***)***REMOVED***
+                  </Tbody>
+                </Table>
+              </TableContainer>
+            )***REMOVED***
+
             <Heading
               as="h6"
               size="md"
@@ -575,7 +582,7 @@ const MyProfile: React.FC = () => {
                 </AccordionPanel>
               </AccordionItem>
             </Accordion>
-            <Divider style={{ marginTop: 20 ***REMOVED******REMOVED*** />
+            <Divider style={{ marginTop: "2rem" ***REMOVED******REMOVED*** />
             <Heading
               as="h6"
               size="md"

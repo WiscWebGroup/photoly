@@ -34,42 +34,35 @@ import {
   ModalHeader,
   ModalOverlay,
   Text,
-  Select,
-  Box,
+  FormControl,
+  FormLabel,
+  NumberDecrementStepper,
+  NumberIncrementStepper,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
 ***REMOVED*** from "@chakra-ui/react";
 import React, { useEffect, useState, useRef ***REMOVED*** from "react";
 import useToken from "../../hooks/useToken";
 import useApi from "../../hooks/useApi";
-import { AiOutlineDelete, AiOutlineFlag, AiOutlineStar ***REMOVED*** from "react-icons/ai";
-import { TbAlbum ***REMOVED*** from "react-icons/tb";
-import { FaUmbrellaBeach ***REMOVED*** from "react-icons/fa";
-import { HiOutlineAcademicCap ***REMOVED*** from "react-icons/hi";
-import { GiMountainCave ***REMOVED*** from "react-icons/gi";
-import { GrAdd, GrFavorite, GrUpdate ***REMOVED*** from "react-icons/gr";
-import { BiPaperPlane ***REMOVED*** from "react-icons/bi";
+import { AiOutlineDelete ***REMOVED*** from "react-icons/ai";
+import { GrAdd, GrUpdate ***REMOVED*** from "react-icons/gr";
 
-interface gallery {
-  gaId: number;
-  gaName: string;
+interface user {
   userId: number;
-  createDate: string;
-  coverId: number;
-  coverColor: string;
+  userName: string;
 ***REMOVED***
 
-const GallerySetting: React.FC = () => {
+const AdminUser: React.FC = () => {
   const token = useToken();
   const { get, post ***REMOVED*** = useApi();
-  const [galleryList, setGalleryList] = useState<gallery[]>();
+  const [userList, setUserList] = useState<user[]>();
 
-  const [editGalleryId, setEditGalleryId] = useState<number>(0);
-  const [editGalleryName, setEditGalleryName] = useState<string>("");
-  const [editGalleryColor, setEditGalleryColor] = useState<string>("#FFF");
-  const [editGalleryCover, setEditGalleryCover] = useState<number>(0);
+  const [editUserId, setEditUserId] = useState<number>(0);
+  const [editUserName, setEditUserName] = useState<string>("");
+  const [delUserId, setDelUserId] = useState<number>();
 
-  const [delGalleryId, setDelGalleryId] = useState<number>();
-
-  const [addGalleryName, setAddGalleryName] = useState<string>("");
+  const [addUserName, setAddUserName] = useState<string>("");
 
   const {
     isOpen: isOpenEditModal,
@@ -87,28 +80,26 @@ const GallerySetting: React.FC = () => {
   const cancelRefBtn = useRef<HTMLButtonElement>(null);
 
   const {
-    isOpen: isOpenAddGallery,
-    onOpen: onOpenAddGallery,
-    onClose: onCloseAddGallery,
+    isOpen: isOpenAddUser,
+    onOpen: onOpenAddUser,
+    onClose: onCloseAddUser,
   ***REMOVED*** = useDisclosure();
 
-  const getGallery = async () => {
-    const response = await get("/gallery/getAll", {
+  const getUser = async () => {
+    const response = await get("/user/getAll", {
       headers: { "HRD-token": token ***REMOVED***,
 ***REMOVED***);
     if (!!response && response.data.msgCode === 200) {
-      setGalleryList(response.data.t);
+      setUserList(response.data.t);
 ***REMOVED***
   ***REMOVED***;
 
-  const editGallery = async (galleryId: number) => {
+  const editUser = async (userId: number) => {
     const response = await post(
-      "/gallery/update",
+      "/user/update",
   ***REMOVED***
-        gaId: galleryId,
-        gaName: editGalleryName,
-        coverColor: editGalleryColor,
-        coverId: editGalleryCover,
+        userId: userId,
+        userName: editUserName,
   ***REMOVED***,
   ***REMOVED***
         headers: { "HRD-token": token ***REMOVED***,
@@ -122,18 +113,18 @@ const GallerySetting: React.FC = () => {
         duration: 3000,
         position: "top",
   ***REMOVED***);
-      getGallery();
+      getUser();
 ***REMOVED***
   ***REMOVED***;
 
-  const delGallery = async () => {
+  const delUser = async () => {
     const response = await post(
-      "/gallery/delete",
+      "/user/delete",
   ***REMOVED******REMOVED***,
   ***REMOVED***
         headers: { "HRD-token": token ***REMOVED***,
         params: {
-          gaId: delGalleryId,
+          userId: delUserId,
 ***REMOVED***,
   ***REMOVED***
     );
@@ -145,14 +136,14 @@ const GallerySetting: React.FC = () => {
         duration: 3000,
         position: "top",
   ***REMOVED***);
-      getGallery();
+      getUser();
 ***REMOVED***
   ***REMOVED***;
-  const addGallery = async () => {
+  const addUser = async () => {
     const response = await post(
-      "/gallery/insert",
+      "/user/insert",
   ***REMOVED***
-        gaName: addGalleryName,
+        userName: addUserName,
   ***REMOVED***,
   ***REMOVED***
         headers: { "HRD-token": token ***REMOVED***,
@@ -166,44 +157,23 @@ const GallerySetting: React.FC = () => {
         duration: 3000,
         position: "top",
   ***REMOVED***);
-      getGallery();
-      setAddGalleryName("");
-      onCloseAddGallery();
+      getUser();
+      setAddUserName("");
+      onCloseAddUser();
 ***REMOVED***
   ***REMOVED***;
-
-  const getCoverIcon = (coverId: number | null) => {
-    if (coverId === null || coverId === 0) {
-      return <TbAlbum />;
-***REMOVED*** else if (coverId === 1) {
-      return <AiOutlineStar />;
-***REMOVED*** else if (coverId === 2) {
-      return <GrFavorite />;
-***REMOVED*** else if (coverId === 3) {
-      return <FaUmbrellaBeach />;
-***REMOVED*** else if (coverId === 4) {
-      return <BiPaperPlane />;
-***REMOVED*** else if (coverId === 5) {
-      return <AiOutlineFlag />;
-***REMOVED*** else if (coverId === 6) {
-      return <HiOutlineAcademicCap />;
-***REMOVED*** else if (coverId === 7) {
-      return <GiMountainCave />;
-***REMOVED***
-  ***REMOVED***;
-
   useEffect(() => {
     if (!!token) {
-      getGallery();
+      getUser();
 ***REMOVED***
   ***REMOVED***, [token]);
 
   return (
     <>
-      <Center h="calc(100%-4rem)" w={"85vw"***REMOVED***>
+      <Center h="calc(100%-4rem)" w={"90vw"***REMOVED***>
         <VStack
           shadow={"lg"***REMOVED***
-          w={"55%"***REMOVED***
+          w={"90%"***REMOVED***
           rounded={"lg"***REMOVED***
           m={8***REMOVED***
           p={8***REMOVED***
@@ -216,11 +186,11 @@ const GallerySetting: React.FC = () => {
             fontWeight={"450"***REMOVED***
             alignSelf={"flex-start"***REMOVED***
           >
-            Manage My Gallery
+            Manage Users
             <Popover
-              isOpen={isOpenAddGallery***REMOVED***
+              isOpen={isOpenAddUser***REMOVED***
               onClose={() => {
-                onCloseAddGallery();
+                onCloseAddUser();
  ***REMOVED*****REMOVED******REMOVED***
             >
               <PopoverTrigger>
@@ -230,30 +200,47 @@ const GallerySetting: React.FC = () => {
                   ml={4***REMOVED***
                   rightIcon={<GrAdd />***REMOVED***
                   onClick={() => {
-                    onOpenAddGallery();
+                    onOpenAddUser();
 ***REMOVED*****REMOVED*****REMOVED******REMOVED***
                 >
-                  New Gallery
+                  New User
                 </Button>
               </PopoverTrigger>
               <PopoverContent>
                 <PopoverArrow />
                 <PopoverCloseButton />
-                <PopoverHeader>Add Gallery</PopoverHeader>
+                <PopoverHeader>Add User</PopoverHeader>
                 <PopoverBody>
-                  <Input
-                    variant="flushed"
-                    placeholder="Gallery Name"
-                    value={addGalleryName***REMOVED***
-                    onChange={(event) => setAddGalleryName(event.target.value)***REMOVED***
-                  />
+                  <FormControl>
+                    <FormLabel htmlFor="amount">UserName</FormLabel>
+                    <Input
+                      variant="flushed"
+                      placeholder="User Name"
+                      value={addUserName***REMOVED***
+                      onChange={(event) => setAddUserName(event.target.value)***REMOVED***
+                    />
+                    <FormLabel htmlFor="amount">Email</FormLabel>
+                    <Input
+                      variant="flushed"
+                      placeholder="User Name"
+                      value={addUserName***REMOVED***
+                      onChange={(event) => setAddUserName(event.target.value)***REMOVED***
+                    />
+                    <FormLabel htmlFor="amount">Password</FormLabel>
+                    <Input
+                      variant="flushed"
+                      placeholder="User Name"
+                      value={addUserName***REMOVED***
+                      onChange={(event) => setAddUserName(event.target.value)***REMOVED***
+                    />
+                  </FormControl>
                   <Button
                     colorScheme="twitter"
                     variant="outline"
                     width={"100%"***REMOVED***
                     mt={5***REMOVED***
                     onClick={() => {
-                      addGallery();
+                      addUser();
   ***REMOVED*****REMOVED*****REMOVED******REMOVED***
                   >
                     Create
@@ -262,7 +249,7 @@ const GallerySetting: React.FC = () => {
               </PopoverContent>
             </Popover>
           </Heading>
-      ***REMOVED***galleryList?.length === 0 ? (
+      ***REMOVED***userList?.length === 0 ? (
             <Text fontSize="3xl">Nothing Here</Text>
           ) : (
             ""
@@ -273,41 +260,25 @@ const GallerySetting: React.FC = () => {
                 <Tr>
                   <Th>ID</Th>
                   <Th>Name</Th>
-                  <Th>Color</Th>
-                  <Th>Cover</Th>
-                  <Th>Time Crd</Th>
+                  <Th>Email</Th>
+                  <Th>Date Crd</Th>
+                  <Th>Role</Th>
+                  <Th>UUID</Th>
                   <Th>Action</Th>
                 </Tr>
               </Thead>
               <Tbody>
-            ***REMOVED***galleryList?.map((gallery) => {
+            ***REMOVED***userList?.map((user) => {
                   return (
-                    <Tr key={gallery.gaId***REMOVED***>
-                      <Td>{gallery.gaId***REMOVED***</Td>
-                      <Td>{gallery.gaName***REMOVED***</Td>
-                      <Td>
-                        <Box
-                          w="40px"
-                          h="40px"
-                          bg={gallery.coverColor***REMOVED***
-                          borderRadius="25"
-                        ></Box>
-                      </Td>
-                      <Td>{getCoverIcon(gallery.coverId)***REMOVED***</Td>
-                      <Td>{gallery.createDate.substr(0, 10)***REMOVED***</Td>
+                    <Tr key={user.userId***REMOVED***>
+                      <Td>{user.userId***REMOVED***</Td>
+                      <Td>{user.userName***REMOVED***</Td>
                       <Td>
                         <Button
                           leftIcon={<GrUpdate />***REMOVED***
                           onClick={() => {
-                            setEditGalleryName(gallery.gaName);
-                            setEditGalleryId(gallery.gaId);
-                            setEditGalleryColor(gallery.coverColor);
-                            if (gallery.coverId === null) {
-                              setEditGalleryCover(-1);
-     ***REMOVED*****REMOVED*****REMOVED*****REMOVED*** else {
-                              setEditGalleryCover(gallery.coverId);
-     ***REMOVED*****REMOVED*****REMOVED*****REMOVED***
-
+                            setEditUserName(user.userName);
+                            setEditUserId(user.userId);
                             onOpenEditModal();
    ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
                         ></Button>
@@ -315,7 +286,7 @@ const GallerySetting: React.FC = () => {
                         <Button
                           leftIcon={<AiOutlineDelete />***REMOVED***
                           onClick={() => {
-                            setDelGalleryId(gallery.gaId);
+                            setDelUserId(user.userId);
                             onOpenDeleteConfirm();
    ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
                           disabled={isOpenDeleteConfirm***REMOVED***
@@ -351,7 +322,7 @@ const GallerySetting: React.FC = () => {
                 <Button
                   colorScheme="red"
                   onClick={() => {
-                    delGallery();
+                    delUser();
                     onCloseDeleteConfirm();
 ***REMOVED*****REMOVED*****REMOVED******REMOVED***
                   ml={3***REMOVED***
@@ -365,39 +336,15 @@ const GallerySetting: React.FC = () => {
         <Modal isOpen={isOpenEditModal***REMOVED*** onClose={onCloseEditModal***REMOVED***>
           <ModalOverlay />
           <ModalContent>
-            <ModalHeader>Edit Gallery</ModalHeader>
+            <ModalHeader>Edit User</ModalHeader>
             <ModalCloseButton />
             <ModalBody>
               <Input
                 variant="flushed"
-                placeholder="Gallery New Name"
-                value={editGalleryName***REMOVED***
-                onChange={(event) => setEditGalleryName(event.target.value)***REMOVED***
+                placeholder="User New Name"
+                value={editUserName***REMOVED***
+                onChange={(event) => setEditUserName(event.target.value)***REMOVED***
               />
-              <Input
-                variant="filled"
-                type={"color"***REMOVED***
-                value={editGalleryColor***REMOVED***
-                onChange={(event) => setEditGalleryColor(event.target.value)***REMOVED***
-                mt={3***REMOVED***
-              />
-              <Select
-                placeholder="Icon Format"
-                mt={3***REMOVED***
-                value={editGalleryCover***REMOVED***
-                onChange={(e) => {
-                  setEditGalleryCover(parseInt(e.target.value));
-   ***REMOVED*****REMOVED******REMOVED***
-              >
-                <option value={0***REMOVED***>Default</option>
-                <option value={1***REMOVED***>Star</option>
-                <option value={2***REMOVED***>Favorite</option>
-                <option value={3***REMOVED***>Beach</option>
-                <option value={4***REMOVED***>Plane</option>
-                <option value={5***REMOVED***>Flag</option>
-                <option value={6***REMOVED***>Academic</option>
-                <option value={7***REMOVED***>Mountain</option>
-              </Select>
               <br></br>
             </ModalBody>
 
@@ -414,7 +361,7 @@ const GallerySetting: React.FC = () => {
                 colorScheme="twitter"
                 variant="outline"
                 onClick={() => {
-                  editGallery(editGalleryId);
+                  editUser(editUserId);
                   onCloseEditModal();
    ***REMOVED*****REMOVED******REMOVED***
               >
@@ -428,4 +375,4 @@ const GallerySetting: React.FC = () => {
   );
 ***REMOVED***;
 
-export default GallerySetting;
+export default AdminUser;

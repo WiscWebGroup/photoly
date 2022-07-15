@@ -1,7 +1,6 @@
 import {
   Center,
   VStack,
-  Divider,
   Heading,
   Table,
   Thead,
@@ -175,7 +174,6 @@ const TagSetting: React.FC = () => {
           bg={"white"***REMOVED***
           minH={"80vh"***REMOVED***
         >
-          <Divider />
           <Heading
             as="h6"
             size="md"
