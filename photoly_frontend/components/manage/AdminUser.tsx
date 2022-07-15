@@ -170,10 +170,10 @@ const AdminUser: React.FC = () => {
 
   return (
     <>
-      <Center h="calc(100%-4rem)" w={"90vw"}>
+      <Center h="calc(100%-4rem)" w={"85vw"}>
         <VStack
           shadow={"lg"}
-          w={"90%"}
+          w={"95%"}
           rounded={"lg"}
           m={8}
           p={8}
