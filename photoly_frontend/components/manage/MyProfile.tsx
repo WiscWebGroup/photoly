@@ -1,55 +1,54 @@
 import {
+  Accordion,
+  AccordionButton,
+  AccordionIcon,
+  AccordionItem,
+  AccordionPanel,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogOverlay,
   Avatar,
+  Box,
+  Button,
   Center,
+  Checkbox,
+  CheckboxGroup,
   Divider,
+  Grid,
+  GridItem,
   Heading,
   HStack,
   IconButton,
-  Text,
-  useDisclosure,
-  VStack,
-  Button,
-  Grid,
-  GridItem,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  TableContainer,
-  Stack,
-  useToast,
-  AlertDialog,
-  AlertDialogBody,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogContent,
-  AlertDialogOverlay,
   Popover,
-  PopoverTrigger,
+  PopoverArrow,
+  PopoverBody,
+  PopoverCloseButton,
   PopoverContent,
   PopoverHeader,
-  PopoverBody,
-  PopoverArrow,
-  PopoverCloseButton,
-  Checkbox,
-  CheckboxGroup,
+  PopoverTrigger,
+  Stack,
+  Table,
+  TableContainer,
+  Tbody,
+  Td,
+  Text,
+  Th,
+  Thead,
+  Tr,
   useCheckboxGroup,
-  Accordion,
-  AccordionItem,
-  AccordionButton,
-  AccordionPanel,
-  AccordionIcon,
-  Box,
+  useDisclosure,
+  useToast,
+  VStack,
 ***REMOVED*** from "@chakra-ui/react";
-import { AiOutlineEdit ***REMOVED*** from "react-icons/ai";
-import React, { useEffect, useState, useRef ***REMOVED*** from "react";
+import {AiOutlineCopy, AiOutlineDelete, AiOutlineEdit***REMOVED*** from "react-icons/ai";
+import React, {useEffect, useRef, useState***REMOVED*** from "react";
 import useToken from "../../hooks/useToken";
 import useApi from "../../hooks/useApi";
 import ChangeInfoDrawer from "../ChangeInfoDrawer";
-import { AiOutlineCopy, AiOutlineDelete ***REMOVED*** from "react-icons/ai";
-import { GrUpdate, GrAdd ***REMOVED*** from "react-icons/gr";
+import {GrAdd, GrUpdate***REMOVED*** from "react-icons/gr";
 
 interface userInfo {
   userId: number;
@@ -127,6 +126,7 @@ const MyProfile: React.FC = () => {
         title: `Delete Successful`,
         status: "success",
         isClosable: true,
+        position: "top",
         duration: 3000,
   ***REMOVED***);
       getCred();
@@ -164,6 +164,7 @@ const MyProfile: React.FC = () => {
         status: "success",
         isClosable: true,
         duration: 3000,
+        position: "top",
   ***REMOVED***);
       getCred();
 ***REMOVED***
@@ -185,6 +186,7 @@ const MyProfile: React.FC = () => {
         status: "success",
         isClosable: true,
         duration: 3000,
+        position: "top",
   ***REMOVED***);
       getCred();
 ***REMOVED***
@@ -197,6 +199,7 @@ const MyProfile: React.FC = () => {
       status: "success",
       isClosable: true,
       duration: 3000,
+      position: "top",
 ***REMOVED***);
   ***REMOVED***;
 
@@ -376,7 +379,7 @@ const MyProfile: React.FC = () => {
             </Popover>
           </Heading>
           <Stack width={"100%"***REMOVED***>
-            <TableContainer w={"100vw"***REMOVED***>
+   ***REMOVED*****REMOVED***credList?.length === 0 ? <><Text fontSize="xl">Nothing Here</Text><Divider/></> : <TableContainer w={"100vw"***REMOVED***>
               <Table variant="simple">
                 <Thead>
                   <Tr>
@@ -464,7 +467,8 @@ const MyProfile: React.FC = () => {
 ***REMOVED*****REMOVED*****REMOVED***)***REMOVED***
                 </Tbody>
               </Table>
-            </TableContainer>
+            </TableContainer>***REMOVED***
+            
             <Heading
               as="h6"
               size="md"
@@ -511,7 +515,7 @@ const MyProfile: React.FC = () => {
                   Takein: file:MultipartFile | photo:JSONText containing
                   nsId(num) and visibility(num)
                   <br></br>
-                  Return: a string that is the photo's uuid
+                  Return: a string that is the photo&apos;s uuid
                   <br></br>
                   <br></br>
                   <Text fontSize="xl">C2 Upload Photos - POST:</Text>
@@ -527,7 +531,7 @@ const MyProfile: React.FC = () => {
                   <br></br>
                   Addr: server_path/cred/deletePhoto/YOUR_TOKEN
                   <br></br>
-                  Takein: uuid: str, photo's uuid
+                  Takein: uuid: str, photo&apos;s uuid
                   <br></br>
                   Return: an int, 1 if successful
                   <br></br>
@@ -536,7 +540,7 @@ const MyProfile: React.FC = () => {
                   <br></br>
                   Addr: server_path/cred/render/YOUR_TOKEN
                   <br></br>
-                  Takein: uuid: str, photo's uuid
+                  Takein: uuid: str, photo&apos;s uuid
                   <br></br>
                   Return: a byte[] that is the image (could be seen directly in
                   browser url)
@@ -564,7 +568,7 @@ const MyProfile: React.FC = () => {
                   Addr: server_path/cred/queryPhotoList/YOUR_TOKEN
                   <br></br>Takein: nsId: int, the namespace Id
                   <br></br>
-                  Return: an JSON object that is the list of photos' meta info
+                  Return: an JSON object that is the list of photos&apos; meta info
                   <br></br>
                   <br></br>
                 </AccordionPanel>
@@ -597,7 +601,7 @@ const MyProfile: React.FC = () => {
             </AlertDialogHeader>
 
             <AlertDialogBody>
-              Are you sure? You can't undo this action afterwards.
+              Are you sure? You can&apos;t undo this action afterwards.
             </AlertDialogBody>
 
             <AlertDialogFooter>
