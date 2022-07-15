@@ -8,6 +8,7 @@ import MyProfile from "../../components/manage/MyProfile";
 import TagSetting from "../../components/manage/TagSetting";
 import AdminSettings from "../../components/manage/AdminSettings";
 import GallerySetting from "../../components/manage/GallerySetting";
+import AdminUser from "../../components/manage/AdminUser";
 
 const Manage: React.FC = () => {
   const token = useToken();
@@ -33,6 +34,7 @@ const Manage: React.FC = () => {
         {currentSelected === 1 ? <TagSetting /> : ""}
         {currentSelected === 2 ? <GallerySetting /> : ""}
         {currentSelected === 3 ? <AdminSettings /> : ""}
+        {currentSelected === 4 ? <AdminUser /> : ""}
       </Stack>
     </>
   );
