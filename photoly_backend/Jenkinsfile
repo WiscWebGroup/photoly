@@ -10,11 +10,7 @@ pipeline {
 
         stage('Stop Old Backend') {
             steps {
-                sh '''pid=`ps -ef | grep photoly | grep -v grep | awk \'{print $2}\'`
-                if [ -n "$pid" ]
-                then
-                   kill -9 $pid
-                fi'''
+                sh 'fuser -k -n tcp 8088'
             }
         }
 
