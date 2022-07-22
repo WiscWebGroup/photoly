@@ -10,7 +10,11 @@ pipeline {
 
         stage('Stop Old Backend') {
             steps {
-                sh 'fuser -k -n tcp 8088'
+                        try {
+                            sh 'fuser -k -n tcp 8088'
+                        } catch (err) {
+                            echo err.getMessage()
+                        }
             }
         }
 
