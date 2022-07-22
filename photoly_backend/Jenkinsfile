@@ -4,7 +4,7 @@ pipeline {
     stages {
         stage('Initialize') {
             steps {
-                sh 'Initializing CI/CD Pipeline'
+                echo 'Initializing CI/CD Pipeline'
     ***REMOVED***
 ***REMOVED***
 
@@ -29,7 +29,7 @@ pipeline {
 
         stage('Finish') {
             steps {
-                echo 'Finished.'
+                echo 'Finished. Done.'
     ***REMOVED***
 ***REMOVED***
 ***REMOVED***
