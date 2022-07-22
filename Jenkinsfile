@@ -16,7 +16,8 @@ pipeline {
 
         stage('Deploy New Backend') {
             steps {
-                sh 'mvn clean package -Dmaven.test.skip=true'
+                sh '''cd photoly_backend
+mvn clean package -Dmaven.test.skip=true'''
                 sh 'mv -f /root/.jenkins/workspace/photoly/api/target/photoly.war /home/ubuntu/photoly_b/photoly.war'
                 sh 'chmod 777 /home/ubuntu/photoly_b/photoly.war'
                 sh 'nohup java -jar /home/ubuntu/photoly_b/photoly.war > /home/ubuntu/photoly_b/photoly.log 2>1&'
