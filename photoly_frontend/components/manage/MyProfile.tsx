@@ -402,7 +402,7 @@ const MyProfile: React.FC = () => {
                         <Tr key={cred.credId***REMOVED***>
                           <Td>{cred.credId***REMOVED***</Td>
                           <Td>
-         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***cred.authorization
+    ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***cred.authorization
                               .replace("C", "Upload ")
                               .replace("R", "Read ")
                               .replace("D", "Delete")***REMOVED***

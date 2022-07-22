@@ -1,13 +1,32 @@
 import { VStack, Button ***REMOVED*** from "@chakra-ui/react";
-import React from "react";
 import { AiOutlineHome, AiOutlineTag, AiOutlineUser ***REMOVED*** from "react-icons/ai";
 import { RiFileSettingsLine, RiGalleryLine ***REMOVED*** from "react-icons/ri";
+import React, { useEffect ***REMOVED*** from "react";
+import useToken from "../../hooks/useToken";
+import useApi from "../../hooks/useApi";
 
 const NavManager = ({
   changeSelection,
 ***REMOVED***: {
   changeSelection: (num: number) => void;
 ***REMOVED***) => {
+  const token = useToken();
+  const { get ***REMOVED*** = useApi();
+  const [admin, setAdmin] = React.useState<boolean>(false);
+
+  const getAuth = async () => {
+    const response = await get("/admin/isAdmin", {
+      headers: { "HRD-token": token ***REMOVED***,
+***REMOVED***);
+    if (!!response && response.data.msgCode === 200) {
+      setAdmin(response.data.t);
+***REMOVED***
+  ***REMOVED***;
+  useEffect(() => {
+    if (!!token) {
+      getAuth();
+***REMOVED***
+  ***REMOVED***, [token]);
   return (
     <>
       <VStack spacing={0***REMOVED*** bg={"white"***REMOVED*** h={"calc(100%-4rem)"***REMOVED*** w={"15vw"***REMOVED***>
@@ -50,32 +69,38 @@ const NavManager = ({
         >
           Gallery Settings
         </Button>
-        <Button
-          leftIcon={<RiFileSettingsLine />***REMOVED***
-          colorScheme="teal"
-          variant="ghost"
-          padding={6***REMOVED***
-          minW="100%"
-          justifyContent="flex-start"
-          onClick={() => {
-            changeSelection(3);
-  ***REMOVED******REMOVED***
-        >
-          Admin Settings
-        </Button>
-        <Button
-          leftIcon={<AiOutlineUser />***REMOVED***
-          colorScheme="teal"
-          variant="ghost"
-          padding={6***REMOVED***
-          minW="100%"
-          justifyContent="flex-start"
-          onClick={() => {
-            changeSelection(4);
-  ***REMOVED******REMOVED***
-        >
-          Admin User Settings
-        </Button>
+    ***REMOVED***admin ? (
+          <>
+            <Button
+              leftIcon={<RiFileSettingsLine />***REMOVED***
+              colorScheme="teal"
+              variant="ghost"
+              padding={6***REMOVED***
+              minW="100%"
+              justifyContent="flex-start"
+              onClick={() => {
+                changeSelection(3);
+ ***REMOVED*****REMOVED******REMOVED***
+            >
+              Admin Settings
+            </Button>
+            <Button
+              leftIcon={<AiOutlineUser />***REMOVED***
+              colorScheme="teal"
+              variant="ghost"
+              padding={6***REMOVED***
+              minW="100%"
+              justifyContent="flex-start"
+              onClick={() => {
+                changeSelection(4);
+ ***REMOVED*****REMOVED******REMOVED***
+            >
+              Admin User Settings
+            </Button>
+          </>
+        ) : (
+          ""
+        )***REMOVED***
       </VStack>
     </>
   );
