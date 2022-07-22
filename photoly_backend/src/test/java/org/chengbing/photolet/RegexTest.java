@@ -10,8 +10,16 @@ import java.util.regex.Pattern;
 public class RegexTest {
 
     public static void main(String[] args) {
-        Pattern pattern = Pattern.compile(".+@.+\\..+");
+       /* Pattern pattern = Pattern.compile(".+@.+\\..+");
         Matcher matcher = pattern.matcher("2@1.wd");
-        System.out.println(matcher.find());
+        System.out.println(matcher.find());*/
+
+        Pattern pattern = Pattern.compile("//(.*?)/");
+        Matcher matcher = pattern.matcher("jdbc:mysql://localhost:3306/picbed?serverTimezone=Asia/Shanghai");
+        String mysqlAddress = "";
+        while (matcher.find()) {
+            mysqlAddress = matcher.group(1);
+        }
+        System.out.println(mysqlAddress);
     }
 }
