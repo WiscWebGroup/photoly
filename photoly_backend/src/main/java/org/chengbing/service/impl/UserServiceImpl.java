@@ -147,11 +147,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", operatorId);
         User operator = mapper.selectOne(queryWrapper);
+
+        User goodbye_and_good_luck = mapper.selectById(deleteUserId);
+
         if (operator!= null && (operator.getUserId().equals(deleteUserId) || operator.getRole().equals("admin")))
     ***REMOVED***
             // Delete Namespace
+            String UUID = goodbye_and_good_luck.getUuid();
             Namespace root = namespaceService.queryRootNamespace(deleteUserId);
-            int deleteNamespace = namespaceService.deleteNamespace(deleteUserId, root.getNsId());
+            int deleteNamespace = namespaceService.deletePhotoHelper(deleteUserId, root.getNsId(), UUID);
             // Delete Tag
             QueryWrapper<Tag> tagQueryWrapper = new QueryWrapper<>();
             tagQueryWrapper.eq("user_id", deleteUserId);
@@ -160,7 +164,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             QueryWrapper<Gallery> galleryQueryWrapper = new QueryWrapper<>();
             tagQueryWrapper.eq("user_id", deleteUserId);
             int deleteGallery = galleryMapper.delete(galleryQueryWrapper);
-            return deleteNamespace + deleteTag + deleteGallery;
+            // Delete Account
+            int deleteUser = mapper.deleteById(deleteUserId);
+            return deleteNamespace + deleteTag + deleteGallery + deleteUser;
 ***REMOVED***else{
             return -2;
 ***REMOVED***
