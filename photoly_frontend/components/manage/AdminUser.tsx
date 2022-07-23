@@ -36,28 +36,53 @@ import {
   Text,
   FormControl,
   FormLabel,
+  Box,
+  HStack,
+  Select,
+  Editable,
+  EditableInput,
+  EditablePreview,
+  InputGroup,
+  InputRightElement,
+  IconButton,
+  Stack
 } from "@chakra-ui/react";
 import React, { useEffect, useState, useRef } from "react";
 import useToken from "../../hooks/useToken";
 import useApi from "../../hooks/useApi";
-import { AiOutlineDelete } from "react-icons/ai";
+import { AiOutlineDelete, AiOutlineKey } from "react-icons/ai";
 import { GrAdd, GrUpdate } from "react-icons/gr";
+import Pagination from "../Pagination";
+import { CloseIcon, SearchIcon } from "@chakra-ui/icons";
 
 interface user {
   userId: number;
   userName: string;
+  email: string;
+  createDate: string;
+  role: string;
+  uuid: string;
 }
 
 const AdminUser: React.FC = () => {
   const token = useToken();
   const { get, post } = useApi();
   const [userList, setUserList] = useState<user[]>();
+  const [totalPage, setTotalPage] = useState<number>(1);
+  const [currPage, setCurrPage] = useState<number>(1);
+  const [rowsPerPage, setRowsPerPage] = useState<number>(10);
 
   const [editUserId, setEditUserId] = useState<number>(0);
-  const [editUserName, setEditUserName] = useState<string>("");
+  const [editUserPass, setEditUserPass] = useState<string>("");
   const [delUserId, setDelUserId] = useState<number>();
 
   const [addUserName, setAddUserName] = useState<string>("");
+  const [addUserEmail, setAddUserEmail] = useState<string>("");
+  const [addUserPass, setAddUserPass] = useState<string>("");
+  const [addUserRole, setAddUserRole] = useState<string>("user");
+
+  const [searchContent, setSearchContent] = useState<string>("");
+  const [dataSource, setDataSource] = useState<string>("non-search");
 
   const {
     isOpen: isOpenEditModal,
@@ -81,20 +106,40 @@ const AdminUser: React.FC = () => {
   } = useDisclosure();
 
   const getUser = async () => {
-    const response = await get("/user/getAll", {
+    const response = await get("/admin/getUserPage", {
+      params:{
+        "page": currPage,
+        "rowsPerPage": rowsPerPage,
+      },
       headers: { "HRD-token": token },
     });
     if (!!response && response.data.msgCode === 200) {
       setUserList(response.data.t);
+      setTotalPage(response.data.pageNum)
     }
   };
 
-  const editUser = async (userId: number) => {
+  const searchUser = async () => {
+    const response = await get("/admin/searchUserPage", {
+      params:{
+        "page": currPage,
+        "rowsPerPage": rowsPerPage,
+        "search": searchContent
+      },
+      headers: { "HRD-token": token },
+    });
+    if (!!response && response.data.msgCode === 200) {
+      setUserList(response.data.t);
+      setTotalPage(response.data.pageNum)
+    }
+  };
+
+  const editUserEmail = async (userId: number, email:string) => {
     const response = await post(
-      "/user/update",
+      "/admin/resetUserEmail",
       {
         userId: userId,
-        userName: editUserName,
+        email: email,
       },
       {
         headers: { "HRD-token": token },
@@ -108,14 +153,86 @@ const AdminUser: React.FC = () => {
         duration: 3000,
         position: "top",
       });
-      getUser();
     }
+    getUser();
+  };
+
+  const editUsername = async (userId: number, username:string) => {
+    const response = await post(
+      "/admin/resetUsername",
+      {
+        userId: userId,
+        userName: username,
+      },
+      {
+        headers: { "HRD-token": token },
+      }
+    );
+    if (!!response && response.data.msgCode === 200) {
+      toast({
+        title: `Update Successful`,
+        status: "success",
+        isClosable: true,
+        duration: 3000,
+        position: "top",
+      });
+    }
+    getUser();
+  };
+
+  const editUserRole = async (userId: number, role: string) => {
+    const response = await post(
+      "/admin/resetUserRole",
+      {
+        userId: userId,
+        role: role,
+      },
+      {
+        headers: { "HRD-token": token },
+      }
+    );
+    if (!!response && response.data.msgCode === 200) {
+      toast({
+        title: `Update Successful`,
+        status: "success",
+        isClosable: true,
+        duration: 3000,
+        position: "top",
+      });
+    }
+    
+  };
+
+  const editUserPassword = async () => {
+    const response = await post(
+      "/admin/resetUserPassword",
+      {
+        userId: editUserId,
+        password: editUserPass,
+      },
+      {
+        headers: { "HRD-token": token },
+      }
+    );
+    if (!!response && response.data.msgCode === 200) {
+      toast({
+        title: `Update Successful`,
+        status: "success",
+        isClosable: true,
+        duration: 3000,
+        position: "top",
+      });
+    }
+    setEditUserId(0)
+    setEditUserPass("")
   };
 
   const delUser = async () => {
     const response = await post(
-      "/user/delete",
-      {},
+      "/admin/deleteUser",
+      {
+        "userId": delUserId
+      },
       {
         headers: { "HRD-token": token },
         params: {
@@ -131,14 +248,17 @@ const AdminUser: React.FC = () => {
         duration: 3000,
         position: "top",
       });
-      getUser();
     }
+    getUser();
   };
   const addUser = async () => {
     const response = await post(
-      "/user/insert",
+      "/admin/addUser",
       {
         userName: addUserName,
+        email: addUserEmail,
+        role: addUserRole,
+        password: addUserPass
       },
       {
         headers: { "HRD-token": token },
@@ -154,14 +274,40 @@ const AdminUser: React.FC = () => {
       });
       getUser();
       setAddUserName("");
+      setAddUserEmail("");
+      setAddUserRole("user");
+      setAddUserPass("");
       onCloseAddUser();
     }
   };
+
+  const changeSelection = (num:number) => {
+    setCurrPage(num)
+  }
+
+  const cancelSearchMode = () => {
+    setDataSource("non-search")
+    setSearchContent("")
+    setCurrPage(1)
+    toast({
+      title: `Exit Search Mode`,
+      status: "success",
+      isClosable: true,
+      duration: 2000,
+      position: "top",
+    });
+  }
+
   useEffect(() => {
     if (!!token) {
+      if (dataSource === "non-search")
+    {
       getUser();
+    }else {
+      searchUser();
     }
-  }, [token]);
+    }
+  }, [token, currPage, dataSource]);
 
   return (
     <>
@@ -218,16 +364,21 @@ const AdminUser: React.FC = () => {
                     <Input
                       variant="flushed"
                       placeholder="User Name"
-                      value={addUserName}
-                      onChange={(event) => setAddUserName(event.target.value)}
+                      value={addUserEmail}
+                      onChange={(event) => setAddUserEmail(event.target.value)}
                     />
                     <FormLabel htmlFor="amount">Password</FormLabel>
                     <Input
                       variant="flushed"
                       placeholder="User Name"
-                      value={addUserName}
-                      onChange={(event) => setAddUserName(event.target.value)}
+                      value={addUserPass}
+                      onChange={(event) => setAddUserPass(event.target.value)}
                     />
+                    <FormLabel htmlFor="amount">Role</FormLabel>
+                    <Select value={addUserRole} onChange={(e)=>{setAddUserRole(e.target.value)}}>
+                      <option value='user'>User</option>
+                      <option value='admin'>Admin</option>
+                    </Select>
                   </FormControl>
                   <Button
                     colorScheme="twitter"
@@ -243,13 +394,38 @@ const AdminUser: React.FC = () => {
                 </PopoverBody>
               </PopoverContent>
             </Popover>
+            <Stack direction={"row"}>
+            <Input
+                pr='4.5rem'
+                placeholder='Search'
+                value={searchContent}
+                onChange={(e)=>{setSearchContent(e.target.value)}}
+              />
+              
+              <IconButton
+                  colorScheme='blue'
+                  aria-label='Search database'
+                  onClick={()=>{
+                    setCurrPage(1)
+                    setDataSource("search")
+                    searchUser()
+                  }}
+                  icon={<SearchIcon />}
+                />
+                <IconButton
+                  colorScheme='teal'
+                  aria-label='Return to Normal'
+                  onClick={cancelSearchMode}
+                  icon={<CloseIcon />}
+                />
+            </Stack>
           </Heading>
           {userList?.length === 0 ? (
             <Text fontSize="3xl">Nothing Here</Text>
           ) : (
             ""
           )}
-          <TableContainer w={"100vw"}>
+          <TableContainer w={"100vw"} style={{display:"flex", flexDirection:"column"}}>
             <Table variant="simple" size="sm">
               <Thead>
                 <Tr>
@@ -267,12 +443,31 @@ const AdminUser: React.FC = () => {
                   return (
                     <Tr key={user.userId}>
                       <Td>{user.userId}</Td>
-                      <Td>{user.userName}</Td>
+                      <Td>
+                      <Editable defaultValue={user.userName} onSubmit={(val)=>{editUsername(user.userId, val)}}>
+                        <EditablePreview />
+                        <EditableInput />
+                      </Editable>
+                        </Td>
+                      <Td>
+                      <Editable defaultValue={user.email} onSubmit={(val)=>{editUserEmail(user.userId, val)}}>
+                        <EditablePreview />
+                        <EditableInput />
+                      </Editable>
+                      </Td>
+                      <Td>{user.createDate}</Td>
+                      <Td>
+                      <Select defaultValue={user.role} onChange={(e)=>{editUserRole(user.userId, e.target.value)}}>
+                        <option value='user'>User</option>
+                        <option value='admin'>Admin</option>
+                      </Select>
+                      </Td>
+                      <Td>{user.uuid}</Td>
                       <Td>
                         <Button
-                          leftIcon={<GrUpdate />}
+                          leftIcon={<AiOutlineKey />}
                           onClick={() => {
-                            setEditUserName(user.userName);
+                            setEditUserPass("");
                             setEditUserId(user.userId);
                             onOpenEditModal();
                           }}
@@ -290,10 +485,15 @@ const AdminUser: React.FC = () => {
                     </Tr>
                   );
                 })}
+                
               </Tbody>
             </Table>
+            <Pagination changeSelection={changeSelection} rowsPerPage={rowsPerPage} totalPage={totalPage} page={currPage}/>
           </TableContainer>
+          
         </VStack>
+        
+        
 
         <AlertDialog
           isOpen={isOpenDeleteConfirm}
@@ -303,7 +503,7 @@ const AdminUser: React.FC = () => {
           <AlertDialogOverlay>
             <AlertDialogContent>
               <AlertDialogHeader fontSize="lg" fontWeight="bold">
-                Delete API
+                Delete User
               </AlertDialogHeader>
 
               <AlertDialogBody>
@@ -331,14 +531,14 @@ const AdminUser: React.FC = () => {
         <Modal isOpen={isOpenEditModal} onClose={onCloseEditModal}>
           <ModalOverlay />
           <ModalContent>
-            <ModalHeader>Edit User</ModalHeader>
+            <ModalHeader>Reset Password</ModalHeader>
             <ModalCloseButton />
             <ModalBody>
               <Input
                 variant="flushed"
-                placeholder="User New Name"
-                value={editUserName}
-                onChange={(event) => setEditUserName(event.target.value)}
+                placeholder="New Password"
+                value={editUserPass}
+                onChange={(event) => setEditUserPass(event.target.value)}
               />
               <br></br>
             </ModalBody>
@@ -356,8 +556,20 @@ const AdminUser: React.FC = () => {
                 colorScheme="twitter"
                 variant="outline"
                 onClick={() => {
-                  editUser(editUserId);
-                  onCloseEditModal();
+                  if (editUserPass.length < 6)
+                  {
+                    toast({
+                      title: 'Password length is too short!',
+                      status: 'error',
+                      duration: 1500,
+                      isClosable: true,
+                      position:"top"
+                    })
+                  }else {
+                    editUserPassword();
+                    onCloseEditModal();
+                  }
+                  
                 }}
               >
                 Confirm

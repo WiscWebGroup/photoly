@@ -50,6 +50,9 @@ import useApi from "../../hooks/useApi";
 import ChangeInfoDrawer from "../ChangeInfoDrawer";
 import { AiOutlineCopy, AiOutlineDelete } from "react-icons/ai";
 import { GrUpdate, GrAdd } from "react-icons/gr";
+import { useRouter } from "next/router";
+import useLocalStorage, {TOKEN_KEY} from "../../hooks/useLocalStorage";
+
 
 interface userInfo {
   userId: number;
@@ -78,6 +81,8 @@ const MyProfile: React.FC = () => {
 
   const [delCredId, setDelCredId] = useState<number>();
 
+  const router = useRouter()
+  const {removeLS} = useLocalStorage(TOKEN_KEY);
   const toast = useToast();
   const {
     isOpen: isOpenDeleteConfirm,
@@ -86,6 +91,14 @@ const MyProfile: React.FC = () => {
   } = useDisclosure();
   const cancelRef = useRef<HTMLDivElement | HTMLButtonElement>(null);
   const cancelRefBtn = useRef<HTMLButtonElement>(null);
+
+  const {
+    isOpen: isOpenDeleteConfirm2,
+    onOpen: onOpenDeleteConfirm2,
+    onClose: onCloseDeleteConfirm2,
+  } = useDisclosure();
+  const cancelRef2 = useRef<HTMLDivElement | HTMLButtonElement>(null);
+  const cancelRefBtn2 = useRef<HTMLButtonElement>(null);
 
   const {
     isOpen: isOpenAdd,
@@ -202,6 +215,26 @@ const MyProfile: React.FC = () => {
       duration: 3000,
       position: "top",
     });
+  };
+
+  const delUser = async () => {
+    const response = await get(
+      "/user/deleteUser",
+      {
+        headers: { "HRD-token": token },
+      }
+    );
+    if (!!response && response.data.msgCode === 200) {
+      toast({
+        title: `Delete Successful`,
+        status: "success",
+        isClosable: true,
+        position: "top",
+        duration: 3000,
+      });
+    }
+    router.push("/login")
+    removeLS()
   };
 
   useEffect(() => {
@@ -591,7 +624,7 @@ const MyProfile: React.FC = () => {
             >
               Other
             </Heading>
-            <Button colorScheme="red" variant="ghost" w={"100%"}>
+            <Button colorScheme="red" variant="ghost" w={"100%"} onClick={onOpenDeleteConfirm2}>
               Delete my Account
             </Button>
           </Stack>
@@ -625,6 +658,40 @@ const MyProfile: React.FC = () => {
                 ml={3}
               >
                 Delete
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
+
+      <AlertDialog
+        isOpen={isOpenDeleteConfirm2}
+        leastDestructiveRef={cancelRef2}
+        onClose={onCloseDeleteConfirm2}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              DELETE USER ACCOUNT
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Are you sure? You can't undo this action afterwards.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRefBtn2} onClick={onCloseDeleteConfirm2}>
+                Cancel
+              </Button>
+              <Button
+                colorScheme="red"
+                onClick={() => {
+                  delUser();
+                  onCloseDeleteConfirm2();
+                }}
+                ml={3}
+              >
+                DELETE
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
