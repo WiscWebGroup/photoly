@@ -64,7 +64,7 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose***REMOVED*
                 headers: {
                     "HRD-token": token
    ***REMOVED*****REMOVED***
-    ***REMOVED***).then(res=>{success &&= (!!res && res.data.msgCode === 200)***REMOVED***)
+    ***REMOVED***).then(res=>{ success &&= (!!res && res.data.msgCode === 200)***REMOVED***)
 ***REMOVED***
         if (email !== undefined) {
             requested = true

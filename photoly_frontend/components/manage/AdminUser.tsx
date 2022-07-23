@@ -36,28 +36,53 @@ import {
   Text,
   FormControl,
   FormLabel,
+  Box,
+  HStack,
+  Select,
+  Editable,
+  EditableInput,
+  EditablePreview,
+  InputGroup,
+  InputRightElement,
+  IconButton,
+  Stack
 ***REMOVED*** from "@chakra-ui/react";
 import React, { useEffect, useState, useRef ***REMOVED*** from "react";
 import useToken from "../../hooks/useToken";
 import useApi from "../../hooks/useApi";
-import { AiOutlineDelete ***REMOVED*** from "react-icons/ai";
+import { AiOutlineDelete, AiOutlineKey ***REMOVED*** from "react-icons/ai";
 import { GrAdd, GrUpdate ***REMOVED*** from "react-icons/gr";
+import Pagination from "../Pagination";
+import { CloseIcon, SearchIcon ***REMOVED*** from "@chakra-ui/icons";
 
 interface user {
   userId: number;
   userName: string;
+  email: string;
+  createDate: string;
+  role: string;
+  uuid: string;
 ***REMOVED***
 
 const AdminUser: React.FC = () => {
   const token = useToken();
   const { get, post ***REMOVED*** = useApi();
   const [userList, setUserList] = useState<user[]>();
+  const [totalPage, setTotalPage] = useState<number>(1);
+  const [currPage, setCurrPage] = useState<number>(1);
+  const [rowsPerPage, setRowsPerPage] = useState<number>(10);
 
   const [editUserId, setEditUserId] = useState<number>(0);
-  const [editUserName, setEditUserName] = useState<string>("");
+  const [editUserPass, setEditUserPass] = useState<string>("");
   const [delUserId, setDelUserId] = useState<number>();
 
   const [addUserName, setAddUserName] = useState<string>("");
+  const [addUserEmail, setAddUserEmail] = useState<string>("");
+  const [addUserPass, setAddUserPass] = useState<string>("");
+  const [addUserRole, setAddUserRole] = useState<string>("user");
+
+  const [searchContent, setSearchContent] = useState<string>("");
+  const [dataSource, setDataSource] = useState<string>("non-search");
 
   const {
     isOpen: isOpenEditModal,
@@ -81,20 +106,40 @@ const AdminUser: React.FC = () => {
   ***REMOVED*** = useDisclosure();
 
   const getUser = async () => {
-    const response = await get("/user/getAll", {
+    const response = await get("/admin/getUserPage", {
+      params:{
+        "page": currPage,
+        "rowsPerPage": rowsPerPage,
+  ***REMOVED***,
       headers: { "HRD-token": token ***REMOVED***,
 ***REMOVED***);
     if (!!response && response.data.msgCode === 200) {
       setUserList(response.data.t);
+      setTotalPage(response.data.pageNum)
 ***REMOVED***
   ***REMOVED***;
 
-  const editUser = async (userId: number) => {
+  const searchUser = async () => {
+    const response = await get("/admin/searchUserPage", {
+      params:{
+        "page": currPage,
+        "rowsPerPage": rowsPerPage,
+        "search": searchContent
+  ***REMOVED***,
+      headers: { "HRD-token": token ***REMOVED***,
+***REMOVED***);
+    if (!!response && response.data.msgCode === 200) {
+      setUserList(response.data.t);
+      setTotalPage(response.data.pageNum)
+***REMOVED***
+  ***REMOVED***;
+
+  const editUserEmail = async (userId: number, email:string) => {
     const response = await post(
-      "/user/update",
+      "/admin/resetUserEmail",
   ***REMOVED***
         userId: userId,
-        userName: editUserName,
+        email: email,
   ***REMOVED***,
   ***REMOVED***
         headers: { "HRD-token": token ***REMOVED***,
@@ -108,14 +153,86 @@ const AdminUser: React.FC = () => {
         duration: 3000,
         position: "top",
   ***REMOVED***);
-      getUser();
 ***REMOVED***
+    getUser();
+  ***REMOVED***;
+
+  const editUsername = async (userId: number, username:string) => {
+    const response = await post(
+      "/admin/resetUsername",
+  ***REMOVED***
+        userId: userId,
+        userName: username,
+  ***REMOVED***,
+  ***REMOVED***
+        headers: { "HRD-token": token ***REMOVED***,
+  ***REMOVED***
+    );
+    if (!!response && response.data.msgCode === 200) {
+      toast({
+        title: `Update Successful`,
+        status: "success",
+        isClosable: true,
+        duration: 3000,
+        position: "top",
+  ***REMOVED***);
+***REMOVED***
+    getUser();
+  ***REMOVED***;
+
+  const editUserRole = async (userId: number, role: string) => {
+    const response = await post(
+      "/admin/resetUserRole",
+  ***REMOVED***
+        userId: userId,
+        role: role,
+  ***REMOVED***,
+  ***REMOVED***
+        headers: { "HRD-token": token ***REMOVED***,
+  ***REMOVED***
+    );
+    if (!!response && response.data.msgCode === 200) {
+      toast({
+        title: `Update Successful`,
+        status: "success",
+        isClosable: true,
+        duration: 3000,
+        position: "top",
+  ***REMOVED***);
+***REMOVED***
+    
+  ***REMOVED***;
+
+  const editUserPassword = async () => {
+    const response = await post(
+      "/admin/resetUserPassword",
+  ***REMOVED***
+        userId: editUserId,
+        password: editUserPass,
+  ***REMOVED***,
+  ***REMOVED***
+        headers: { "HRD-token": token ***REMOVED***,
+  ***REMOVED***
+    );
+    if (!!response && response.data.msgCode === 200) {
+      toast({
+        title: `Update Successful`,
+        status: "success",
+        isClosable: true,
+        duration: 3000,
+        position: "top",
+  ***REMOVED***);
+***REMOVED***
+    setEditUserId(0)
+    setEditUserPass("")
   ***REMOVED***;
 
   const delUser = async () => {
     const response = await post(
-      "/user/delete",
-  ***REMOVED******REMOVED***,
+      "/admin/deleteUser",
+  ***REMOVED***
+        "userId": delUserId
+  ***REMOVED***,
   ***REMOVED***
         headers: { "HRD-token": token ***REMOVED***,
         params: {
@@ -131,14 +248,17 @@ const AdminUser: React.FC = () => {
         duration: 3000,
         position: "top",
   ***REMOVED***);
-      getUser();
 ***REMOVED***
+    getUser();
   ***REMOVED***;
   const addUser = async () => {
     const response = await post(
-      "/user/insert",
+      "/admin/addUser",
   ***REMOVED***
         userName: addUserName,
+        email: addUserEmail,
+        role: addUserRole,
+        password: addUserPass
   ***REMOVED***,
   ***REMOVED***
         headers: { "HRD-token": token ***REMOVED***,
@@ -154,14 +274,40 @@ const AdminUser: React.FC = () => {
   ***REMOVED***);
       getUser();
       setAddUserName("");
+      setAddUserEmail("");
+      setAddUserRole("user");
+      setAddUserPass("");
       onCloseAddUser();
 ***REMOVED***
   ***REMOVED***;
+
+  const changeSelection = (num:number) => {
+    setCurrPage(num)
+  ***REMOVED***
+
+  const cancelSearchMode = () => {
+    setDataSource("non-search")
+    setSearchContent("")
+    setCurrPage(1)
+    toast({
+      title: `Exit Search Mode`,
+      status: "success",
+      isClosable: true,
+      duration: 2000,
+      position: "top",
+***REMOVED***);
+  ***REMOVED***
+
   useEffect(() => {
     if (!!token) {
-      getUser();
+      if (dataSource === "non-search")
 ***REMOVED***
-  ***REMOVED***, [token]);
+      getUser();
+***REMOVED***else {
+      searchUser();
+***REMOVED***
+***REMOVED***
+  ***REMOVED***, [token, currPage, dataSource]);
 
   return (
     <>
@@ -218,16 +364,21 @@ const AdminUser: React.FC = () => {
                     <Input
                       variant="flushed"
                       placeholder="User Name"
-                      value={addUserName***REMOVED***
-                      onChange={(event) => setAddUserName(event.target.value)***REMOVED***
+                      value={addUserEmail***REMOVED***
+                      onChange={(event) => setAddUserEmail(event.target.value)***REMOVED***
                     />
                     <FormLabel htmlFor="amount">Password</FormLabel>
                     <Input
                       variant="flushed"
                       placeholder="User Name"
-                      value={addUserName***REMOVED***
-                      onChange={(event) => setAddUserName(event.target.value)***REMOVED***
+                      value={addUserPass***REMOVED***
+                      onChange={(event) => setAddUserPass(event.target.value)***REMOVED***
                     />
+                    <FormLabel htmlFor="amount">Role</FormLabel>
+                    <Select value={addUserRole***REMOVED*** onChange={(e)=>{setAddUserRole(e.target.value)***REMOVED******REMOVED***>
+                      <option value='user'>User</option>
+                      <option value='admin'>Admin</option>
+                    </Select>
                   </FormControl>
                   <Button
                     colorScheme="twitter"
@@ -243,13 +394,38 @@ const AdminUser: React.FC = () => {
                 </PopoverBody>
               </PopoverContent>
             </Popover>
+            <Stack direction={"row"***REMOVED***>
+            <Input
+                pr='4.5rem'
+                placeholder='Search'
+                value={searchContent***REMOVED***
+                onChange={(e)=>{setSearchContent(e.target.value)***REMOVED******REMOVED***
+              />
+              
+              <IconButton
+                  colorScheme='blue'
+                  aria-label='Search database'
+                  onClick={()=>{
+                    setCurrPage(1)
+                    setDataSource("search")
+                    searchUser()
+***REMOVED*****REMOVED*****REMOVED******REMOVED***
+                  icon={<SearchIcon />***REMOVED***
+                />
+                <IconButton
+                  colorScheme='teal'
+                  aria-label='Return to Normal'
+                  onClick={cancelSearchMode***REMOVED***
+                  icon={<CloseIcon />***REMOVED***
+                />
+            </Stack>
           </Heading>
       ***REMOVED***userList?.length === 0 ? (
             <Text fontSize="3xl">Nothing Here</Text>
           ) : (
             ""
           )***REMOVED***
-          <TableContainer w={"100vw"***REMOVED***>
+          <TableContainer w={"100vw"***REMOVED*** style={{display:"flex", flexDirection:"column"***REMOVED******REMOVED***>
             <Table variant="simple" size="sm">
               <Thead>
                 <Tr>
@@ -267,12 +443,31 @@ const AdminUser: React.FC = () => {
                   return (
                     <Tr key={user.userId***REMOVED***>
                       <Td>{user.userId***REMOVED***</Td>
-                      <Td>{user.userName***REMOVED***</Td>
+                      <Td>
+                      <Editable defaultValue={user.userName***REMOVED*** onSubmit={(val)=>{editUsername(user.userId, val)***REMOVED******REMOVED***>
+                        <EditablePreview />
+                        <EditableInput />
+                      </Editable>
+                        </Td>
+                      <Td>
+                      <Editable defaultValue={user.email***REMOVED*** onSubmit={(val)=>{editUserEmail(user.userId, val)***REMOVED******REMOVED***>
+                        <EditablePreview />
+                        <EditableInput />
+                      </Editable>
+                      </Td>
+                      <Td>{user.createDate***REMOVED***</Td>
+                      <Td>
+                      <Select defaultValue={user.role***REMOVED*** onChange={(e)=>{editUserRole(user.userId, e.target.value)***REMOVED******REMOVED***>
+                        <option value='user'>User</option>
+                        <option value='admin'>Admin</option>
+                      </Select>
+                      </Td>
+                      <Td>{user.uuid***REMOVED***</Td>
                       <Td>
                         <Button
-                          leftIcon={<GrUpdate />***REMOVED***
+                          leftIcon={<AiOutlineKey />***REMOVED***
                           onClick={() => {
-                            setEditUserName(user.userName);
+                            setEditUserPass("");
                             setEditUserId(user.userId);
                             onOpenEditModal();
    ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
@@ -290,10 +485,15 @@ const AdminUser: React.FC = () => {
                     </Tr>
                   );
    ***REMOVED*****REMOVED***)***REMOVED***
+                
               </Tbody>
             </Table>
+            <Pagination changeSelection={changeSelection***REMOVED*** rowsPerPage={rowsPerPage***REMOVED*** totalPage={totalPage***REMOVED*** page={currPage***REMOVED***/>
           </TableContainer>
+          
         </VStack>
+        
+        
 
         <AlertDialog
           isOpen={isOpenDeleteConfirm***REMOVED***
@@ -303,7 +503,7 @@ const AdminUser: React.FC = () => {
           <AlertDialogOverlay>
             <AlertDialogContent>
               <AlertDialogHeader fontSize="lg" fontWeight="bold">
-                Delete API
+                Delete User
               </AlertDialogHeader>
 
               <AlertDialogBody>
@@ -331,14 +531,14 @@ const AdminUser: React.FC = () => {
         <Modal isOpen={isOpenEditModal***REMOVED*** onClose={onCloseEditModal***REMOVED***>
           <ModalOverlay />
           <ModalContent>
-            <ModalHeader>Edit User</ModalHeader>
+            <ModalHeader>Reset Password</ModalHeader>
             <ModalCloseButton />
             <ModalBody>
               <Input
                 variant="flushed"
-                placeholder="User New Name"
-                value={editUserName***REMOVED***
-                onChange={(event) => setEditUserName(event.target.value)***REMOVED***
+                placeholder="New Password"
+                value={editUserPass***REMOVED***
+                onChange={(event) => setEditUserPass(event.target.value)***REMOVED***
               />
               <br></br>
             </ModalBody>
@@ -356,8 +556,20 @@ const AdminUser: React.FC = () => {
                 colorScheme="twitter"
                 variant="outline"
                 onClick={() => {
-                  editUser(editUserId);
-                  onCloseEditModal();
+                  if (editUserPass.length < 6)
+              ***REMOVED***
+                    toast({
+                      title: 'Password length is too short!',
+                      status: 'error',
+                      duration: 1500,
+                      isClosable: true,
+                      position:"top"
+  ***REMOVED*****REMOVED*****REMOVED***)
+***REMOVED*****REMOVED*****REMOVED***else {
+                    editUserPassword();
+                    onCloseEditModal();
+***REMOVED*****REMOVED*****REMOVED***
+                  
    ***REMOVED*****REMOVED******REMOVED***
               >
                 Confirm
