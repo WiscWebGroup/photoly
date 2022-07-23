@@ -35,4 +35,5 @@ public interface IAdminService {
 
     Integer resetUserEmail(Integer adminId, @RequestBody User user);
     Integer resetUserRole(Integer adminId, @RequestBody User user);
+    Integer resetUsername(Integer adminId, @RequestBody User user);
 ***REMOVED***
