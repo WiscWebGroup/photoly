@@ -1,9 +1,12 @@
 package org.chengbing.controller;
 
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import org.chengbing.dao.SettingMapper;
 import org.chengbing.dao.UserMapper;
 import org.chengbing.entity.Photo;
+import org.chengbing.entity.Setting;
 import org.chengbing.entity.User;
 import org.chengbing.service.IGalleryService;
 import org.chengbing.service.INamespaceService;
@@ -48,6 +51,9 @@ public class UserController {
     IGalleryService galleryService;
 
     @Resource
+    SettingMapper settingMapper;
+
+    @Resource
     RedisTemplate<String, Object> template;
 
     @Resource
@@ -56,30 +62,64 @@ public class UserController {
     @PostMapping("/signUp")
     public ResultToken<String> signUp(@RequestBody User user)
     {
-        String email = user.getEmail();
-        if (email == null)
-            return new ResultToken<>("Email is null", null, 400);
-        Pattern pattern = Pattern.compile(".+@.+\\..+");
-        Matcher matcher = pattern.matcher(email);
-        if (!matcher.find())
-            return new ResultToken<>("Email is incorrect", null, 400);
-        user.setUserId(null);
-        user.setCreateDate(LocalDateTime.now());
-        user.setPassword(AESUtil.aesEncryptStr(user.getPassword(), AESUtil.getPkey()));
-        user.setRole("user");
-        user.setUuid(UUID.randomUUID().toString());
-        if (service.selectUsers(user.getEmail()).size() > 0)
-            return new ResultToken<>("Repeated Email Address", null, 401);
-        boolean succeed = service.save(user);
-        if (succeed) {
-            String token = UUID.randomUUID().toString();
-            Integer id = service.selectUserByEmail(user.getEmail()).getUserId();
-            galleryService.insertGallery("My Favorite", id, "#FFFFFF");
-            namespaceService.insertNamespace("/", -1, id);
-            template.opsForValue().set(token,id,1, TimeUnit.DAYS);
-            return new ResultToken<>("Succeed", token, 200);
-        }else
-            return new ResultToken<>("Error Create User", null, 400);
+        QueryWrapper<Setting> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("setting_name", "SignUp");
+        Setting setting = settingMapper.selectOne(queryWrapper);
+        if (setting.getSettingValue().equals("1"))
+        {
+            String email = user.getEmail();
+            if (email == null)
+                return new ResultToken<>("Email is null", null, 400);
+            Pattern pattern = Pattern.compile(".+@.+\\..+");
+            Matcher matcher = pattern.matcher(email);
+            if (!matcher.find())
+                return new ResultToken<>("Email is incorrect", null, 400);
+            user.setUserId(null);
+            user.setCreateDate(LocalDateTime.now());
+            user.setPassword(AESUtil.aesEncryptStr(user.getPassword(), AESUtil.getPkey()));
+            user.setRole("user");
+
+            String userUUID = UUID.randomUUID().toString();
+
+            QueryWrapper<Setting> queryWrapper2 = new QueryWrapper<>();
+            queryWrapper2.eq("setting_name", "SSafeUUID");
+            Setting setting2 = settingMapper.selectOne(queryWrapper2);
+
+            if (setting2.getSettingValue().equals("1"))
+            {
+                boolean verified = false;
+                while (!verified)
+                {
+                    QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
+                    userQueryWrapper.eq("uuid", userUUID);
+                    if (service.list(userQueryWrapper).size() >= 1)
+                        userUUID = UUID.randomUUID().toString();
+                    else
+                        verified = true;
+                }
+            }
+
+            user.setUuid(userUUID);
+            if (service.selectUsers(user.getEmail()).size() > 0)
+                return new ResultToken<>("Repeated Email Address", null, 401);
+            boolean succeed = service.save(user);
+            if (succeed) {
+                String token = UUID.randomUUID().toString();
+                Integer id = service.selectUserByEmail(user.getEmail()).getUserId();
+                galleryService.insertGallery("My Favorite", id, "#FFFFFF");
+                namespaceService.insertNamespace("/", -1, id);
+
+                QueryWrapper<Setting> queryWrapper3 = new QueryWrapper<>();
+                queryWrapper3.eq("setting_name", "TokenDuration");
+                Setting setting3 = settingMapper.selectOne(queryWrapper3);
+
+                template.opsForValue().set(token,id,Integer.parseInt(setting3.getSettingValue()), TimeUnit.DAYS);
+                return new ResultToken<>("Succeed", token, 200);
+            }else
+                return new ResultToken<>("Error Create User", null, 400);
+        }else {
+            return new ResultToken<>("Register is closed by Admin", null, 400);
+        }
     }
 
     @PostMapping("/signIn")
@@ -90,7 +130,12 @@ public class UserController {
         {
             Integer userId = user1.getUserId();
             String token = UUID.randomUUID().toString();
-            template.opsForValue().set(token,userId,1, TimeUnit.DAYS);
+
+            QueryWrapper<Setting> queryWrapper3 = new QueryWrapper<>();
+            queryWrapper3.eq("setting_name", "TokenDuration");
+            Setting setting3 = settingMapper.selectOne(queryWrapper3);
+
+            template.opsForValue().set(token,userId,Integer.parseInt(setting3.getSettingValue()), TimeUnit.DAYS);
             return new ResultToken<>("Succeed", token, 200);
         }else{
             return new ResultToken<>("Invalid Email or Password", null, 400);
