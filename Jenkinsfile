@@ -17,5 +17,4 @@ mvn clean package -Dmaven.test.skip=true'''
                 sh 'nohup java -jar /home/ubuntu/photoly_b/photoly.war > /home/ubuntu/photoly_b/Log.log &'
             }
         }
-    }
 }
