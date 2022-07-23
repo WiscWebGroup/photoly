@@ -18,4 +18,3 @@ mvn clean package -Dmaven.test.skip=true'''
     ***REMOVED***
 ***REMOVED***
 ***REMOVED***
-***REMOVED***
