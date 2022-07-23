@@ -57,10 +57,10 @@ interface TagItemProps {
             )
 ***REMOVED***
         >
-        ***REMOVED***ref => (
+   ***REMOVED*****REMOVED***ref => (
                 <Box ref={ref***REMOVED*** w='100%' pl={4***REMOVED*** display='flex'>
                     <Checkbox variant='ghost' pr={2***REMOVED***>{isOpen ? '' : tag***REMOVED***</Checkbox>
-                ***REMOVED***isOpen && 
+ ***REMOVED*****REMOVED*****REMOVED*****REMOVED***isOpen && 
                     <Input 
                         ref={inputRef***REMOVED***
                         variant='flushed'
