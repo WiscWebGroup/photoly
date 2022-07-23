@@ -13,6 +13,7 @@ pipeline {
                 sh 'fuser -k -n tcp 8088 || true'
     ***REMOVED***
 ***REMOVED***
+
         stage('Deploy New Backend') {
             steps {
                 sh 'cp /home/ubuntu/photoly_b/config/application.properties /root/.jenkins/workspace/photoly/photoly_backend/src/main/resources/application.properties'
@@ -25,8 +26,9 @@ mvn clean package -Dmaven.test.skip=true'''
 
         stage('Finish') {
             steps {
-                sh 'nohup java -jar /home/ubuntu/photoly_b/photoly.war > /home/ubuntu/photoly_b/Log.log &'
+                sh 'nohup java -jar /home/ubuntu/photoly_b/photoly.war > /home/ubuntu/photoly_b/photoly.log 2>1&'
                 echo 'Finished.'
     ***REMOVED***
+***REMOVED***
 ***REMOVED***
 ***REMOVED***
