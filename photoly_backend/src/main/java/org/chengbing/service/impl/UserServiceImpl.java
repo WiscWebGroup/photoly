@@ -162,7 +162,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             int deleteTag = tagMapper.delete(tagQueryWrapper);
             // Delete Gallery
             QueryWrapper<Gallery> galleryQueryWrapper = new QueryWrapper<>();
-            tagQueryWrapper.eq("user_id", deleteUserId);
+            galleryQueryWrapper.eq("user_id", deleteUserId);
             int deleteGallery = galleryMapper.delete(galleryQueryWrapper);
             // Delete Account
             int deleteUser = mapper.deleteById(deleteUserId);
