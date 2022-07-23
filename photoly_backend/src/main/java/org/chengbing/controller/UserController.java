@@ -183,9 +183,13 @@ public class UserController {
 ***REMOVED***
 
     @GetMapping("/deleteUser")
-    public Result<List<User>> deleteUser(HttpServletRequest request, @RequestBody Integer userId)
+    public Result<Integer> deleteUser(HttpServletRequest request)
 ***REMOVED***
-***REMOVED***
+        Integer id = verify.verifyUser(request);
+        if (id < 0)
+            return new Result<>(null, 403);
+        int res = service.deleteAccount(id, id);
+        return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
 ***REMOVED***
 ***REMOVED***
 

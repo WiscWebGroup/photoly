@@ -2,8 +2,14 @@ package org.chengbing.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import org.chengbing.dao.GalleryMapper;
+import org.chengbing.dao.TagMapper;
+import org.chengbing.entity.Gallery;
+import org.chengbing.entity.Namespace;
+import org.chengbing.entity.Tag;
 import org.chengbing.entity.User;
 import org.chengbing.dao.UserMapper;
+import org.chengbing.service.INamespaceService;
 import org.chengbing.service.IUserService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.chengbing.util.AESUtil;
@@ -31,6 +37,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Resource
     UserMapper mapper;
+
+    @Resource
+    INamespaceService namespaceService;
+
+    @Resource
+    GalleryMapper galleryMapper;
+
+    @Resource
+    TagMapper tagMapper;
 
     @Value("${file.uploadFolder***REMOVED***")
     String uploadFolder;
@@ -124,6 +139,30 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             return bytes;
 ***REMOVED*** catch (IOException e) {
             throw new RuntimeException(e);
+***REMOVED***
+***REMOVED***
+
+    @Override
+    public Integer deleteAccount(Integer operatorId, Integer deleteUserId) {
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("user_id", operatorId);
+        User operator = mapper.selectOne(queryWrapper);
+        if (operator!= null && (operator.getUserId().equals(deleteUserId) || operator.getRole().equals("admin")))
+    ***REMOVED***
+            // Delete Namespace
+            Namespace root = namespaceService.queryRootNamespace(deleteUserId);
+            int deleteNamespace = namespaceService.deleteNamespace(deleteUserId, root.getNsId());
+            // Delete Tag
+            QueryWrapper<Tag> tagQueryWrapper = new QueryWrapper<>();
+            tagQueryWrapper.eq("user_id", deleteUserId);
+            int deleteTag = tagMapper.delete(tagQueryWrapper);
+            // Delete Gallery
+            QueryWrapper<Gallery> galleryQueryWrapper = new QueryWrapper<>();
+            tagQueryWrapper.eq("user_id", deleteUserId);
+            int deleteGallery = galleryMapper.delete(galleryQueryWrapper);
+            return deleteNamespace + deleteTag + deleteGallery;
+***REMOVED***else{
+            return -2;
 ***REMOVED***
 ***REMOVED***
 ***REMOVED***

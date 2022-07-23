@@ -24,4 +24,6 @@ public interface IUserService extends IService<User> {
     Integer updatePassword(Integer userId, String oldPass, String newPass);
     Integer updateAvatar(Integer userId, MultipartFile img);
     byte[] getAvatar(Integer userId);
+
+    Integer deleteAccount(Integer operatorId, Integer deleteUserId);
 ***REMOVED***
