@@ -28,6 +28,7 @@ import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -265,6 +266,9 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         boolean isAdmin = isAdmin(adminId);
         if (!isAdmin)
             return -2;
+        List<User> users = userService.selectUsers(user.getEmail());
+        if (users.size() == 1 && Objects.equals(users.get(0).getUserId(), user.getUserId()))
+            return 1;
         if (userService.selectUsers(user.getEmail()).size() > 0)
             return -1;
         UpdateWrapper<User> updateWrapper = new UpdateWrapper<>();
