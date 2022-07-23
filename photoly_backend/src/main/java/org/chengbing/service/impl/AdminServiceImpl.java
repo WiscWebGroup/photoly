@@ -247,7 +247,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
             return -2;
         if (userId == null)
             return -2;
-        return userService.removeById(userId) ? 1 : 0;
+        return userService.deleteAccount(adminId, userId);
     }
 
     @Override
