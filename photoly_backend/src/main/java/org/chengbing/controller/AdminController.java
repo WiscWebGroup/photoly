@@ -71,6 +71,16 @@ public class AdminController {
         return map == null ? new Result<>(null, 400) : new Result<>(map, 200);
     }
 
+    @GetMapping("/getSettings")
+    public Result<LinkedHashMap<String, String>> getSettings(HttpServletRequest request)
+    {
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(null, 403);
+        LinkedHashMap<String, String> map = service.getSettings(userId);
+        return map == null ? new Result<>(null, 400) : new Result<>(map, 200);
+    }
+
     @PostMapping("/stop")
     public Result<Integer> stopServer(HttpServletRequest request)
     {

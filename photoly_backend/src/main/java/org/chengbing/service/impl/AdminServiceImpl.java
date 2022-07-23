@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.swagger.v3.oas.annotations.links.Link;
 import org.chengbing.dao.SettingMapper;
 import org.chengbing.dao.UserMapper;
 import org.chengbing.entity.*;
@@ -135,6 +136,16 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         map.put("redis", redisAddress);
         map.put("upload", upload);
         map.put("config", configAddress);
+        return map;
+    }
+
+    @Override
+    public LinkedHashMap<String, String> getSettings(Integer adminId) {
+        QueryWrapper<Setting> wrapper = new QueryWrapper<>();
+        List<Setting> settings = settingMapper.selectList(wrapper);
+        LinkedHashMap<String, String> map = new LinkedHashMap<>();
+        for (Setting setting : settings)
+            map.put(setting.getSettingName(), setting.getSettingValue());
         return map;
     }
 

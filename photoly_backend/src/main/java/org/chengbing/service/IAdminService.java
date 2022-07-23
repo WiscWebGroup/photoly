@@ -16,6 +16,7 @@ public interface IAdminService {
     Integer pingMySQL(Integer adminId);
     Integer pingRedis(Integer adminId);
     LinkedHashMap<String, String> getAddress(Integer adminId);
+    LinkedHashMap<String, String> getSettings(Integer adminId);
     Integer stopServer(Integer adminId);
     Integer setSignUpPermission(Integer adminId, Integer permission);
     Integer setSSafeUUIDMode(Integer adminId, Integer mode);
