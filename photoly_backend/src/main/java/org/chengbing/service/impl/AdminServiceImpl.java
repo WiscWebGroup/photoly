@@ -223,6 +223,8 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
             return -1;
         if (userService.selectUsers(user.getEmail()).size() > 0)
             return -1;
+        if (user.getRole() == null || (!user.getRole().equals("user") && !user.getRole().equals("admin")))
+            user.setRole("user");
         user.setUserId(null);
         user.setCreateDate(LocalDateTime.now());
         user.setPassword(AESUtil.aesEncryptStr(user.getPassword(), AESUtil.getPkey()));
@@ -268,6 +270,19 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         UpdateWrapper<User> updateWrapper = new UpdateWrapper<>();
         updateWrapper.eq("user_id", user.getUserId());
         updateWrapper.set("email", user.getEmail());
+        return userMapper.update(null, updateWrapper);
+***REMOVED***
+
+    @Override
+    public Integer resetUserRole(Integer adminId, User user) {
+        boolean isAdmin = isAdmin(adminId);
+        if (!isAdmin)
+            return -2;
+        if (userService.selectUsers(user.getEmail()).size() > 0)
+            return -1;
+        UpdateWrapper<User> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("user_id", user.getUserId());
+        updateWrapper.set("role", user.getRole());
         return userMapper.update(null, updateWrapper);
 ***REMOVED***
 ***REMOVED***
