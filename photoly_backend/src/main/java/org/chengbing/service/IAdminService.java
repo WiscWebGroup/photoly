@@ -34,4 +34,5 @@ public interface IAdminService {
     Integer resetUserPassword(Integer adminId, @RequestBody User user);
 
     Integer resetUserEmail(Integer adminId, @RequestBody User user);
+    Integer resetUserRole(Integer adminId, @RequestBody User user);
 }
