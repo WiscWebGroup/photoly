@@ -64,7 +64,7 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose***REMOVED*
                 headers: {
                     "HRD-token": token
    ***REMOVED*****REMOVED***
-    ***REMOVED***).then(res=>{success &&= (!!res && res.data.msgCode === 200)***REMOVED***)
+    ***REMOVED***).then(res=>{ success &&= (!!res && res.data.msgCode === 200)***REMOVED***)
 ***REMOVED***
         if (email !== undefined) {
             requested = true
@@ -107,7 +107,7 @@ const ChangeInfoDrawer: React.FC<ChangeInfoProps> = ({isOpen, onClose***REMOVED*
                                onChange={handleNewPwdChange***REMOVED*** isDisabled={isLoading***REMOVED***></Input>
                         <InputRightElement pr={1***REMOVED***>
                             <Button padding={4***REMOVED*** size='sm' onClick={setShow.toggle***REMOVED*** fontSize="xs">
-             ***REMOVED*****REMOVED*****REMOVED*****REMOVED***show ? 'Hide' : 'Show'***REMOVED***
+                            ***REMOVED***show ? 'Hide' : 'Show'***REMOVED***
                             </Button>
                         </InputRightElement>
                     </InputGroup>
