@@ -90,7 +90,7 @@ const TagContextProvider = ({ children ***REMOVED***: { children?: ReactNode ***
     return (
         <TagContext.Provider value={tagList***REMOVED***>
             <TagContextUpdate.Provider value={{insertRequest, renameRequest, deleteRequest***REMOVED******REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***children***REMOVED***
+            ***REMOVED***children***REMOVED***
             </TagContextUpdate.Provider>
         </TagContext.Provider>
     )

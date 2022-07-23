@@ -244,7 +244,7 @@ const AdminUser: React.FC = () => {
               </PopoverContent>
             </Popover>
           </Heading>
- ***REMOVED*****REMOVED***userList?.length === 0 ? (
+      ***REMOVED***userList?.length === 0 ? (
             <Text fontSize="3xl">Nothing Here</Text>
           ) : (
             ""
@@ -263,7 +263,7 @@ const AdminUser: React.FC = () => {
                 </Tr>
               </Thead>
               <Tbody>
-  ***REMOVED*****REMOVED*****REMOVED***userList?.map((user) => {
+            ***REMOVED***userList?.map((user) => {
                   return (
                     <Tr key={user.userId***REMOVED***>
                       <Td>{user.userId***REMOVED***</Td>

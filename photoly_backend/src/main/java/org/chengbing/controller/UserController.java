@@ -86,7 +86,7 @@ public class UserController {
     public ResultToken<String> signIn(@RequestBody User user)
 ***REMOVED***
         User user1 = service.selectUserToLogin(user);
-        if (user1.getUserId() != null && user1.getEmail() != null)
+        if (user1!=null && user1.getUserId() != null && user1.getEmail() != null)
     ***REMOVED***
             Integer userId = user1.getUserId();
             String token = UUID.randomUUID().toString();
