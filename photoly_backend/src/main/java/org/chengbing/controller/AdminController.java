@@ -189,4 +189,14 @@ public class AdminController {
         int res = service.resetUserRole(userId, user);
         return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
     }
+
+    @PostMapping("/resetUsername")
+    public Result<Integer> resetUsername(HttpServletRequest request, @RequestBody User user)
+    {
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(-2, 403);
+        int res = service.resetUsername(userId, user);
+        return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
+    }
 }
