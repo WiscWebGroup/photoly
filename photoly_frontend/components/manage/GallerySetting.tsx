@@ -262,7 +262,7 @@ const GallerySetting: React.FC = () => {
               </PopoverContent>
             </Popover>
           </Heading>
- ***REMOVED*****REMOVED***galleryList?.length === 0 ? (
+      ***REMOVED***galleryList?.length === 0 ? (
             <Text fontSize="3xl">Nothing Here</Text>
           ) : (
             ""
@@ -280,7 +280,7 @@ const GallerySetting: React.FC = () => {
                 </Tr>
               </Thead>
               <Tbody>
-  ***REMOVED*****REMOVED*****REMOVED***galleryList?.map((gallery) => {
+            ***REMOVED***galleryList?.map((gallery) => {
                   return (
                     <Tr key={gallery.gaId***REMOVED***>
                       <Td>{gallery.gaId***REMOVED***</Td>
@@ -304,9 +304,9 @@ const GallerySetting: React.FC = () => {
                             setEditGalleryColor(gallery.coverColor);
                             if (gallery.coverId === null) {
                               setEditGalleryCover(0);
-***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*** else {
+     ***REMOVED*****REMOVED*****REMOVED*****REMOVED*** else {
                               setEditGalleryCover(gallery.coverId);
-***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***
+     ***REMOVED*****REMOVED*****REMOVED*****REMOVED***
 
                             onOpenEditModal();
    ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
