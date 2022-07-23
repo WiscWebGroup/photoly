@@ -9,7 +9,7 @@ const ImageItem = (props: Exclude<ImageProps, "onClick" | "borderRadius">) => {
         <ContextMenu<HTMLImageElement>
             renderMenu={() => <ImageContextMenu/>***REMOVED***
         >
-   ***REMOVED*****REMOVED***ref => (
+        ***REMOVED***ref => (
                 <Box ref={ref***REMOVED*** w={64***REMOVED*** overflow='hidden' position='relative' m={2***REMOVED*** rounded={"md"***REMOVED*** border={"1px"***REMOVED***
                      borderColor={"gray.50"***REMOVED*** shadow={"md"***REMOVED***>
                     <Image {...props***REMOVED*** onClick={onOpen***REMOVED*** alt={"image"***REMOVED***/>
