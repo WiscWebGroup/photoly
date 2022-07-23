@@ -186,7 +186,7 @@ public class AdminController {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-2, 403);
-        int res = service.resetUserEmail(userId, user);
+        int res = service.resetUserRole(userId, user);
         return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
     }
 }
