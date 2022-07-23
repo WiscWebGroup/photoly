@@ -10,7 +10,7 @@ pipeline {
 
         stage('Stop Old Backend') {
             steps {
-                sh 'fuser -k -n tcp 8088'
+                sh 'fuser -k -n tcp 8088 || true'
     ***REMOVED***
 ***REMOVED***
 
