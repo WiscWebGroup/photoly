@@ -40,7 +40,7 @@ const TagContextProvider = ({ children }: { children?: ReactNode }) => {
         const response = await get("/tag/getAll", {
             headers: { "HRD-token": token },
         })
-        if (!!response && response.data) {
+        if (!!response && response.data && response.data.msgCode == 200) {
             const data = response.data.t
             let tags: ITag[] = []
 
