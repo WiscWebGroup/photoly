@@ -127,6 +127,11 @@
             <artifactId>fastjson</artifactId>
             <version>2.0.8</version>
         </dependency>
+        <dependency>
+            <groupId>net.glxn</groupId>
+            <artifactId>qrgen</artifactId>
+            <version>1.4</version>
+        </dependency>
     </dependencies>
 
     <build>

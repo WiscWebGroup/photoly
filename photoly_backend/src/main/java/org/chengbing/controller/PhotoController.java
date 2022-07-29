@@ -5,6 +5,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.TypeReference;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.databind.util.JSONPObject;
+import net.glxn.qrgen.QRCode;
 import org.chengbing.entity.Photo;
 import org.chengbing.service.IPhotoService;
 import org.chengbing.service.IUserService;
@@ -237,6 +238,24 @@ public class PhotoController {
             return new Result<>(path, 200);
         }else
             return new Result<>(null, 403);
+    }
+
+    @GetMapping(value = "/getQR", produces = MediaType.IMAGE_JPEG_VALUE)
+    public byte[] getImageQR(HttpServletRequest request, Integer photoId)
+    {
+        String URL = getImagePath(request, photoId).getT();
+        if (URL != null)
+        {
+            QRCode qrCode;
+            if (URL.contains("http") || URL.contains("https"))
+            {
+                qrCode = QRCode.from(URL).withSize(250, 250);
+            }else {
+                qrCode = QRCode.from("http://" + URL).withSize(250, 250);
+            }
+            return qrCode.stream().toByteArray();
+        }
+        return new byte[]{};
     }
 }
 
