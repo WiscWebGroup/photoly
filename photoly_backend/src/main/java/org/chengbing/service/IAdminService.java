@@ -36,4 +36,8 @@ public interface IAdminService {
     Integer resetUserEmail(Integer adminId, @RequestBody User user);
     Integer resetUserRole(Integer adminId, @RequestBody User user);
     Integer resetUsername(Integer adminId, @RequestBody User user);
+
+    String getGeneralSetting(Integer adminId, String name);
+
+    Integer setGeneralSetting(Integer adminId, String name, String val);
 ***REMOVED***
