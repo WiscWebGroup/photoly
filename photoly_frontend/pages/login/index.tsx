@@ -30,7 +30,8 @@ const Login: React.FC = () => {
 ***REMOVED***
     // If the user has logged in, redirect to home
     useEffect(() => {
-        if (getLS() !== null) {
+        const prev_token = getLS()
+        if (prev_token !== null) {
             router.push("/home")
 ***REMOVED***
 ***REMOVED***, [getLS, router])
