@@ -5,7 +5,7 @@ import TagItem from "../components/TagItem";
 
 describe("<TagItem/> renders correctly", () => {
     test("should render tag item on the screen", () => {
-        const {container, getByText***REMOVED*** = render(<TagItem tagName={"something"***REMOVED***/>)
+        const {container, getByText***REMOVED*** = render(<TagItem tagId={1***REMOVED*** tagName={"something"***REMOVED***/>)
         expect(container.firstChild).toMatchSnapshot()
         const tag = getByText(/something/i)
         expect(tag).toBeTruthy()

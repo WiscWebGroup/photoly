@@ -40,7 +40,7 @@ const TagContextProvider = ({ children ***REMOVED***: { children?: ReactNode ***
         const response = await get("/tag/getAll", {
             headers: { "HRD-token": token ***REMOVED***,
 ***REMOVED***)
-        if (!!response && response.data) {
+        if (!!response && response.data && response.data.msgCode == 200) {
             const data = response.data.t
             let tags: ITag[] = []
 
@@ -90,7 +90,7 @@ const TagContextProvider = ({ children ***REMOVED***: { children?: ReactNode ***
     return (
         <TagContext.Provider value={tagList***REMOVED***>
             <TagContextUpdate.Provider value={{insertRequest, renameRequest, deleteRequest***REMOVED******REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***children***REMOVED***
+            ***REMOVED***children***REMOVED***
             </TagContextUpdate.Provider>
         </TagContext.Provider>
     )
