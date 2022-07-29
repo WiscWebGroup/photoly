@@ -1,14 +1,14 @@
 package org.chengbing.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import io.swagger.v3.oas.annotations.links.Link;
+import org.chengbing.entity.Setting;
 import org.chengbing.entity.User;
 import org.chengbing.service.IAdminService;
 import org.chengbing.util.Result;
 import org.chengbing.util.ResultPage;
 import org.chengbing.util.UserIdentity;
-import org.springframework.beans.BeansException;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -197,6 +197,26 @@ public class AdminController {
         if (userId < 0)
             return new Result<>(-2, 403);
         int res = service.resetUsername(userId, user);
+        return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
+    }
+
+    @PostMapping("/getGeneralSetting")
+    public Result<String> getGeneral(HttpServletRequest request, String name)
+    {
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(null, 403);
+        String res = service.getGeneralSetting(userId, name);
+        return res != null ? new Result<>(res, 200) : new Result<>(null, 400);
+    }
+
+    @PostMapping("/setGeneralSetting")
+    public Result<Integer> setGeneral(HttpServletRequest request, String name, String val)
+    {
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(-2, 403);
+        int res = service.setGeneralSetting(userId, name, val);
         return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
     }
 }

@@ -303,4 +303,33 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         return userMapper.update(null, updateWrapper);
     }
 
+    @Override
+    public String getGeneralSetting(Integer adminId, String name) {
+        boolean isAdmin = isAdmin(adminId);
+        if (isAdmin)
+        {
+            QueryWrapper<Setting> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("setting_name", name);
+            return settingMapper.selectOne(queryWrapper).getSettingValue();
+        }else
+        {
+            return null;
+        }
+    }
+
+    @Override
+    public Integer setGeneralSetting(Integer adminId, String name, String val) {
+        boolean isAdmin = isAdmin(adminId);
+        if (isAdmin)
+        {
+            UpdateWrapper<Setting> updateWrapper = new UpdateWrapper<>();
+            updateWrapper.eq("setting_name", name);
+            updateWrapper.set("setting_value", val);
+            return settingMapper.update(null, updateWrapper);
+        }else
+        {
+            return -1;
+        }
+    }
+
 }
