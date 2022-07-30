@@ -337,7 +337,7 @@ const GallerySetting: React.FC = () => {
           <AlertDialogOverlay>
             <AlertDialogContent>
               <AlertDialogHeader fontSize="lg" fontWeight="bold">
-                Delete API
+                Delete Gallery
               </AlertDialogHeader>
 
               <AlertDialogBody>
