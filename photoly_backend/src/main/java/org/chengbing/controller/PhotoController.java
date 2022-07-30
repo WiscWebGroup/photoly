@@ -12,7 +12,12 @@ import org.chengbing.service.IUserService;
 import org.chengbing.util.Result;
 import org.chengbing.util.UserIdentity;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.InputStreamSource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import org.springframework.web.multipart.MultipartFile;
@@ -174,24 +179,23 @@ public class PhotoController {
 ***REMOVED***
 
     @GetMapping(value = "/render/{token***REMOVED***", produces = MediaType.IMAGE_JPEG_VALUE)
-    public byte[] renderImage(@PathVariable String token, Integer photoId) throws IOException {
+    public ResponseEntity<Object> renderImage(@PathVariable String token, Integer photoId) throws IOException {
         Integer userId = verify.verifyUserByToken(token);
         Photo photo = service.getById(photoId);
         String UUID = userService.getById(userId).getUuid();
-        if (userId != null && userId.equals(photo.getUserId()))
+        if (userId != null && photo != null && userId.equals(photo.getUserId()))
     ***REMOVED***
             File file = new File(uploadFolder + System.getProperty("file.separator") + UUID + System.getProperty("file.separator") + photo.getPhotoUuid()
              + "." + photo.getFormat());
             FileInputStream inputStream = new FileInputStream(file);
-            byte[] bytes = new byte[inputStream.available()];
-            inputStream.read(bytes, 0, inputStream.available());
-            return bytes;
+            InputStreamSource inputStreamSource = new InputStreamResource(inputStream);
+            return new ResponseEntity<>(inputStreamSource, new HttpHeaders(), HttpStatus.OK);
 ***REMOVED***
 ***REMOVED***
 ***REMOVED***
 
     @GetMapping(value = "/renderToken", produces = MediaType.IMAGE_JPEG_VALUE)
-    public byte[] renderImageToken(String path, String token) throws IOException {
+    public ResponseEntity<Object> renderImageToken(String path, String token) throws IOException {
         String photoUUID = path.split("/")[1];
         String uuid = photoUUID.substring(0, photoUUID.lastIndexOf("."));
         QueryWrapper<Photo> queryWrapper = new QueryWrapper<>();
@@ -203,19 +207,17 @@ public class PhotoController {
     ***REMOVED***
         else if (photo.getVisibility() == 1) {
             if (token != null && token.equals(photo.getToken()))
-        ***REMOVED***
+   ***REMOVED*****REMOVED***
                 File file = new File(uploadFolder + System.getProperty("file.separator") + path);
                 FileInputStream inputStream = new FileInputStream(file);
-                byte[] bytes = new byte[inputStream.available()];
-                inputStream.read(bytes, 0, inputStream.available());
-                return bytes;
+                InputStreamSource inputStreamSource = new InputStreamResource(inputStream);
+                return new ResponseEntity<>(inputStreamSource, new HttpHeaders(), HttpStatus.OK);
     ***REMOVED***
 ***REMOVED*** else if (photo.getVisibility() == 2) {
             File file = new File(uploadFolder + System.getProperty("file.separator") + path);
             FileInputStream inputStream = new FileInputStream(file);
-            byte[] bytes = new byte[inputStream.available()];
-            inputStream.read(bytes, 0, inputStream.available());
-            return bytes;
+            InputStreamSource inputStreamSource = new InputStreamResource(inputStream);
+            return new ResponseEntity<>(inputStreamSource, new HttpHeaders(), HttpStatus.OK);
 ***REMOVED***
 ***REMOVED***
 ***REMOVED***
@@ -248,7 +250,7 @@ public class PhotoController {
     ***REMOVED***
             QRCode qrCode;
             if (URL.contains("http") || URL.contains("https"))
-        ***REMOVED***
+   ***REMOVED*****REMOVED***
                 qrCode = QRCode.from(URL).withSize(250, 250);
     ***REMOVED***else {
                 qrCode = QRCode.from("http://" + URL).withSize(250, 250);
