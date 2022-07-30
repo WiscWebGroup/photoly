@@ -226,7 +226,7 @@ const TagSetting: React.FC = () => {
               </PopoverContent>
             </Popover>
           </Heading>
-      ***REMOVED***tagList?.length === 0 ? (
+ ***REMOVED*****REMOVED***tagList?.length === 0 ? (
             <Text fontSize="3xl">Nothing Here</Text>
           ) : (
             ""
@@ -241,7 +241,7 @@ const TagSetting: React.FC = () => {
                 </Tr>
               </Thead>
               <Tbody>
-            ***REMOVED***tagList?.map((tag) => {
+  ***REMOVED*****REMOVED*****REMOVED***tagList?.map((tag) => {
                   return (
                     <Tr key={tag.tagId***REMOVED***>
                       <Td>{tag.tagId***REMOVED***</Td>
@@ -281,7 +281,7 @@ const TagSetting: React.FC = () => {
           <AlertDialogOverlay>
             <AlertDialogContent>
               <AlertDialogHeader fontSize="lg" fontWeight="bold">
-                Delete API
+                Delete Tag
               </AlertDialogHeader>
 
               <AlertDialogBody>
