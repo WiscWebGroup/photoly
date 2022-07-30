@@ -1,7 +1,7 @@
-import {Avatar, Box, Button, Center, Container, HStack, Image, VStack, Text, Link} from "@chakra-ui/react";
+import {Box, Button, Center, Container, HStack, Image, Link, Text, VStack} from "@chakra-ui/react";
 import router from "next/router";
 import React from "react";
-import { ExternalLinkIcon } from '@chakra-ui/icons'
+import {ExternalLinkIcon} from '@chakra-ui/icons'
 
 const Home:React.FC = () => {
   return (
@@ -42,9 +42,7 @@ const Home:React.FC = () => {
           <Center h={"100vh"} bgImage={"/JH_20220710_5856.jpg"} bgSize={"cover"} position={"relative"} bgAttachment={"fixed"} bgPos={"center 0"} bgRepeat={"no-repeat"}>
           <VStack color={"teal.900"} spacing={"2rem"}>
             <HStack>
-            <Text fontSize='6xl' color={"whiteAlpha.900"} fontWeight={"bold"} fontFamily={"helvetica"}>Project项目</Text>
-            <Image src={"/favicon.ico"} alt={"logo"} width={"9rem"} height={"9rem"} data-testid={"logo"}/>
-            <Text fontSize='6xl' color={"whiteAlpha.900"} fontWeight={"bold"} fontFamily={"helvetica"}>Information</Text>
+            <Text fontSize='6xl' color={"whiteAlpha.900"} fontWeight={"bold"} fontFamily={"helvetica"}>Project Summary</Text>
             </HStack>
           
           <Container maxW='xl' bg='whiteAlpha.700' rounded={"2xl"} centerContent>
@@ -56,7 +54,7 @@ const Home:React.FC = () => {
             </Container>
 
             <Container maxW='xl' bg='whiteAlpha.700' rounded={"2xl"} centerContent>
-                <Box padding='4' bg='whiteAlpha.200'maxW='md'>
+                <Box padding='4' bg='whiteAlpha.200' maxW='md'>
                 <Link href='https://github.com/WiscWebGroup/photoly' alignSelf={"flex-start"} isExternal>
                             Star our GitHub Repo! <ExternalLinkIcon mx='2px' />
                             </Link>
