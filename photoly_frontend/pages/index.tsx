@@ -1,7 +1,7 @@
-import {Avatar, Box, Button, Center, Container, HStack, Image, VStack, Text, Link***REMOVED*** from "@chakra-ui/react";
+import {Box, Button, Center, Container, HStack, Image, Link, Text, VStack***REMOVED*** from "@chakra-ui/react";
 import router from "next/router";
 import React from "react";
-import { ExternalLinkIcon ***REMOVED*** from '@chakra-ui/icons'
+import {ExternalLinkIcon***REMOVED*** from '@chakra-ui/icons'
 
 const Home:React.FC = () => {
   return (
@@ -42,9 +42,7 @@ const Home:React.FC = () => {
           <Center h={"100vh"***REMOVED*** bgImage={"/JH_20220710_5856.jpg"***REMOVED*** bgSize={"cover"***REMOVED*** position={"relative"***REMOVED*** bgAttachment={"fixed"***REMOVED*** bgPos={"center 0"***REMOVED*** bgRepeat={"no-repeat"***REMOVED***>
           <VStack color={"teal.900"***REMOVED*** spacing={"2rem"***REMOVED***>
             <HStack>
-            <Text fontSize='6xl' color={"whiteAlpha.900"***REMOVED*** fontWeight={"bold"***REMOVED*** fontFamily={"helvetica"***REMOVED***>Project项目</Text>
-            <Image src={"/favicon.ico"***REMOVED*** alt={"logo"***REMOVED*** width={"9rem"***REMOVED*** height={"9rem"***REMOVED*** data-testid={"logo"***REMOVED***/>
-            <Text fontSize='6xl' color={"whiteAlpha.900"***REMOVED*** fontWeight={"bold"***REMOVED*** fontFamily={"helvetica"***REMOVED***>Information</Text>
+            <Text fontSize='6xl' color={"whiteAlpha.900"***REMOVED*** fontWeight={"bold"***REMOVED*** fontFamily={"helvetica"***REMOVED***>Project Summary</Text>
             </HStack>
           
           <Container maxW='xl' bg='whiteAlpha.700' rounded={"2xl"***REMOVED*** centerContent>
@@ -56,7 +54,7 @@ const Home:React.FC = () => {
             </Container>
 
             <Container maxW='xl' bg='whiteAlpha.700' rounded={"2xl"***REMOVED*** centerContent>
-                <Box padding='4' bg='whiteAlpha.200'maxW='md'>
+                <Box padding='4' bg='whiteAlpha.200' maxW='md'>
                 <Link href='https://github.com/WiscWebGroup/photoly' alignSelf={"flex-start"***REMOVED*** isExternal>
                             Star our GitHub Repo! <ExternalLinkIcon mx='2px' />
                             </Link>
