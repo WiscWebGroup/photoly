@@ -14,7 +14,7 @@ const Pathbar: React.FC<PathbarProps> = ({children***REMOVED***) => {
                 <Text fontWeight={"bold"***REMOVED*** color={"gray.500"***REMOVED***>/</Text>
             </HStack>
             <Divider/>
-   ***REMOVED*****REMOVED***children***REMOVED***
+        ***REMOVED***children***REMOVED***
         </VStack>
     )
 ***REMOVED***

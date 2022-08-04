@@ -1,15 +1,16 @@
 import {Box, Image, ImageProps, useDisclosure, Text, Center***REMOVED*** from "@chakra-ui/react"
-import {ContextMenu***REMOVED*** from "chakra-ui-contextmenu"
+import { ContextMenu ***REMOVED*** from "./ContextMenu"
 import ImageContextMenu from "./contextMenus/ImageContextMenu"
 import ImageView from "./ImageView"
 
 const ImageItem = (props: Exclude<ImageProps, "onClick" | "borderRadius">) => {
     const {isOpen, onOpen, onClose***REMOVED*** = useDisclosure()
     return (
-        <ContextMenu<HTMLImageElement>
+        <ContextMenu<HTMLDivElement>
             renderMenu={() => <ImageContextMenu/>***REMOVED***
+            stopPropagation
         >
-   ***REMOVED*****REMOVED***ref => (
+        ***REMOVED***ref => (
                 <Box ref={ref***REMOVED*** w={64***REMOVED*** overflow='hidden' position='relative' m={2***REMOVED*** rounded={"md"***REMOVED*** border={"1px"***REMOVED***
                      borderColor={"gray.50"***REMOVED*** shadow={"md"***REMOVED***>
                     <Image {...props***REMOVED*** onClick={onOpen***REMOVED*** alt={"image"***REMOVED***/>

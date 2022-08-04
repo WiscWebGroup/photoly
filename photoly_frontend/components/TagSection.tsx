@@ -11,7 +11,7 @@ const TagSection = () => {
                 Your Tags
             </TagHeader>
 
-   ***REMOVED*****REMOVED***tags.map((t, ind) =>
+        ***REMOVED***tags.map((t, ind) =>
                 <TagItem tagName={t.name***REMOVED*** tagId={t.id***REMOVED*** key={ind***REMOVED***></TagItem>
             )***REMOVED***
         </>
