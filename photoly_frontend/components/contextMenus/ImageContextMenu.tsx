@@ -1,13 +1,7 @@
-import {Menu, MenuItem, MenuList} from "@chakra-ui/menu";
+import {MenuItem, MenuList} from "@chakra-ui/menu";
 import {ArrowForwardIcon, DownloadIcon, EditIcon, ViewIcon, DeleteIcon} from "@chakra-ui/icons";
-import {Box} from "@chakra-ui/react";
 import React from "react";
 
-interface ImageContextProps {
-    contextMenuRef: React.LegacyRef<HTMLDivElement>
-    x: number,
-    y: number
-}
 const ImageContextMenu = () => {
     return (
         <MenuList>
@@ -29,4 +23,5 @@ const ImageContextMenu = () => {
         </MenuList>
     )
 }
+
 export default ImageContextMenu
