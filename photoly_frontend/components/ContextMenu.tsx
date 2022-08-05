@@ -98,7 +98,7 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
           </Menu>
         </Portal>
       )***REMOVED***
-  ***REMOVED***isDeferredOpen ? (<div style={{ "position": "fixed", "inset": "0px", "backgroundColor": "transparent" ***REMOVED******REMOVED*** onContextMenu={handleClick***REMOVED***>
+  ***REMOVED***isDeferredOpen ? (<div style={{"zIndex": "999", "position": "fixed", "inset": "0px", "backgroundColor": "transparent" ***REMOVED******REMOVED*** onContextMenu={handleClick***REMOVED***>
         
         </div>) : ("")***REMOVED***
     </>
