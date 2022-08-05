@@ -98,7 +98,7 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
           </Menu>
         </Portal>
       )}
-      {isDeferredOpen ? (<div style={{ "position": "fixed", "inset": "0px", "backgroundColor": "transparent" }} onContextMenu={handleClick}>
+      {isDeferredOpen ? (<div style={{"zIndex": "999", "position": "fixed", "inset": "0px", "backgroundColor": "transparent" }} onContextMenu={handleClick}>
         
         </div>) : ("")}
     </>
