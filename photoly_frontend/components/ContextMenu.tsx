@@ -65,8 +65,19 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
     setIsOpen(false);
   ***REMOVED***, [props.menuProps?.onClose, setIsOpen]);
 
+  const handleClick = (event:any) => {
+    console.log(event)
+    if (event.type === "click" || event.type === "contextmenu") {
+      event.preventDefault();
+      setIsDeferredOpen(false)
+***REMOVED***else {
+        event.preventDefault();
+***REMOVED***
+  ***REMOVED***
+
   return (
     <>
+      
   ***REMOVED***props.children(targetRef)***REMOVED***
   ***REMOVED***isRendered && (
         <Portal {...props.portalProps***REMOVED***>
@@ -87,6 +98,9 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
           </Menu>
         </Portal>
       )***REMOVED***
+  ***REMOVED***isDeferredOpen ? (<div style={{ "position": "fixed", "inset": "0px", "backgroundColor": "transparent" ***REMOVED******REMOVED*** onContextMenu={handleClick***REMOVED***>
+        
+        </div>) : ("")***REMOVED***
     </>
   );
 ***REMOVED***
