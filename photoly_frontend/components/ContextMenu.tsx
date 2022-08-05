@@ -19,6 +19,7 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
   const targetRef = useRef<T>(null);
 
   useEffect(() => {
+    // console.log(props, "isOpen" + isOpen, "isRendered" + isRendered, "isDef" + isDeferredOpen)
     if (isOpen) {
       setTimeout(() => {
         setIsRendered(true);
@@ -28,22 +29,20 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
   ***REMOVED***);
 ***REMOVED*** else {
       setIsDeferredOpen(false);
-      const timeout = setTimeout(() => {
-        setIsRendered(isOpen);
-  ***REMOVED***, 1000);
-      return () => clearTimeout(timeout);
+      setIsRendered(isOpen);
 ***REMOVED***
   ***REMOVED***, [isOpen]);
 
   const handleContextMenu = (e: any) => {
     if (targetRef.current?.contains(e.target as any) || e.target === targetRef.current) {
+      
       e.preventDefault();
       if (props.stopPropagation) {
         e.stopPropagation()
         e.stopImmediatePropagation()
         console.log('functionig')
   ***REMOVED***
-
+      
       setIsOpen(true);
       setPosition([e.pageX, e.pageY]);
 ***REMOVED*** else {
@@ -58,7 +57,7 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
     return () => {
       window.removeEventListener('contextmenu', handleContextMenu)
 ***REMOVED***
-  ***REMOVED***)
+  ***REMOVED***, [])
 
   const onCloseHandler = useCallback(() => {
     props.menuProps?.onClose?.();
@@ -66,7 +65,6 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
   ***REMOVED***, [props.menuProps?.onClose, setIsOpen]);
 
   const handleClick = (event:any) => {
-    console.log(event)
     if (event.type === "click" || event.type === "contextmenu") {
       event.preventDefault();
       setIsDeferredOpen(false)

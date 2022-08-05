@@ -7,7 +7,9 @@ const ImageItem = (props: Exclude<ImageProps, "onClick" | "borderRadius">) => {
     const {isOpen, onOpen, onClose***REMOVED*** = useDisclosure()
     return (
         <ContextMenu<HTMLDivElement>
-            renderMenu={() => <ImageContextMenu/>***REMOVED***
+            renderMenu={() => {
+                return <ImageContextMenu/>
+    ***REMOVED******REMOVED***
             stopPropagation
         >
         ***REMOVED***ref => (
