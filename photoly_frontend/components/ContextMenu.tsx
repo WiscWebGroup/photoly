@@ -81,7 +81,7 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
   ***REMOVED***props.children(targetRef)***REMOVED***
   ***REMOVED***isRendered && (
         <Portal {...props.portalProps***REMOVED***>
-          <Menu isOpen={isDeferredOpen***REMOVED*** gutter={0***REMOVED*** {...props.menuProps***REMOVED*** onClose={onCloseHandler***REMOVED***>
+          <Menu isOpen={isDeferredOpen***REMOVED*** gutter={0***REMOVED*** {...props.menuProps***REMOVED*** onClose={onCloseHandler***REMOVED***> 
             <MenuButton
               aria-hidden={true***REMOVED***
               w={1***REMOVED***
@@ -93,6 +93,7 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
                 cursor: 'default',
  ***REMOVED*****REMOVED******REMOVED***
           ***REMOVED***...props.menuButtonProps***REMOVED***
+              
             />
         ***REMOVED***props.renderMenu()***REMOVED***
           </Menu>

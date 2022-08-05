@@ -3,7 +3,7 @@ import { AiOutlineCloudUpload, AiOutlineFolderAdd ***REMOVED*** from "react-icon
 
 const PanelContextMenu = () => {
     return (
-        <MenuList>
+        <MenuList zIndex={1020***REMOVED***>
             <MenuItem icon={<AiOutlineCloudUpload />***REMOVED***>
                 Upload Photo
             </MenuItem>
