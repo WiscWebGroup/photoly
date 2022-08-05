@@ -3,7 +3,7 @@ import { AiOutlineCloudUpload, AiOutlineFolderAdd } from "react-icons/ai"
 
 const PanelContextMenu = () => {
     return (
-        <MenuList>
+        <MenuList zIndex={1020}>
             <MenuItem icon={<AiOutlineCloudUpload />}>
                 Upload Photo
             </MenuItem>
