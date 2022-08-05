@@ -3,7 +3,7 @@ import React from "react";
 import {AiOutlineFolderOpen***REMOVED*** from 'react-icons/ai'
 import { ContextMenu ***REMOVED*** from "./ContextMenu";
 import PanelContextMenu from "./contextMenus/PanelContextMenu";
-import PanelContextProvider from "./contexts/PanelContext";
+
 import ImageItem from "./ImageItem";
 
 const Images: React.FC = () => {
@@ -33,9 +33,6 @@ const Images: React.FC = () => {
                         </Box>
                     </Flex>
                     <Text alignSelf={"flex-start"***REMOVED*** fontSize={"xl"***REMOVED*** fontWeight={"semibold"***REMOVED*** pl={2***REMOVED***>Images</Text>
-                    <PanelContextProvider>
-
-                    </PanelContextProvider>
                     <Flex w={"100%"***REMOVED*** justifyContent={"flex-start"***REMOVED*** wrap={"wrap"***REMOVED***>
                         <ImageItem src="https://bit.ly/2Z4KKcF" alt="image" />
                         <ImageItem src="https://bit.ly/2Z4KKcF" alt="image" />
