@@ -1,6 +1,6 @@
 import { Box, Checkbox, Input, useDisclosure, useOutsideClick ***REMOVED*** from "@chakra-ui/react";
-import { ContextMenu ***REMOVED*** from "chakra-ui-contextmenu";
 import React, { KeyboardEvent, useRef, useState ***REMOVED*** from "react";
+import { ContextMenu ***REMOVED*** from "./ContextMenu";
 import TagContextMenu from "./contextMenus/TagContextMenu";
 import { useTagListUpdate ***REMOVED*** from "./contexts/TagContext";
 
