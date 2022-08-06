@@ -8,7 +8,7 @@ interface TagContextMenuProps {
 
 const TagContextMenu = ({ handleRename, handleDelete ***REMOVED***: TagContextMenuProps) => {
     return (
-        <MenuList>
+        <MenuList zIndex={1020***REMOVED***>
             <MenuItem icon={<DeleteIcon />***REMOVED*** onClick={handleDelete***REMOVED***>
                 Delete
             </MenuItem>

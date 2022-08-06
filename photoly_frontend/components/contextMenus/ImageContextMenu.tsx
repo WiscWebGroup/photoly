@@ -1,16 +1,10 @@
-import {Menu, MenuItem, MenuList***REMOVED*** from "@chakra-ui/menu";
+import {MenuItem, MenuList***REMOVED*** from "@chakra-ui/menu";
 import {ArrowForwardIcon, DownloadIcon, EditIcon, ViewIcon, DeleteIcon***REMOVED*** from "@chakra-ui/icons";
-import {Box***REMOVED*** from "@chakra-ui/react";
 import React from "react";
 
-interface ImageContextProps {
-    contextMenuRef: React.LegacyRef<HTMLDivElement>
-    x: number,
-    y: number
-***REMOVED***
 const ImageContextMenu = () => {
     return (
-        <MenuList>
+        <MenuList zIndex={1020***REMOVED***>
             <MenuItem icon={<DeleteIcon />***REMOVED***>
                 Delete
             </MenuItem>
@@ -29,4 +23,5 @@ const ImageContextMenu = () => {
         </MenuList>
     )
 ***REMOVED***
+
 export default ImageContextMenu

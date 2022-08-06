@@ -420,7 +420,7 @@ const AdminUser: React.FC = () => {
                 />
             </Stack>
           </Heading>
- ***REMOVED*****REMOVED***userList?.length === 0 ? (
+      ***REMOVED***userList?.length === 0 ? (
             <Text fontSize="3xl">Nothing Here</Text>
           ) : (
             ""
@@ -439,7 +439,7 @@ const AdminUser: React.FC = () => {
                 </Tr>
               </Thead>
               <Tbody>
-  ***REMOVED*****REMOVED*****REMOVED***userList?.map((user) => {
+            ***REMOVED***userList?.map((user) => {
                   return (
                     <Tr key={user.userId***REMOVED***>
                       <Td>{user.userId***REMOVED***</Td>
@@ -557,7 +557,7 @@ const AdminUser: React.FC = () => {
                 variant="outline"
                 onClick={() => {
                   if (editUserPass.length < 6)
-    ***REMOVED*****REMOVED*****REMOVED***
+              ***REMOVED***
                     toast({
                       title: 'Password length is too short!',
                       status: 'error',
