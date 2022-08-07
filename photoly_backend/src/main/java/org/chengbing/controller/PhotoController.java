@@ -19,10 +19,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import javax.servlet.http.HttpServletResponse;
+import java.io.*;
+import java.net.URLEncoder;
+import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -220,6 +220,100 @@ public class PhotoController {
 ***REMOVED***
 ***REMOVED***
 
+    @GetMapping(value = "/renderV/{token***REMOVED***", produces = "video/mp4")
+    public byte[] renderVideo(@PathVariable String token, Integer photoId) throws IOException {
+        Integer userId = verify.verifyUserByToken(token);
+        Photo photo = service.getById(photoId);
+        String UUID = userService.getById(userId).getUuid();
+        if (userId != null && userId.equals(photo.getUserId()))
+    ***REMOVED***
+            File file = new File(uploadFolder + System.getProperty("file.separator") + UUID + System.getProperty("file.separator") + photo.getPhotoUuid()
+                    + "." + photo.getFormat());
+            FileInputStream inputStream = new FileInputStream(file);
+            byte[] bytes = new byte[inputStream.available()];
+            inputStream.read(bytes, 0, inputStream.available());
+            return bytes;
+***REMOVED***
+***REMOVED***
+***REMOVED***
+
+    @GetMapping(value = "/renderVToken", produces = "video/mp4")
+    public byte[] renderVideoToken(String path, String token) throws IOException {
+        String photoUUID = path.split("/")[1];
+        String uuid = photoUUID.substring(0, photoUUID.lastIndexOf("."));
+        QueryWrapper<Photo> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("photo_uuid", uuid);
+        Photo photo = service.getOne(queryWrapper);
+        if (photo == null)
+    ***REMOVED***
+        if (photo.getVisibility() == 0)
+    ***REMOVED***
+        else if (photo.getVisibility() == 1) {
+            if (token != null && token.equals(photo.getToken()))
+        ***REMOVED***
+                File file = new File(uploadFolder + System.getProperty("file.separator") + path);
+                FileInputStream inputStream = new FileInputStream(file);
+                byte[] bytes = new byte[inputStream.available()];
+                inputStream.read(bytes, 0, inputStream.available());
+                return bytes;
+    ***REMOVED***
+***REMOVED*** else if (photo.getVisibility() == 2) {
+            File file = new File(uploadFolder + System.getProperty("file.separator") + path);
+            FileInputStream inputStream = new FileInputStream(file);
+            byte[] bytes = new byte[inputStream.available()];
+            inputStream.read(bytes, 0, inputStream.available());
+            return bytes;
+***REMOVED***
+***REMOVED***
+***REMOVED***
+
+    @GetMapping(value = "/download/{token***REMOVED***")
+    public void download(@PathVariable String token, Integer photoId, HttpServletResponse response) {
+        Integer userId = verify.verifyUserByToken(token);
+        Photo photo = service.getById(photoId);
+        String UUID = userService.getById(userId).getUuid();
+        if (userId != null && userId.equals(photo.getUserId()))
+    ***REMOVED***
+            File file = new File(uploadFolder + System.getProperty("file.separator") + UUID + System.getProperty("file.separator") + photo.getPhotoUuid()
+                    + "." + photo.getFormat());
+            byte[] bytes = new byte[1024];
+            BufferedInputStream bufferedInputStream = null;
+            OutputStream outputStream = null;
+            FileInputStream fileInputStream = null;
+    ***REMOVED***
+                fileInputStream = new FileInputStream(file);
+                bufferedInputStream = new BufferedInputStream(fileInputStream);
+
+                response.setContentType(MediaType.APPLICATION_OCTET_STREAM.toString());
+                response.addHeader("Content-Disposition", "attachment;fileName=" + URLEncoder.encode(file.getName(), "UTF-8"));
+                outputStream = response.getOutputStream();
+                int length;
+                while ((length = bufferedInputStream.read(bytes)) != -1) {
+                    outputStream.write(bytes, 0, length);
+   ***REMOVED*****REMOVED***
+                outputStream.flush();
+    ***REMOVED*** catch (Exception e) {
+                e.getLocalizedMessage();
+    ***REMOVED*** finally {
+   ***REMOVED*****REMOVED***
+                    if (bufferedInputStream != null) {
+                        bufferedInputStream.close();
+  ***REMOVED*****REMOVED*****REMOVED***
+
+                    if (outputStream != null) {
+                        outputStream.close();
+  ***REMOVED*****REMOVED*****REMOVED***
+
+                    if (fileInputStream != null) {
+                        fileInputStream.close();
+  ***REMOVED*****REMOVED*****REMOVED***
+   ***REMOVED*****REMOVED*** catch (IOException e) {
+                    e.getLocalizedMessage();
+   ***REMOVED*****REMOVED***
+    ***REMOVED***
+***REMOVED***
+***REMOVED***
+
     @GetMapping("/getPath")
     public Result<String> getImagePath(HttpServletRequest request, Integer photoId)
 ***REMOVED***
@@ -233,9 +327,25 @@ public class PhotoController {
         Photo photo = service.getOne(queryWrapper);
         if (photo != null)
     ***REMOVED***
-            String path = serverPath + "/photo/renderToken?path=" + UUID + "/" + photo.getPhotoUuid() + "." + photo.getFormat()
-                     + "&token=" + photo.getToken();
-            return new Result<>(path, 200);
+            String format = photo.getFormat().toLowerCase();
+            if (format.equals("jpg") || format.equals("jpeg") || format.equals("gif") || format.equals("png")
+                    || format.equals("webp")|| format.equals("ico") || format.equals("bmp")|| format.equals("tif")
+                    || format.equals("svg")|| format.equals("psd") || format.equals("raw")|| format.equals("pcd"))
+        ***REMOVED***
+                String path = serverPath + "/photo/renderToken?path=" + UUID + "/" + photo.getPhotoUuid() + "." + photo.getFormat()
+                        + "&token=" + photo.getToken();
+                return new Result<>(path, 200);
+    ***REMOVED***else if (format.equals("mp4") || format.equals("avi") || format.equals("wmv") || format.equals("mpeg")
+            || format.equals("m4v") || format.equals("mov") || format.equals("flv") || format.equals("asf")
+                    || format.equals("f4v") || format.equals("rmvb") || format.equals("vob") || format.equals("rm"))
+        ***REMOVED***
+                String path = serverPath + "/photo/renderVToken?path=" + UUID + "/" + photo.getPhotoUuid() + "." + photo.getFormat()
+                        + "&token=" + photo.getToken();
+                return new Result<>(path, 200);
+    ***REMOVED***else {
+                return new Result<>(null, 402);
+    ***REMOVED***
+
 ***REMOVED***else
             return new Result<>(null, 403);
 ***REMOVED***
