@@ -13,10 +13,8 @@ const Images: React.FC = () => {
     const { isOpen: isUpOpen, onOpen: onUpOpen, onClose: onUpClose ***REMOVED*** = useDisclosure()
     const { isOpen: isCrOpen, onOpen: onCrOpen, onClose: onCrClose ***REMOVED*** = useDisclosure()
 
-    const [file, setFile] = useState<Blob | string>("")
+    const [files, setFiles] = useState<Blob[] | string[]>([])
     const fileRef = useRef<HTMLInputElement>(null)
-    const [isOversize, setIsOversize] = useState(false)
-    const [isDisabled, setIsDisabled] = useState(true)
     const [isLoading, setIsLoading] = useState(false)
 
     const [folderName, setFolderName] = useState("")
@@ -29,38 +27,37 @@ const Images: React.FC = () => {
     const searchData = useSearchData()
 
     const handleUploadFile = (e: ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const f = e.target.files[0]
-            if (f.size <= 600000000) {
-                setFile(f)
-                setIsOversize(false)
-                setIsDisabled(false)
-                return
+        const fs: FileList | null = e.target.files
+        if (fs !== null) {
+            let fileArray: File[] = []
+            for (let i = 0; i < fs.length; i++) {
+                let f = fs.item(i)
+                if (f !== null && f.size <= 600000000) {
+                    fileArray.push(f)
+   ***REMOVED*****REMOVED***
     ***REMOVED***
-            setIsOversize(true)
+            setFiles(fileArray)
 ***REMOVED***
-        setIsDisabled(true)
 ***REMOVED***
 
     const handleRestFile = () => {
         if (fileRef.current) fileRef.current.value = ""
-        setIsOversize(false)
-        setIsDisabled(true)
         onUpClose()
 ***REMOVED***
 
     const handleUpload = async () => {
         setIsLoading(true)
         const formData = new FormData()
-        formData.append("file", file)
-        const response = await post("/photo/insert", formData, {
+        for (const file of files)
+            formData.append("files", file)
+        const part = JSON.stringify({
+            nsId: searchData.current.id,
+            visibility: 1
+***REMOVED***)
+        const photosStr = Array(files.length).fill(part)
+        const response = await post("/photo/inserts", formData, {
             headers: { "HRD-token": token ***REMOVED***,
-            params: {
-                photo: {
-                    nsId: searchData.current.id,
-                    visibility: 1
-   ***REMOVED*****REMOVED***
-    ***REMOVED***
+            params: { photosStr: "[" + photosStr + "]" ***REMOVED***
 ***REMOVED***)
 
         if (!!response && response.data && response.data.msgCode === 200) {
@@ -145,23 +142,18 @@ const Images: React.FC = () => {
                             <ModalCloseButton />
                             <ModalBody>
                                 <Input 
+                                    multiple
                                     ref={fileRef***REMOVED*** 
                                     type="file" 
                                     accept="image/jpeg, image/png" 
                                     onChange={handleUploadFile***REMOVED***
                                 />
-             ***REMOVED*****REMOVED*****REMOVED*****REMOVED***isOversize && (
-                                    <Text fontSize="sm" color="red">
-                                        File size should not exceed 200 KB.
-                                    </Text>
-                                )***REMOVED***
                             </ModalBody>
                             <ModalFooter>
                                 <Button 
                                     colorScheme="teal" 
                                     mr={3***REMOVED*** 
                                     onClick={handleUpload***REMOVED***
-                                    disabled={isDisabled***REMOVED***
                                     isLoading={isLoading***REMOVED***
                                 >
                                     Upload
