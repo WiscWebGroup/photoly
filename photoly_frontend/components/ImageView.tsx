@@ -15,10 +15,13 @@ import {
 
 interface ImageViewProps {
     isViewOpen: boolean,
-    onViewClose: () => void
+    onViewClose: () => void,
+    path: string | undefined,
+    pname: string | undefined,
+    date: string | undefined
 ***REMOVED***
 
-const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose***REMOVED***) => {
+const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pname, date***REMOVED***) => {
     const ref = React.useRef() as React.MutableRefObject<HTMLDivElement>
     useOutsideClick({
         ref: ref,
@@ -32,7 +35,7 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose***REMOVED*
                 <ModalContent maxW={"85vw"***REMOVED***>
                     <ModalCloseButton/>
                     <HStack alignItems={"flex-start"***REMOVED***>
-                        <Image src={"https://www.industrialempathy.com/img/remote/ZiClJf-1920w.jpg"***REMOVED*** alt={"image"***REMOVED***
+                        <Image src={path***REMOVED*** alt={"image"***REMOVED***
                                rounded={"md"***REMOVED***
                                w={"80%"***REMOVED*** h={"100%"***REMOVED*** objectFit={"fill"***REMOVED***/>
                         <VStack w={"100%"***REMOVED*** h={"100%"***REMOVED*** p={4***REMOVED***>
@@ -71,11 +74,11 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose***REMOVED*
                             <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Metadata</Text>
                             <HStack justifyContent={"space-between"***REMOVED*** w={"100%"***REMOVED***>
                                 <Text>Name: </Text>
-                                <Text>Sunset</Text>
+                                <Text>{pname***REMOVED***</Text>
                             </HStack>
                             <HStack justifyContent={"space-between"***REMOVED*** w={"100%"***REMOVED***>
-                                <Text>Date: </Text>
-                                <Text>6/30/2002</Text>
+                                <Text>Upload Date: </Text>
+                                <Text>{date***REMOVED***</Text>
                             </HStack>
                             <HStack justifyContent={"space-between"***REMOVED*** w={"100%"***REMOVED***>
                                 <Text>Path: </Text>
