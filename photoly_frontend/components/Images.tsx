@@ -131,6 +131,7 @@ const Images: React.FC = () => {
                                 name={photo.name}
                                 format={photo.format}
                                 uploadDate={photo.uploadDate}
+                                orgSrc={`/photo/render/${token}?photoId=${photo.id}`}
                             />
                         )}
                     </Flex>
