@@ -1,7 +1,7 @@
 import { AiFillTags ***REMOVED*** from "react-icons/ai"
 import { useTagList ***REMOVED*** from "./contexts/TagContext"
 import TagHeader from "./TagHeader"
-import TagItem from "./TagItem"
+import TagItem from "./items/TagItem"
 
 const TagSection = () => {
     const { tags ***REMOVED*** = useTagList();
@@ -11,8 +11,8 @@ const TagSection = () => {
                 Your Tags
             </TagHeader>
 
-        ***REMOVED***tags.map((t, ind) =>
-                <TagItem tagName={t.name***REMOVED*** tagId={t.id***REMOVED*** key={ind***REMOVED***></TagItem>
+   ***REMOVED*****REMOVED***tags.map((t, ind) =>
+                <TagItem tagName={t.name***REMOVED*** tagId={t.id***REMOVED*** key={ind***REMOVED*** />
             )***REMOVED***
         </>
     )
