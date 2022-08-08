@@ -8,6 +8,7 @@ interface ImageItemProps {
     pid: number
     name: string
     format: string
+    uploadDate: string
 ***REMOVED***
 
 const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "borderRadius">) => {
@@ -23,7 +24,7 @@ const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "bord
                 <Box ref={ref***REMOVED*** w={64***REMOVED*** overflow='hidden' position='relative' m={2***REMOVED*** rounded={"md"***REMOVED*** border={"1px"***REMOVED***
                      borderColor={"gray.50"***REMOVED*** shadow={"md"***REMOVED***>
                     <Image 
-***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***...props***REMOVED***
+     ***REMOVED*****REMOVED*****REMOVED*****REMOVED***...props***REMOVED***
                         w="100%" 
                         h={128***REMOVED*** 
                         objectFit="cover" 
@@ -33,7 +34,7 @@ const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "bord
                     <Center bg={"white"***REMOVED***>
                         <Text fontWeight={"hairline"***REMOVED***>{props.name + "." + props.format***REMOVED***</Text>
                     </Center>
-                    <ImageView isViewOpen={isOpen***REMOVED*** onViewClose={onClose***REMOVED***/>
+                    <ImageView isViewOpen={isOpen***REMOVED*** onViewClose={onClose***REMOVED*** path={props.src***REMOVED*** pname={props.name***REMOVED*** date={props.uploadDate***REMOVED***/>
                 </Box>
             )***REMOVED***
         </ContextMenu>
