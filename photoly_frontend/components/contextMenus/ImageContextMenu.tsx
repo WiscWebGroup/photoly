@@ -4,7 +4,7 @@ import React from "react";
 
 const ImageContextMenu = () => {
     return (
-        <MenuList zIndex={1020***REMOVED***>
+        <MenuList zIndex={1030***REMOVED***>
             <MenuItem icon={<DeleteIcon />***REMOVED***>
                 Delete
             </MenuItem>
