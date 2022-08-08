@@ -130,6 +130,7 @@ const Images: React.FC = () => {
                                 pid={photo.id}
                                 name={photo.name}
                                 format={photo.format}
+                                uploadDate={photo.uploadDate}
                             />
                         )}
                     </Flex>

@@ -15,10 +15,13 @@ import {
 
 interface ImageViewProps {
     isViewOpen: boolean,
-    onViewClose: () => void
+    onViewClose: () => void,
+    path: string | undefined,
+    pname: string | undefined,
+    date: string | undefined
 }
 
-const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose}) => {
+const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pname, date}) => {
     const ref = React.useRef() as React.MutableRefObject<HTMLDivElement>
     useOutsideClick({
         ref: ref,
@@ -32,7 +35,7 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose}) => {
                 <ModalContent maxW={"85vw"}>
                     <ModalCloseButton/>
                     <HStack alignItems={"flex-start"}>
-                        <Image src={"https://www.industrialempathy.com/img/remote/ZiClJf-1920w.jpg"} alt={"image"}
+                        <Image src={path} alt={"image"}
                                rounded={"md"}
                                w={"80%"} h={"100%"} objectFit={"fill"}/>
                         <VStack w={"100%"} h={"100%"} p={4}>
@@ -71,11 +74,11 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose}) => {
                             <Text fontWeight={"semibold"} fontSize={"xl"}>Metadata</Text>
                             <HStack justifyContent={"space-between"} w={"100%"}>
                                 <Text>Name: </Text>
-                                <Text>Sunset</Text>
+                                <Text>{pname}</Text>
                             </HStack>
                             <HStack justifyContent={"space-between"} w={"100%"}>
-                                <Text>Date: </Text>
-                                <Text>6/30/2002</Text>
+                                <Text>Upload Date: </Text>
+                                <Text>{date}</Text>
                             </HStack>
                             <HStack justifyContent={"space-between"} w={"100%"}>
                                 <Text>Path: </Text>

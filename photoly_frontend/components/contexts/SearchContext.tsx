@@ -14,6 +14,7 @@ interface IPhoto {
     id: number
     name: string
     format: string
+    uploadDate: string
     visibility: boolean
 }
 
@@ -101,6 +102,7 @@ const SearchContextProvider = ({children}: {children: ReactNode}) => {
                 id: ele.photoId,
                 name: ele.photoName,
                 format: ele.format,
+                uploadDate: ele.uploadDate,
                 visibility: ele.visibility
             })
         })
@@ -175,6 +177,7 @@ const SearchContextProvider = ({children}: {children: ReactNode}) => {
                         id: ele.photoId,
                         name: ele.photoName,
                         format: ele.format,
+                        uploadDate: ele.uploadDate,
                         visibility: ele.visibility
                     })
                 })
@@ -237,6 +240,7 @@ const SearchContextProvider = ({children}: {children: ReactNode}) => {
                     id: ele.photoId,
                     name: ele.photoName,
                     format: ele.format,
+                    uploadDate: ele.uploadDate,
                     visibility: ele.visibility
                 })
             })
