@@ -31,7 +31,7 @@ const Images: React.FC = () => {
     const handleUploadFile = (e: ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const f = e.target.files[0]
-            if (f.size <= 204800) {
+            if (f.size <= 600000000) {
                 setFile(f)
                 setIsOversize(false)
                 setIsDisabled(false)
