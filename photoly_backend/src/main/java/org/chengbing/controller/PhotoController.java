@@ -23,12 +23,16 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
+import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.URLEncoder;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
@@ -178,6 +182,32 @@ public class PhotoController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
     }
 
+    @GetMapping("/getTagByPhoto")
+    public Result<List<LinkedHashMap<String, Object>>> selectTagByPhoto(HttpServletRequest request, Integer photoId)
+    {
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(null, 403);
+        List<LinkedHashMap<String, Object>> res = service.selectTagByPhoto(userId, photoId);
+        if (res == null)
+            return new Result<>(null, 400);
+        else
+            return new Result<>(res, 200);
+    }
+
+    @GetMapping("/getGalleryByPhoto")
+    public Result<List<LinkedHashMap<String, Object>>> selectGalleryByPhoto(HttpServletRequest request, Integer photoId)
+    {
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(null, 403);
+        List<LinkedHashMap<String, Object>> res = service.selectGalleryByPhoto(userId, photoId);
+        if (res == null)
+            return new Result<>(null, 400);
+        else
+            return new Result<>(res, 200);
+    }
+
     @GetMapping(value = "/render/{token}", produces = MediaType.IMAGE_JPEG_VALUE)
     public ResponseEntity<Object> renderImage(@PathVariable String token, Integer photoId) throws IOException {
         Integer userId = verify.verifyUserByToken(token);
@@ -194,10 +224,54 @@ public class PhotoController {
         return null;
     }
 
+    @GetMapping(value = "/renderThumbnail/{token}", produces = "image/jpeg")
+    public ResponseEntity<Object> renderThumbnailImage(@PathVariable String token, Integer photoId) throws IOException {
+        Integer userId = verify.verifyUserByToken(token);
+        Photo photo = service.getById(photoId);
+        String UUID = userService.getById(userId).getUuid();
+        if (userId != null && photo != null && userId.equals(photo.getUserId()))
+        {
+            File file = new File(uploadFolder + System.getProperty("file.separator") + UUID + System.getProperty("file.separator") + photo.getPhotoUuid()
+                    + "_thumbnail" + "." + photo.getFormat());
+            FileInputStream inputStream = new FileInputStream(file);
+            InputStreamSource inputStreamSource = new InputStreamResource(inputStream);
+            return new ResponseEntity<>(inputStreamSource, new HttpHeaders(), HttpStatus.OK);
+        }
+        return null;
+    }
+
     @GetMapping(value = "/renderToken", produces = MediaType.IMAGE_JPEG_VALUE)
     public ResponseEntity<Object> renderImageToken(String path, String token) throws IOException {
         String photoUUID = path.split("/")[1];
         String uuid = photoUUID.substring(0, photoUUID.lastIndexOf("."));
+        QueryWrapper<Photo> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("photo_uuid", uuid);
+        Photo photo = service.getOne(queryWrapper);
+        if (photo == null)
+            return null;
+        if (photo.getVisibility() == 0)
+            return null;
+        else if (photo.getVisibility() == 1) {
+            if (token != null && token.equals(photo.getToken()))
+            {
+                File file = new File(uploadFolder + System.getProperty("file.separator") + path);
+                FileInputStream inputStream = new FileInputStream(file);
+                InputStreamSource inputStreamSource = new InputStreamResource(inputStream);
+                return new ResponseEntity<>(inputStreamSource, new HttpHeaders(), HttpStatus.OK);
+            }
+        } else if (photo.getVisibility() == 2) {
+            File file = new File(uploadFolder + System.getProperty("file.separator") + path);
+            FileInputStream inputStream = new FileInputStream(file);
+            InputStreamSource inputStreamSource = new InputStreamResource(inputStream);
+            return new ResponseEntity<>(inputStreamSource, new HttpHeaders(), HttpStatus.OK);
+        }
+        return null;
+    }
+
+    @GetMapping(value = "/renderToken/Thumbnail", produces = MediaType.IMAGE_JPEG_VALUE)
+    public ResponseEntity<Object> renderImageTokenThumbnail(String path, String token) throws IOException {
+        String photoUUID = path.split("/")[1];
+        String uuid = photoUUID.substring(0, photoUUID.lastIndexOf("_"));
         QueryWrapper<Photo> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("photo_uuid", uuid);
         Photo photo = service.getOne(queryWrapper);

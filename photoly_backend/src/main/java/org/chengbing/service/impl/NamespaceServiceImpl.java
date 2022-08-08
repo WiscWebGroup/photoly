@@ -153,8 +153,11 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
             String format = currPhoto.getFormat();
             // Delete photo in real place
             String photoPath = folderPath + System.getProperty("file.separator") + userUUID + System.getProperty("file.separator") + photoUUID + "." + format;
+            String photoPathThumbnail = folderPath + System.getProperty("file.separator") + userUUID + System.getProperty("file.separator") + photoUUID + "_thumbnail" + "." + format;
             File photo = new File(photoPath);
+            File photoThumbnail = new File(photoPathThumbnail);
             results += photo.delete() ? 1 : 0;
+            results += photoThumbnail.delete() ? 1 : 0;
             photoMapper.deleteById(photoId);
         }
         // Recursive on sub namespaces

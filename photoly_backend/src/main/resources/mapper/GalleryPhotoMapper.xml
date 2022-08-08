@@ -4,4 +4,10 @@
     <select id="selectPhotoByGallery" resultType="org.chengbing.entity.Photo">
         select * from photo where photo_id in (select photo_id from gallery_photo where ga_id = #{gaId})
     </select>
+
+    <select id="selectGalleryByPhoto" resultType="map">
+        select p.photo_id, g.ga_id, g.ga_name
+        from photo as p, gallery as g, gallery_photo as gp
+        where p.photo_id = gp.photo_id and g.ga_id = gp.ga_id and p.photo_id = #{photoId}
+    </select>
 </mapper>

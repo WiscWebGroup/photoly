@@ -5,6 +5,7 @@ import org.chengbing.entity.GalleryPhoto;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.chengbing.entity.Photo;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
@@ -18,4 +19,6 @@ import java.util.List;
 @Mapper
 public interface GalleryPhotoMapper extends BaseMapper<GalleryPhoto> {
     List<Photo> selectPhotoByGallery(Integer gaId);
+
+    List<LinkedHashMap<String, Object>> selectGalleryByPhoto(Integer photoId);
 }

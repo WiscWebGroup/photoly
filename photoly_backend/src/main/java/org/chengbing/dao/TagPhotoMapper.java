@@ -5,6 +5,7 @@ import org.chengbing.entity.Photo;
 import org.chengbing.entity.TagPhoto;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
@@ -18,4 +19,5 @@ import java.util.List;
 @Mapper
 public interface TagPhotoMapper extends BaseMapper<TagPhoto> {
     List<Photo> selectByTags(Integer userId, List list, Integer totalNum);
+    List<LinkedHashMap<String, Object>> selectTagByPhoto(Integer photoId);
 }
