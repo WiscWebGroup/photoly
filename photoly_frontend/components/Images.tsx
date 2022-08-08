@@ -133,6 +133,7 @@ const Images: React.FC = () => {
                                 pid={photo.id}
                                 name={photo.name}
                                 format={photo.format}
+                                uploadDate={photo.uploadDate}
                             />
                         )}
                     </Flex>
@@ -152,7 +153,7 @@ const Images: React.FC = () => {
                                 />
                                 {isOversize && (
                                     <Text fontSize="sm" color="red">
-                                        File size should not exceed 200 KB.
+                                        File size should not exceed 600 MB.
                                     </Text>
                                 )}
                             </ModalBody>
