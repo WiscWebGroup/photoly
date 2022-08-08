@@ -1,5 +1,4 @@
-import {Button, Divider, HStack, Icon, Text, VStack***REMOVED*** from "@chakra-ui/react";
-import {AiFillHeart***REMOVED*** from "react-icons/ai";
+import {Divider, HStack, Text, VStack***REMOVED*** from "@chakra-ui/react";
 import React from "react";
 import TagContextProvider from "./contexts/TagContext";
 import TagSection from "./TagSection";

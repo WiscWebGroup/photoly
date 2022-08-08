@@ -17,7 +17,6 @@ interface TagItemProps {
     const { isOpen, onOpen, onClose ***REMOVED*** = useDisclosure()  // control edit mode
     const { renameRequest, deleteRequest ***REMOVED*** = useTagListUpdate()
     const { tagIds: searchTagIds ***REMOVED*** = useSearchFilter()
-    const [isChecked, setIsChecked] = useState(false)
     const searchUpdateDispatch = useSearchUpdateDispatch()
 
     const handleRename = () => {
@@ -77,9 +76,9 @@ interface TagItemProps {
                             pr={2***REMOVED*** 
                             onChange={handleChecked***REMOVED***
                         >
-    ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***isOpen ? '' : tag***REMOVED***
+         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***isOpen ? '' : tagName***REMOVED***
                         </Checkbox>
-***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***isOpen && 
+     ***REMOVED*****REMOVED*****REMOVED*****REMOVED***isOpen && 
                             <Input 
                                 ref={inputRef***REMOVED***
                                 variant='flushed'

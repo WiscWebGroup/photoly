@@ -266,7 +266,7 @@ const SearchContextProvider = ({children***REMOVED***: {children: ReactNode***RE
             <SearchDataContext.Provider value={searchData***REMOVED***>
                 <OpenFolderContext.Provider value={openFolder***REMOVED***>
                     <SearchContextUpdate.Provider value={searchUpdateDispatch***REMOVED***>
-***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***children***REMOVED***
+     ***REMOVED*****REMOVED*****REMOVED*****REMOVED***children***REMOVED***
                     </SearchContextUpdate.Provider>
                 </OpenFolderContext.Provider>
             </SearchDataContext.Provider>

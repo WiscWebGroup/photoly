@@ -115,7 +115,7 @@ const Images: React.FC = () => {
                 <Box ref={ref***REMOVED*** w='100%' h='100%'>
                     <Text alignSelf={"flex-start"***REMOVED*** fontSize={"xl"***REMOVED*** fontWeight={"semibold"***REMOVED*** pl={2***REMOVED***>Folders</Text>
                     <Flex w={"100%"***REMOVED*** justifyContent={"flex-start"***REMOVED*** wrap={"wrap"***REMOVED***>
-***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***searchData.folders.map((folder, index) => {
+     ***REMOVED*****REMOVED*****REMOVED*****REMOVED***searchData.folders.map((folder, index) => {
                             return <FolderItem 
                                         key={index***REMOVED*** 
                                         id={folder.id***REMOVED*** 
@@ -143,7 +143,7 @@ const Images: React.FC = () => {
                                     accept="image/jpeg, image/png" 
                                     onChange={handleUploadFile***REMOVED***
                                 />
-   ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***isOversize && (
+             ***REMOVED*****REMOVED*****REMOVED*****REMOVED***isOversize && (
                                     <Text fontSize="sm" color="red">
                                         File size should not exceed 200 KB.
                                     </Text>
@@ -178,7 +178,7 @@ const Images: React.FC = () => {
                                     placeholder="New folder name" 
                                     onChange={handleNewFolderName***REMOVED***
                                 />
-   ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***isError && (
+             ***REMOVED*****REMOVED*****REMOVED*****REMOVED***isError && (
                                     <Text fontSize="sm" color="red">
                                         Folder name must not be empty or "/"
                                     </Text>

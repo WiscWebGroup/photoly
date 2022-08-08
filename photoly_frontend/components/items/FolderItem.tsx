@@ -89,7 +89,7 @@ const FolderItem = ({id, name, parentId***REMOVED*** : FolderItemProps) => {
                         w={"100%"***REMOVED***
                         onClick={() => openFolder(id)***REMOVED***
                     >
-***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***name***REMOVED***
+     ***REMOVED*****REMOVED*****REMOVED*****REMOVED***name***REMOVED***
                     </Button>
 
                     <Modal isOpen={isRenameOpen***REMOVED*** onClose={handleResetNewName***REMOVED***>
@@ -109,7 +109,7 @@ const FolderItem = ({id, name, parentId***REMOVED*** : FolderItemProps) => {
                                         placeholder="New folder name" 
                                         onChange={handleFolderRename***REMOVED***
                                     />
-  ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***isError &&
+                 ***REMOVED*****REMOVED*****REMOVED*****REMOVED***isError &&
                                         <FormErrorMessage>Folder name must not be empty or "/"</FormErrorMessage>
    ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***
                                 </FormControl>
