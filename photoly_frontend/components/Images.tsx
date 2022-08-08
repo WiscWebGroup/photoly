@@ -133,6 +133,7 @@ const Images: React.FC = () => {
                                 pid={photo.id***REMOVED***
                                 name={photo.name***REMOVED***
                                 format={photo.format***REMOVED***
+                                uploadDate={photo.uploadDate***REMOVED***
                             />
                         )***REMOVED***
                     </Flex>
@@ -152,7 +153,7 @@ const Images: React.FC = () => {
                                 />
              ***REMOVED*****REMOVED*****REMOVED*****REMOVED***isOversize && (
                                     <Text fontSize="sm" color="red">
-                                        File size should not exceed 200 KB.
+                                        File size should not exceed 600 MB.
                                     </Text>
                                 )***REMOVED***
                             </ModalBody>
