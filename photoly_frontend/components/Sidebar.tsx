@@ -1,10 +1,10 @@
 import {Button, Divider, HStack, Icon, Text, VStack***REMOVED*** from "@chakra-ui/react";
 import {AiFillHeart***REMOVED*** from "react-icons/ai";
-import {BiBaseball, BiPhotoAlbum***REMOVED*** from "react-icons/bi";
 import React from "react";
-import TagHeader from "./TagHeader";
 import TagContextProvider from "./contexts/TagContext";
 import TagSection from "./TagSection";
+import AlbumContextProvider from "./contexts/AlbumContext";
+import AlbumSection from "./AlbumSection";
 
 const Sidebar: React.FC = () => {
     return (
@@ -21,19 +21,9 @@ const Sidebar: React.FC = () => {
 
             <Divider/>
 
-            <TagHeader 
-                headerIcon={BiPhotoAlbum***REMOVED*** 
-                iconColor="teal.400"
-            >
-                Your Albums
-            </TagHeader>
-
-            <Button variant={"ghost"***REMOVED*** w={"100%"***REMOVED*** justifyContent={"flex-start"***REMOVED***
-                    leftIcon={<Icon as={AiFillHeart***REMOVED*** color={"red.400"***REMOVED***/>***REMOVED*** fontWeight={"normal"***REMOVED*** isActive={false***REMOVED***>My
-                Favorite</Button>
-            <Button variant={"ghost"***REMOVED*** w={"100%"***REMOVED*** justifyContent={"flex-start"***REMOVED***
-                    leftIcon={<Icon as={BiBaseball***REMOVED*** color={"red.400"***REMOVED***/>***REMOVED*** fontWeight={"normal"***REMOVED***>
-                Yes Favorite</Button>
+            <AlbumContextProvider>
+                <AlbumSection />
+            </AlbumContextProvider>
         </VStack>
     )
 ***REMOVED***
