@@ -9,6 +9,7 @@ interface ImageItemProps {
     name: string
     format: string
     uploadDate: string
+    orgSrc: string
 ***REMOVED***
 
 const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "borderRadius">) => {
@@ -30,11 +31,12 @@ const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "bord
                         objectFit="cover" 
                         onClick={onOpen***REMOVED*** 
                         alt={"image"***REMOVED***
+                        
                     />
                     <Center bg={"white"***REMOVED***>
                         <Text fontWeight={"hairline"***REMOVED***>{props.name + "." + props.format***REMOVED***</Text>
                     </Center>
-                    <ImageView isViewOpen={isOpen***REMOVED*** onViewClose={onClose***REMOVED*** path={props.src***REMOVED*** pname={props.name***REMOVED*** date={props.uploadDate***REMOVED***/>
+                    <ImageView isViewOpen={isOpen***REMOVED*** onViewClose={onClose***REMOVED*** path={props.src***REMOVED*** pname={props.name***REMOVED*** date={props.uploadDate***REMOVED*** orgSrc={props.orgSrc***REMOVED***/>
                 </Box>
             )***REMOVED***
         </ContextMenu>

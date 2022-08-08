@@ -18,10 +18,11 @@ interface ImageViewProps {
     onViewClose: () => void,
     path: string | undefined,
     pname: string | undefined,
-    date: string | undefined
+    date: string | undefined,
+    orgSrc: string
 ***REMOVED***
 
-const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pname, date***REMOVED***) => {
+const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pname, date, orgSrc***REMOVED***) => {
     const ref = React.useRef() as React.MutableRefObject<HTMLDivElement>
     useOutsideClick({
         ref: ref,
@@ -35,7 +36,7 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pna
                 <ModalContent maxW={"85vw"***REMOVED***>
                     <ModalCloseButton/>
                     <HStack alignItems={"flex-start"***REMOVED***>
-                        <Image src={path***REMOVED*** alt={"image"***REMOVED***
+                        <Image src={orgSrc***REMOVED*** alt={"image"***REMOVED***
                                rounded={"md"***REMOVED***
                                w={"80%"***REMOVED*** h={"100%"***REMOVED*** objectFit={"fill"***REMOVED***/>
                         <VStack w={"100%"***REMOVED*** h={"100%"***REMOVED*** p={4***REMOVED***>
