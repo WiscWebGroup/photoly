@@ -1,16 +1,15 @@
 import {Box, Image, ImageProps, useDisclosure, Text, Center} from "@chakra-ui/react"
-import { ContextMenu } from "./ContextMenu"
-import ImageContextMenu from "./contextMenus/ImageContextMenu"
-import ImageView from "./ImageView"
+import { ContextMenu } from "../ContextMenu"
+import ImageContextMenu from "../contextMenus/ImageContextMenu"
+import ImageView from "../ImageView"
 
 const ImageItem = (props: Exclude<ImageProps, "onClick" | "borderRadius">) => {
-    const {isOpen, onOpen, onClose} = useDisclosure()
+    const { isOpen, onOpen, onClose } = useDisclosure()
+
     return (
         <ContextMenu<HTMLDivElement>
-            renderMenu={() => {
-                return <ImageContextMenu/>
-            }}
             stopPropagation
+            renderMenu={() => <ImageContextMenu/>}
         >
             {ref => (
                 <Box ref={ref} w={64} overflow='hidden' position='relative' m={2} rounded={"md"} border={"1px"}
