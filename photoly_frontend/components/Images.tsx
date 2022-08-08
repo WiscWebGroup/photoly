@@ -126,7 +126,7 @@ const Images: React.FC = () => {
                         {searchData.photos.map((photo, ind) => 
                             <ImageItem 
                                 key={ind} 
-                                src={`/photo/render/${token}?photoId=${photo.id}`} 
+                                src={`/photo/renderThumbnail/${token}?photoId=${photo.id}`} 
                                 pid={photo.id}
                                 name={photo.name}
                                 format={photo.format}
