@@ -131,6 +131,7 @@ const Images: React.FC = () => {
                                 name={photo.name***REMOVED***
                                 format={photo.format***REMOVED***
                                 uploadDate={photo.uploadDate***REMOVED***
+                                orgSrc={`/photo/render/${token***REMOVED***?photoId=${photo.id***REMOVED***`***REMOVED***
                             />
                         )***REMOVED***
                     </Flex>
