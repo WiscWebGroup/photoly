@@ -17,7 +17,6 @@ interface TagItemProps {
     const { isOpen, onOpen, onClose } = useDisclosure()  // control edit mode
     const { renameRequest, deleteRequest } = useTagListUpdate()
     const { tagIds: searchTagIds } = useSearchFilter()
-    const [isChecked, setIsChecked] = useState(false)
     const searchUpdateDispatch = useSearchUpdateDispatch()
 
     const handleRename = () => {
@@ -77,7 +76,7 @@ interface TagItemProps {
                             pr={2} 
                             onChange={handleChecked}
                         >
-                            {isOpen ? '' : tag}
+                            {isOpen ? '' : tagName}
                         </Checkbox>
                         {isOpen && 
                             <Input 
