@@ -23,12 +23,16 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
+import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.URLEncoder;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 ***REMOVED***
@@ -178,6 +182,32 @@ public class PhotoController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
 ***REMOVED***
 
+    @GetMapping("/getTagByPhoto")
+    public Result<List<LinkedHashMap<String, Object>>> selectTagByPhoto(HttpServletRequest request, Integer photoId)
+***REMOVED***
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(null, 403);
+        List<LinkedHashMap<String, Object>> res = service.selectTagByPhoto(userId, photoId);
+        if (res == null)
+            return new Result<>(null, 400);
+        else
+            return new Result<>(res, 200);
+***REMOVED***
+
+    @GetMapping("/getGalleryByPhoto")
+    public Result<List<LinkedHashMap<String, Object>>> selectGalleryByPhoto(HttpServletRequest request, Integer photoId)
+***REMOVED***
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(null, 403);
+        List<LinkedHashMap<String, Object>> res = service.selectGalleryByPhoto(userId, photoId);
+        if (res == null)
+            return new Result<>(null, 400);
+        else
+            return new Result<>(res, 200);
+***REMOVED***
+
     @GetMapping(value = "/render/{token***REMOVED***", produces = MediaType.IMAGE_JPEG_VALUE)
     public ResponseEntity<Object> renderImage(@PathVariable String token, Integer photoId) throws IOException {
         Integer userId = verify.verifyUserByToken(token);
@@ -187,6 +217,22 @@ public class PhotoController {
     ***REMOVED***
             File file = new File(uploadFolder + System.getProperty("file.separator") + UUID + System.getProperty("file.separator") + photo.getPhotoUuid()
              + "." + photo.getFormat());
+            FileInputStream inputStream = new FileInputStream(file);
+            InputStreamSource inputStreamSource = new InputStreamResource(inputStream);
+            return new ResponseEntity<>(inputStreamSource, new HttpHeaders(), HttpStatus.OK);
+***REMOVED***
+***REMOVED***
+***REMOVED***
+
+    @GetMapping(value = "/renderThumbnail/{token***REMOVED***", produces = "image/jpeg")
+    public ResponseEntity<Object> renderThumbnailImage(@PathVariable String token, Integer photoId) throws IOException {
+        Integer userId = verify.verifyUserByToken(token);
+        Photo photo = service.getById(photoId);
+        String UUID = userService.getById(userId).getUuid();
+        if (userId != null && photo != null && userId.equals(photo.getUserId()))
+    ***REMOVED***
+            File file = new File(uploadFolder + System.getProperty("file.separator") + UUID + System.getProperty("file.separator") + photo.getPhotoUuid()
+                    + "_thumbnail" + "." + photo.getFormat());
             FileInputStream inputStream = new FileInputStream(file);
             InputStreamSource inputStreamSource = new InputStreamResource(inputStream);
             return new ResponseEntity<>(inputStreamSource, new HttpHeaders(), HttpStatus.OK);
@@ -207,7 +253,35 @@ public class PhotoController {
     ***REMOVED***
         else if (photo.getVisibility() == 1) {
             if (token != null && token.equals(photo.getToken()))
-   ***REMOVED*****REMOVED***
+        ***REMOVED***
+                File file = new File(uploadFolder + System.getProperty("file.separator") + path);
+                FileInputStream inputStream = new FileInputStream(file);
+                InputStreamSource inputStreamSource = new InputStreamResource(inputStream);
+                return new ResponseEntity<>(inputStreamSource, new HttpHeaders(), HttpStatus.OK);
+    ***REMOVED***
+***REMOVED*** else if (photo.getVisibility() == 2) {
+            File file = new File(uploadFolder + System.getProperty("file.separator") + path);
+            FileInputStream inputStream = new FileInputStream(file);
+            InputStreamSource inputStreamSource = new InputStreamResource(inputStream);
+            return new ResponseEntity<>(inputStreamSource, new HttpHeaders(), HttpStatus.OK);
+***REMOVED***
+***REMOVED***
+***REMOVED***
+
+    @GetMapping(value = "/renderToken/Thumbnail", produces = MediaType.IMAGE_JPEG_VALUE)
+    public ResponseEntity<Object> renderImageTokenThumbnail(String path, String token) throws IOException {
+        String photoUUID = path.split("/")[1];
+        String uuid = photoUUID.substring(0, photoUUID.lastIndexOf("_"));
+        QueryWrapper<Photo> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("photo_uuid", uuid);
+        Photo photo = service.getOne(queryWrapper);
+        if (photo == null)
+    ***REMOVED***
+        if (photo.getVisibility() == 0)
+    ***REMOVED***
+        else if (photo.getVisibility() == 1) {
+            if (token != null && token.equals(photo.getToken()))
+        ***REMOVED***
                 File file = new File(uploadFolder + System.getProperty("file.separator") + path);
                 FileInputStream inputStream = new FileInputStream(file);
                 InputStreamSource inputStreamSource = new InputStreamResource(inputStream);
@@ -252,7 +326,7 @@ public class PhotoController {
     ***REMOVED***
         else if (photo.getVisibility() == 1) {
             if (token != null && token.equals(photo.getToken()))
-   ***REMOVED*****REMOVED***
+        ***REMOVED***
                 File file = new File(uploadFolder + System.getProperty("file.separator") + path);
                 FileInputStream inputStream = new FileInputStream(file);
                 byte[] bytes = new byte[inputStream.available()];
@@ -333,14 +407,14 @@ public class PhotoController {
             if (format.equals("jpg") || format.equals("jpeg") || format.equals("gif") || format.equals("png")
                     || format.equals("webp")|| format.equals("ico") || format.equals("bmp")|| format.equals("tif")
                     || format.equals("svg")|| format.equals("psd") || format.equals("raw")|| format.equals("pcd"))
-   ***REMOVED*****REMOVED***
+        ***REMOVED***
                 String path = serverPath + "/photo/renderToken?path=" + UUID + "/" + photo.getPhotoUuid() + "." + photo.getFormat()
                         + "&token=" + photo.getToken();
                 return new Result<>(path, 200);
     ***REMOVED***else if (format.equals("mp4") || format.equals("avi") || format.equals("wmv") || format.equals("mpeg")
             || format.equals("m4v") || format.equals("mov") || format.equals("flv") || format.equals("asf")
                     || format.equals("f4v") || format.equals("rmvb") || format.equals("vob") || format.equals("rm"))
-   ***REMOVED*****REMOVED***
+        ***REMOVED***
                 String path = serverPath + "/photo/renderVToken?path=" + UUID + "/" + photo.getPhotoUuid() + "." + photo.getFormat()
                         + "&token=" + photo.getToken();
                 return new Result<>(path, 200);
@@ -360,7 +434,7 @@ public class PhotoController {
     ***REMOVED***
             QRCode qrCode;
             if (URL.contains("http") || URL.contains("https"))
-   ***REMOVED*****REMOVED***
+        ***REMOVED***
                 qrCode = QRCode.from(URL).withSize(250, 250);
     ***REMOVED***else {
                 qrCode = QRCode.from("http://" + URL).withSize(250, 250);

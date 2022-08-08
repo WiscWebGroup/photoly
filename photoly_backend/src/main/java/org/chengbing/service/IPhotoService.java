@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 ***REMOVED***
@@ -32,4 +33,8 @@ public interface IPhotoService extends IService<Photo> {
     List<Photo> queryPhotoByGallery(Integer userId, Integer gaId);
     Integer addToGallery(Integer userId, Integer photoId, Integer gaId);
     Integer deleteFromGallery(Integer userId, Integer photoId, Integer gaId);
+
+    List<LinkedHashMap<String, Object>> selectTagByPhoto(Integer userId, Integer photoId);
+
+    List<LinkedHashMap<String, Object>> selectGalleryByPhoto(Integer userId, Integer photoId);
 ***REMOVED***
