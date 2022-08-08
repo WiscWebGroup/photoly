@@ -1,16 +1,22 @@
 import { DeleteIcon, EditIcon, ArrowForwardIcon } from "@chakra-ui/icons"
 import { MenuList, MenuItem } from "@chakra-ui/react"
 
-const FolderContextMenu = () => {
+interface FolderContextMenuProps {
+    handleDelete: () => void
+    handleRename: () => void
+    handleMoveTo: () => void
+}
+
+const FolderContextMenu = ({ handleDelete, handleRename, handleMoveTo }: FolderContextMenuProps) => {
     return (
-        <MenuList>
-            <MenuItem icon={<DeleteIcon />}>
+        <MenuList zIndex={1030}>
+            <MenuItem icon={<DeleteIcon />} onClick={handleDelete}>
                 Delete
             </MenuItem>
-            <MenuItem icon={<EditIcon />}>
+            <MenuItem icon={<EditIcon />} onClick={handleRename}>
                 Rename
             </MenuItem>
-            <MenuItem icon={<ArrowForwardIcon />}>
+            <MenuItem icon={<ArrowForwardIcon />} onClick={handleMoveTo}>
                 Move to...
             </MenuItem>
         </MenuList>

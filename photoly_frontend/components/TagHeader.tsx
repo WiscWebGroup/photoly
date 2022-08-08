@@ -1,6 +1,6 @@
 import { AddIcon } from "@chakra-ui/icons"
 import { Box, Button, ButtonGroup, FormControl, FormLabel, HStack, Icon, IconButton, Input, Popover, PopoverArrow, PopoverCloseButton, PopoverContent, PopoverTrigger, Stack, Text, useDisclosure } from "@chakra-ui/react"
-import { ChangeEvent, ReactNode, useEffect, useRef, useState } from "react"
+import { ChangeEvent, ReactNode, useRef, useState } from "react"
 import { IconType } from "react-icons"
 import { useTagListUpdate } from "./contexts/TagContext"
 

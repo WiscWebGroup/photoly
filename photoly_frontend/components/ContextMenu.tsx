@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
-import { useEventListener, Portal, Menu, MenuButton, PortalProps, MenuButtonProps, MenuProps } from '@chakra-ui/react';
+import { Portal, Menu, MenuButton, PortalProps, MenuButtonProps, MenuProps } from '@chakra-ui/react';
 
 export interface ContextMenuProps<T extends HTMLElement> {
   renderMenu: () => JSX.Element | null;
@@ -40,7 +40,6 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
       if (props.stopPropagation) {
         e.stopPropagation()
         e.stopImmediatePropagation()
-        console.log('functionig')
       }
       
       setIsOpen(true);
@@ -75,7 +74,6 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
 
   return (
     <>
-      
       {props.children(targetRef)}
       {isRendered && (
         <Portal {...props.portalProps}>
