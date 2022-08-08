@@ -12,11 +12,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
+import javax.imageio.ImageIO;
 import javax.naming.Name;
-import java.io.File;
-import java.io.IOException;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -52,6 +55,22 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
     @Value("${file.uploadFolder***REMOVED***")
     String uploadFolder;
 
+    public void insertPhotoThumbnail(MultipartFile multipartFile, File saveFile, String format) throws IOException {
+        InputStream inputStream = new ByteArrayInputStream(multipartFile.getBytes());
+        BufferedImage bimg = ImageIO.read(inputStream);
+        int width = bimg.getWidth();
+        int height = bimg.getHeight();
+        boolean compress = width > 400 || height > 250;
+        int compressedWidth = compress ? 400 : width;
+        int compressedHeight = compress ? 400 * height / width : height;
+
+        BufferedImage img = new BufferedImage(compressedWidth, compressedHeight, BufferedImage.TYPE_INT_RGB);
+        img.createGraphics().drawImage(bimg.getScaledInstance(compressedWidth, compressedHeight, Image.SCALE_SMOOTH),
+                0,0,null);
+
+        ImageIO.write(img, format, saveFile);
+***REMOVED***
+
     @Override
     public Integer insertPhoto(Integer userId, MultipartFile file, Photo photo) {
         String uuid = userMapper.selectById(userId).getUuid();
@@ -83,7 +102,10 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
         String localPath = folderLoc + System.getProperty("file.separator") + photoUUID + "." + suffix;
         File photoFile = new File(localPath);
 ***REMOVED***
+            insertPhotoThumbnail(file, new File(folderLoc + System.getProperty("file.separator") + photoUUID + "_thumbnail" + "." + suffix),
+                    suffix);
             file.transferTo(photoFile);
+
             return mapper.insert(photo);
 ***REMOVED*** catch (IOException e) {
             throw new RuntimeException(e);
@@ -130,6 +152,8 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
             String localPath = folderLoc + System.getProperty("file.separator") + photoUUID + "." + suffix;
             File photoFile = new File(localPath);
     ***REMOVED***
+                insertPhotoThumbnail(file, new File(folderLoc + System.getProperty("file.separator") + photoUUID + "_thumbnail" + "." + suffix),
+                        suffix);
                 file.transferTo(photoFile);
                 change += mapper.insert(photo);
     ***REMOVED*** catch (IOException e) {
@@ -170,6 +194,8 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
         String localPath = folderLoc + System.getProperty("file.separator") + photoUUID + "." + suffix;
         File photoFile = new File(localPath);
 ***REMOVED***
+            insertPhotoThumbnail(file, new File(folderLoc + System.getProperty("file.separator") + photoUUID + "_thumbnail" + "." + suffix),
+                    suffix);
             file.transferTo(photoFile);
             int res = mapper.insert(photo);
             return res >= 1 ? photoUUID : null;
@@ -218,6 +244,8 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
             String localPath = folderLoc + System.getProperty("file.separator") + photoUUID + "." + suffix;
             File photoFile = new File(localPath);
     ***REMOVED***
+                insertPhotoThumbnail(file, new File(folderLoc + System.getProperty("file.separator") + photoUUID + "_thumbnail" + "." + suffix),
+                        suffix);
                 file.transferTo(photoFile);
                 int res = mapper.insert(photo);
                 if (res >= 1)
@@ -244,8 +272,11 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
             String localPath = uploadFolder + System.getProperty("file.separator") + uuid + System.getProperty("file.separator") + photoUUID + "." + suffix;
 
             File photoFile = new File(localPath);
+            File photoFileThumbnail = new File(uploadFolder + System.getProperty("file.separator") + uuid +
+                    System.getProperty("file.separator") + photoUUID + "_thumbnail" + "." + suffix);
             boolean isDeleted = photoFile.delete();
-            if (isDeleted)
+            boolean isDeletedThumbnail = photoFileThumbnail.delete();
+            if (isDeleted && isDeletedThumbnail)
                 return mapper.deleteById(photoId);
 ***REMOVED***
         return -1;
@@ -354,5 +385,31 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
         wrapper.eq("ga_id", gaId);
         wrapper.eq("photo_id", photoId);
         return galleryPhotoMapper.delete(wrapper);
+***REMOVED***
+
+    @Override
+    public List<LinkedHashMap<String, Object>> selectTagByPhoto(Integer userId, Integer photoId) {
+        QueryWrapper<Photo> wrapper = new QueryWrapper<>();
+        wrapper.eq("photo_id", photoId);
+        wrapper.eq("user_id", userId);
+        Photo selected = mapper.selectOne(wrapper);
+        if (selected != null)
+    ***REMOVED***
+            return tagPhotoMapper.selectTagByPhoto(photoId);
+***REMOVED***
+***REMOVED***
+***REMOVED***
+
+    @Override
+    public List<LinkedHashMap<String, Object>> selectGalleryByPhoto(Integer userId, Integer photoId) {
+        QueryWrapper<Photo> wrapper = new QueryWrapper<>();
+        wrapper.eq("photo_id", photoId);
+        wrapper.eq("user_id", userId);
+        Photo selected = mapper.selectOne(wrapper);
+        if (selected != null)
+    ***REMOVED***
+            return galleryPhotoMapper.selectGalleryByPhoto(photoId);
+***REMOVED***
+***REMOVED***
 ***REMOVED***
 ***REMOVED***

@@ -15,4 +15,10 @@
             GROUP BY photo_id HAVING count(*) = #{totalNum***REMOVED***
         )
     </select>
+
+    <select id="selectTagByPhoto" resultType="map">
+        select p.photo_id, t.tag_id, t.tag_name
+        from photo as p, tag as t, tag_photo as tp
+        where p.photo_id = tp.photo_id and t.tag_id = tp.tag_id and p.photo_id = #{photoId***REMOVED***
+    </select>
 </mapper>
