@@ -126,8 +126,15 @@ const Images: React.FC = () => {
                     </Flex>
                     <Text alignSelf={"flex-start"} fontSize={"xl"} fontWeight={"semibold"} pl={2}>Images</Text>
                     <Flex w={"100%"} justifyContent={"flex-start"} wrap={"wrap"}>
-                        <ImageItem src="https://bit.ly/2Z4KKcF" alt="image" />
-                        <ImageItem src="https://bit.ly/2Z4KKcF" alt="image" />
+                        {searchData.photos.map((photo, ind) => 
+                            <ImageItem 
+                                key={ind} 
+                                src={`/photo/render/${token}?photoId=${photo.id}`} 
+                                pid={photo.id}
+                                name={photo.name}
+                                format={photo.format}
+                            />
+                        )}
                     </Flex>
 
                     {/* upload modal */}

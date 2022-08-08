@@ -13,6 +13,7 @@ interface ISearchFilter {
 interface IPhoto {
     id: number
     name: string
+    format: string
     visibility: boolean
 }
 
@@ -99,6 +100,7 @@ const SearchContextProvider = ({children}: {children: ReactNode}) => {
             photos.push({
                 id: ele.photoId,
                 name: ele.photoName,
+                format: ele.format,
                 visibility: ele.visibility
             })
         })
@@ -172,6 +174,7 @@ const SearchContextProvider = ({children}: {children: ReactNode}) => {
                     photoArray.push({
                         id: ele.photoId,
                         name: ele.photoName,
+                        format: ele.format,
                         visibility: ele.visibility
                     })
                 })
@@ -233,6 +236,7 @@ const SearchContextProvider = ({children}: {children: ReactNode}) => {
                 photoArray.push({
                     id: ele.photoId,
                     name: ele.photoName,
+                    format: ele.format,
                     visibility: ele.visibility
                 })
             })
@@ -251,7 +255,6 @@ const SearchContextProvider = ({children}: {children: ReactNode}) => {
                 return
             } else {
                 setSearchData(prev => ({
-                    ...prev, 
                     path: [...prev.path, newCurr],
                     current: newCurr,
                     photos: photoArray, 
