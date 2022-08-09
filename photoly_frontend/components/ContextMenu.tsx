@@ -29,7 +29,10 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
   ***REMOVED***);
 ***REMOVED*** else {
       setIsDeferredOpen(false);
-      setIsRendered(isOpen);
+      const timeout = setTimeout(() => {
+        setIsRendered(isOpen);
+  ***REMOVED***, 1000);
+      return () => clearTimeout(timeout);
 ***REMOVED***
   ***REMOVED***, [isOpen]);
 
@@ -88,10 +91,10 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
                 top: position[1],
                 cursor: 'default',
  ***REMOVED*****REMOVED******REMOVED***
-***REMOVED*****REMOVED*****REMOVED***...props.menuButtonProps***REMOVED***
+          ***REMOVED***...props.menuButtonProps***REMOVED***
               
             />
-   ***REMOVED*****REMOVED***props.renderMenu()***REMOVED***
+        ***REMOVED***props.renderMenu()***REMOVED***
           </Menu>
         </Portal>
       )***REMOVED***
