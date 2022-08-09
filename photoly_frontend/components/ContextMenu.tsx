@@ -29,7 +29,10 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
       });
     } else {
       setIsDeferredOpen(false);
-      setIsRendered(isOpen);
+      const timeout = setTimeout(() => {
+        setIsRendered(isOpen);
+      }, 1000);
+      return () => clearTimeout(timeout);
     }
   }, [isOpen]);
 
