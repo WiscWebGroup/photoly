@@ -166,4 +166,12 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
         results += mapper.deleteById(nsId);
         return results;
     }
+
+    @Override
+    public String queryNameById(Integer nsId) {
+        QueryWrapper<Namespace> wrapper = new QueryWrapper<>();
+        wrapper.eq("ns_id", nsId);
+        Namespace selected = mapper.selectOne(wrapper);
+        return selected.getNsName();
+    }
 }

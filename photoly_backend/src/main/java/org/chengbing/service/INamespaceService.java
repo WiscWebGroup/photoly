@@ -33,4 +33,6 @@ public interface INamespaceService extends IService<Namespace> {
 
     Integer deletePhotoHelper(Integer userId, Integer nsId, String userUUID);
 
+    String queryNameById(Integer nsId);
+
 }
