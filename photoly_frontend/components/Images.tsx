@@ -180,8 +180,8 @@ const Images: React.FC = () => {
                 pid={photo.id***REMOVED***
                 name={photo.name***REMOVED***
                 format={photo.format***REMOVED***
-                uploadDate={photo.uploadDate***REMOVED***
-                orgSrc={`/photo/render/${token***REMOVED***?photoId=${photo.id***REMOVED***`***REMOVED***
+                uploaddate={photo.uploaddate***REMOVED***
+                orgsrc={`/photo/render/${token***REMOVED***?photoId=${photo.id***REMOVED***`***REMOVED***
               />
             ))***REMOVED***
           </Flex>
