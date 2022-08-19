@@ -4,13 +4,15 @@ import {
     Flex,
     HStack,
     Image,
+    Modal,
+    ModalCloseButton,
+    ModalContent,
+    ModalOverlay,
     Tag,
     TagLabel,
     Text,
     useOutsideClick,
-    VStack,
-    Modal,
-    ModalOverlay, ModalContent, ModalCloseButton
+    VStack
 } from "@chakra-ui/react";
 
 interface ImageViewProps {
@@ -19,16 +21,17 @@ interface ImageViewProps {
     path: string | undefined,
     pname: string | undefined,
     date: string | undefined,
-    orgSrc: string
+    orgsrc: string,
+    tags: string[],
+    albums: string[]
 }
 
-const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pname, date, orgSrc}) => {
+const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pname, date, orgsrc, tags, albums}) => {
     const ref = React.useRef() as React.MutableRefObject<HTMLDivElement>
     useOutsideClick({
         ref: ref,
         handler: onViewClose,
     })
-    const tags = ["Animals", "Cute", "Furry", "White hair", "Landscape"]
     return (
         <>
             <Modal isOpen={isViewOpen} onClose={onViewClose}>
@@ -36,7 +39,7 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pna
                 <ModalContent maxW={"85vw"}>
                     <ModalCloseButton/>
                     <HStack alignItems={"flex-start"}>
-                        <Image src={orgSrc} alt={"image"}
+                        <Image src={orgsrc} alt={"image"}
                                rounded={"md"}
                                w={"80%"} h={"100%"} objectFit={"fill"}/>
                         <VStack w={"100%"} h={"100%"} p={4}>
@@ -58,16 +61,16 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pna
                             <Divider/>
                             <Text fontWeight={"semibold"} fontSize={"xl"}>Albums</Text>
                             <Flex flexWrap={"wrap"}>
-                                {tags.map((tag) =>
+                                {albums.map((album) =>
                                     <Tag
                                         size={"md"}
-                                        key={tag}
+                                        key={album}
                                         borderRadius='full'
                                         variant='solid'
                                         colorScheme='gray'
                                         m={1}
                                     >
-                                        <TagLabel>{tag}</TagLabel>
+                                        <TagLabel>{album}</TagLabel>
                                     </Tag>
                                 )}
                             </Flex>
