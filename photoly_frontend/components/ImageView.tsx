@@ -4,13 +4,15 @@ import {
     Flex,
     HStack,
     Image,
+    Modal,
+    ModalCloseButton,
+    ModalContent,
+    ModalOverlay,
     Tag,
     TagLabel,
     Text,
     useOutsideClick,
-    VStack,
-    Modal,
-    ModalOverlay, ModalContent, ModalCloseButton
+    VStack
 ***REMOVED*** from "@chakra-ui/react";
 
 interface ImageViewProps {
@@ -19,16 +21,17 @@ interface ImageViewProps {
     path: string | undefined,
     pname: string | undefined,
     date: string | undefined,
-    orgSrc: string
+    orgsrc: string,
+    tags: string[],
+    albums: string[]
 ***REMOVED***
 
-const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pname, date, orgSrc***REMOVED***) => {
+const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pname, date, orgsrc, tags, albums***REMOVED***) => {
     const ref = React.useRef() as React.MutableRefObject<HTMLDivElement>
     useOutsideClick({
         ref: ref,
         handler: onViewClose,
 ***REMOVED***)
-    const tags = ["Animals", "Cute", "Furry", "White hair", "Landscape"]
     return (
         <>
             <Modal isOpen={isViewOpen***REMOVED*** onClose={onViewClose***REMOVED***>
@@ -36,7 +39,7 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pna
                 <ModalContent maxW={"85vw"***REMOVED***>
                     <ModalCloseButton/>
                     <HStack alignItems={"flex-start"***REMOVED***>
-                        <Image src={orgSrc***REMOVED*** alt={"image"***REMOVED***
+                        <Image src={orgsrc***REMOVED*** alt={"image"***REMOVED***
                                rounded={"md"***REMOVED***
                                w={"80%"***REMOVED*** h={"100%"***REMOVED*** objectFit={"fill"***REMOVED***/>
                         <VStack w={"100%"***REMOVED*** h={"100%"***REMOVED*** p={4***REMOVED***>
@@ -58,16 +61,16 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pna
                             <Divider/>
                             <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Albums</Text>
                             <Flex flexWrap={"wrap"***REMOVED***>
-             ***REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
+             ***REMOVED*****REMOVED*****REMOVED*****REMOVED***albums.map((album) =>
                                     <Tag
                                         size={"md"***REMOVED***
-                                        key={tag***REMOVED***
+                                        key={album***REMOVED***
                                         borderRadius='full'
                                         variant='solid'
                                         colorScheme='gray'
                                         m={1***REMOVED***
                                     >
-                                        <TagLabel>{tag***REMOVED***</TagLabel>
+                                        <TagLabel>{album***REMOVED***</TagLabel>
                                     </Tag>
                                 )***REMOVED***
                             </Flex>
