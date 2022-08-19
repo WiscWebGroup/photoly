@@ -48,6 +48,15 @@ public class NamespaceController {
         return new Result<>(service.queryNamespace(userId, parentId), 200);
 ***REMOVED***
 
+    @GetMapping("/getNameById")
+    public Result<String> queryNameById(HttpServletRequest request, Integer nsId)
+***REMOVED***
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(null, 403);
+        return new Result<>(service.queryNameById(nsId), 200);
+***REMOVED***
+
     @PostMapping("/updateName")
     public Result<Integer> updateNamespaceName(HttpServletRequest request, @RequestBody Namespace namespace)
 ***REMOVED***
@@ -87,5 +96,7 @@ public class NamespaceController {
         int change = service.deleteNamespace(userId, nsId);
         return change >= 0 ? new Result<>(change, 200) : new Result<>(change, 400);
 ***REMOVED***
+
+
 ***REMOVED***
 
