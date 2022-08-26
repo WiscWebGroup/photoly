@@ -220,7 +220,7 @@ const FolderItem = ({ id, name, parentId ***REMOVED***: FolderItemProps) => {
                   />
     ***REMOVED*****REMOVED*****REMOVED***isError && (
                     <FormErrorMessage>
-                      Folder name must not be empty or "/"
+                      Folder name must not be empty or &quot;/&quot;
                     </FormErrorMessage>
                   )***REMOVED***
                 </FormControl>

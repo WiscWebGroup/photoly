@@ -266,7 +266,7 @@ const MyProfile: React.FC = () => {
                 src={`user/getAvatar/${token***REMOVED***`***REMOVED***
               />
               <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED*** color={"#97266D"***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.userName***REMOVED***
+            ***REMOVED***info?.userName***REMOVED***
               </Text>
             </VStack>
           </HStack>
@@ -297,7 +297,7 @@ const MyProfile: React.FC = () => {
                 Name
               </Heading>
               <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.userName***REMOVED***
+            ***REMOVED***info?.userName***REMOVED***
               </Text>
             </GridItem>
             <GridItem colSpan={2***REMOVED*** padding={3***REMOVED*** bg="orange.200" rounded={"lg"***REMOVED***>
@@ -310,7 +310,7 @@ const MyProfile: React.FC = () => {
                 Register Time
               </Heading>
               <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.createDate.substr(0, 10)***REMOVED***
+            ***REMOVED***info?.createDate.substr(0, 10)***REMOVED***
               </Text>
             </GridItem>
             <GridItem
@@ -344,7 +344,7 @@ const MyProfile: React.FC = () => {
                 Email
               </Heading>
               <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
-  ***REMOVED*****REMOVED*****REMOVED***info?.email***REMOVED***
+            ***REMOVED***info?.email***REMOVED***
               </Text>
             </GridItem>
           </Grid>
@@ -413,7 +413,7 @@ const MyProfile: React.FC = () => {
             </Popover>
           </Heading>
           <Stack width={"100%"***REMOVED***>
-   ***REMOVED*****REMOVED***credList?.length === 0 ? (
+        ***REMOVED***credList?.length === 0 ? (
               <>
                 <Text fontSize="xl">Nothing Here</Text>
                 <Divider />
@@ -430,12 +430,12 @@ const MyProfile: React.FC = () => {
                     </Tr>
                   </Thead>
                   <Tbody>
- ***REMOVED*****REMOVED*****REMOVED*****REMOVED***credList?.map((cred) => {
+                ***REMOVED***credList?.map((cred) => {
                       return (
                         <Tr key={cred.credId***REMOVED***>
                           <Td>{cred.credId***REMOVED***</Td>
                           <Td>
-         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***cred.authorization
+                        ***REMOVED***cred.authorization
                               .replace("C", "Upload ")
                               .replace("R", "Read ")
                               .replace("D", "Delete")***REMOVED***
@@ -446,7 +446,7 @@ const MyProfile: React.FC = () => {
                               leftIcon={<AiOutlineCopy />***REMOVED***
                               onClick={() => {
                                 copyToken(cred.token);
-  ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+       ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
                             ></Button>
                             <Popover>
                               <PopoverTrigger>
@@ -454,7 +454,7 @@ const MyProfile: React.FC = () => {
                                   leftIcon={<GrUpdate />***REMOVED***
                                   onClick={() => {
                                     getEditCred(cred.authorization);
- ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+           ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
                                 ></Button>
                               </PopoverTrigger>
                               <PopoverContent>
@@ -467,7 +467,7 @@ const MyProfile: React.FC = () => {
                                     value={value***REMOVED***
                                     onChange={(e) => {
                                       setValue(e);
-   ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+             ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
                                   >
                                     <Stack
                                       spacing={[1, 5]***REMOVED***
@@ -485,7 +485,7 @@ const MyProfile: React.FC = () => {
                                     mt={5***REMOVED***
                                     onClick={() => {
                                       editCred(cred.credId);
-   ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+             ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
                                   >
                                     Confirm
                                   </Button>
@@ -498,7 +498,7 @@ const MyProfile: React.FC = () => {
                               onClick={() => {
                                 setDelCredId(cred.credId);
                                 onOpenDeleteConfirm();
-  ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+       ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
                               disabled={isOpenDeleteConfirm***REMOVED***
                             ></Button>
                           </Td>
@@ -556,7 +556,7 @@ const MyProfile: React.FC = () => {
                   Takein: file:MultipartFile | photo:JSONText containing
                   nsId(num) and visibility(num)
                   <br></br>
-                  Return: a string that is the photo's uuid
+                  Return: a string that is the photo&apos;s uuid
                   <br></br>
                   <br></br>
                   <Text fontSize="xl">C2 Upload Photos - POST:</Text>
@@ -572,7 +572,7 @@ const MyProfile: React.FC = () => {
                   <br></br>
                   Addr: server_path/cred/deletePhoto/YOUR_TOKEN
                   <br></br>
-                  Takein: uuid: str, photo's uuid
+                  Takein: uuid: str, photo&apos;s uuid
                   <br></br>
                   Return: an int, 1 if successful
                   <br></br>
@@ -581,7 +581,7 @@ const MyProfile: React.FC = () => {
                   <br></br>
                   Addr: server_path/cred/render/YOUR_TOKEN
                   <br></br>
-                  Takein: uuid: str, photo's uuid
+                  Takein: uuid: str, photo&apos;s uuid
                   <br></br>
                   Return: a byte[] that is the image (could be seen directly in
                   browser url)
@@ -609,7 +609,7 @@ const MyProfile: React.FC = () => {
                   Addr: server_path/cred/queryPhotoList/YOUR_TOKEN
                   <br></br>Takein: nsId: int, the namespace Id
                   <br></br>
-                  Return: an JSON object that is the list of photos' meta info
+                  Return: an JSON object that is the list of photos&apos; meta info
                   <br></br>
                   <br></br>
                 </AccordionPanel>
@@ -642,7 +642,7 @@ const MyProfile: React.FC = () => {
             </AlertDialogHeader>
 
             <AlertDialogBody>
-              Are you sure? You can't undo this action afterwards.
+              Are you sure? You can&apos;t undo this action afterwards.
             </AlertDialogBody>
 
             <AlertDialogFooter>
@@ -676,7 +676,7 @@ const MyProfile: React.FC = () => {
             </AlertDialogHeader>
 
             <AlertDialogBody>
-              Are you sure? You can't undo this action afterwards.
+              Are you sure? You can&apos;t undo this action afterwards.
             </AlertDialogBody>
 
             <AlertDialogFooter>
