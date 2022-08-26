@@ -39,5 +39,15 @@ mvn clean package -Dmaven.test.skip=true'''
                 sh 'cp /home/ubuntu/photoly_f/config/next.config.js /home/ubuntu/photoly_f/photoly_frontend'
     ***REMOVED***
 ***REMOVED***
+        
+        stage('Build Frontend and Deploy') {
+            steps {
+                sh 'cd /home/ubuntu/photoly_f/photoly_frontend'
+                sh 'npm install'
+                sh 'npm run build'
+                sh 'JENKINS_NODE_COOKIE=dontKillMe nohup npm run start -- -p 8084 > /home/ubuntu/photoly_f/photoly_f.log 2>1&'
+    ***REMOVED***
+***REMOVED***
+        
 ***REMOVED***
 ***REMOVED***
