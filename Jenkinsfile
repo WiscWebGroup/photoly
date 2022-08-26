@@ -42,11 +42,11 @@ mvn clean package -Dmaven.test.skip=true'''
         
         stage('Build Frontend and Deploy') {
             steps {
-                sh 'cd /home/ubuntu/photoly_f/photoly_frontend'
-                sh 'ls'
-                sh 'npm install'
-                sh 'npm run build'
-                sh 'JENKINS_NODE_COOKIE=dontKillMe nohup npm run start -- -p 8084 > /home/ubuntu/photoly_f/photoly_f.log 2>1&'
+                dir('/home/ubuntu/photoly_f/photoly_frontend') {
+                    sh 'npm install'
+                    sh 'npm run build'
+                    sh 'JENKINS_NODE_COOKIE=dontKillMe nohup npm run start -- -p 8084 > /home/ubuntu/photoly_f/photoly_f.log 2>1&'
+   ***REMOVED*****REMOVED***
     ***REMOVED***
 ***REMOVED***
         
