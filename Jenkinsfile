@@ -8,9 +8,10 @@ pipeline {
     ***REMOVED***
 ***REMOVED***
 
-        stage('Stop Old Backend') {
+        stage('Stop Old Backend & Frontend') {
             steps {
                 sh 'fuser -k -n tcp 8088 || true'
+                sh 'fuser -k -n tcp 8084 || true'
     ***REMOVED***
 ***REMOVED***
 
@@ -22,12 +23,6 @@ mvn clean package -Dmaven.test.skip=true'''
                 sh 'mv -f /root/.jenkins/workspace/photoly/photoly_backend/target/photoly.war /home/ubuntu/photoly_b/photoly.war'
                 sh 'chmod 777 /home/ubuntu/photoly_b/photoly.war'
                 sh 'JENKINS_NODE_COOKIE=dontKillMe nohup java -jar /home/ubuntu/photoly_b/photoly.war > /home/ubuntu/photoly_b/photoly.log 2>1&'
-    ***REMOVED***
-***REMOVED***
-
-        stage('Finish') {
-            steps {
-                echo 'Finished.'
     ***REMOVED***
 ***REMOVED***
         
@@ -47,6 +42,12 @@ mvn clean package -Dmaven.test.skip=true'''
                     sh 'npm run build'
                     sh 'JENKINS_NODE_COOKIE=dontKillMe nohup npm run start -- -p 8084 > /home/ubuntu/photoly_f/photoly_f.log 2>1&'
    ***REMOVED*****REMOVED***
+    ***REMOVED***
+***REMOVED***
+        
+        stage('Finish') {
+            steps {
+                echo 'Finished.'
     ***REMOVED***
 ***REMOVED***
         
