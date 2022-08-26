@@ -30,5 +30,11 @@ mvn clean package -Dmaven.test.skip=true'''
                 echo 'Finished.'
     ***REMOVED***
 ***REMOVED***
+        
+        stage('Test Stage') {
+            steps {
+                echo 'testing...'   
+    ***REMOVED***
+***REMOVED***
 ***REMOVED***
 ***REMOVED***
