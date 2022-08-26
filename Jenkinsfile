@@ -33,11 +33,10 @@ mvn clean package -Dmaven.test.skip=true'''
         
         stage('Initialize Frontend Deployment') {
             steps {
-                sh 'rm -rf /home/ubuntu/photoly_f/source'
-                sh 'mkdir /home/ubuntu/photoly_f/source'
-                sh 'cp -r /root/.jenkins/workspace/photoly/photoly_frontend /home/ubuntu/photoly_f/source'
-                sh 'rm /home/ubuntu/photoly_f/source/next.config.js'
-                sh 'cp /home/ubuntu/photoly_f/config/next.config.js /home/ubuntu/photoly_f/source'
+                sh 'rm -rf /home/ubuntu/photoly_f/photoly_frontend'
+                sh 'cp -r /root/.jenkins/workspace/photoly/photoly_frontend /home/ubuntu/photoly_f'
+                sh 'rm /home/ubuntu/photoly_f/photoly_frontend/next.config.js'
+                sh 'cp /home/ubuntu/photoly_f/config/next.config.js /home/ubuntu/photoly_f/photoly_frontend'
     ***REMOVED***
 ***REMOVED***
 ***REMOVED***
