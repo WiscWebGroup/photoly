@@ -69,10 +69,11 @@ const Home:React.FC = () => {
                 <Container maxW='2xl' centerContent >
                     <VStack spacing={"20px"***REMOVED*** m={"20px"***REMOVED***>
                     <HStack bg='whiteAlpha.600' rounded={"2xl"***REMOVED***>
-                        <Image src="https://avatars.githubusercontent.com/u/108884969" 
+                        <Image src="https://avatars.githubusercontent.com/u/108884969"
                         borderRadius='full'
                          boxSize='150px'
-                         padding='4'>
+                         padding='4'
+                        alt={"avatar1"***REMOVED***>
                         </Image>
 
                         <Box padding='4' color='black' maxW='md'>
@@ -90,7 +91,8 @@ const Home:React.FC = () => {
                         <Image src="https://avatars.githubusercontent.com/u/68500948" 
                         borderRadius='full'
                          boxSize='150px'
-                         padding='4'>
+                         padding='4'
+                        alt={"avatar2"***REMOVED***>
                         </Image>
 
                         <Box padding='4' color='black' maxW='md'>
@@ -109,7 +111,8 @@ const Home:React.FC = () => {
                         <Image src="https://avatars.githubusercontent.com/u/31459252" 
                         borderRadius='full'
                          boxSize='150px'
-                         padding='4'>
+                         padding='4'
+                        alt={"avatar3"***REMOVED***>
                         </Image>
 
                         <Box padding='4' color='black' maxW='md'>
@@ -128,7 +131,8 @@ const Home:React.FC = () => {
                         <Image src="https://avatars.githubusercontent.com/u/46753484" 
                         borderRadius='full'
                          boxSize='150px'
-                         padding='4'>
+                         padding='4'
+                         alt={"avatar4"***REMOVED***>
                         </Image>
 
                         <Box padding='4' color='black' maxW='md'>

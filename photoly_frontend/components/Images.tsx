@@ -14,7 +14,7 @@ import {
   useDisclosure,
   useToast,
 ***REMOVED*** from "@chakra-ui/react";
-import React, { ChangeEvent, useEffect, useRef, useState ***REMOVED*** from "react";
+import React, { ChangeEvent, useRef, useState ***REMOVED*** from "react";
 import useApi from "../hooks/useApi";
 import useToken from "../hooks/useToken";
 import { ContextMenu ***REMOVED*** from "./ContextMenu";
@@ -44,7 +44,7 @@ const Images: React.FC = () => {
   const [isError, setIsError] = useState(true);
 
   const token = useToken();
-  const { post, get ***REMOVED*** = useApi();
+  const { post ***REMOVED*** = useApi();
   const toast = useToast();
   const openFolder = useOpenFolder();
   const searchData = useSearchData();
@@ -231,7 +231,7 @@ const Images: React.FC = () => {
                 />
   ***REMOVED*****REMOVED*****REMOVED***isError && (
                   <Text fontSize="sm" color="red">
-                    Folder name must not be empty or "/"
+                    Folder name must not be empty or &quot;/&quot;
                   </Text>
                 )***REMOVED***
               </ModalBody>
