@@ -31,9 +31,13 @@ mvn clean package -Dmaven.test.skip=true'''
     ***REMOVED***
 ***REMOVED***
         
-        stage('Test Stage') {
+        stage('Initialize Frontend Deployment') {
             steps {
-                echo 'testing...'   
+                sh 'rm -rf /home/ubuntu/photoly_f/source'
+                sh 'mkdir /home/ubuntu/photoly_f/source'
+                sh 'cp -r /root/.jenkins/workspace/photoly/photoly_frontend /home/ubuntu/photoly_f/source'
+                sh 'rm /home/ubuntu/photoly_f/source/next.config.js'
+                sh 'cp /home/ubuntu/photoly_f/config/next.config.js /home/ubuntu/photoly_f/source'
     ***REMOVED***
 ***REMOVED***
 ***REMOVED***
