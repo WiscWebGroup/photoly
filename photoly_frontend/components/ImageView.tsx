@@ -86,7 +86,7 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pna
                             </HStack>
                             <HStack justifyContent={"space-between"***REMOVED*** w={"100%"***REMOVED***>
                                 <Text>Path: </Text>
-                                <Text>/beach</Text>
+                                <Text>{path***REMOVED***</Text>
                             </HStack>
                             <HStack justifyContent={"space-between"***REMOVED*** w={"100%"***REMOVED***>
                                 <Text>Format: </Text>
