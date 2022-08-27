@@ -74,16 +74,15 @@ const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "bord
                 <Box ref={ref***REMOVED*** w={64***REMOVED*** overflow='hidden' position='relative' m={2***REMOVED*** rounded={"md"***REMOVED*** border={"1px"***REMOVED***
                      borderColor={"gray.50"***REMOVED*** shadow={"md"***REMOVED***>
                     <Image
-***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***...props***REMOVED***
+     ***REMOVED*****REMOVED*****REMOVED*****REMOVED***...props***REMOVED***
                         w="100%"
                         h={128***REMOVED***
                         objectFit="cover"
                         onClick={onOpen***REMOVED***
                         alt={"image"***REMOVED***
-
                     />
-                    <Center bg={"white"***REMOVED***>
-                        <Text fontWeight={"hairline"***REMOVED***>{props.name + "." + props.format***REMOVED***</Text>
+                    <Center bg={"white"***REMOVED*** w={"100%"***REMOVED***>
+                        <Text fontWeight={"hairline"***REMOVED*** whiteSpace={"nowrap"***REMOVED*** overflow={"hidden"***REMOVED*** textOverflow={"ellipsis"***REMOVED***>{props.name + "." + props.format***REMOVED***</Text>
                     </Center>
                     <ImageView isViewOpen={isOpen***REMOVED*** onViewClose={onClose***REMOVED*** path={props.folder_name***REMOVED*** pname={props.name***REMOVED***
                                date={props.uploaddate***REMOVED*** orgsrc={props.orgsrc***REMOVED*** tags={tags***REMOVED*** albums={galleries***REMOVED***/>

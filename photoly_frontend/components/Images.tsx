@@ -144,14 +144,15 @@ const Images: React.FC = () => {
     >
   ***REMOVED***(ref) => (
         <Box ref={ref***REMOVED*** w="100%" h="100%">
-          <Text
-            alignSelf={"flex-start"***REMOVED***
-            fontSize={"xl"***REMOVED***
-            fontWeight={"semibold"***REMOVED***
-            pl={2***REMOVED***
+ ***REMOVED*****REMOVED***searchData.folders.length > 0 && (<Text
+              alignSelf={"flex-start"***REMOVED***
+              fontSize={"xl"***REMOVED***
+              fontWeight={"semibold"***REMOVED***
+              pl={2***REMOVED***
           >
             Folders
-          </Text>
+          </Text>)***REMOVED***
+
           <Flex w={"100%"***REMOVED*** justifyContent={"flex-start"***REMOVED*** wrap={"wrap"***REMOVED***>
    ***REMOVED*****REMOVED***searchData.folders.map((folder, index) => {
               return (
