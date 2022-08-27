@@ -18,10 +18,16 @@ interface TagLookup{
     tag_name: string
     tag_id: number
 ***REMOVED***
+interface GalleryLookup{
+    ga_id: number
+    ga_name: string
+    photo_id: number
+***REMOVED***
 
 const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "borderRadius">) => {
     const {isOpen, onOpen, onClose***REMOVED*** = useDisclosure()
     const [tags, setTags] = useState<string[]>([]);
+    const [galleries, setGalleries] = useState<string[]>([]);
     const {get***REMOVED*** = useApi()
     const token = useToken()
 
@@ -38,9 +44,24 @@ const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "bord
                     setTags(temp)
    ***REMOVED*****REMOVED***
     ***REMOVED***)
-
 ***REMOVED***
-        if (token) getTags()
+        const getGalleries = async () => {
+            await get(`/photo/getGalleryByPhoto?photoId=${props.pid***REMOVED***`, {
+                headers: {"HRD-token": token***REMOVED***
+    ***REMOVED***).then((response) => {
+                if (!!response && response.data && response.data.msgCode === 200) {
+                    const temp: string[] = []
+                    response.data.t.forEach((item: GalleryLookup) => {
+                        temp.push(item.ga_name)
+  ***REMOVED*****REMOVED*****REMOVED***)
+                    setGalleries(temp)
+   ***REMOVED*****REMOVED***
+    ***REMOVED***)
+***REMOVED***
+        if (token){
+            getTags();
+            getGalleries();
+***REMOVED***
 ***REMOVED***, [token])
 
     return (
@@ -64,7 +85,7 @@ const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "bord
                         <Text fontWeight={"hairline"***REMOVED***>{props.name + "." + props.format***REMOVED***</Text>
                     </Center>
                     <ImageView isViewOpen={isOpen***REMOVED*** onViewClose={onClose***REMOVED*** path={props.src***REMOVED*** pname={props.name***REMOVED***
-                               date={props.uploaddate***REMOVED*** orgsrc={props.orgsrc***REMOVED*** tags={tags***REMOVED*** albums={[]***REMOVED***/>
+                               date={props.uploaddate***REMOVED*** orgsrc={props.orgsrc***REMOVED*** tags={tags***REMOVED*** albums={galleries***REMOVED***/>
                 </Box>
             )***REMOVED***
         </ContextMenu>
