@@ -182,6 +182,7 @@ const Images: React.FC = () => {
                 format={photo.format***REMOVED***
                 uploaddate={photo.uploaddate***REMOVED***
                 orgsrc={`/photo/render/${token***REMOVED***?photoId=${photo.id***REMOVED***`***REMOVED***
+                folder_name={searchData.path.map((f) => f.name).join("/")***REMOVED***
               />
             ))***REMOVED***
           </Flex>

@@ -12,6 +12,7 @@ interface ImageItemProps {
     format: string
     uploaddate: string
     orgsrc: string
+    folder_name: string
 ***REMOVED***
 interface TagLookup{
     photo_id: number
@@ -73,7 +74,7 @@ const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "bord
                 <Box ref={ref***REMOVED*** w={64***REMOVED*** overflow='hidden' position='relative' m={2***REMOVED*** rounded={"md"***REMOVED*** border={"1px"***REMOVED***
                      borderColor={"gray.50"***REMOVED*** shadow={"md"***REMOVED***>
                     <Image
-     ***REMOVED*****REMOVED*****REMOVED*****REMOVED***...props***REMOVED***
+***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***...props***REMOVED***
                         w="100%"
                         h={128***REMOVED***
                         objectFit="cover"
@@ -84,7 +85,7 @@ const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "bord
                     <Center bg={"white"***REMOVED***>
                         <Text fontWeight={"hairline"***REMOVED***>{props.name + "." + props.format***REMOVED***</Text>
                     </Center>
-                    <ImageView isViewOpen={isOpen***REMOVED*** onViewClose={onClose***REMOVED*** path={props.src***REMOVED*** pname={props.name***REMOVED***
+                    <ImageView isViewOpen={isOpen***REMOVED*** onViewClose={onClose***REMOVED*** path={props.folder_name***REMOVED*** pname={props.name***REMOVED***
                                date={props.uploaddate***REMOVED*** orgsrc={props.orgsrc***REMOVED*** tags={tags***REMOVED*** albums={galleries***REMOVED***/>
                 </Box>
             )***REMOVED***

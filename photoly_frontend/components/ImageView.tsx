@@ -45,7 +45,7 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pna
                         <VStack w={"100%"***REMOVED*** h={"100%"***REMOVED*** p={4***REMOVED***>
                             <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Tags</Text>
                             <Flex flexWrap={"wrap"***REMOVED***>
-             ***REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
+   ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
                                     <Tag
                                         size={"md"***REMOVED***
                                         key={tag***REMOVED***
@@ -61,7 +61,7 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pna
                             <Divider/>
                             <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Albums</Text>
                             <Flex flexWrap={"wrap"***REMOVED***>
-             ***REMOVED*****REMOVED*****REMOVED*****REMOVED***albums.map((album) =>
+   ***REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED*****REMOVED***albums.map((album) =>
                                     <Tag
                                         size={"md"***REMOVED***
                                         key={album***REMOVED***
@@ -86,7 +86,7 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pna
                             </HStack>
                             <HStack justifyContent={"space-between"***REMOVED*** w={"100%"***REMOVED***>
                                 <Text>Path: </Text>
-                                <Text>/beach</Text>
+                                <Text>{path***REMOVED***</Text>
                             </HStack>
                             <HStack justifyContent={"space-between"***REMOVED*** w={"100%"***REMOVED***>
                                 <Text>Format: </Text>
