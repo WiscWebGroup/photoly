@@ -6,6 +6,7 @@ import {useSearchData***REMOVED*** from "./contexts/SearchContext";
 interface PathbarProps {
     children?: React.ReactNode
 ***REMOVED***
+
 const Pathbar: React.FC<PathbarProps> = ({children***REMOVED***) => {
     const searchData = useSearchData();
 
@@ -13,7 +14,12 @@ const Pathbar: React.FC<PathbarProps> = ({children***REMOVED***) => {
         <VStack pt={8***REMOVED*** pl={8***REMOVED*** w={"100%"***REMOVED*** pr={8***REMOVED***>
             <HStack alignSelf={"flex-start"***REMOVED***>
                 <Icon as={BiChevronRight***REMOVED*** boxSize={8***REMOVED*** color={"gray.500"***REMOVED***/>
-                <Text fontWeight={"bold"***REMOVED*** color={"gray.500"***REMOVED***>{searchData.path.map((f) => {if (f.name !== "/") return f.name***REMOVED***).join("/")***REMOVED***</Text>
+                <Text fontWeight={"bold"***REMOVED*** color={"gray.500"***REMOVED***>{searchData.path.map((f) => {
+                    if (f.name === "/") {
+                        return "/root"
+  ***REMOVED*****REMOVED*****REMOVED***
+                    return f.name
+   ***REMOVED*****REMOVED***).join("/")***REMOVED***</Text>
             </HStack>
             <Divider/>
    ***REMOVED*****REMOVED***children***REMOVED***
