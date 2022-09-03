@@ -2,22 +2,30 @@ import {MenuItem, MenuList***REMOVED*** from "@chakra-ui/menu";
 import {ArrowForwardIcon, DownloadIcon, EditIcon, ViewIcon, DeleteIcon***REMOVED*** from "@chakra-ui/icons";
 import React from "react";
 
-const ImageContextMenu = () => {
+interface ImageContextMenuProps {
+    handleDelete: () => void
+    handleView: () => void
+    handleDownload: () => void
+    handleRename: () => void
+    handleMoveTo: () => void
+***REMOVED***
+
+const ImageContextMenu = ({ handleDelete, handleView, handleDownload, handleRename, handleMoveTo ***REMOVED*** : ImageContextMenuProps) => {
     return (
         <MenuList zIndex={1030***REMOVED***>
-            <MenuItem icon={<DeleteIcon />***REMOVED***>
+            <MenuItem icon={<DeleteIcon />***REMOVED*** onClick={handleDelete***REMOVED***>
                 Delete
             </MenuItem>
-            <MenuItem icon={<ViewIcon />***REMOVED***>
+            <MenuItem icon={<ViewIcon />***REMOVED*** onClick={handleView***REMOVED***>
                 View
             </MenuItem>
-            <MenuItem icon={<DownloadIcon />***REMOVED***>
+            <MenuItem icon={<DownloadIcon />***REMOVED*** onClick={handleDownload***REMOVED***>
                 Download
             </MenuItem>
-            <MenuItem icon={<EditIcon />***REMOVED***>
+            <MenuItem icon={<EditIcon />***REMOVED*** onClick={handleRename***REMOVED***>
                 Rename
             </MenuItem>
-            <MenuItem icon={<ArrowForwardIcon />***REMOVED***>
+            <MenuItem icon={<ArrowForwardIcon />***REMOVED*** onClick={handleMoveTo***REMOVED***>
                 Move to...
             </MenuItem>
         </MenuList>
