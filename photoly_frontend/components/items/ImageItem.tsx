@@ -13,6 +13,7 @@ interface ImageItemProps {
     uploaddate: string
     orgsrc: string
     folder_name: string
+    refresh: () => void
 ***REMOVED***
 interface TagLookup{
     photo_id: number
@@ -82,7 +83,7 @@ const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "bord
 ***REMOVED***);
 
         if (!!response && response.data && response.data.msgCode === 200) {
-            // TODO: refresh
+            props.refresh()
 ***REMOVED*** else {
             toast({
                 title: `Failed to delete the photo "${props.name***REMOVED***.${props.format***REMOVED******REMOVED***"`,
@@ -96,17 +97,17 @@ const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "bord
     const renameRequest = async () => {
         setIsLoading(true)
         const response = await post("/photo/update", 
-   ***REMOVED*****REMOVED***
+        ***REMOVED***
                 photoId: props.pid,
                 photoName: newName,
     ***REMOVED***, 
-   ***REMOVED*****REMOVED***
+        ***REMOVED***
                 headers: { "HRD-token": token ***REMOVED***
     ***REMOVED***
         );
 
         if (!!response && response.data && response.data.msgCode === 200) {
-            // TODO: refresh
+            props.refresh()
 ***REMOVED*** else {
             toast({
                 title: `Failed to rename the photo "${props.name***REMOVED***.${props.format***REMOVED******REMOVED***"`,
@@ -148,11 +149,11 @@ const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "bord
                 />
             )***REMOVED***
         >
-   ***REMOVED*****REMOVED***ref => (
+        ***REMOVED***ref => (
                 <Box ref={ref***REMOVED*** w={64***REMOVED*** overflow='hidden' position='relative' m={2***REMOVED*** rounded={"md"***REMOVED*** border={"1px"***REMOVED***
                      borderColor={"gray.50"***REMOVED*** shadow={"md"***REMOVED***>
                     <Image
-     ***REMOVED*****REMOVED*****REMOVED*****REMOVED***...props***REMOVED***
+                    ***REMOVED***...props***REMOVED***
                         w="100%"
                         h={128***REMOVED***
                         objectFit="cover"
@@ -166,7 +167,7 @@ const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "bord
                     <ImageView isViewOpen={isOpen***REMOVED*** onViewClose={onClose***REMOVED*** path={props.folder_name***REMOVED*** pname={props.name***REMOVED***
                                date={props.uploaddate***REMOVED*** orgsrc={props.orgsrc***REMOVED*** tags={tags***REMOVED*** albums={galleries***REMOVED***/>
                     
- ***REMOVED*****REMOVED*****REMOVED*****REMOVED***/* change name modal***REMOVED******REMOVED***
+                ***REMOVED***/* change name modal***REMOVED******REMOVED***
                     <Modal isOpen={isRenameOpen***REMOVED*** onClose={handleResetNewName***REMOVED***>
                         <ModalOverlay />
                         <ModalContent>
@@ -180,7 +181,7 @@ const ImageItem = (props: Exclude<ImageProps & ImageItemProps, "onClick" | "bord
                                 <FormControl isInvalid={isError***REMOVED***>
                                     <FormLabel>New photo name</FormLabel>
                                     <Input type="text" placeholder="New photo name" onChange={handlePhotoRename***REMOVED*** />
-                 ***REMOVED*****REMOVED*****REMOVED*****REMOVED***isError && (
+                                ***REMOVED***isError && (
                                         <FormErrorMessage>
                                             Photo name must not be empty.
                                         </FormErrorMessage>

@@ -136,6 +136,10 @@ const Images: React.FC = () => {
     handleResetCreation();
   ***REMOVED***;
 
+  const refresh = () => {
+    openFolder(searchData.current.id);
+  ***REMOVED***
+
   return (
     <ContextMenu<HTMLDivElement>
       renderMenu={() => (
@@ -184,6 +188,7 @@ const Images: React.FC = () => {
                 uploaddate={photo.uploaddate***REMOVED***
                 orgsrc={`/photo/render/${token***REMOVED***?photoId=${photo.id***REMOVED***`***REMOVED***
                 folder_name={searchData.path.map((f) => {if (f.name === "/") {return "/root"***REMOVED*** return f.name***REMOVED***).join("/")***REMOVED***
+                refresh={refresh***REMOVED***
               />
             ))***REMOVED***
           </Flex>
