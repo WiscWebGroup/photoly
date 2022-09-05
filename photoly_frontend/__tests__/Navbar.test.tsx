@@ -1,5 +1,5 @@
 import React from "react";
-import {getByTestId, render***REMOVED*** from "@testing-library/react"
+import { render ***REMOVED*** from "@testing-library/react"
 import { useRouter ***REMOVED*** from 'next/router'
 
 import Navbar from "../components/Navbar";
