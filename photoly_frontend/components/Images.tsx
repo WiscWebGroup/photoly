@@ -145,10 +145,10 @@ const Images: React.FC = () => {
   ***REMOVED***(ref) => (
         <Box ref={ref***REMOVED*** w="100%" h="100%">
  ***REMOVED*****REMOVED***searchData.folders.length > 0 && (<Text
-              alignSelf={"flex-start"***REMOVED***
-              fontSize={"xl"***REMOVED***
-              fontWeight={"semibold"***REMOVED***
-              pl={2***REMOVED***
+            alignSelf={"flex-start"***REMOVED***
+            fontSize={"xl"***REMOVED***
+            fontWeight={"semibold"***REMOVED***
+            pl={2***REMOVED***
           >
             Folders
           </Text>)***REMOVED***
@@ -183,7 +183,7 @@ const Images: React.FC = () => {
                 format={photo.format***REMOVED***
                 uploaddate={photo.uploaddate***REMOVED***
                 orgsrc={`/photo/render/${token***REMOVED***?photoId=${photo.id***REMOVED***`***REMOVED***
-                folder_name={searchData.path.map((f) => {if (f.name === "/") {return "/root"***REMOVED*** return f.name***REMOVED***).join("/")***REMOVED***
+                folder_name={searchData.path.map((f) => { if (f.name === "/") { return "/root" ***REMOVED*** return f.name ***REMOVED***).join("/")***REMOVED***
               />
             ))***REMOVED***
           </Flex>
