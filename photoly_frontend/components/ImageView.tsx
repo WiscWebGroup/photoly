@@ -43,9 +43,9 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pna
                                rounded={"md"***REMOVED***
                                w={"80%"***REMOVED*** h={"100%"***REMOVED*** objectFit={"fill"***REMOVED***/>
                         <VStack w={"100%"***REMOVED*** h={"100%"***REMOVED*** p={4***REMOVED*** overflow={"auto"***REMOVED***>
-         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.length > 0 && (<Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Tags</Text>)***REMOVED***
+                        ***REMOVED***tags.length > 0 && (<Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Tags</Text>)***REMOVED***
                             <Flex flexWrap={"wrap"***REMOVED***>
-             ***REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.map((tag) =>
+                            ***REMOVED***tags.map((tag) =>
                                     <Tag
                                         size={"md"***REMOVED***
                                         key={tag***REMOVED***
@@ -58,10 +58,10 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pna
                                     </Tag>
                                 )***REMOVED***
                             </Flex>
-         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***tags.length > 0 && (<Divider/>)***REMOVED***
-         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***albums.length > 0 && (<Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Albums</Text>)***REMOVED***
+                        ***REMOVED***tags.length > 0 && (<Divider/>)***REMOVED***
+                        ***REMOVED***albums.length > 0 && (<Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Albums</Text>)***REMOVED***
                             <Flex flexWrap={"wrap"***REMOVED***>
-             ***REMOVED*****REMOVED*****REMOVED*****REMOVED***albums.map((album) =>
+                            ***REMOVED***albums.map((album) =>
                                     <Tag
                                         size={"md"***REMOVED***
                                         key={album***REMOVED***
@@ -74,11 +74,11 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pna
                                     </Tag>
                                 )***REMOVED***
                             </Flex>
-         ***REMOVED*****REMOVED*****REMOVED*****REMOVED***albums.length > 0 && (<Divider/>)***REMOVED***
+                        ***REMOVED***albums.length > 0 && (<Divider/>)***REMOVED***
                             <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Metadata</Text>
                             <HStack justifyContent={"space-between"***REMOVED*** alignItems={"flex-start"***REMOVED*** overflow={"auto"***REMOVED*** w={"100%"***REMOVED***>
                                 <Text>Name: </Text>
-                                <Text>{pname***REMOVED***</Text>
+                                <Text width={'80%'***REMOVED***>{pname***REMOVED***</Text>
                             </HStack>
                             <HStack justifyContent={"space-between"***REMOVED*** w={"100%"***REMOVED***>
                                 <Text>Upload Date: </Text>
