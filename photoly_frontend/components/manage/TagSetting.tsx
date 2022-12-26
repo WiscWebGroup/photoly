@@ -7,7 +7,7 @@ import {
   AlertDialogOverlay,
   Button,
   Center,
-  Heading,
+  Heading, IconButton,
   Input,
   Modal,
   ModalBody,
@@ -203,23 +203,27 @@ const TagSetting: React.FC = () => {
                       <Td>{tag.tagId***REMOVED***</Td>
                       <Td>{tag.tagName***REMOVED***</Td>
                       <Td>
-                        <Button
-                          leftIcon={<GrUpdate />***REMOVED***
+                        <IconButton
+                          icon={<GrUpdate />***REMOVED***
                           onClick={() => {
                             setEditTagName(tag.tagName);
                             setEditTagId(tag.tagId);
                             onOpenEditModal();
    ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
-                        ></Button>
+                         aria-label={"rename"***REMOVED***
+                         mr={2***REMOVED***>
 
-                        <Button
-                          leftIcon={<AiOutlineDelete />***REMOVED***
+                        </IconButton>
+
+                        <IconButton
+                          icon={<AiOutlineDelete />***REMOVED***
                           onClick={() => {
                             setDelTagId(tag.tagId);
                             onOpenDeleteConfirm();
    ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
                           disabled={isOpenDeleteConfirm***REMOVED***
-                        ></Button>
+                          aria-label={"delete"***REMOVED***
+                        ></IconButton>
                       </Td>
                     </Tr>
                   );
