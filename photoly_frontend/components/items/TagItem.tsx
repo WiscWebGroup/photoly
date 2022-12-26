@@ -3,7 +3,7 @@ import React, { ChangeEvent, KeyboardEvent, useRef, useState ***REMOVED*** from 
 import { ContextMenu ***REMOVED*** from "../ContextMenu";
 import TagContextMenu from "../contextMenus/TagContextMenu";
 import { useSearchFilter, useSearchUpdateDispatch ***REMOVED*** from "../contexts/SearchContext";
-import { useDeleteTagMutation, useRenameTagMutation ***REMOVED*** from "../../redux/api/apiSlice";
+import { useDeleteTagMutation, useRenameTagMutation ***REMOVED*** from "../../redux/api/tagSlice";
 
 interface TagItemProps {
     tagId: number

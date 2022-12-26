@@ -2,7 +2,7 @@ import { AddIcon ***REMOVED*** from "@chakra-ui/icons"
 import { Box, Button, ButtonGroup, FormControl, FormLabel, HStack, Icon, IconButton, Input, Popover, PopoverArrow, PopoverCloseButton, PopoverContent, PopoverTrigger, Stack, Text, useDisclosure ***REMOVED*** from "@chakra-ui/react"
 import { ChangeEvent, ReactNode, useRef, useState ***REMOVED*** from "react"
 import { IconType ***REMOVED*** from "react-icons"
-import {useInsertTagMutation***REMOVED*** from "../redux/api/apiSlice";
+import {useInsertTagMutation***REMOVED*** from "../redux/api/tagSlice";
 
 interface TagHeaderProps {
     headerIcon?: IconType
