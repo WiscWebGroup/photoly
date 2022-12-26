@@ -43,7 +43,7 @@ import {
   useGetAllTagsQuery,
   useInsertTagMutation,
   useRenameTagMutation
-***REMOVED*** from "../../redux/api/apiSlice";
+***REMOVED*** from "../../redux/api/tagSlice";
 
 interface tag {
   tagId: number;
@@ -182,7 +182,7 @@ const TagSetting: React.FC = () => {
               </PopoverContent>
             </Popover>
           </Heading>
- ***REMOVED*****REMOVED***tags?.length === 0 ? (
+      ***REMOVED***tags?.length === 0 ? (
             <Text fontSize="3xl">Nothing Here</Text>
           ) : (
             ""
@@ -197,7 +197,7 @@ const TagSetting: React.FC = () => {
                 </Tr>
               </Thead>
               <Tbody>
-  ***REMOVED*****REMOVED*****REMOVED***tags?.map((tag) => {
+            ***REMOVED***tags?.map((tag) => {
                   return (
                     <Tr key={tag.tagId***REMOVED***>
                       <Td>{tag.tagId***REMOVED***</Td>
