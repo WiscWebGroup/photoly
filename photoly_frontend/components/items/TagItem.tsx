@@ -3,7 +3,7 @@ import React, { ChangeEvent, KeyboardEvent, useRef, useState ***REMOVED*** from 
 import { ContextMenu ***REMOVED*** from "../ContextMenu";
 import TagContextMenu from "../contextMenus/TagContextMenu";
 import { useSearchFilter, useSearchUpdateDispatch ***REMOVED*** from "../contexts/SearchContext";
-import { useTagListUpdate ***REMOVED*** from "../contexts/TagContext";
+import { useDeleteTagMutation, useRenameTagMutation ***REMOVED*** from "../../redux/api/apiSlice";
 
 interface TagItemProps {
     tagId: number
@@ -15,9 +15,10 @@ interface TagItemProps {
     const inputRef = useRef<HTMLInputElement>(null)
     const checkboxRef = useRef<HTMLInputElement>(null)
     const { isOpen, onOpen, onClose ***REMOVED*** = useDisclosure()  // control edit mode
-    const { renameRequest, deleteRequest ***REMOVED*** = useTagListUpdate()
     const { tagIds: searchTagIds ***REMOVED*** = useSearchFilter()
     const searchUpdateDispatch = useSearchUpdateDispatch()
+   const [deleteRequest] = useDeleteTagMutation()
+   const [renameRequest] = useRenameTagMutation()
 
     const handleRename = () => {
         onOpen()
@@ -33,7 +34,7 @@ interface TagItemProps {
 ***REMOVED***
 
         // modified
-        renameRequest({id: tagId, name: tag***REMOVED***)
+        renameRequest({tag_id: tagId, new_name: tag***REMOVED***)
         onClose()
 ***REMOVED***
 

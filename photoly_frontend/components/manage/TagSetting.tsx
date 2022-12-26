@@ -1,30 +1,13 @@
 import {
-  Center,
-  VStack,
-  Heading,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  TableContainer,
-  Button,
-  Popover,
-  PopoverArrow,
-  PopoverBody,
-  PopoverCloseButton,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTrigger,
   AlertDialog,
   AlertDialogBody,
   AlertDialogContent,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogOverlay,
-  useDisclosure,
-  useToast,
+  Button,
+  Center,
+  Heading,
   Input,
   Modal,
   ModalBody,
@@ -33,13 +16,34 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
+  Popover,
+  PopoverArrow,
+  PopoverBody,
+  PopoverCloseButton,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTrigger,
+  Table,
+  TableContainer,
+  Tbody,
+  Td,
   Text,
+  Th,
+  Thead,
+  Tr,
+  useDisclosure,
+  useToast,
+  VStack
 ***REMOVED*** from "@chakra-ui/react";
-import React, { useEffect, useState, useRef ***REMOVED*** from "react";
-import useToken from "../../hooks/useToken";
-import useApi from "../../hooks/useApi";
+import React, { useRef, useState ***REMOVED*** from "react";
 import { AiOutlineDelete ***REMOVED*** from "react-icons/ai";
 import { GrAdd, GrUpdate ***REMOVED*** from "react-icons/gr";
+import {
+  useDeleteTagMutation,
+  useGetAllTagsQuery,
+  useInsertTagMutation,
+  useRenameTagMutation
+***REMOVED*** from "../../redux/api/apiSlice";
 
 interface tag {
   tagId: number;
@@ -48,27 +52,27 @@ interface tag {
 ***REMOVED***
 
 const TagSetting: React.FC = () => {
-  const token = useToken();
-  const { get, post ***REMOVED*** = useApi();
-  const [tagList, setTagList] = useState<tag[]>();
-
   const [editTagId, setEditTagId] = useState<number>(0);
   const [editTagName, setEditTagName] = useState<string>("");
-  const [delTagId, setDelTagId] = useState<number>();
+  const [delTagId, setDelTagId] = useState<number>(0);
 
   const [addTagName, setAddTagName] = useState<string>("");
+  const { data: tags, error, isLoading ***REMOVED*** = useGetAllTagsQuery();
+  const [insertTrigger] = useInsertTagMutation();
+  const [deleteTrigger] = useDeleteTagMutation();
+  const [renameTrigger] = useRenameTagMutation();
 
   const {
     isOpen: isOpenEditModal,
     onOpen: onOpenEditModal,
-    onClose: onCloseEditModal,
+    onClose: onCloseEditModal
   ***REMOVED*** = useDisclosure();
 
   const toast = useToast();
   const {
     isOpen: isOpenDeleteConfirm,
     onOpen: onOpenDeleteConfirm,
-    onClose: onCloseDeleteConfirm,
+    onClose: onCloseDeleteConfirm
   ***REMOVED*** = useDisclosure();
   const cancelRef = useRef<HTMLDivElement | HTMLButtonElement>(null);
   const cancelRefBtn = useRef<HTMLButtonElement>(null);
@@ -76,91 +80,43 @@ const TagSetting: React.FC = () => {
   const {
     isOpen: isOpenAddTag,
     onOpen: onOpenAddTag,
-    onClose: onCloseAddTag,
+    onClose: onCloseAddTag
   ***REMOVED*** = useDisclosure();
 
-  const getTag = async () => {
-    const response = await get("/tag/getAll", {
-      headers: { "HRD-token": token ***REMOVED***,
-***REMOVED***);
-    if (!!response && response.data.msgCode === 200) {
-      setTagList(response.data.t);
-***REMOVED***
-  ***REMOVED***;
 
   const editTag = async (tagId: number) => {
-    const response = await post(
-      "/tag/update",
-  ***REMOVED***
-        tagId: tagId,
-        tagName: editTagName,
-  ***REMOVED***,
-  ***REMOVED***
-        headers: { "HRD-token": token ***REMOVED***,
-  ***REMOVED***
-    );
-    if (!!response && response.data.msgCode === 200) {
-      toast({
-        title: `Update Successful`,
-        status: "success",
-        isClosable: true,
-        duration: 3000,
-        position: "top",
-  ***REMOVED***);
-      getTag();
-***REMOVED***
+    renameTrigger({ tag_id: tagId, new_name: editTagName ***REMOVED***);
+    toast({
+      title: `Update Successful`,
+      status: "success",
+      isClosable: true,
+      duration: 3000,
+      position: "top"
+***REMOVED***);
   ***REMOVED***;
 
-  const delTag = async () => {
-    const response = await post(
-      "/tag/delete",
-  ***REMOVED******REMOVED***,
-  ***REMOVED***
-        headers: { "HRD-token": token ***REMOVED***,
-        params: {
-          tagId: delTagId,
-***REMOVED***,
-  ***REMOVED***
-    );
-    if (!!response && response.data.msgCode === 200) {
-      toast({
-        title: `Delete Successful`,
-        status: "success",
-        isClosable: true,
-        duration: 3000,
-        position: "top",
-  ***REMOVED***);
-      getTag();
-***REMOVED***
+  const delTag = () => {
+    deleteTrigger(delTagId);
+    toast({
+      title: `Delete Successful`,
+      status: "success",
+      isClosable: true,
+      duration: 3000,
+      position: "top"
+***REMOVED***);
   ***REMOVED***;
-  const addTag = async () => {
-    const response = await post(
-      "/tag/insert",
-  ***REMOVED***
-        tagName: addTagName,
-  ***REMOVED***,
-  ***REMOVED***
-        headers: { "HRD-token": token ***REMOVED***,
-  ***REMOVED***
-    );
-    if (!!response && response.data.msgCode === 200) {
-      toast({
-        title: `Create Successful`,
-        status: "success",
-        isClosable: true,
-        duration: 3000,
-        position: "top",
-  ***REMOVED***);
-      getTag();
-      setAddTagName("");
-      onCloseAddTag();
-***REMOVED***
+  const addTag = () => {
+    insertTrigger(addTagName);
+    toast({
+      title: `Create Successful`,
+      status: "success",
+      isClosable: true,
+      duration: 3000,
+      position: "top"
+***REMOVED***);
+    setAddTagName("");
+    onCloseAddTag();
   ***REMOVED***;
-  useEffect(() => {
-    if (!!token) {
-      getTag();
-***REMOVED***
-  ***REMOVED***, [token]);
 
   return (
     <>
@@ -226,7 +182,7 @@ const TagSetting: React.FC = () => {
               </PopoverContent>
             </Popover>
           </Heading>
- ***REMOVED*****REMOVED***tagList?.length === 0 ? (
+ ***REMOVED*****REMOVED***tags?.length === 0 ? (
             <Text fontSize="3xl">Nothing Here</Text>
           ) : (
             ""
@@ -241,7 +197,7 @@ const TagSetting: React.FC = () => {
                 </Tr>
               </Thead>
               <Tbody>
-  ***REMOVED*****REMOVED*****REMOVED***tagList?.map((tag) => {
+  ***REMOVED*****REMOVED*****REMOVED***tags?.map((tag) => {
                   return (
                     <Tr key={tag.tagId***REMOVED***>
                       <Td>{tag.tagId***REMOVED***</Td>
@@ -333,8 +289,8 @@ const TagSetting: React.FC = () => {
               <Button
                 colorScheme="twitter"
                 variant="outline"
-                onClick={() => {
-                  editTag(editTagId);
+                onClick={async () => {
+                  await editTag(editTagId);
                   onCloseEditModal();
    ***REMOVED*****REMOVED******REMOVED***
               >
