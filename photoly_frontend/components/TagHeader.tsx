@@ -3,6 +3,7 @@ import { Box, Button, ButtonGroup, FormControl, FormLabel, HStack, Icon, IconBut
 import { ChangeEvent, ReactNode, useRef, useState ***REMOVED*** from "react"
 import { IconType ***REMOVED*** from "react-icons"
 import { useTagListUpdate ***REMOVED*** from "./contexts/TagContext"
+import {useInsertTagMutation***REMOVED*** from "../redux/api/apiSlice";
 
 interface TagHeaderProps {
     headerIcon?: IconType
@@ -12,10 +13,10 @@ interface TagHeaderProps {
 
 const TagHeader = ({headerIcon, iconColor, children***REMOVED***: TagHeaderProps) => {
     const inputRef = useRef(null)
-    const [tag, setTag] = useState("")
-    const { insertRequest ***REMOVED*** = useTagListUpdate()
+    const [tag, setTag] = useState<string>("")
     const [isDisabled, setIsDisabled] = useState(true)  // control submit button
     const { isOpen, onOpen, onClose ***REMOVED*** = useDisclosure()  // control popover
+    const [insert, _] = useInsertTagMutation()
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         const str = e.currentTarget.value
@@ -29,7 +30,7 @@ const TagHeader = ({headerIcon, iconColor, children***REMOVED***: TagHeaderProps
 ***REMOVED***
 
     const handleInsert = () => {
-        insertRequest(tag)
+        insert(tag)
         handleClose()
 ***REMOVED***
 
