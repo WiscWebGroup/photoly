@@ -20,10 +20,21 @@ export const apiSlice = createApi({
         return transformed
   ***REMOVED***,
       providesTags: ['tag']
+***REMOVED***),
+    insertTag: builder.mutation<ITag, string>({
+      query: (tag_name: string) => ({
+        url: '/tag/insert',
+        method: 'POST',
+        body: {
+          tagName: tag_name
+***REMOVED***
+  ***REMOVED***),
+      invalidatesTags: ['tag']
 ***REMOVED***)
   ***REMOVED***)
 ***REMOVED***)
 
 export const {
-  useGetAllTagsQuery
+  useGetAllTagsQuery,
+  useInsertTagMutation
 ***REMOVED*** = apiSlice

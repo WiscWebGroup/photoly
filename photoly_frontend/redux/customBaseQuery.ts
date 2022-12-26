@@ -1,5 +1,5 @@
 import type { BaseQueryFn, FetchArgs, FetchBaseQueryError ***REMOVED*** from "@reduxjs/toolkit/query";
-import { fetchBaseQuery ***REMOVED*** from "@reduxjs/toolkit/query";
+import { fetchBaseQuery ***REMOVED*** from "@reduxjs/toolkit/query/react";
 import { ServerInterface ***REMOVED*** from "./types/serverInterface";
 import Router from "next/router";
 import {createStandaloneToast***REMOVED*** from "@chakra-ui/react";
