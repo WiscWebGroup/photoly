@@ -23,6 +23,8 @@ import { useOpenFolder, useSearchData ***REMOVED*** from "./contexts/SearchConte
 import FolderItem from "./items/FolderItem";
 
 import ImageItem from "./items/ImageItem";
+import useTestHook from "../hooks/useTestHook";
+import useGetRoot from "../hooks/useGetRoot";
 
 const Images: React.FC = () => {
   const {
@@ -47,7 +49,9 @@ const Images: React.FC = () => {
   const { post ***REMOVED*** = useApi();
   const toast = useToast();
   const openFolder = useOpenFolder();
-  const searchData = useSearchData();
+  // const searchData = useSearchData();
+
+  const searchData = useGetRoot();
 
   const handleUploadFile = (e: ChangeEvent<HTMLInputElement>) => {
     const fs: FileList | null = e.target.files;
