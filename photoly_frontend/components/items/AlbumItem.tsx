@@ -10,7 +10,8 @@ import { TbAlbum ***REMOVED*** from "react-icons/tb";
 import { ContextMenu ***REMOVED*** from "../ContextMenu"
 import AlbumContextMenu from "../contextMenus/AlbumContextMenu"
 import { useAlbumListUpdate ***REMOVED*** from "../contexts/AlbumContext";
-import { useSearchFilter, useSearchUpdateDispatch ***REMOVED*** from "../contexts/SearchContext";
+import { useAppDispatch, useAppSelector ***REMOVED*** from "../../redux/hooks";
+import { clearAlbum, setAlbum ***REMOVED*** from "../../redux/states/searchFilterSlice";
 
 interface AlbumItemProps {
     id: number
@@ -30,9 +31,10 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
     const { isOpen: isReOpen, onOpen: onReOpen, onClose: onReClose ***REMOVED*** = useDisclosure()
     const { isOpen: isIcOpen, onOpen: onIcOpen, onClose: onIcClose ***REMOVED*** = useDisclosure()
 
-    const { albumId ***REMOVED*** = useSearchFilter()
-    const searchUpdateDispatch = useSearchUpdateDispatch()
     const { updateRequest, deleteRequest ***REMOVED*** = useAlbumListUpdate()
+
+    const albumId = useAppSelector((state) => state.searchFilter.albumId)
+    const dispatch = useAppDispatch()
 
     const handleReChange = (e: ChangeEvent<HTMLInputElement>) => {
         const value = e.currentTarget.value
@@ -67,6 +69,15 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
         handleIcClose()
 ***REMOVED***
 
+    const handleAlbumClick = () => {
+        // Want to de-select current album
+        if (albumId !== -1 && id === albumId) {
+            dispatch(clearAlbum())
+***REMOVED*** else {
+            dispatch(setAlbum(id))
+***REMOVED***
+***REMOVED***
+
     return (
         <ContextMenu<HTMLDivElement>
             renderMenu={() => 
@@ -85,7 +96,8 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
                         justifyContent="flex-start"
                         fontWeight="normal"
                         leftIcon={getCoverIcon(coverId, coverColor)***REMOVED***
-                        onClick={() => searchUpdateDispatch({type: "set_album", payload: id***REMOVED***)***REMOVED***
+                        // onClick={() => searchUpdateDispatch({type: "set_album", payload: id***REMOVED***)***REMOVED***
+                        onClick={handleAlbumClick***REMOVED***
                     >
      ***REMOVED*****REMOVED*****REMOVED*****REMOVED***name***REMOVED***
                     </Button>
