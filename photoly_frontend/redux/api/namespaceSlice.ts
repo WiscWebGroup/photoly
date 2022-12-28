@@ -21,5 +21,6 @@ const extendedNamespaceApi = apiSlice.injectEndpoints({
 
 export const {
   useGetRootQuery,
+  useLazyGetRootQuery,
   useGetChildrenQuery
 ***REMOVED*** = extendedNamespaceApi
