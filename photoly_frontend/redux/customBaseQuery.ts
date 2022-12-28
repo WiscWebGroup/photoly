@@ -36,7 +36,7 @@ export const myBaseQuery: BaseQueryFn<string | FetchArgs,
         position: "top"
   ***REMOVED***)
       await Router.push('/login')
-      break
+      return {error: {status: cast.msgCode, data: cast.t***REMOVED*** ***REMOVED***
     case 401:
     case 400:
       toast({
@@ -44,6 +44,7 @@ export const myBaseQuery: BaseQueryFn<string | FetchArgs,
         status: "warning",
         position: "top"
   ***REMOVED***)
+      return {error: {status: cast.msgCode, data: cast.t***REMOVED*** ***REMOVED***
   ***REMOVED***
   // status 200
   return result;
