@@ -24,7 +24,7 @@ import FolderItem from "./items/FolderItem";
 
 import ImageItem from "./items/ImageItem";
 import useTestHook from "../hooks/useTestHook";
-import useGetRoot from "../hooks/useGetRoot";
+import useGlobalSearch from "../hooks/useGlobalSearch";
 
 const Images: React.FC = () => {
   const {
@@ -48,10 +48,9 @@ const Images: React.FC = () => {
   const token = useToken();
   const { post ***REMOVED*** = useApi();
   const toast = useToast();
-  const openFolder = useOpenFolder();
-  // const searchData = useSearchData();
+  // const openFolder = useOpenFolder();
 
-  const searchData = useGetRoot();
+  const searchData = useGlobalSearch();
 
   const handleUploadFile = (e: ChangeEvent<HTMLInputElement>) => {
     const fs: FileList | null = e.target.files;
@@ -72,34 +71,34 @@ const Images: React.FC = () => {
     onUpClose();
   ***REMOVED***;
 
-  const handleUpload = async () => {
-    setIsLoading(true);
-    const formData = new FormData();
-    for (const file of files) formData.append("files", file);
-    const part = JSON.stringify({
-      nsId: searchData.current.id,
-      visibility: 1,
-***REMOVED***);
-    const photosStr = Array(files.length).fill(part);
-    const response = await post("/photo/inserts", formData, {
-      headers: { "HRD-token": token ***REMOVED***,
-      params: { photosStr: "[" + photosStr + "]" ***REMOVED***,
-***REMOVED***);
-
-    if (!!response && response.data && response.data.msgCode === 200) {
-      openFolder(searchData.current.id);
-***REMOVED*** else {
-      toast({
-        title: "Failed to upload the photo",
-        status: "error",
-        isClosable: true,
-        position: "top",
-  ***REMOVED***);
-***REMOVED***
-
-    setIsLoading(false);
-    handleRestFile();
-  ***REMOVED***;
+  // const handleUpload = async () => {
+  //   setIsLoading(true);
+  //   const formData = new FormData();
+  //   for (const file of files) formData.append("files", file);
+  //   const part = JSON.stringify({
+  //     nsId: searchData.current.id,
+  //     visibility: 1,
+  //   ***REMOVED***);
+  //   const photosStr = Array(files.length).fill(part);
+  //   const response = await post("/photo/inserts", formData, {
+  //     headers: { "HRD-token": token ***REMOVED***,
+  //     params: { photosStr: "[" + photosStr + "]" ***REMOVED***,
+  //   ***REMOVED***);
+  //
+  //   if (!!response && response.data && response.data.msgCode === 200) {
+  //     openFolder(searchData.current.id);
+  //   ***REMOVED*** else {
+  //     toast({
+  //       title: "Failed to upload the photo",
+  //       status: "error",
+  //       isClosable: true,
+  //       position: "top",
+  // ***REMOVED***);
+  //   ***REMOVED***
+  //
+  //   setIsLoading(false);
+  //   handleRestFile();
+  // ***REMOVED***;
 
   const handleNewFolderName = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.currentTarget.value;
@@ -113,36 +112,36 @@ const Images: React.FC = () => {
     onCrClose();
   ***REMOVED***;
 
-  const handleCreate = async () => {
-    setIsLoading(true);
-    const response = await post(
-      "/namespace/insert",
-  ***REMOVED***
-        nsParentId: searchData.current.id,
-        nsName: folderName,
-  ***REMOVED***,
-  ***REMOVED***
-        headers: { "HRD-token": token ***REMOVED***,
-  ***REMOVED***
-    );
+  // const handleCreate = async () => {
+  //   setIsLoading(true);
+  //   const response = await post(
+  //     "/namespace/insert",
+  // ***REMOVED***
+  //       nsParentId: searchData.current.id,
+  //       nsName: folderName,
+  // ***REMOVED***,
+  // ***REMOVED***
+  //       headers: { "HRD-token": token ***REMOVED***,
+  // ***REMOVED***
+  //   );
+  //
+  //   if (!!response && response.data && response.data.msgCode === 200) {
+  //     openFolder(searchData.current.id);
+  //   ***REMOVED*** else {
+  //     toast({
+  //       title: `Failed to create a new folder named ${folderName***REMOVED***`,
+  //       status: "error",
+  //       isClosable: true,
+  //       position: "top",
+  // ***REMOVED***);
+  //   ***REMOVED***
+  //   setIsLoading(false);
+  //   handleResetCreation();
+  // ***REMOVED***;
 
-    if (!!response && response.data && response.data.msgCode === 200) {
-      openFolder(searchData.current.id);
-***REMOVED*** else {
-      toast({
-        title: `Failed to create a new folder named ${folderName***REMOVED***`,
-        status: "error",
-        isClosable: true,
-        position: "top",
-  ***REMOVED***);
-***REMOVED***
-    setIsLoading(false);
-    handleResetCreation();
-  ***REMOVED***;
-
-  const refresh = () => {
-    openFolder(searchData.current.id);
-  ***REMOVED***
+  // const refresh = () => {
+  //   openFolder(searchData.current.id);
+  // ***REMOVED***
 
   return (
     <ContextMenu<HTMLDivElement>
@@ -192,7 +191,8 @@ const Images: React.FC = () => {
                 uploaddate={photo.uploaddate***REMOVED***
                 orgsrc={`/photo/render/${token***REMOVED***?photoId=${photo.id***REMOVED***`***REMOVED***
                 folder_name={searchData.path.map((f) => {if (f.name === "/") {return "/root"***REMOVED*** return f.name***REMOVED***).join("/")***REMOVED***
-                refresh={refresh***REMOVED***
+                // refresh={refresh***REMOVED***
+                refresh={()=>{***REMOVED******REMOVED***
               />
             ))***REMOVED***
           </Flex>
@@ -216,7 +216,7 @@ const Images: React.FC = () => {
                 <Button
                   colorScheme="teal"
                   mr={3***REMOVED***
-                  onClick={handleUpload***REMOVED***
+                  // onClick={handleUpload***REMOVED***
                   isLoading={isLoading***REMOVED***
                 >
                   Upload
@@ -250,7 +250,7 @@ const Images: React.FC = () => {
                 <Button
                   colorScheme="teal"
                   mr={3***REMOVED***
-                  onClick={handleCreate***REMOVED***
+                  // onClick={handleCreate***REMOVED***
                   disabled={isError***REMOVED***
                   isLoading={isLoading***REMOVED***
                 >
