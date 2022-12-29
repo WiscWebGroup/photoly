@@ -24,6 +24,8 @@ import { ContextMenu ***REMOVED*** from "../ContextMenu";
 import FolderContextMenu from "../contextMenus/FolderContextMenu";
 import { useOpenFolder ***REMOVED*** from "../contexts/SearchContext";
 import MovingFolderItem from "./MovingFolderItem";
+import { useAppDispatch ***REMOVED*** from "../../redux/hooks";
+import { setFolder ***REMOVED*** from "../../redux/states/searchFilterSlice";
 
 interface FolderItemProps {
   id: number;
@@ -52,6 +54,8 @@ const FolderItem = ({ id, name, parentId ***REMOVED***: FolderItemProps) => {
   const token = useToken();
   const { post, get ***REMOVED*** = useApi();
   const toast = useToast();
+
+  const dispatch = useAppDispatch()
 
   const deleteRequest = async () => {
     const response = await post("/namespace/delete", null, {
@@ -196,9 +200,9 @@ const FolderItem = ({ id, name, parentId ***REMOVED***: FolderItemProps) => {
             colorScheme="gray"
             variant="solid"
             w={"100%"***REMOVED***
-            onClick={() => openFolder(id)***REMOVED***
+            onClick={() => dispatch(setFolder(id))***REMOVED***
           >
-   ***REMOVED*****REMOVED***name***REMOVED***
+        ***REMOVED***name***REMOVED***
           </Button>
 
           <Modal isOpen={isRenameOpen***REMOVED*** onClose={handleResetNewName***REMOVED***>
@@ -218,7 +222,7 @@ const FolderItem = ({ id, name, parentId ***REMOVED***: FolderItemProps) => {
                     placeholder="New folder name"
                     onChange={handleFolderRename***REMOVED***
                   />
-    ***REMOVED*****REMOVED*****REMOVED***isError && (
+              ***REMOVED***isError && (
                     <FormErrorMessage>
                       Folder name must not be empty or &quot;/&quot;
                     </FormErrorMessage>

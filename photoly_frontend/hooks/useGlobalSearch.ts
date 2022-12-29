@@ -1,8 +1,9 @@
 import { useGetChildrenQuery, useGetRootQuery ***REMOVED*** from "../redux/api/namespaceSlice";
 import { skipToken ***REMOVED*** from "@reduxjs/toolkit/query";
 import { useGetPhotoByAlbumQuery, useGetPhotoByNamespaceQuery, useGetPhotoByTagsQuery ***REMOVED*** from "../redux/api/photoSlice";
-import { useAppSelector ***REMOVED*** from "../redux/hooks";
+import { useAppDispatch, useAppSelector ***REMOVED*** from "../redux/hooks";
 import { ISearchFilter ***REMOVED*** from "../redux/states/searchFilterSlice";
+import { changeCurrDisplay ***REMOVED*** from "../redux/states/mainDisplaySlice";
 
 interface IPhoto {
   id: number;
@@ -43,41 +44,46 @@ const initSearchDataState: ISearchData = {
 function isFilterClear(filter: ISearchFilter) {
   return filter.albumId === -1 && filter.tagIds.length === 0;
 ***REMOVED***
+
 function isTagApply(filter: ISearchFilter) {
   return filter.tagIds.length > 0;
 ***REMOVED***
+
 function isAlbumApply(filter: ISearchFilter) {
-  return filter.albumId !== -1
+  return filter.albumId !== -1;
 ***REMOVED***
 
 export default function useGlobalSearch(): ISearchData {
   const curFilter = useAppSelector((state) => state.searchFilter);
+  const dispatch = useAppDispatch();
 
   // If no filter apply, then query the root folder
   const {
     data: root_dir,
-    isSuccess: isRootSuccess
+    isSuccess: isRootSuccess,
+    isUninitialized: isRootSkipped
   ***REMOVED*** = useGetRootQuery(isFilterClear(curFilter) ? undefined : skipToken);
+
   const {
     data: children_dirs,
     isSuccess: isChildrenSuccess
-  ***REMOVED*** = useGetChildrenQuery(isRootSuccess ? root_dir.nsId : skipToken);
+  ***REMOVED*** = useGetChildrenQuery(isRootSuccess ? curFilter.folderId === -1 ? root_dir.nsId : curFilter.folderId : skipToken);
   const {
     data: photos,
     isSuccess: isPhotoSuccess
-  ***REMOVED*** = useGetPhotoByNamespaceQuery(isRootSuccess ? root_dir.nsId : skipToken);
+  ***REMOVED*** = useGetPhotoByNamespaceQuery(isRootSuccess ? curFilter.folderId === -1 ? root_dir.nsId : curFilter.folderId : skipToken);
 
   // If tag filter apply
   const {
     data: tag_photos,
     isSuccess: isTagPhotoSuccess
-  ***REMOVED*** = useGetPhotoByTagsQuery(isTagApply(curFilter) ? curFilter.tagIds : skipToken)
+  ***REMOVED*** = useGetPhotoByTagsQuery(isTagApply(curFilter) ? curFilter.tagIds : skipToken);
 
   // If album filter apply
   const {
     data: album_photos,
     isSuccess: isAlbumPhotoSuccess
-  ***REMOVED*** = useGetPhotoByAlbumQuery(isAlbumApply(curFilter) ? curFilter.albumId: skipToken)
+  ***REMOVED*** = useGetPhotoByAlbumQuery(isAlbumApply(curFilter) ? curFilter.albumId : skipToken);
 
   if (isFilterClear(curFilter) && isChildrenSuccess && isPhotoSuccess && isRootSuccess) {
     let photoData: IPhoto[] = [];
@@ -105,6 +111,12 @@ export default function useGlobalSearch(): ISearchData {
       id: root_dir.nsId, name: root_dir.nsName, parentId: root_dir.nsParentId, userId: root_dir.userId
 ***REMOVED***;
 
+    dispatch(changeCurrDisplay({
+      path: [rootFolder],
+      current: rootFolder,
+      photos: photoData,
+      folders: folderData
+***REMOVED***));
     return {
       path: [rootFolder],
       current: rootFolder,
@@ -124,6 +136,12 @@ export default function useGlobalSearch(): ISearchData {
         visibility: !!e.visibility
   ***REMOVED***);
 ***REMOVED***);
+    dispatch(changeCurrDisplay({
+      path: [defaultFolder],
+      current: defaultFolder,
+      photos: photoData,
+      folders: []
+***REMOVED***));
     return {
       path: [defaultFolder],
       current: defaultFolder,
@@ -143,6 +161,12 @@ export default function useGlobalSearch(): ISearchData {
         visibility: !!e.visibility
   ***REMOVED***);
 ***REMOVED***);
+    dispatch(changeCurrDisplay({
+      path: [defaultFolder],
+      current: defaultFolder,
+      photos: photoData,
+      folders: []
+***REMOVED***));
     return {
       path: [defaultFolder],
       current: defaultFolder,
