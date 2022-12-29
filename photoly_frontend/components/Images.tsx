@@ -14,16 +14,14 @@ import {
   useDisclosure,
   useToast,
 ***REMOVED*** from "@chakra-ui/react";
-import React, { ChangeEvent, useRef, useState ***REMOVED*** from "react";
+import React, { ChangeEvent,useRef, useState ***REMOVED*** from "react";
 import useApi from "../hooks/useApi";
 import useToken from "../hooks/useToken";
 import { ContextMenu ***REMOVED*** from "./ContextMenu";
 import PanelContextMenu from "./contextMenus/PanelContextMenu";
-import { useOpenFolder, useSearchData ***REMOVED*** from "./contexts/SearchContext";
 import FolderItem from "./items/FolderItem";
 
 import ImageItem from "./items/ImageItem";
-import useTestHook from "../hooks/useTestHook";
 import useGlobalSearch from "../hooks/useGlobalSearch";
 
 const Images: React.FC = () => {

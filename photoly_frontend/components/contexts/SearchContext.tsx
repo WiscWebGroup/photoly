@@ -2,7 +2,6 @@
 import qs from "qs"
 import { createContext, Dispatch, ReactNode, useContext, useReducer, useState ***REMOVED*** from "react"
 import useApi from "../../hooks/useApi"
-import useDebounce from "../../hooks/useDebounce"
 import useToken from "../../hooks/useToken"
 
 interface ISearchFilter {
@@ -94,46 +93,46 @@ const SearchContextProvider = ({children***REMOVED***: {children: ReactNode***RE
     const token = useToken()
     const { get ***REMOVED*** = useApi()
 
-    const setOnlyPhotos = (data: any) => {
-        let photos: IPhoto[] = []
+    // const setOnlyPhotos = (data: any) => {
+    //     let photos: IPhoto[] = []
+    //
+    //     data.forEach((ele: any) => {
+    //         photos.push({
+    //             id: ele.photoId,
+    //             name: ele.photoName,
+    //             format: ele.format,
+    //             uploaddate: ele.uploadDate,
+    //             visibility: ele.visibility
+    // ***REMOVED***)
+    // ***REMOVED***)
+    //     setSearchData({photos, path: [defaultFolder], current: defaultFolder, folders: []***REMOVED***)
+    // ***REMOVED***
 
-        data.forEach((ele: any) => {
-            photos.push({
-                id: ele.photoId,
-                name: ele.photoName,
-                format: ele.format,
-                uploaddate: ele.uploadDate,
-                visibility: ele.visibility
-    ***REMOVED***)
-***REMOVED***)
-        setSearchData({photos, path: [defaultFolder], current: defaultFolder, folders: []***REMOVED***)
-***REMOVED***
+    // const searchByTags = async () => {
+    //     const response = await get("/photo/getByTags", {
+    //         headers: { "HRD-token": token ***REMOVED***,
+    //         params: {
+    //             tagIds: searchFilter.tagIds
+    // ***REMOVED***,
+    //         paramsSerializer: params => qs.stringify(params, {arrayFormat: "comma", encode: false***REMOVED***)
+    // ***REMOVED***)
+    //
+    //     if (!!response && response.data && response.data.msgCode === 200)
+    //         setOnlyPhotos(response.data.t)
+    // ***REMOVED***
 
-    const searchByTags = async () => {
-        const response = await get("/photo/getByTags", {
-            headers: { "HRD-token": token ***REMOVED***,
-            params: {
-                tagIds: searchFilter.tagIds
-    ***REMOVED***,
-            paramsSerializer: params => qs.stringify(params, {arrayFormat: "comma", encode: false***REMOVED***)
-***REMOVED***)
-
-        if (!!response && response.data && response.data.msgCode === 200)
-            setOnlyPhotos(response.data.t)
-***REMOVED***
-
-    const searchByAlbum = async () => {
-        const response = await get("/photo/getByGallery", {
-            headers: { "HRD-token": token ***REMOVED***,
-            params: {
-                gaId: searchFilter.albumId
-    ***REMOVED***,
-            paramsSerializer: params => qs.stringify(params)
-***REMOVED***)
-
-        if (!!response && response.data && response.data.msgCode === 200)
-            setOnlyPhotos(response.data.t)
-***REMOVED***
+    // const searchByAlbum = async () => {
+    //     const response = await get("/photo/getByGallery", {
+    //         headers: { "HRD-token": token ***REMOVED***,
+    //         params: {
+    //             gaId: searchFilter.albumId
+    // ***REMOVED***,
+    //         paramsSerializer: params => qs.stringify(params)
+    // ***REMOVED***)
+    //
+    //     if (!!response && response.data && response.data.msgCode === 200)
+    //         setOnlyPhotos(response.data.t)
+    // ***REMOVED***
 
     const getRoot = async () => {
         const root = await get("/namespace/getRoot", {
@@ -195,21 +194,21 @@ const SearchContextProvider = ({children***REMOVED***: {children: ReactNode***RE
 ***REMOVED***
 ***REMOVED***
 
-    useDebounce(
-        () => {
-            if (!!token) {
-                if (searchFilter.tagIds.length !== 0) {
-                    searchByTags()
-   ***REMOVED*****REMOVED*** else if (searchFilter.albumId !== -1) {
-                    searchByAlbum()
-   ***REMOVED*****REMOVED*** else {
-                    getRoot()
-   ***REMOVED*****REMOVED***
-    ***REMOVED***
-***REMOVED***,
-        500,
-        [searchFilter, token]
-    )
+    // useDebounce(
+    //     () => {
+    //         if (!!token) {
+    //             if (searchFilter.tagIds.length !== 0) {
+    //                 searchByTags()
+    //***REMOVED*****REMOVED*** else if (searchFilter.albumId !== -1) {
+    //                 searchByAlbum()
+    //***REMOVED*****REMOVED*** else {
+    //                 getRoot()
+    //***REMOVED*****REMOVED***
+    // ***REMOVED***
+    // ***REMOVED***,
+    //     500,
+    //     [searchFilter, token]
+    // )
 
     const openFolder = async (folderId: number) => {
         const [photos, folders] = await Promise.all([
@@ -273,7 +272,7 @@ const SearchContextProvider = ({children***REMOVED***: {children: ReactNode***RE
             <SearchDataContext.Provider value={searchData***REMOVED***>
                 <OpenFolderContext.Provider value={openFolder***REMOVED***>
                     <SearchContextUpdate.Provider value={searchUpdateDispatch***REMOVED***>
-     ***REMOVED*****REMOVED*****REMOVED*****REMOVED***children***REMOVED***
+                    ***REMOVED***children***REMOVED***
                     </SearchContextUpdate.Provider>
                 </OpenFolderContext.Provider>
             </SearchDataContext.Provider>

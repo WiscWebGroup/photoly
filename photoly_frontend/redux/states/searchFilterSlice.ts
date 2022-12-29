@@ -4,11 +4,13 @@ import type {PayloadAction***REMOVED*** from "@reduxjs/toolkit";
 export interface ISearchFilter {
   tagIds: number[]
   albumId: number
+  folderId: number
 ***REMOVED***
 
 const initSearchFilterState: ISearchFilter = {
   tagIds: [],
-  albumId: -1
+  albumId: -1,
+  folderId: -1 // If this is -1, it means to query user's root folder
 ***REMOVED***
 
 export const searchFilterSlice = createSlice({
@@ -30,6 +32,16 @@ export const searchFilterSlice = createSlice({
     clearAlbum: (state) => {
       state.tagIds = []
       state.albumId = -1
+***REMOVED***,
+    setFolder: (state, action: PayloadAction<number>) => {
+      state.folderId = action.payload
+      state.tagIds = []
+      state.albumId = -1
+***REMOVED***,
+    clearAllFilter: (state) => {
+      state.folderId = -1
+      state.tagIds = []
+      state.albumId = -1
 ***REMOVED***
   ***REMOVED***
 ***REMOVED***)
@@ -38,6 +50,8 @@ export const {
   addTag,
   removeTag,
   setAlbum,
-  clearAlbum
+  clearAlbum,
+  setFolder,
+  clearAllFilter
 ***REMOVED*** = searchFilterSlice.actions
 export default searchFilterSlice.reducer
