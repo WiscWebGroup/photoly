@@ -4,7 +4,7 @@ import { myBaseQuery ***REMOVED*** from "../customBaseQuery";
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: myBaseQuery,
-  tagTypes: ['tag'],
+  tagTypes: ['tag', 'album'],
   endpoints: () => ({***REMOVED***)
 ***REMOVED***)
 
