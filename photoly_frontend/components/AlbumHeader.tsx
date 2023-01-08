@@ -2,7 +2,7 @@ import { AddIcon ***REMOVED*** from "@chakra-ui/icons"
 import { Box, Button, ButtonGroup, FormControl, FormLabel, HStack, Icon, IconButton, Input, Popover, PopoverArrow, PopoverCloseButton, PopoverContent, PopoverTrigger, Select, Stack, Text, useDisclosure ***REMOVED*** from "@chakra-ui/react"
 import { ChangeEvent, ReactNode, useRef, useState ***REMOVED*** from "react"
 import { IconType ***REMOVED*** from "react-icons"
-import { useAlbumListUpdate ***REMOVED*** from "./contexts/AlbumContext"
+import {useInsertAlbumMutation***REMOVED*** from "../redux/api/albumSlice";
 
 interface AlbumHeaderProps {
     headerIcon?: IconType
@@ -15,10 +15,9 @@ const AlbumHeader = ({ headerIcon, iconColor, children ***REMOVED*** : AlbumHead
     const [name, setName] = useState("")
     const [coverId, setCoverId] = useState(0)
     const [coverColor, setCovereColor] = useState("#FFF")
-    const { insertRequest ***REMOVED*** = useAlbumListUpdate()
     const [isDisabled, setIsDisabled] = useState(true)  // control submit button
-    const [isLoading, setIsLoading] = useState(false)
     const { isOpen, onOpen, onClose ***REMOVED*** = useDisclosure()  // control popover
+    const [insert, _] = useInsertAlbumMutation()
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         const str = e.currentTarget.value
@@ -32,9 +31,7 @@ const AlbumHeader = ({ headerIcon, iconColor, children ***REMOVED*** : AlbumHead
 ***REMOVED***
 
     const handleInsert = () => {
-        setIsLoading(true)
-        insertRequest(name, coverId, coverColor)
-        setIsLoading(false)
+        insert({name: name, id: coverId, color: coverColor***REMOVED***)
         handleClose()
 ***REMOVED***
 
@@ -97,8 +94,7 @@ const AlbumHeader = ({ headerIcon, iconColor, children ***REMOVED*** : AlbumHead
                             </Button>
                             <Button 
                                 size='sm' 
-                                isDisabled={isDisabled***REMOVED*** 
-                                isLoading={isLoading***REMOVED*** 
+                                isDisabled={isDisabled***REMOVED***
                                 onClick={handleInsert***REMOVED*** 
                                 colorScheme='teal'
                             >
