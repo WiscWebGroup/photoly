@@ -20,11 +20,19 @@ const extendedAlbumApi = apiSlice.injectEndpoints({
 ***REMOVED***
   ***REMOVED***),
       invalidatesTags: ['album']
+***REMOVED***),
+    deleteAlbum: builder.mutation({
+      query: (album_id: number) => ({
+        url: `/gallery/delete?gaId=${album_id***REMOVED***`,
+        method: 'POST'
+  ***REMOVED***),
+      invalidatesTags: ['album']
 ***REMOVED***)
   ***REMOVED***)
 ***REMOVED***)
 
 export const {
   useGetAllAlbumsQuery,
-  useInsertAlbumMutation
+  useInsertAlbumMutation,
+  useDeleteAlbumMutation
 ***REMOVED*** = extendedAlbumApi

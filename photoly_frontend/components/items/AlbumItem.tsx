@@ -12,6 +12,7 @@ import AlbumContextMenu from "../contextMenus/AlbumContextMenu"
 import { useAlbumListUpdate ***REMOVED*** from "../contexts/AlbumContext";
 import { useAppDispatch, useAppSelector ***REMOVED*** from "../../redux/hooks";
 import { clearAlbum, setAlbum ***REMOVED*** from "../../redux/states/searchFilterSlice";
+import {useDeleteAlbumMutation***REMOVED*** from "../../redux/api/albumSlice";
 
 interface AlbumItemProps {
     id: number
@@ -27,6 +28,7 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
     const [isError, setIsError] = useState(true)
     const [isLoading, setIsLoading] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
+    const [deleteAlbum, _] = useDeleteAlbumMutation()
 
     const { isOpen: isReOpen, onOpen: onReOpen, onClose: onReClose ***REMOVED*** = useDisclosure()
     const { isOpen: isIcOpen, onOpen: onIcOpen, onClose: onIcClose ***REMOVED*** = useDisclosure()
@@ -82,7 +84,7 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
         <ContextMenu<HTMLDivElement>
             renderMenu={() => 
                 <AlbumContextMenu 
-                    handleDelete={() => deleteRequest(id)***REMOVED***
+                    handleDelete={() => deleteAlbum(id)***REMOVED***
                     handleRename={onReOpen***REMOVED***
                     handleChangeIcon={onIcOpen***REMOVED***
                 />***REMOVED***
