@@ -8,10 +8,23 @@ const extendedAlbumApi = apiSlice.injectEndpoints({
       query: () => '/gallery/getAll',
       transformResponse: (response: ServerInterface<serverAlbum[]>) => response.t,
       providesTags: ['album']
+***REMOVED***),
+    insertAlbum: builder.mutation({
+      query: ({color, id, name***REMOVED***: {color: string, id: number, name: string***REMOVED***) => ({
+        url: '/gallery/insert',
+        method: 'POST',
+        body: {
+          coverColor: color,
+          coverId: id,
+          gaName: name
+***REMOVED***
+  ***REMOVED***),
+      invalidatesTags: ['album']
 ***REMOVED***)
   ***REMOVED***)
 ***REMOVED***)
 
 export const {
-  useGetAllAlbumsQuery
+  useGetAllAlbumsQuery,
+  useInsertAlbumMutation
 ***REMOVED*** = extendedAlbumApi
