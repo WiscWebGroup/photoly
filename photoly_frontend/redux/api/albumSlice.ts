@@ -28,7 +28,7 @@ const extendedAlbumApi = apiSlice.injectEndpoints({
   ***REMOVED***),
       invalidatesTags: ['album']
 ***REMOVED***),
-    renameAlbum: builder.mutation({
+    updateAlbum: builder.mutation({
       query: ({id, name, coverId, coverColor***REMOVED***: IAlbum) => ({
         url: '/gallery/update',
         method: 'POST',
@@ -48,5 +48,5 @@ export const {
   useGetAllAlbumsQuery,
   useInsertAlbumMutation,
   useDeleteAlbumMutation,
-  useRenameAlbumMutation
+  useUpdateAlbumMutation
 ***REMOVED*** = extendedAlbumApi
