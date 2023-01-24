@@ -1,6 +1,6 @@
 import {apiSlice***REMOVED*** from "./apiSlice";
 import { ServerInterface ***REMOVED*** from "../types/serverInterface";
-import { serverAlbum ***REMOVED*** from "../types/albumInterface";
+import { IAlbum, serverAlbum ***REMOVED*** from "../types/albumInterface";
 
 const extendedAlbumApi = apiSlice.injectEndpoints({
   endpoints: builder => ({
@@ -27,6 +27,19 @@ const extendedAlbumApi = apiSlice.injectEndpoints({
         method: 'POST'
   ***REMOVED***),
       invalidatesTags: ['album']
+***REMOVED***),
+    renameAlbum: builder.mutation({
+      query: ({id, name, coverId, coverColor***REMOVED***: IAlbum) => ({
+        url: '/gallery/update',
+        method: 'POST',
+        body: {
+          gaId: id,
+          gaName: name,
+          coverId,
+          coverColor
+***REMOVED***
+  ***REMOVED***),
+      invalidatesTags: ['album']
 ***REMOVED***)
   ***REMOVED***)
 ***REMOVED***)
@@ -34,5 +47,6 @@ const extendedAlbumApi = apiSlice.injectEndpoints({
 export const {
   useGetAllAlbumsQuery,
   useInsertAlbumMutation,
-  useDeleteAlbumMutation
+  useDeleteAlbumMutation,
+  useRenameAlbumMutation
 ***REMOVED*** = extendedAlbumApi
