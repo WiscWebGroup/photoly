@@ -9,10 +9,9 @@ import { HiOutlineAcademicCap ***REMOVED*** from "react-icons/hi";
 import { TbAlbum ***REMOVED*** from "react-icons/tb";
 import { ContextMenu ***REMOVED*** from "../ContextMenu"
 import AlbumContextMenu from "../contextMenus/AlbumContextMenu"
-import { useAlbumListUpdate ***REMOVED*** from "../contexts/AlbumContext";
 import { useAppDispatch, useAppSelector ***REMOVED*** from "../../redux/hooks";
 import { clearAlbum, setAlbum ***REMOVED*** from "../../redux/states/searchFilterSlice";
-import { useDeleteAlbumMutation, useRenameAlbumMutation ***REMOVED*** from "../../redux/api/albumSlice";
+import { useDeleteAlbumMutation, useUpdateAlbumMutation ***REMOVED*** from "../../redux/api/albumSlice";
 
 interface AlbumItemProps {
     id: number
@@ -29,12 +28,10 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
     const [isLoading, setIsLoading] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
     const [deleteAlbum, deleteStatus] = useDeleteAlbumMutation()
-    const [renameAlbum, renameStatus] = useRenameAlbumMutation()
+    const [updateAlbum, renameStatus] = useUpdateAlbumMutation()
 
     const { isOpen: isReOpen, onOpen: onReOpen, onClose: onReClose ***REMOVED*** = useDisclosure()
     const { isOpen: isIcOpen, onOpen: onIcOpen, onClose: onIcClose ***REMOVED*** = useDisclosure()
-
-    const { updateRequest ***REMOVED*** = useAlbumListUpdate()
 
     const albumId = useAppSelector((state) => state.searchFilter.albumId)
     const dispatch = useAppDispatch()
@@ -54,7 +51,7 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
         // setIsLoading(true)
         // updateRequest({id, name: newName, coverId, coverColor***REMOVED***)
         // setIsLoading(false)
-        renameAlbum({id, name: newName, coverId, coverColor***REMOVED***)
+        updateAlbum({id, name: newName, coverId, coverColor***REMOVED***)
         handleReClose()
 ***REMOVED***
 
@@ -66,9 +63,10 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
 
     const handleUpdateIcon = () => {
         if (coverId !== newCoverId || coverColor != newCoverColor) {
-            setIsLoading(true)
-            updateRequest({id, name, coverId: newCoverId, coverColor: newCoverColor***REMOVED***)
-            setIsLoading(false)
+            // setIsLoading(true)
+            // updateRequest({id, name, coverId: newCoverId, coverColor: newCoverColor***REMOVED***)
+            // setIsLoading(false)
+            updateAlbum({id, name, coverId: newCoverId, coverColor: newCoverColor***REMOVED***)
 ***REMOVED***
         handleIcClose()
 ***REMOVED***
@@ -91,7 +89,7 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
                     handleChangeIcon={onIcOpen***REMOVED***
                 />***REMOVED***
         >
-   ***REMOVED*****REMOVED***ref => (
+        ***REMOVED***ref => (
                 <Box ref={ref***REMOVED*** w="100%" position="relative" pl={4***REMOVED*** display="flex">
                     <Button 
                         variant="ghost" 
@@ -103,10 +101,10 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
                         // onClick={() => searchUpdateDispatch({type: "set_album", payload: id***REMOVED***)***REMOVED***
                         onClick={handleAlbumClick***REMOVED***
                     >
-     ***REMOVED*****REMOVED*****REMOVED*****REMOVED***name***REMOVED***
+                    ***REMOVED***name***REMOVED***
                     </Button>
 
- ***REMOVED*****REMOVED*****REMOVED*****REMOVED***/* rename popover***REMOVED******REMOVED***
+                ***REMOVED***/* rename popover***REMOVED******REMOVED***
                     <Popover
                         isOpen={isReOpen***REMOVED***
                         initialFocusRef={inputRef***REMOVED***
@@ -141,7 +139,7 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
                         </PopoverContent>
                     </Popover>
 
- ***REMOVED*****REMOVED*****REMOVED*****REMOVED***/* icon popover***REMOVED******REMOVED***
+                ***REMOVED***/* icon popover***REMOVED******REMOVED***
                     <Popover
                         isOpen={isIcOpen***REMOVED***
                         initialFocusRef={inputRef***REMOVED***
