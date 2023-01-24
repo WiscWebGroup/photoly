@@ -12,7 +12,7 @@ import AlbumContextMenu from "../contextMenus/AlbumContextMenu"
 import { useAlbumListUpdate ***REMOVED*** from "../contexts/AlbumContext";
 import { useAppDispatch, useAppSelector ***REMOVED*** from "../../redux/hooks";
 import { clearAlbum, setAlbum ***REMOVED*** from "../../redux/states/searchFilterSlice";
-import {useDeleteAlbumMutation***REMOVED*** from "../../redux/api/albumSlice";
+import { useDeleteAlbumMutation, useRenameAlbumMutation ***REMOVED*** from "../../redux/api/albumSlice";
 
 interface AlbumItemProps {
     id: number
@@ -28,12 +28,13 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
     const [isError, setIsError] = useState(true)
     const [isLoading, setIsLoading] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
-    const [deleteAlbum, _] = useDeleteAlbumMutation()
+    const [deleteAlbum, deleteStatus] = useDeleteAlbumMutation()
+    const [renameAlbum, renameStatus] = useRenameAlbumMutation()
 
     const { isOpen: isReOpen, onOpen: onReOpen, onClose: onReClose ***REMOVED*** = useDisclosure()
     const { isOpen: isIcOpen, onOpen: onIcOpen, onClose: onIcClose ***REMOVED*** = useDisclosure()
 
-    const { updateRequest, deleteRequest ***REMOVED*** = useAlbumListUpdate()
+    const { updateRequest ***REMOVED*** = useAlbumListUpdate()
 
     const albumId = useAppSelector((state) => state.searchFilter.albumId)
     const dispatch = useAppDispatch()
@@ -50,9 +51,10 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
 ***REMOVED***
 
     const handleRename = () => {
-        setIsLoading(true)
-        updateRequest({id, name: newName, coverId, coverColor***REMOVED***)
-        setIsLoading(false)
+        // setIsLoading(true)
+        // updateRequest({id, name: newName, coverId, coverColor***REMOVED***)
+        // setIsLoading(false)
+        renameAlbum({id, name: newName, coverId, coverColor***REMOVED***)
         handleReClose()
 ***REMOVED***
 

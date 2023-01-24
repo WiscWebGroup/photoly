@@ -6,3 +6,10 @@ export interface serverAlbum {
   gaName: string
   userId: number
 ***REMOVED***
+
+export interface IAlbum {
+  id: number
+  name: string
+  coverId: number
+  coverColor: string
+***REMOVED***
