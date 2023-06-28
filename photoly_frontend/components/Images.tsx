@@ -150,7 +150,7 @@ const Images: React.FC = () => {
     >
   ***REMOVED***(ref) => (
         <Box ref={ref***REMOVED*** w="100%" h="100%">
- ***REMOVED*****REMOVED***searchData.folders.length > 0 && (<Text
+      ***REMOVED***searchData.folders.length > 0 && (<Text
             alignSelf={"flex-start"***REMOVED***
             fontSize={"xl"***REMOVED***
             fontWeight={"semibold"***REMOVED***
@@ -160,7 +160,7 @@ const Images: React.FC = () => {
           </Text>)***REMOVED***
 
           <Flex w={"100%"***REMOVED*** justifyContent={"flex-start"***REMOVED*** wrap={"wrap"***REMOVED***>
-   ***REMOVED*****REMOVED***searchData.folders.map((folder, index) => {
+        ***REMOVED***searchData.folders.map((folder, index) => {
               return (
                 <FolderItem
                   key={index***REMOVED***
@@ -180,7 +180,7 @@ const Images: React.FC = () => {
             Images
           </Text>
           <Flex w={"100%"***REMOVED*** justifyContent={"flex-start"***REMOVED*** wrap={"wrap"***REMOVED***>
-   ***REMOVED*****REMOVED***searchData.photos.map((photo, ind) => (
+        ***REMOVED***searchData.photos.map((photo, ind) => (
               <ImageItem
                 key={ind***REMOVED***
                 src={`/photo/renderThumbnail/${token***REMOVED***?photoId=${photo.id***REMOVED***`***REMOVED***
@@ -196,7 +196,7 @@ const Images: React.FC = () => {
             ))***REMOVED***
           </Flex>
 
- ***REMOVED*****REMOVED***/* upload modal***REMOVED******REMOVED***
+      ***REMOVED***/* upload modal***REMOVED******REMOVED***
           <Modal isOpen={isUpOpen***REMOVED*** onClose={handleRestFile***REMOVED***>
             <ModalOverlay />
             <ModalContent>
@@ -215,7 +215,7 @@ const Images: React.FC = () => {
                 <Button
                   colorScheme="teal"
                   mr={3***REMOVED***
-                  // onClick={handleUpload***REMOVED***
+                  onClick={handleUpload***REMOVED***
                   isLoading={isLoading***REMOVED***
                 >
                   Upload
@@ -227,7 +227,7 @@ const Images: React.FC = () => {
             </ModalContent>
           </Modal>
 
- ***REMOVED*****REMOVED***/* create modal***REMOVED******REMOVED***
+      ***REMOVED***/* create modal***REMOVED******REMOVED***
           <Modal isOpen={isCrOpen***REMOVED*** onClose={handleResetCreation***REMOVED***>
             <ModalOverlay />
             <ModalContent>
@@ -239,7 +239,7 @@ const Images: React.FC = () => {
                   placeholder="New folder name"
                   onChange={handleNewFolderName***REMOVED***
                 />
-  ***REMOVED*****REMOVED*****REMOVED***isError && (
+            ***REMOVED***isError && (
                   <Text fontSize="sm" color="red">
                     Folder name must not be empty or &quot;/&quot;
                   </Text>
@@ -249,7 +249,7 @@ const Images: React.FC = () => {
                 <Button
                   colorScheme="teal"
                   mr={3***REMOVED***
-                  // onClick={handleCreate***REMOVED***
+                  onClick={handleCreate***REMOVED***
                   disabled={isError***REMOVED***
                   isLoading={isLoading***REMOVED***
                 >
