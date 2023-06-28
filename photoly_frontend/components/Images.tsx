@@ -69,34 +69,34 @@ const Images: React.FC = () => {
     onUpClose();
   ***REMOVED***;
 
-  // const handleUpload = async () => {
-  //   setIsLoading(true);
-  //   const formData = new FormData();
-  //   for (const file of files) formData.append("files", file);
-  //   const part = JSON.stringify({
-  //     nsId: searchData.current.id,
-  //     visibility: 1,
-  //   ***REMOVED***);
-  //   const photosStr = Array(files.length).fill(part);
-  //   const response = await post("/photo/inserts", formData, {
-  //     headers: { "HRD-token": token ***REMOVED***,
-  //     params: { photosStr: "[" + photosStr + "]" ***REMOVED***,
-  //   ***REMOVED***);
-  //
-  //   if (!!response && response.data && response.data.msgCode === 200) {
-  //     openFolder(searchData.current.id);
-  //   ***REMOVED*** else {
-  //     toast({
-  //       title: "Failed to upload the photo",
-  //       status: "error",
-  //       isClosable: true,
-  //       position: "top",
-  // ***REMOVED***);
-  //   ***REMOVED***
-  //
-  //   setIsLoading(false);
-  //   handleRestFile();
-  // ***REMOVED***;
+   const handleUpload = async () => {
+     setIsLoading(true);
+     const formData = new FormData();
+     for (const file of files) formData.append("files", file);
+     const part = JSON.stringify({
+       nsId: searchData.current.id,
+       visibility: 1,
+ ***REMOVED***);
+     const photosStr = Array(files.length).fill(part);
+     const response = await post("/photo/inserts", formData, {
+       headers: { "HRD-token": token ***REMOVED***,
+       params: { photosStr: "[" + photosStr + "]" ***REMOVED***,
+ ***REMOVED***);
+  
+     if (!!response && response.data && response.data.msgCode === 200) {
+       openFolder(searchData.current.id);
+ ***REMOVED*** else {
+       toast({
+         title: "Failed to upload the photo",
+         status: "error",
+         isClosable: true,
+         position: "top",
+   ***REMOVED***);
+ ***REMOVED***
+  
+     setIsLoading(false);
+     handleRestFile();
+   ***REMOVED***;
 
   const handleNewFolderName = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.currentTarget.value;
@@ -110,32 +110,32 @@ const Images: React.FC = () => {
     onCrClose();
   ***REMOVED***;
 
-  // const handleCreate = async () => {
-  //   setIsLoading(true);
-  //   const response = await post(
-  //     "/namespace/insert",
-  // ***REMOVED***
-  //       nsParentId: searchData.current.id,
-  //       nsName: folderName,
-  // ***REMOVED***,
-  // ***REMOVED***
-  //       headers: { "HRD-token": token ***REMOVED***,
-  // ***REMOVED***
-  //   );
-  //
-  //   if (!!response && response.data && response.data.msgCode === 200) {
-  //     openFolder(searchData.current.id);
-  //   ***REMOVED*** else {
-  //     toast({
-  //       title: `Failed to create a new folder named ${folderName***REMOVED***`,
-  //       status: "error",
-  //       isClosable: true,
-  //       position: "top",
-  // ***REMOVED***);
-  //   ***REMOVED***
-  //   setIsLoading(false);
-  //   handleResetCreation();
-  // ***REMOVED***;
+   const handleCreate = async () => {
+     setIsLoading(true);
+     const response = await post(
+       "/namespace/insert",
+   ***REMOVED***
+         nsParentId: searchData.current.id,
+         nsName: folderName,
+   ***REMOVED***,
+   ***REMOVED***
+         headers: { "HRD-token": token ***REMOVED***,
+   ***REMOVED***
+     );
+  
+     if (!!response && response.data && response.data.msgCode === 200) {
+       openFolder(searchData.current.id);
+ ***REMOVED*** else {
+       toast({
+         title: `Failed to create a new folder named ${folderName***REMOVED***`,
+         status: "error",
+         isClosable: true,
+         position: "top",
+   ***REMOVED***);
+ ***REMOVED***
+     setIsLoading(false);
+     handleResetCreation();
+   ***REMOVED***;
 
   // const refresh = () => {
   //   openFolder(searchData.current.id);
