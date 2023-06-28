@@ -153,12 +153,12 @@
 ***REMOVED***
 ***REMOVED***
 ***REMOVED***
-***REMOVED***
+        String content = "***REMOVED***";
 ***REMOVED***
 ***REMOVED***
 
 ***REMOVED***
-***REMOVED***
+        String encryptedText = "/***REMOVED***/***REMOVED***";
 ***REMOVED***
 
 ***REMOVED***
