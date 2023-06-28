@@ -19,6 +19,7 @@ import useApi from "../hooks/useApi";
 import useToken from "../hooks/useToken";
 import { ContextMenu ***REMOVED*** from "./ContextMenu";
 import PanelContextMenu from "./contextMenus/PanelContextMenu";
+import { useOpenFolder, useSearchData ***REMOVED*** from "./contexts/SearchContext";
 import FolderItem from "./items/FolderItem";
 
 import ImageItem from "./items/ImageItem";
@@ -46,7 +47,7 @@ const Images: React.FC = () => {
   const token = useToken();
   const { post ***REMOVED*** = useApi();
   const toast = useToast();
-  // const openFolder = useOpenFolder();
+  const openFolder = useOpenFolder();
 
   const searchData = useGlobalSearch();
 
