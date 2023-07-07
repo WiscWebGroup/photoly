@@ -34,10 +34,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-***REMOVED***
+/**
  * @Author: Harold澂冰
  * @Date: 2022/7/15 15:28
-***REMOVED***
+ */
 @Service
 public class AdminServiceImpl implements IAdminService, ApplicationContextAware {
 
@@ -56,19 +56,19 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
     @Resource
     SettingMapper settingMapper;
 
-    @Value("${spring.redis.host***REMOVED***")
+    @Value("${spring.redis.host}")
     String redisHost;
 
-    @Value("${spring.redis.port***REMOVED***")
+    @Value("${spring.redis.port}")
     String redisPort;
 
-    @Value("${spring.redis.password***REMOVED***")
+    @Value("${spring.redis.password}")
     String redisPass;
 
-    @Value("${spring.datasource.url***REMOVED***")
+    @Value("${spring.datasource.url}")
     String mysqlUrl;
 
-    @Value("${file.uploadFolder***REMOVED***")
+    @Value("${file.uploadFolder}")
     String uploadFolder;
 
     private ApplicationContext context;
@@ -76,7 +76,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.context = applicationContext;
-***REMOVED***
+    }
 
 
     @Override
@@ -89,7 +89,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         if (user.getRole().equals("admin"))
             return Boolean.TRUE;
         return Boolean.FALSE;
-***REMOVED***
+    }
 
     @Override
     public Integer pingMySQL(Integer adminId) {
@@ -102,7 +102,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         if (setting == null || setting.getSettingValue() == null || !setting.getSettingValue().equals("pong"))
             return -1;
         return 1;
-***REMOVED***
+    }
 
     @Override
     public Integer pingRedis(Integer adminId) {
@@ -114,21 +114,21 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         String ping = jedis.ping();
         if (ping.equalsIgnoreCase("PONG")) {
             return 1;
-***REMOVED***
+        }
         return -1;
-***REMOVED***
+    }
 
     @Override
     public LinkedHashMap<String, String> getAddress(Integer adminId) {
         boolean isAdmin = isAdmin(adminId);
         if (!isAdmin)
-    ***REMOVED***
+            return null;
         Pattern pattern = Pattern.compile("//(.*?)/");
         Matcher matcher = pattern.matcher(mysqlUrl);
         String mysqlAddress = "";
         while (matcher.find()) {
             mysqlAddress = matcher.group(1);
-***REMOVED***
+        }
         String redisAddress = redisHost + ":" + redisPort;
         String configAddress = "MySQL: <setting> table";
         String upload = uploadFolder;
@@ -138,7 +138,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         map.put("upload", upload);
         map.put("config", configAddress);
         return map;
-***REMOVED***
+    }
 
     @Override
     public LinkedHashMap<String, String> getSettings(Integer adminId) {
@@ -148,7 +148,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         for (Setting setting : settings)
             map.put(setting.getSettingName(), setting.getSettingValue());
         return map;
-***REMOVED***
+    }
 
     @Override
     public Integer stopServer(Integer adminId) {
@@ -157,7 +157,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
             return -2;
         ((ConfigurableApplicationContext) context).close();
         return 1;
-***REMOVED***
+    }
 
     @Override
     public Integer setSignUpPermission(Integer adminId, Integer permission) {
@@ -168,7 +168,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         updateWrapper.eq("setting_name", "SignUp");
         updateWrapper.set("setting_value", String.valueOf(permission));
         return settingMapper.update(null, updateWrapper);
-***REMOVED***
+    }
 
     @Override
     public Integer setSSafeUUIDMode(Integer adminId, Integer mode) {
@@ -179,7 +179,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         updateWrapper.eq("setting_name", "SSafeUUID");
         updateWrapper.set("setting_value", String.valueOf(mode));
         return settingMapper.update(null, updateWrapper);
-***REMOVED***
+    }
 
     @Override
     public Integer setTokenDuration(Integer adminId, Integer days) {
@@ -190,7 +190,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         updateWrapper.eq("setting_name", "TokenDuration");
         updateWrapper.set("setting_value", String.valueOf(days));
         return settingMapper.update(null, updateWrapper);
-***REMOVED***
+    }
 
     @Override
     public ResultPage<List<User>> getUserPage(Integer adminId, Integer page, Integer rowsPerPage) {
@@ -201,7 +201,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         Page<User> userPage = new Page<>(page, rowsPerPage);
         IPage<User> users = userMapper.selectPage(userPage, wrapper);
         return new ResultPage<>(users.getRecords(), Math.toIntExact(users.getPages()), 200);
-***REMOVED***
+    }
 
     @Override
     public ResultPage<List<User>> searchUserPage(Integer adminId, String search, Integer page, Integer rowsPerPage) {
@@ -213,7 +213,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         Page<User> userPage = new Page<>(page, rowsPerPage);
         IPage<User> users = userMapper.selectPage(userPage, wrapper);
         return new ResultPage<>(users.getRecords(), Math.toIntExact(users.getPages()), 200);
-***REMOVED***
+    }
 
     @Override
     public Integer addUser(Integer adminId, User user) {
@@ -236,9 +236,9 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
             galleryService.insertGallery("My Favorite", id, "#FFFFFF");
             namespaceService.insertNamespace("/", -1, id);
             return 1;
-***REMOVED***
+        }
         return -1;
-***REMOVED***
+    }
 
     @Override
     public Integer deleteUser(Integer adminId, Integer userId) {
@@ -248,7 +248,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         if (userId == null)
             return -2;
         return userService.deleteAccount(adminId, userId);
-***REMOVED***
+    }
 
     @Override
     public Integer resetUserPassword(Integer adminId, User user) {
@@ -259,7 +259,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         updateWrapper.eq("user_id", user.getUserId());
         updateWrapper.set("password",AESUtil.aesEncryptStr(user.getPassword(), AESUtil.getPkey()));
         return userMapper.update(null, updateWrapper);
-***REMOVED***
+    }
 
     @Override
     public Integer resetUserEmail(Integer adminId, User user) {
@@ -275,7 +275,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         updateWrapper.eq("user_id", user.getUserId());
         updateWrapper.set("email", user.getEmail());
         return userMapper.update(null, updateWrapper);
-***REMOVED***
+    }
 
     @Override
     public Integer resetUserRole(Integer adminId, User user) {
@@ -288,7 +288,7 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         updateWrapper.eq("user_id", user.getUserId());
         updateWrapper.set("role", user.getRole());
         return userMapper.update(null, updateWrapper);
-***REMOVED***
+    }
 
     @Override
     public Integer resetUsername(Integer adminId, User user) {
@@ -301,35 +301,35 @@ public class AdminServiceImpl implements IAdminService, ApplicationContextAware 
         updateWrapper.eq("user_id", user.getUserId());
         updateWrapper.set("user_name", user.getUserName());
         return userMapper.update(null, updateWrapper);
-***REMOVED***
+    }
 
     @Override
     public String getGeneralSetting(Integer adminId, String name) {
         boolean isAdmin = isAdmin(adminId);
         if (isAdmin)
-    ***REMOVED***
+        {
             QueryWrapper<Setting> queryWrapper = new QueryWrapper<>();
             queryWrapper.eq("setting_name", name);
             return settingMapper.selectOne(queryWrapper).getSettingValue();
-***REMOVED***else
-    ***REMOVED***
-    ***REMOVED***
-***REMOVED***
-***REMOVED***
+        }else
+        {
+            return null;
+        }
+    }
 
     @Override
     public Integer setGeneralSetting(Integer adminId, String name, String val) {
         boolean isAdmin = isAdmin(adminId);
         if (isAdmin)
-    ***REMOVED***
+        {
             UpdateWrapper<Setting> updateWrapper = new UpdateWrapper<>();
             updateWrapper.eq("setting_name", name);
             updateWrapper.set("setting_value", val);
             return settingMapper.update(null, updateWrapper);
-***REMOVED***else
-    ***REMOVED***
+        }else
+        {
             return -1;
-***REMOVED***
-***REMOVED***
+        }
+    }
 
-***REMOVED***
+}

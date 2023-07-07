@@ -24,14 +24,14 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 
-***REMOVED***
+/**
  * <p>
  *  服务实现类
  * </p>
  *
  * @author HaroldCI
  * @since 2022-06-24
-***REMOVED***
+ */
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
 
@@ -47,7 +47,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Resource
     TagMapper tagMapper;
 
-    @Value("${file.uploadFolder***REMOVED***")
+    @Value("${file.uploadFolder}")
     String uploadFolder;
 
     @Override
@@ -55,14 +55,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         QueryWrapper<User> wrapper = new QueryWrapper<>();
         wrapper.eq("email", email);
         return mapper.selectList(wrapper);
-***REMOVED***
+    }
 
     @Override
     public User selectUserByEmail(String email) {
         QueryWrapper<User> wrapper = new QueryWrapper<>();
         wrapper.eq("email", email);
         return mapper.selectOne(wrapper);
-***REMOVED***
+    }
 
     @Override
     public User selectUserToLogin(User user) {
@@ -72,7 +72,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         wrapper.eq("password", password);
         wrapper.eq("email", email);
         return mapper.selectOne(wrapper);
-***REMOVED***
+    }
 
     @Override
     public Integer updateUsername(Integer userId, String username) {
@@ -80,7 +80,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         updateWrapper.eq("user_id", userId);
         updateWrapper.set("user_name", username);
         return mapper.update(null, updateWrapper);
-***REMOVED***
+    }
 
     @Override
     public Integer updateEmail(Integer userId, String email) {
@@ -94,7 +94,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         updateWrapper.eq("user_id", userId);
         updateWrapper.set("email", email);
         return mapper.update(null, updateWrapper);
-***REMOVED***
+    }
 
     @Override
     public Integer updatePassword(Integer userId, String oldPass, String newPass) {
@@ -109,7 +109,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         updateWrapper.eq("user_id", userId);
         updateWrapper.set("password", AESUtil.aesEncryptStr(newPass, AESUtil.getPkey()));
         return mapper.update(null, updateWrapper);
-***REMOVED***
+    }
 
     @Override
     public Integer updateAvatar(Integer userId, MultipartFile img) {
@@ -119,28 +119,28 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         if (!folderDir.exists())
             folderDir.mkdir();
         File file = new File(uploadFolder + System.getProperty("file.separator") + uuid + System.getProperty("file.separator") + uuid + ".jpg");
-***REMOVED***
+        try {
             img.transferTo(file);
             return 1;
-***REMOVED*** catch (IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
-***REMOVED***
-***REMOVED***
+        }
+    }
 
     @Override
     public byte[] getAvatar(Integer userId) {
         String uuid = mapper.selectById(userId).getUuid();
         File file = new File(uploadFolder + System.getProperty("file.separator") + uuid + System.getProperty("file.separator") + uuid + ".jpg");
         FileInputStream inputStream = null;
-***REMOVED***
+        try {
             inputStream = new FileInputStream(file);
             byte[] bytes = new byte[inputStream.available()];
             inputStream.read(bytes, 0, inputStream.available());
             return bytes;
-***REMOVED*** catch (IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
-***REMOVED***
-***REMOVED***
+        }
+    }
 
     @Override
     public Integer deleteAccount(Integer operatorId, Integer deleteUserId) {
@@ -151,7 +151,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         User goodbye_and_good_luck = mapper.selectById(deleteUserId);
 
         if (operator!= null && (operator.getUserId().equals(deleteUserId) || operator.getRole().equals("admin")))
-    ***REMOVED***
+        {
             // Delete Namespace
             String UUID = goodbye_and_good_luck.getUuid();
             Namespace root = namespaceService.queryRootNamespace(deleteUserId);
@@ -167,8 +167,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             // Delete Account
             int deleteUser = mapper.deleteById(deleteUserId);
             return deleteNamespace + deleteTag + deleteGallery + deleteUser;
-***REMOVED***else{
+        }else{
             return -2;
-***REMOVED***
-***REMOVED***
-***REMOVED***
+        }
+    }
+}

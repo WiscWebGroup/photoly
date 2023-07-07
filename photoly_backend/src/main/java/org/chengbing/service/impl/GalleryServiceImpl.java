@@ -16,14 +16,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
-***REMOVED***
+/**
  * <p>
  *  服务实现类
  * </p>
  *
  * @author HaroldCI
  * @since 2022-06-24
-***REMOVED***
+ */
 @Service
 public class GalleryServiceImpl extends ServiceImpl<GalleryMapper, Gallery> implements IGalleryService {
 
@@ -37,14 +37,14 @@ public class GalleryServiceImpl extends ServiceImpl<GalleryMapper, Gallery> impl
         gallery.setUserId(userId);
         gallery.setCoverColor(color);
         return mapper.insert(gallery);
-***REMOVED***
+    }
 
     @Override
     public List<Gallery> queryGallery(Integer userId) {
         QueryWrapper<Gallery> wrapper = new QueryWrapper<>();
         wrapper.eq("user_id", userId);
         return mapper.selectList(wrapper);
-***REMOVED***
+    }
 
     @Override
     public ResultPage<List<Gallery>> queryGalleryPage(Integer userId, Integer page, Integer rowsPerPage) {
@@ -53,7 +53,7 @@ public class GalleryServiceImpl extends ServiceImpl<GalleryMapper, Gallery> impl
         Page<Gallery> galleryPage = new Page<>(page, rowsPerPage);
         IPage<Gallery> galleries = mapper.selectPage(galleryPage, wrapper);
         return new ResultPage<>(galleries.getRecords(), Math.toIntExact(galleries.getPages()), 200);
-***REMOVED***
+    }
 
     @Override
     public Integer deleteGallery(Integer userId, Integer gaId) {
@@ -64,7 +64,7 @@ public class GalleryServiceImpl extends ServiceImpl<GalleryMapper, Gallery> impl
         if (gallery != null && Objects.equals(gallery.getGaId(), gaId) && Objects.equals(gallery.getUserId(), userId))
             return mapper.deleteById(gaId);
         return -1;
-***REMOVED***
+    }
 
     @Override
     public Integer updateGallery(Integer userId, Integer gaId, Gallery gallery) {
@@ -73,14 +73,14 @@ public class GalleryServiceImpl extends ServiceImpl<GalleryMapper, Gallery> impl
         wrapper.eq("user_id", userId);
         Gallery selectGallery = mapper.selectOne(wrapper);
         if (selectGallery != null && Objects.equals(selectGallery.getGaId(), gaId) && Objects.equals(selectGallery.getUserId(), userId))
-    ***REMOVED***
+        {
             UpdateWrapper<Gallery> updateWrapper = new UpdateWrapper<>();
             updateWrapper.eq("ga_id", gaId);
             updateWrapper.set("ga_name", gallery.getGaName());
             updateWrapper.set("cover_color", gallery.getCoverColor());
             updateWrapper.set("cover_id", gallery.getCoverId());
             return mapper.update(null, updateWrapper);
-***REMOVED***
+        }
         return -1;
-***REMOVED***
-***REMOVED***
+    }
+}

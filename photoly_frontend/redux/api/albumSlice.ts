@@ -1,6 +1,6 @@
-import {apiSlice***REMOVED*** from "./apiSlice";
-import { ServerInterface ***REMOVED*** from "../types/serverInterface";
-import { IAlbum, serverAlbum ***REMOVED*** from "../types/albumInterface";
+import {apiSlice} from "./apiSlice";
+import { ServerInterface } from "../types/serverInterface";
+import { IAlbum, serverAlbum } from "../types/albumInterface";
 
 const extendedAlbumApi = apiSlice.injectEndpoints({
   endpoints: builder => ({
@@ -8,28 +8,28 @@ const extendedAlbumApi = apiSlice.injectEndpoints({
       query: () => '/gallery/getAll',
       transformResponse: (response: ServerInterface<serverAlbum[]>) => response.t,
       providesTags: ['album']
-***REMOVED***),
+    }),
     insertAlbum: builder.mutation({
-      query: ({color, id, name***REMOVED***: {color: string, id: number, name: string***REMOVED***) => ({
+      query: ({color, id, name}: {color: string, id: number, name: string}) => ({
         url: '/gallery/insert',
         method: 'POST',
         body: {
           coverColor: color,
           coverId: id,
           gaName: name
-***REMOVED***
-  ***REMOVED***),
+        }
+      }),
       invalidatesTags: ['album']
-***REMOVED***),
+    }),
     deleteAlbum: builder.mutation({
       query: (album_id: number) => ({
-        url: `/gallery/delete?gaId=${album_id***REMOVED***`,
+        url: `/gallery/delete?gaId=${album_id}`,
         method: 'POST'
-  ***REMOVED***),
+      }),
       invalidatesTags: ['album']
-***REMOVED***),
+    }),
     updateAlbum: builder.mutation({
-      query: ({id, name, coverId, coverColor***REMOVED***: IAlbum) => ({
+      query: ({id, name, coverId, coverColor}: IAlbum) => ({
         url: '/gallery/update',
         method: 'POST',
         body: {
@@ -37,16 +37,16 @@ const extendedAlbumApi = apiSlice.injectEndpoints({
           gaName: name,
           coverId,
           coverColor
-***REMOVED***
-  ***REMOVED***),
+        }
+      }),
       invalidatesTags: ['album']
-***REMOVED***)
-  ***REMOVED***)
-***REMOVED***)
+    })
+  })
+})
 
 export const {
   useGetAllAlbumsQuery,
   useInsertAlbumMutation,
   useDeleteAlbumMutation,
   useUpdateAlbumMutation
-***REMOVED*** = extendedAlbumApi
+} = extendedAlbumApi

@@ -8,6 +8,6 @@ class PhotoletApplicationTests {
 
     @Test
     void contextLoads() {
-***REMOVED***
+    }
 
-***REMOVED***
+}

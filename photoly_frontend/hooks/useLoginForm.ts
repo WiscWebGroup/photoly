@@ -1,5 +1,5 @@
-import {ChangeEvent, useState***REMOVED*** from "react";
-import {NextRouter, useRouter***REMOVED*** from "next/router";
+import {ChangeEvent, useState} from "react";
+import {NextRouter, useRouter} from "next/router";
 
 const useLoginForm = (): [
     username: string | undefined,
@@ -18,6 +18,6 @@ const useLoginForm = (): [
     const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => setEmail(event.currentTarget.value)
     const handlePasswordChange = (event: ChangeEvent<HTMLInputElement>) => setPassword(event.currentTarget.value)
     return [username, email, password, handleUsernameChange, handleEmailChange, handlePasswordChange, router]
-***REMOVED***
+}
 
 export default useLoginForm

@@ -1,68 +1,68 @@
-import { AddIcon ***REMOVED*** from "@chakra-ui/icons"
-import { Box, Button, ButtonGroup, FormControl, FormLabel, HStack, Icon, IconButton, Input, Popover, PopoverArrow, PopoverCloseButton, PopoverContent, PopoverTrigger, Stack, Text, useDisclosure ***REMOVED*** from "@chakra-ui/react"
-import { ChangeEvent, ReactNode, useRef, useState ***REMOVED*** from "react"
-import { IconType ***REMOVED*** from "react-icons"
-import {useInsertTagMutation***REMOVED*** from "../redux/api/tagSlice";
+import { AddIcon } from "@chakra-ui/icons"
+import { Box, Button, ButtonGroup, FormControl, FormLabel, HStack, Icon, IconButton, Input, Popover, PopoverArrow, PopoverCloseButton, PopoverContent, PopoverTrigger, Stack, Text, useDisclosure } from "@chakra-ui/react"
+import { ChangeEvent, ReactNode, useRef, useState } from "react"
+import { IconType } from "react-icons"
+import {useInsertTagMutation} from "../redux/api/tagSlice";
 
 interface TagHeaderProps {
     headerIcon?: IconType
     iconColor?: string
     children?: ReactNode
-***REMOVED***
+}
 
-const TagHeader = ({headerIcon, iconColor, children***REMOVED***: TagHeaderProps) => {
+const TagHeader = ({headerIcon, iconColor, children}: TagHeaderProps) => {
     const inputRef = useRef(null)
     const [tag, setTag] = useState<string>("")
     const [isDisabled, setIsDisabled] = useState(true)  // control submit button
-    const { isOpen, onOpen, onClose ***REMOVED*** = useDisclosure()  // control popover
+    const { isOpen, onOpen, onClose } = useDisclosure()  // control popover
     const [insert, _] = useInsertTagMutation()
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         const str = e.currentTarget.value
         setTag(str);
         setIsDisabled(str.length === 0)
-***REMOVED***
+    }
 
     const handleClose = () => {
         setTag("")
         onClose()
-***REMOVED***
+    }
 
     const handleInsert = () => {
         insert(tag)
         handleClose()
-***REMOVED***
+    }
 
     return (
-        <Box style={{width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center'***REMOVED******REMOVED***>
+        <Box style={{width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
             <HStack>
-                <Icon as={headerIcon***REMOVED*** color={iconColor***REMOVED*** />
-                <Text>{children***REMOVED***</Text>
+                <Icon as={headerIcon} color={iconColor} />
+                <Text>{children}</Text>
             </HStack>
             <Popover
-                isOpen={isOpen***REMOVED***
-                initialFocusRef={inputRef***REMOVED***
-                onOpen={onOpen***REMOVED***
-                onClose={handleClose***REMOVED***
+                isOpen={isOpen}
+                initialFocusRef={inputRef}
+                onOpen={onOpen}
+                onClose={handleClose}
                 placement='auto'
-                closeOnBlur={false***REMOVED***
+                closeOnBlur={false}
             >
                 <PopoverTrigger>
-                    <IconButton variant="unstyled" size="xs" aria-label="Add tag" icon={<AddIcon />***REMOVED*** />
+                    <IconButton variant="unstyled" size="xs" aria-label="Add tag" icon={<AddIcon />} />
                 </PopoverTrigger>
-                <PopoverContent p={5***REMOVED***>
+                <PopoverContent p={5}>
                     <PopoverArrow />
                     <PopoverCloseButton />
-                    <Stack spacing={4***REMOVED***>
+                    <Stack spacing={4}>
                         <FormControl>
                             <FormLabel>New Tag</FormLabel>
-                            <Input size='sm' ref={inputRef***REMOVED*** onChange={handleChange***REMOVED*** />
+                            <Input size='sm' ref={inputRef} onChange={handleChange} />
                         </FormControl>
                         <ButtonGroup display='flex' justifyContent='flex-end'>
-                            <Button size='sm' variant='outline' onClick={handleClose***REMOVED***>
+                            <Button size='sm' variant='outline' onClick={handleClose}>
                                 Cancel
                             </Button>
-                            <Button size='sm' isDisabled={isDisabled***REMOVED*** onClick={handleInsert***REMOVED*** colorScheme='teal'>
+                            <Button size='sm' isDisabled={isDisabled} onClick={handleInsert} colorScheme='teal'>
                                 Save
                             </Button>
                         </ButtonGroup>
@@ -71,6 +71,6 @@ const TagHeader = ({headerIcon, iconColor, children***REMOVED***: TagHeaderProps
             </Popover>
         </Box>
     )
-***REMOVED***
+}
 
 export default TagHeader

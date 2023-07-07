@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useEffect, useState ***REMOVED*** from "react"
+import { createContext, ReactNode, useContext, useEffect, useState } from "react"
 import useApi from "../../hooks/useApi"
 import useToken from "../../hooks/useToken"
 
@@ -6,20 +6,20 @@ interface IPhoto {
     id: number
     name: string
     visibility: boolean
-***REMOVED***
+}
 
 interface INamespace {
     id: number
     name: string
     parentId: number
     userId: number
-***REMOVED***
+}
 
 interface IPanelData {
     current: INamespace
     children: INamespace[]
     photos: IPhoto[]
-***REMOVED***
+}
 
 const initPanelData: IPanelData = {
     current: {
@@ -27,24 +27,24 @@ const initPanelData: IPanelData = {
         name: "/",
         parentId: -1,
         userId: -1
-***REMOVED***,
+    },
     children: [],
     photos: []
-***REMOVED***
+}
 
 const PanelDataContext = createContext(initPanelData)
 
 export const usePanelDataContext = () => useContext(PanelDataContext)
 
-const PanelContextProvider = ({ children ***REMOVED***: { children?: ReactNode ***REMOVED***) => {
+const PanelContextProvider = ({ children }: { children?: ReactNode }) => {
     const token = useToken()
-    const { get ***REMOVED*** = useApi()
+    const { get } = useApi()
     const [panelData, setPanelData] = useState(initPanelData)
 
     const getRootPanelData = async () => {
         const response = await get("/namespace/getRoot", {
-            headers: { "HRD-token": token ***REMOVED***,
-***REMOVED***)
+            headers: { "HRD-token": token },
+        })
 
         if (!!response && response.data && response.data.msgCode === 200) {
             const data = response.data.t
@@ -54,17 +54,17 @@ const PanelContextProvider = ({ children ***REMOVED***: { children?: ReactNode *
                 name: data.nsName,
                 parentId: data.nsParentId,
                 userId: data.userId
-    ***REMOVED******REMOVED***))
+            }}))
 
             getChildrenNamespaces(data.nsId)
             getPhotos(data.nsId)
-***REMOVED***
-***REMOVED***
+        }
+    }
 
     const getChildrenNamespaces = async (parentId: number) => {
-        const response = await get(`/namespace/getChildren?parentId=${parentId***REMOVED***`, {
-            headers: { "HRD-token": token ***REMOVED***,
-***REMOVED***)
+        const response = await get(`/namespace/getChildren?parentId=${parentId}`, {
+            headers: { "HRD-token": token },
+        })
 
         if (!!response && response.data && response.data.msgCode == 200) {
             const data = response.data.t
@@ -76,17 +76,17 @@ const PanelContextProvider = ({ children ***REMOVED***: { children?: ReactNode *
                     name: ele.nsName,
                     parentId: ele.nsParentId,
                     userId: ele.userId
-   ***REMOVED*****REMOVED***)
-    ***REMOVED***)
+                })
+            })
 
-            setPanelData(prev => ({...prev, children: namespaces***REMOVED***))
-***REMOVED***
-***REMOVED***
+            setPanelData(prev => ({...prev, children: namespaces}))
+        }
+    }
 
     const getPhotos = async (nsId: number) => {
-        const response = await get(`/photo/getByNamespace?nsId=${nsId***REMOVED***`, {
-            headers: { "HRD-token": token ***REMOVED***,
-***REMOVED***)
+        const response = await get(`/photo/getByNamespace?nsId=${nsId}`, {
+            headers: { "HRD-token": token },
+        })
 
         if (!!response && response.data && response.data.msgCode == 200) {
             const data = response.data.t
@@ -97,24 +97,24 @@ const PanelContextProvider = ({ children ***REMOVED***: { children?: ReactNode *
                     id: ele.photoId,
                     name: ele.photoName,
                     visibility: ele.visibility
-   ***REMOVED*****REMOVED***)
-    ***REMOVED***)
+                })
+            })
 
-            setPanelData(prev => ({...prev, photos***REMOVED***))
-***REMOVED***
-***REMOVED***
+            setPanelData(prev => ({...prev, photos}))
+        }
+    }
 
     useEffect(() => {
         if (!!token) {
             getRootPanelData()
-***REMOVED***
-***REMOVED***, [token])
+        }
+    }, [token])
 
     return (
-        <PanelDataContext.Provider value={panelData***REMOVED***>
-        ***REMOVED***children***REMOVED***
+        <PanelDataContext.Provider value={panelData}>
+            {children}
         </PanelDataContext.Provider>
     )
-***REMOVED***
+}
 
 export default PanelContextProvider

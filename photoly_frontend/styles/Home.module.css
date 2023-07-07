@@ -1,6 +1,6 @@
 .container {
   padding: 0 2rem;
-***REMOVED***
+}
 
 .main {
   min-height: 100vh;
@@ -10,7 +10,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-***REMOVED***
+}
 
 .footer {
   display: flex;
@@ -19,42 +19,42 @@
   border-top: 1px solid #eaeaea;
   justify-content: center;
   align-items: center;
-***REMOVED***
+}
 
 .footer a {
   display: flex;
   justify-content: center;
   align-items: center;
   flex-grow: 1;
-***REMOVED***
+}
 
 .title a {
   color: #0070f3;
   text-decoration: none;
-***REMOVED***
+}
 
 .title a:hover,
 .title a:focus,
 .title a:active {
   text-decoration: underline;
-***REMOVED***
+}
 
 .title {
   margin: 0;
   line-height: 1.15;
   font-size: 4rem;
-***REMOVED***
+}
 
 .title,
 .description {
   text-align: center;
-***REMOVED***
+}
 
 .description {
   margin: 4rem 0;
   line-height: 1.5;
   font-size: 1.5rem;
-***REMOVED***
+}
 
 .code {
   background: #fafafa;
@@ -63,7 +63,7 @@
   font-size: 1.1rem;
   font-family: Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono,
     Bitstream Vera Sans Mono, Courier New, monospace;
-***REMOVED***
+}
 
 .grid {
   display: flex;
@@ -71,7 +71,7 @@
   justify-content: center;
   flex-wrap: wrap;
   max-width: 800px;
-***REMOVED***
+}
 
 .card {
   margin: 1rem;
@@ -83,34 +83,34 @@
   border-radius: 10px;
   transition: color 0.15s ease, border-color 0.15s ease;
   max-width: 300px;
-***REMOVED***
+}
 
 .card:hover,
 .card:focus,
 .card:active {
   color: #0070f3;
   border-color: #0070f3;
-***REMOVED***
+}
 
 .card h2 {
   margin: 0 0 1rem 0;
   font-size: 1.5rem;
-***REMOVED***
+}
 
 .card p {
   margin: 0;
   font-size: 1.25rem;
   line-height: 1.5;
-***REMOVED***
+}
 
 .logo {
   height: 1em;
   margin-left: 0.5rem;
-***REMOVED***
+}
 
 @media (max-width: 600px) {
   .grid {
     width: 100%;
     flex-direction: column;
-  ***REMOVED***
-***REMOVED***
+  }
+}

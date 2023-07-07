@@ -30,14 +30,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-***REMOVED***
+/**
  * <p>
  *  前端控制器
  * </p>
  *
  * @author HaroldCI
  * @since 2022-06-24
-***REMOVED***
+ */
 @RestController
 @RequestMapping("/user")
 public class UserController {
@@ -61,12 +61,12 @@ public class UserController {
 
     @PostMapping("/signUp")
     public ResultToken<String> signUp(@RequestBody User user)
-***REMOVED***
+    {
         QueryWrapper<Setting> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("setting_name", "SignUp");
         Setting setting = settingMapper.selectOne(queryWrapper);
         if (setting.getSettingValue().equals("1"))
-    ***REMOVED***
+        {
             String email = user.getEmail();
             if (email == null)
                 return new ResultToken<>("Email is null", null, 400);
@@ -86,18 +86,18 @@ public class UserController {
             Setting setting2 = settingMapper.selectOne(queryWrapper2);
 
             if (setting2.getSettingValue().equals("1"))
-        ***REMOVED***
+            {
                 boolean verified = false;
                 while (!verified)
-            ***REMOVED***
+                {
                     QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
                     userQueryWrapper.eq("uuid", userUUID);
                     if (service.list(userQueryWrapper).size() >= 1)
                         userUUID = UUID.randomUUID().toString();
                     else
                         verified = true;
-   ***REMOVED*****REMOVED***
-    ***REMOVED***
+                }
+            }
 
             user.setUuid(userUUID);
             if (service.selectUsers(user.getEmail()).size() > 0)
@@ -115,19 +115,19 @@ public class UserController {
 
                 template.opsForValue().set(token,id,Integer.parseInt(setting3.getSettingValue()), TimeUnit.DAYS);
                 return new ResultToken<>("Succeed", token, 200);
-    ***REMOVED***else
+            }else
                 return new ResultToken<>("Error Create User", null, 400);
-***REMOVED***else {
+        }else {
             return new ResultToken<>("Register is closed by Admin", null, 400);
-***REMOVED***
-***REMOVED***
+        }
+    }
 
     @PostMapping("/signIn")
     public ResultToken<String> signIn(@RequestBody User user)
-***REMOVED***
+    {
         User user1 = service.selectUserToLogin(user);
         if (user1!=null && user1.getUserId() != null && user1.getEmail() != null)
-    ***REMOVED***
+        {
             Integer userId = user1.getUserId();
             String token = UUID.randomUUID().toString();
 
@@ -137,22 +137,22 @@ public class UserController {
 
             template.opsForValue().set(token,userId,Integer.parseInt(setting3.getSettingValue()), TimeUnit.DAYS);
             return new ResultToken<>("Succeed", token, 200);
-***REMOVED***else{
+        }else{
             return new ResultToken<>("Invalid Email or Password", null, 400);
-***REMOVED***
-***REMOVED***
+        }
+    }
 
     @PostMapping("/signOut")
     public Result<Integer> signOut(HttpServletRequest request)
-***REMOVED***
+    {
         String key = request.getHeader("HRD-Token");
         template.delete(key);
         return new Result<>(1, 200);
-***REMOVED***
+    }
 
     @GetMapping("/getInfo")
     public Result<User> getInfo(HttpServletRequest request)
-***REMOVED***
+    {
         String key = request.getHeader("HRD-Token");
         if(key == null || key.equals(""))
             return new Result<>(null, 403);
@@ -161,18 +161,18 @@ public class UserController {
             return new Result<>(null, 403);
         User user = service.getById(id);
         if (user == null || user.getEmail() == null || user.getEmail().equals(""))
-    ***REMOVED***
+        {
             return new Result<>(null, 404);
-***REMOVED***else
-    ***REMOVED***
+        }else
+        {
             user.setPassword(null);
             return new Result<>(user, 200);
-***REMOVED***
-***REMOVED***
+        }
+    }
 
     @PostMapping("/updateUsername")
     public Result<Integer> updateUsername(HttpServletRequest request, String username)
-***REMOVED***
+    {
         if (username == null || username.equals(""))
             return  new Result<>(-1, 400);
         Integer userId = verify.verifyUser(request);
@@ -180,11 +180,11 @@ public class UserController {
             return new Result<>(null, 403);
         int change = service.updateUsername(userId, username);
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
-***REMOVED***
+    }
 
     @PostMapping("/updateEmail")
     public Result<Integer> updateEmail(HttpServletRequest request, String email)
-***REMOVED***
+    {
         if (email == null)
             return new Result<>(-1,  400);
         Pattern pattern = Pattern.compile(".+@.+\\..+");
@@ -196,45 +196,45 @@ public class UserController {
             return new Result<>(null, 403);
         int change = service.updateEmail(userId, email);
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
-***REMOVED***
+    }
 
     @PostMapping("/updatePassword")
     public Result<Integer> updatePassword(HttpServletRequest request, String oldPass, String newPass)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(null, 403);
         int change = service.updatePassword(userId, oldPass, newPass);
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
-***REMOVED***
+    }
 
     @PostMapping("/updateAvatar")
     public Result<Integer> updateAvatar(HttpServletRequest request, MultipartFile file)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(null, 403);
         int change = service.updateAvatar(userId, file);
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
-***REMOVED***
+    }
 
-    @GetMapping(value="/getAvatar/{token***REMOVED***", produces = MediaType.IMAGE_JPEG_VALUE)
+    @GetMapping(value="/getAvatar/{token}", produces = MediaType.IMAGE_JPEG_VALUE)
     public byte[] getAvatar(@PathVariable String token)
-***REMOVED***
+    {
         Integer userId = verify.verifyUserByToken(token);
         if (userId < 0)
-    ***REMOVED***
+            return null;
         return service.getAvatar(userId);
-***REMOVED***
+    }
 
     @GetMapping("/deleteUser")
     public Result<Integer> deleteUser(HttpServletRequest request)
-***REMOVED***
+    {
         Integer id = verify.verifyUser(request);
         if (id < 0)
             return new Result<>(null, 403);
         int res = service.deleteAccount(id, id);
         return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
-***REMOVED***
-***REMOVED***
+    }
+}
 

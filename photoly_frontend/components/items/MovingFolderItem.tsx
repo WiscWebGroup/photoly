@@ -1,4 +1,4 @@
-import { MinusIcon, AddIcon ***REMOVED*** from "@chakra-ui/icons";
+import { MinusIcon, AddIcon } from "@chakra-ui/icons";
 import {
   Accordion,
   AccordionItem,
@@ -12,9 +12,9 @@ import {
   Text,
   VStack,
   HStack,
-***REMOVED*** from "@chakra-ui/react";
-import React, { Dispatch, SetStateAction, useState, useEffect ***REMOVED*** from "react";
-import { AiOutlineFolderOpen ***REMOVED*** from "react-icons/ai";
+} from "@chakra-ui/react";
+import React, { Dispatch, SetStateAction, useState, useEffect } from "react";
+import { AiOutlineFolderOpen } from "react-icons/ai";
 import useApi from "../../hooks/useApi";
 import useToken from "../../hooks/useToken";
 
@@ -25,17 +25,17 @@ interface movingFolderProps {
   movingFolderId: number;
   setMovingFolderId: Dispatch<SetStateAction<number>>;
   setMovingFolderName: Dispatch<SetStateAction<string>>;
-***REMOVED***
+}
 
 interface Namespace {
   nsId: number;
   nsName: string;
   nsParentId: number;
-***REMOVED***
+}
 
 const MovingFolderItem = (props: movingFolderProps) => {
   const token = useToken();
-  const { post, get ***REMOVED*** = useApi();
+  const { post, get } = useApi();
   const toast = useToast();
   const [children, setChildren] = useState<Namespace[]>([]);
 
@@ -45,32 +45,32 @@ const MovingFolderItem = (props: movingFolderProps) => {
     if (props.currentFolderId === props.originalFolderId) setChildren([]);
     const response = await get(
       "/namespace/getChildren?parentId=" + props.currentFolderId,
-  ***REMOVED***
-        headers: { "HRD-token": token ***REMOVED***,
-  ***REMOVED***
+      {
+        headers: { "HRD-token": token },
+      }
     );
     if (!!response && response.data && response.data.msgCode === 200) {
       setChildren(response.data.t);
-***REMOVED*** else {
+    } else {
       toast({
         title: `Fail to Get Root`,
         status: "error",
         isClosable: true,
         position: "top",
-  ***REMOVED***);
-***REMOVED***
-  ***REMOVED***;
+      });
+    }
+  };
 
   useEffect(() => {
     var selected = props.movingFolderId === props.currentFolderId;
     setSelected(selected);
-  ***REMOVED***, [props.movingFolderId]);
+  }, [props.movingFolderId]);
 
   return (
     <div>
       <Accordion allowMultiple>
         <AccordionItem
-          isDisabled={props.currentFolderId === props.originalFolderId***REMOVED***
+          isDisabled={props.currentFolderId === props.originalFolderId}
         >
           <h2>
             <AccordionButton
@@ -78,39 +78,39 @@ const MovingFolderItem = (props: movingFolderProps) => {
                 getChildren();
                 props.setMovingFolderId(props.currentFolderId);
                 props.setMovingFolderName(props.currentFolderName);
- ***REMOVED*****REMOVED******REMOVED***
-              backgroundColor={selected ? "gray.200" : ""***REMOVED***
+              }}
+              backgroundColor={selected ? "gray.200" : ""}
             >
               <Box flex="1" textAlign="left">
                 <HStack>
                   <AiOutlineFolderOpen></AiOutlineFolderOpen>
-                  <Text fontSize={"sm"***REMOVED***>{props.currentFolderName***REMOVED***</Text>
+                  <Text fontSize={"sm"}>{props.currentFolderName}</Text>
                 </HStack>
               </Box>
               <AccordionIcon />
             </AccordionButton>
           </h2>
-          <AccordionPanel pb={4***REMOVED***>
+          <AccordionPanel pb={4}>
             <Stack>
-          ***REMOVED***children.map((namespace) => {
+              {children.map((namespace) => {
                 return (
                   <MovingFolderItem
-                    key={namespace.nsId***REMOVED***
-                    originalFolderId={props.originalFolderId***REMOVED***
-                    movingFolderId={props.movingFolderId***REMOVED***
-                    currentFolderId={namespace.nsId***REMOVED***
-                    currentFolderName={namespace.nsName***REMOVED***
-                    setMovingFolderId={props.setMovingFolderId***REMOVED***
-                    setMovingFolderName={props.setMovingFolderName***REMOVED***
+                    key={namespace.nsId}
+                    originalFolderId={props.originalFolderId}
+                    movingFolderId={props.movingFolderId}
+                    currentFolderId={namespace.nsId}
+                    currentFolderName={namespace.nsName}
+                    setMovingFolderId={props.setMovingFolderId}
+                    setMovingFolderName={props.setMovingFolderName}
                   ></MovingFolderItem>
                 );
- ***REMOVED*****REMOVED***)***REMOVED***
+              })}
             </Stack>
           </AccordionPanel>
         </AccordionItem>
       </Accordion>
     </div>
   );
-***REMOVED***;
+};
 
 export default MovingFolderItem;

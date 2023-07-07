@@ -1,8 +1,8 @@
-import type { BaseQueryFn, FetchArgs, FetchBaseQueryError ***REMOVED*** from "@reduxjs/toolkit/query";
-import { fetchBaseQuery ***REMOVED*** from "@reduxjs/toolkit/query/react";
-import { ServerInterface ***REMOVED*** from "./types/serverInterface";
+import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from "@reduxjs/toolkit/query";
+import { fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { ServerInterface } from "./types/serverInterface";
 import Router from "next/router";
-import {createStandaloneToast***REMOVED*** from "@chakra-ui/react";
+import {createStandaloneToast} from "@chakra-ui/react";
 
 const baseQuery = fetchBaseQuery({
   baseUrl: "",
@@ -10,23 +10,23 @@ const baseQuery = fetchBaseQuery({
     const token = localStorage.getItem("HRD-Token");
     if (!!token) {
       headers.set("HRD-token", token);
-***REMOVED***
+    }
     return headers;
-  ***REMOVED***
-***REMOVED***);
+  }
+});
 
 export const myBaseQuery: BaseQueryFn<string | FetchArgs,
   unknown,
   FetchBaseQueryError> = async (args, api, extraOptions) => {
   let result = await baseQuery(args, api, extraOptions)
-  const {toast***REMOVED*** = createStandaloneToast()
+  const {toast} = createStandaloneToast()
   if (result.error) {
     toast({
       title: 'Fatal server error',
       status: 'error',
       position: 'top'
-***REMOVED***)
-  ***REMOVED***
+    })
+  }
   let cast = result.data as ServerInterface<any>
   switch (cast.msgCode){
     case 403:
@@ -34,18 +34,18 @@ export const myBaseQuery: BaseQueryFn<string | FetchArgs,
         title: 'Unauthorized access, redirecting...',
         status: "error",
         position: "top"
-  ***REMOVED***)
+      })
       await Router.push('/login')
-      return {error: {status: cast.msgCode, data: cast.t***REMOVED*** ***REMOVED***
+      return {error: {status: cast.msgCode, data: cast.t} }
     case 401:
     case 400:
       toast({
         title: 'Something is wrong...',
         status: "warning",
         position: "top"
-  ***REMOVED***)
-      return {error: {status: cast.msgCode, data: cast.t***REMOVED*** ***REMOVED***
-  ***REMOVED***
+      })
+      return {error: {status: cast.msgCode, data: cast.t} }
+  }
   // status 200
   return result;
-***REMOVED***;
+};

@@ -10,14 +10,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
-***REMOVED***
+/**
  * <p>
  *  服务类
  * </p>
  *
  * @author HaroldCI
  * @since 2022-06-24
-***REMOVED***
+ */
 public interface INamespaceService extends IService<Namespace> {
     Integer insertNamespace(String name, Integer parentId, Integer userId);
     Namespace queryRootNamespace(Integer userId);
@@ -35,4 +35,4 @@ public interface INamespaceService extends IService<Namespace> {
 
     String queryNameById(Integer nsId);
 
-***REMOVED***
+}

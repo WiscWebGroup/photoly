@@ -8,4 +8,4 @@ export interface serverPhoto {
   token: string
   photoUuid: string
   userId: number
-***REMOVED***
+}

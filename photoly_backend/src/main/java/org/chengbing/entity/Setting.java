@@ -6,10 +6,10 @@ import io.swagger.annotations.ApiModel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-***REMOVED***
+/**
  * @Author: Harold澂冰
  * @Date: 2022/7/22 11:12
-***REMOVED***
+ */
 @Data
 @EqualsAndHashCode(callSuper = false)
 @ApiModel(value="Setting Object", description="")
@@ -28,18 +28,18 @@ public class Setting {
     public Setting(String settingName, String settingValue) {
         this.settingName = settingName;
         this.settingValue = settingValue;
-***REMOVED***
+    }
 
     public Setting(String settingName, String settingValue, String note) {
         this.settingName = settingName;
         this.settingValue = settingValue;
         this.note = note;
-***REMOVED***
+    }
 
     public Setting(Integer settingId, String settingName, String settingValue, String note) {
         this.settingId = settingId;
         this.settingName = settingName;
         this.settingValue = settingValue;
         this.note = note;
-***REMOVED***
-***REMOVED***
+    }
+}

@@ -34,22 +34,22 @@ import {
   useDisclosure,
   useToast,
   VStack
-***REMOVED*** from "@chakra-ui/react";
-import React, { useRef, useState ***REMOVED*** from "react";
-import { AiOutlineDelete ***REMOVED*** from "react-icons/ai";
-import { GrAdd, GrUpdate ***REMOVED*** from "react-icons/gr";
+} from "@chakra-ui/react";
+import React, { useRef, useState } from "react";
+import { AiOutlineDelete } from "react-icons/ai";
+import { GrAdd, GrUpdate } from "react-icons/gr";
 import {
   useDeleteTagMutation,
   useGetAllTagsQuery,
   useInsertTagMutation,
   useRenameTagMutation
-***REMOVED*** from "../../redux/api/tagSlice";
+} from "../../redux/api/tagSlice";
 
 interface tag {
   tagId: number;
   userId: number;
   tagName: string;
-***REMOVED***
+}
 
 const TagSetting: React.FC = () => {
   const [editTagId, setEditTagId] = useState<number>(0);
@@ -57,7 +57,7 @@ const TagSetting: React.FC = () => {
   const [delTagId, setDelTagId] = useState<number>(0);
 
   const [addTagName, setAddTagName] = useState<string>("");
-  const { data: tags, error, isLoading ***REMOVED*** = useGetAllTagsQuery();
+  const { data: tags, error, isLoading } = useGetAllTagsQuery();
   const [insertTrigger] = useInsertTagMutation();
   const [deleteTrigger] = useDeleteTagMutation();
   const [renameTrigger] = useRenameTagMutation();
@@ -66,14 +66,14 @@ const TagSetting: React.FC = () => {
     isOpen: isOpenEditModal,
     onOpen: onOpenEditModal,
     onClose: onCloseEditModal
-  ***REMOVED*** = useDisclosure();
+  } = useDisclosure();
 
   const toast = useToast();
   const {
     isOpen: isOpenDeleteConfirm,
     onOpen: onOpenDeleteConfirm,
     onClose: onCloseDeleteConfirm
-  ***REMOVED*** = useDisclosure();
+  } = useDisclosure();
   const cancelRef = useRef<HTMLDivElement | HTMLButtonElement>(null);
   const cancelRefBtn = useRef<HTMLButtonElement>(null);
 
@@ -81,19 +81,19 @@ const TagSetting: React.FC = () => {
     isOpen: isOpenAddTag,
     onOpen: onOpenAddTag,
     onClose: onCloseAddTag
-  ***REMOVED*** = useDisclosure();
+  } = useDisclosure();
 
 
   const editTag = async (tagId: number) => {
-    renameTrigger({ tag_id: tagId, new_name: editTagName ***REMOVED***);
+    renameTrigger({ tag_id: tagId, new_name: editTagName });
     toast({
       title: `Update Successful`,
       status: "success",
       isClosable: true,
       duration: 3000,
       position: "top"
-***REMOVED***);
-  ***REMOVED***;
+    });
+  };
 
   const delTag = () => {
     deleteTrigger(delTagId);
@@ -103,8 +103,8 @@ const TagSetting: React.FC = () => {
       isClosable: true,
       duration: 3000,
       position: "top"
-***REMOVED***);
-  ***REMOVED***;
+    });
+  };
   const addTag = () => {
     insertTrigger(addTagName);
     toast({
@@ -113,45 +113,45 @@ const TagSetting: React.FC = () => {
       isClosable: true,
       duration: 3000,
       position: "top"
-***REMOVED***);
+    });
     setAddTagName("");
     onCloseAddTag();
-  ***REMOVED***;
+  };
 
   return (
     <>
-      <Center h="calc(100%-4rem)" w={"85vw"***REMOVED***>
+      <Center h="calc(100%-4rem)" w={"85vw"}>
         <VStack
-          shadow={"lg"***REMOVED***
-          w={"55%"***REMOVED***
-          rounded={"lg"***REMOVED***
-          m={8***REMOVED***
-          p={8***REMOVED***
-          bg={"white"***REMOVED***
-          minH={"80vh"***REMOVED***
+          shadow={"lg"}
+          w={"55%"}
+          rounded={"lg"}
+          m={8}
+          p={8}
+          bg={"white"}
+          minH={"80vh"}
         >
           <Heading
             as="h6"
             size="md"
-            fontWeight={"450"***REMOVED***
-            alignSelf={"flex-start"***REMOVED***
+            fontWeight={"450"}
+            alignSelf={"flex-start"}
           >
             Manage My Tag
             <Popover
-              isOpen={isOpenAddTag***REMOVED***
+              isOpen={isOpenAddTag}
               onClose={() => {
                 onCloseAddTag();
- ***REMOVED*****REMOVED******REMOVED***
+              }}
             >
               <PopoverTrigger>
                 <Button
                   colorScheme="teal"
                   variant="ghost"
-                  ml={4***REMOVED***
-                  rightIcon={<GrAdd />***REMOVED***
+                  ml={4}
+                  rightIcon={<GrAdd />}
                   onClick={() => {
                     onOpenAddTag();
-***REMOVED*****REMOVED*****REMOVED******REMOVED***
+                  }}
                 >
                   New Tag
                 </Button>
@@ -164,17 +164,17 @@ const TagSetting: React.FC = () => {
                   <Input
                     variant="flushed"
                     placeholder="Tag Name"
-                    value={addTagName***REMOVED***
-                    onChange={(event) => setAddTagName(event.target.value)***REMOVED***
+                    value={addTagName}
+                    onChange={(event) => setAddTagName(event.target.value)}
                   />
                   <Button
                     colorScheme="twitter"
                     variant="outline"
-                    width={"100%"***REMOVED***
-                    mt={5***REMOVED***
+                    width={"100%"}
+                    mt={5}
                     onClick={() => {
                       addTag();
-  ***REMOVED*****REMOVED*****REMOVED******REMOVED***
+                    }}
                   >
                     Create
                   </Button>
@@ -182,12 +182,12 @@ const TagSetting: React.FC = () => {
               </PopoverContent>
             </Popover>
           </Heading>
-      ***REMOVED***tags?.length === 0 ? (
+          {tags?.length === 0 ? (
             <Text fontSize="3xl">Nothing Here</Text>
           ) : (
             ""
-          )***REMOVED***
-          <TableContainer w={"100vw"***REMOVED***>
+          )}
+          <TableContainer w={"100vw"}>
             <Table variant="simple" size="sm">
               <Thead>
                 <Tr>
@@ -197,46 +197,46 @@ const TagSetting: React.FC = () => {
                 </Tr>
               </Thead>
               <Tbody>
-            ***REMOVED***tags?.map((tag) => {
+                {tags?.map((tag) => {
                   return (
-                    <Tr key={tag.tagId***REMOVED***>
-                      <Td>{tag.tagId***REMOVED***</Td>
-                      <Td>{tag.tagName***REMOVED***</Td>
+                    <Tr key={tag.tagId}>
+                      <Td>{tag.tagId}</Td>
+                      <Td>{tag.tagName}</Td>
                       <Td>
                         <IconButton
-                          icon={<GrUpdate />***REMOVED***
+                          icon={<GrUpdate />}
                           onClick={() => {
                             setEditTagName(tag.tagName);
                             setEditTagId(tag.tagId);
                             onOpenEditModal();
-   ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
-                         aria-label={"rename"***REMOVED***
-                         mr={2***REMOVED***>
+                          }}
+                         aria-label={"rename"}
+                         mr={2}>
 
                         </IconButton>
 
                         <IconButton
-                          icon={<AiOutlineDelete />***REMOVED***
+                          icon={<AiOutlineDelete />}
                           onClick={() => {
                             setDelTagId(tag.tagId);
                             onOpenDeleteConfirm();
-   ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
-                          disabled={isOpenDeleteConfirm***REMOVED***
-                          aria-label={"delete"***REMOVED***
+                          }}
+                          disabled={isOpenDeleteConfirm}
+                          aria-label={"delete"}
                         ></IconButton>
                       </Td>
                     </Tr>
                   );
-   ***REMOVED*****REMOVED***)***REMOVED***
+                })}
               </Tbody>
             </Table>
           </TableContainer>
         </VStack>
 
         <AlertDialog
-          isOpen={isOpenDeleteConfirm***REMOVED***
-          leastDestructiveRef={cancelRef***REMOVED***
-          onClose={onCloseDeleteConfirm***REMOVED***
+          isOpen={isOpenDeleteConfirm}
+          leastDestructiveRef={cancelRef}
+          onClose={onCloseDeleteConfirm}
         >
           <AlertDialogOverlay>
             <AlertDialogContent>
@@ -249,7 +249,7 @@ const TagSetting: React.FC = () => {
               </AlertDialogBody>
 
               <AlertDialogFooter>
-                <Button ref={cancelRefBtn***REMOVED*** onClick={onCloseDeleteConfirm***REMOVED***>
+                <Button ref={cancelRefBtn} onClick={onCloseDeleteConfirm}>
                   Cancel
                 </Button>
                 <Button
@@ -257,8 +257,8 @@ const TagSetting: React.FC = () => {
                   onClick={() => {
                     delTag();
                     onCloseDeleteConfirm();
-***REMOVED*****REMOVED*****REMOVED******REMOVED***
-                  ml={3***REMOVED***
+                  }}
+                  ml={3}
                 >
                   Delete
                 </Button>
@@ -266,7 +266,7 @@ const TagSetting: React.FC = () => {
             </AlertDialogContent>
           </AlertDialogOverlay>
         </AlertDialog>
-        <Modal isOpen={isOpenEditModal***REMOVED*** onClose={onCloseEditModal***REMOVED***>
+        <Modal isOpen={isOpenEditModal} onClose={onCloseEditModal}>
           <ModalOverlay />
           <ModalContent>
             <ModalHeader>Edit Tag</ModalHeader>
@@ -275,8 +275,8 @@ const TagSetting: React.FC = () => {
               <Input
                 variant="flushed"
                 placeholder="Tag New Name"
-                value={editTagName***REMOVED***
-                onChange={(event) => setEditTagName(event.target.value)***REMOVED***
+                value={editTagName}
+                onChange={(event) => setEditTagName(event.target.value)}
               />
               <br></br>
             </ModalBody>
@@ -285,8 +285,8 @@ const TagSetting: React.FC = () => {
               <Button
                 colorScheme="blue"
                 variant="ghost"
-                mr={3***REMOVED***
-                onClick={onCloseEditModal***REMOVED***
+                mr={3}
+                onClick={onCloseEditModal}
               >
                 Close
               </Button>
@@ -296,7 +296,7 @@ const TagSetting: React.FC = () => {
                 onClick={async () => {
                   await editTag(editTagId);
                   onCloseEditModal();
-   ***REMOVED*****REMOVED******REMOVED***
+                }}
               >
                 Confirm
               </Button>
@@ -306,6 +306,6 @@ const TagSetting: React.FC = () => {
       </Center>
     </>
   );
-***REMOVED***;
+};
 
 export default TagSetting;

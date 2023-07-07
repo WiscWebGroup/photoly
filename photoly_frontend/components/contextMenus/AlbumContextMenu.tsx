@@ -1,27 +1,27 @@
-import { DeleteIcon, EditIcon ***REMOVED*** from "@chakra-ui/icons"
-import { MenuList, MenuItem ***REMOVED*** from "@chakra-ui/react"
-import { GrUpdate ***REMOVED*** from "react-icons/gr"
+import { DeleteIcon, EditIcon } from "@chakra-ui/icons"
+import { MenuList, MenuItem } from "@chakra-ui/react"
+import { GrUpdate } from "react-icons/gr"
 
 interface AlbumContextMenuProps {
     handleDelete: () => void
     handleRename: () => void
     handleChangeIcon: () => void
-***REMOVED***
+}
 
-const AlbumContextMenu = ({ handleDelete, handleRename, handleChangeIcon ***REMOVED*** : AlbumContextMenuProps) => {
+const AlbumContextMenu = ({ handleDelete, handleRename, handleChangeIcon } : AlbumContextMenuProps) => {
     return (
-        <MenuList zIndex={1020***REMOVED***>
-            <MenuItem icon={<DeleteIcon />***REMOVED*** onClick={handleDelete***REMOVED***>
+        <MenuList zIndex={1020}>
+            <MenuItem icon={<DeleteIcon />} onClick={handleDelete}>
                 Delete
             </MenuItem>
-            <MenuItem icon={<EditIcon />***REMOVED*** onClick={handleRename***REMOVED***>
+            <MenuItem icon={<EditIcon />} onClick={handleRename}>
                 Rename
             </MenuItem>
-            <MenuItem icon={<GrUpdate />***REMOVED*** onClick={handleChangeIcon***REMOVED***>
+            <MenuItem icon={<GrUpdate />} onClick={handleChangeIcon}>
                 Change Icon
             </MenuItem>
         </MenuList>
     )
-***REMOVED***
+}
 
 export default AlbumContextMenu

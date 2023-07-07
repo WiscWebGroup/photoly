@@ -24,8 +24,8 @@ import {
   AlertDialogHeader,
   AlertDialogOverlay,
   useDisclosure,
-***REMOVED*** from "@chakra-ui/react";
-import React, { useEffect, useState, useRef ***REMOVED*** from "react";
+} from "@chakra-ui/react";
+import React, { useEffect, useState, useRef } from "react";
 import useToken from "../../hooks/useToken";
 import useApi from "../../hooks/useApi";
 
@@ -34,17 +34,17 @@ interface addr {
   redis?: string;
   upload?: string;
   config?: string;
-***REMOVED***
+}
 
 interface settings {
   SignUp?: string;
   SSafeUUID?: string;
   TokenDuration?: string;
-***REMOVED***
+}
 
 const AdminSettings: React.FC = () => {
   const token = useToken();
-  const { get, post ***REMOVED*** = useApi();
+  const { get, post } = useApi();
   const [mySQLStatus, setMySQLStatus] = React.useState<number>(0);
   const [redisStatus, setRedisStatus] = React.useState<number>(0);
 
@@ -57,53 +57,53 @@ const AdminSettings: React.FC = () => {
     isOpen: isOpenDeleteConfirm,
     onOpen: onOpenDeleteConfirm,
     onClose: onCloseDeleteConfirm,
-  ***REMOVED*** = useDisclosure();
+  } = useDisclosure();
 
   const cancelRef = useRef<HTMLDivElement | HTMLButtonElement>(null);
   const cancelRefBtn = useRef<HTMLButtonElement>(null);
 
   const getData = async () => {
     const response = await get("/admin/pingMySQL", {
-      headers: { "HRD-token": token ***REMOVED***,
-***REMOVED***);
+      headers: { "HRD-token": token },
+    });
     if (!!response && response.data.msgCode === 200) {
       setMySQLStatus(response.data.t);
-***REMOVED***
+    }
 
     const response2 = await get("/admin/pingRedis", {
-      headers: { "HRD-token": token ***REMOVED***,
-***REMOVED***);
+      headers: { "HRD-token": token },
+    });
     if (!!response2 && response2.data.msgCode === 200) {
       setRedisStatus(response2.data.t);
-***REMOVED***
+    }
 
     const response3 = await get("/admin/getAddress", {
-      headers: { "HRD-token": token ***REMOVED***,
-***REMOVED***);
+      headers: { "HRD-token": token },
+    });
     if (!!response3 && response3.data.msgCode === 200) {
       setParameterRes(response3.data.t);
-***REMOVED***
+    }
 
     const response4 = await get("/admin/getSettings", {
-      headers: { "HRD-token": token ***REMOVED***,
-***REMOVED***);
+      headers: { "HRD-token": token },
+    });
     if (!!response4 && response4.data.msgCode === 200) {
       setSettings(response4.data.t);
-***REMOVED***
-  ***REMOVED***;
+    }
+  };
   useEffect(() => {
     if (!!token) {
       getData();
-***REMOVED***
-  ***REMOVED***, [token]);
+    }
+  }, [token]);
 
   const changeSignUp = async (value: string) => {
     const response = await post(
       "/admin/setSignUpPermission?permission=" + value,
-  ***REMOVED******REMOVED***,
-  ***REMOVED***
-        headers: { "HRD-token": token ***REMOVED***,
-  ***REMOVED***
+      {},
+      {
+        headers: { "HRD-token": token },
+      }
     );
     if (!!response && response.data.msgCode === 200) {
       toast({
@@ -112,28 +112,28 @@ const AdminSettings: React.FC = () => {
         isClosable: true,
         duration: 2000,
         position: "top",
-  ***REMOVED***);
+      });
       const val = settings?.SignUp === "1" ? "-1" : "1";
-      setSettings((prevs) => ({ ...prevs, SignUp: val ***REMOVED***));
+      setSettings((prevs) => ({ ...prevs, SignUp: val }));
       return 1;
-***REMOVED*** else {
+    } else {
       toast({
         title: `Update Failed`,
         status: "error",
         isClosable: true,
         duration: 2000,
         position: "top",
-  ***REMOVED***);
+      });
       return 0;
-***REMOVED***
-  ***REMOVED***;
+    }
+  };
   const changeSSafe = async (value: string) => {
     const response = await post(
       "/admin/setSSafeUUIDMode?mode=" + value,
-  ***REMOVED******REMOVED***,
-  ***REMOVED***
-        headers: { "HRD-token": token ***REMOVED***,
-  ***REMOVED***
+      {},
+      {
+        headers: { "HRD-token": token },
+      }
     );
     if (!!response && response.data.msgCode === 200) {
       toast({
@@ -142,28 +142,28 @@ const AdminSettings: React.FC = () => {
         isClosable: true,
         duration: 2000,
         position: "top",
-  ***REMOVED***);
+      });
       const val = settings?.SSafeUUID === "1" ? "-1" : "1";
-      setSettings((prevs) => ({ ...prevs, SSafeUUID: val ***REMOVED***));
+      setSettings((prevs) => ({ ...prevs, SSafeUUID: val }));
       return 1;
-***REMOVED*** else {
+    } else {
       toast({
         title: `Update Failed`,
         status: "error",
         isClosable: true,
         duration: 2000,
         position: "top",
-  ***REMOVED***);
+      });
       return 0;
-***REMOVED***
-  ***REMOVED***;
+    }
+  };
   const changeDuration = async (value: string) => {
     const response = await post(
       "/admin/setTokenDuration?days=" + value,
-  ***REMOVED******REMOVED***,
-  ***REMOVED***
-        headers: { "HRD-token": token ***REMOVED***,
-  ***REMOVED***
+      {},
+      {
+        headers: { "HRD-token": token },
+      }
     );
     if (!!response && response.data.msgCode === 200) {
       toast({
@@ -172,36 +172,36 @@ const AdminSettings: React.FC = () => {
         isClosable: true,
         duration: 2000,
         position: "top",
-  ***REMOVED***);
+      });
       return 1;
-***REMOVED*** else {
+    } else {
       toast({
         title: `Update Failed`,
         status: "error",
         isClosable: true,
         duration: 2000,
         position: "top",
-  ***REMOVED***);
+      });
       return 0;
-***REMOVED***
-  ***REMOVED***;
+    }
+  };
 
   const stopService = async () => {
     const response = await post(
       "/admin/stop",
-  ***REMOVED******REMOVED***,
-  ***REMOVED***
-        headers: { "HRD-token": token ***REMOVED***,
-  ***REMOVED***
+      {},
+      {
+        headers: { "HRD-token": token },
+      }
     );
-  ***REMOVED***;
+  };
 
   return (
     <>
       <AlertDialog
-        isOpen={isOpenDeleteConfirm***REMOVED***
-        leastDestructiveRef={cancelRef***REMOVED***
-        onClose={onCloseDeleteConfirm***REMOVED***
+        isOpen={isOpenDeleteConfirm}
+        leastDestructiveRef={cancelRef}
+        onClose={onCloseDeleteConfirm}
       >
         <AlertDialogOverlay>
           <AlertDialogContent>
@@ -212,15 +212,15 @@ const AdminSettings: React.FC = () => {
             <AlertDialogBody>Are you sure?</AlertDialogBody>
 
             <AlertDialogFooter>
-              <Button ref={cancelRefBtn***REMOVED*** onClick={onCloseDeleteConfirm***REMOVED***>
+              <Button ref={cancelRefBtn} onClick={onCloseDeleteConfirm}>
                 Cancel
               </Button>
               <Button
                 colorScheme="red"
                 onClick={() => {
                   stopService();
-   ***REMOVED*****REMOVED******REMOVED***
-                ml={3***REMOVED***
+                }}
+                ml={3}
               >
                 Terminate
               </Button>
@@ -228,50 +228,50 @@ const AdminSettings: React.FC = () => {
           </AlertDialogContent>
         </AlertDialogOverlay>
       </AlertDialog>
-      <Center h="calc(100%-4rem)" w={"85vw"***REMOVED***>
+      <Center h="calc(100%-4rem)" w={"85vw"}>
         <VStack
-          shadow={"lg"***REMOVED***
-          w={"55%"***REMOVED***
-          rounded={"lg"***REMOVED***
-          m={8***REMOVED***
-          p={8***REMOVED***
-          bg={"white"***REMOVED***
-          minH={"80vh"***REMOVED***
+          shadow={"lg"}
+          w={"55%"}
+          rounded={"lg"}
+          m={8}
+          p={8}
+          bg={"white"}
+          minH={"80vh"}
         >
           <Heading
             as="h6"
             size="md"
-            fontWeight={"450"***REMOVED***
-            alignSelf={"flex-start"***REMOVED***
-            p={3***REMOVED***
+            fontWeight={"450"}
+            alignSelf={"flex-start"}
+            p={3}
           >
             Service Status
           </Heading>
 
-          <HStack spacing="24px" alignSelf={"flex-start"***REMOVED***>
+          <HStack spacing="24px" alignSelf={"flex-start"}>
             <Box
               w="20vw"
               h="13vh"
               bgGradient="linear(to-r, blue.50, orange.400)"
-              alignSelf={"flex-start"***REMOVED***
-              borderRadius={20***REMOVED***
+              alignSelf={"flex-start"}
+              borderRadius={20}
             >
               <HStack spacing="24px" h="100%">
-                <Box w="8vw" h={"100%"***REMOVED*** bg="gray.50" borderRadius={20***REMOVED***>
+                <Box w="8vw" h={"100%"} bg="gray.50" borderRadius={20}>
                   <Image src="/MySQL_ConnectorLogo.png" />
                 </Box>
-                <Box w="8vw" h="50%" borderRadius={20***REMOVED***>
-              ***REMOVED***mySQLStatus === 1 ? (
-                    <Alert status="success" h="100%" borderRadius={20***REMOVED***>
+                <Box w="8vw" h="50%" borderRadius={20}>
+                  {mySQLStatus === 1 ? (
+                    <Alert status="success" h="100%" borderRadius={20}>
                       <AlertIcon />
                       Live
                     </Alert>
                   ) : (
-                    <Alert status="warning" h="100%" borderRadius={20***REMOVED***>
+                    <Alert status="warning" h="100%" borderRadius={20}>
                       <AlertIcon />
                       Down
                     </Alert>
-                  )***REMOVED***
+                  )}
                 </Box>
               </HStack>
             </Box>
@@ -279,142 +279,142 @@ const AdminSettings: React.FC = () => {
               w="20vw"
               h="13vh"
               bgGradient="linear(to-r, green.50, red.400)"
-              alignSelf={"flex-start"***REMOVED***
-              borderRadius={20***REMOVED***
+              alignSelf={"flex-start"}
+              borderRadius={20}
             >
               <HStack spacing="24px" h="100%">
-                <Box w="8vw" h={"100%"***REMOVED*** bg="gray.50" borderRadius={20***REMOVED***>
+                <Box w="8vw" h={"100%"} bg="gray.50" borderRadius={20}>
                   <Image src="/Redis_Logo.svg.png" />
                 </Box>
-                <Box w="8vw" h="50%" borderRadius={20***REMOVED***>
-              ***REMOVED***redisStatus === 1 ? (
-                    <Alert status="success" h="100%" borderRadius={20***REMOVED***>
+                <Box w="8vw" h="50%" borderRadius={20}>
+                  {redisStatus === 1 ? (
+                    <Alert status="success" h="100%" borderRadius={20}>
                       <AlertIcon />
                       Live
                     </Alert>
                   ) : (
-                    <Alert status="warning" h="100%" borderRadius={20***REMOVED***>
+                    <Alert status="warning" h="100%" borderRadius={20}>
                       <AlertIcon />
                       Down
                     </Alert>
-                  )***REMOVED***
+                  )}
                 </Box>
               </HStack>
             </Box>
           </HStack>
-          <Divider style={{ marginTop: "2rem" ***REMOVED******REMOVED*** />
+          <Divider style={{ marginTop: "2rem" }} />
           <Heading
             as="h6"
             size="md"
-            fontWeight={"450"***REMOVED***
-            alignSelf={"flex-start"***REMOVED***
-            p={3***REMOVED***
+            fontWeight={"450"}
+            alignSelf={"flex-start"}
+            p={3}
           >
             Locations
           </Heading>
           <Stack
-            direction={"row"***REMOVED***
+            direction={"row"}
             alignSelf="flex-start"
-            spacing={"5"***REMOVED***
-            w={"100%"***REMOVED***
+            spacing={"5"}
+            w={"100%"}
           >
             <Box
-              p={5***REMOVED***
+              p={5}
               shadow="md"
               borderWidth="1px"
-              borderRadius={"20"***REMOVED***
-              w={"50%"***REMOVED***
+              borderRadius={"20"}
+              w={"50%"}
             >
               <Heading fontSize="xl">MySQL Addr</Heading>
-              <Text mt={4***REMOVED***>{parameterRes?.mysql***REMOVED***</Text>
+              <Text mt={4}>{parameterRes?.mysql}</Text>
             </Box>
             <Box
-              p={5***REMOVED***
+              p={5}
               shadow="md"
               borderWidth="1px"
-              borderRadius={"20"***REMOVED***
-              w={"50%"***REMOVED***
+              borderRadius={"20"}
+              w={"50%"}
             >
               <Heading fontSize="xl">Redis Addr</Heading>
-              <Text mt={4***REMOVED***>{parameterRes?.redis***REMOVED***</Text>
+              <Text mt={4}>{parameterRes?.redis}</Text>
             </Box>
           </Stack>
           <Stack
-            direction={"row"***REMOVED***
+            direction={"row"}
             alignSelf="flex-start"
-            spacing={"5"***REMOVED***
-            style={{ marginTop: "1rem" ***REMOVED******REMOVED***
-            w={"100%"***REMOVED***
+            spacing={"5"}
+            style={{ marginTop: "1rem" }}
+            w={"100%"}
           >
             <Box
-              p={5***REMOVED***
+              p={5}
               shadow="md"
               borderWidth="1px"
-              borderRadius={"20"***REMOVED***
-              w={"50%"***REMOVED***
+              borderRadius={"20"}
+              w={"50%"}
             >
               <Heading fontSize="xl">Upload Addr</Heading>
-              <Text mt={4***REMOVED***>{parameterRes?.upload***REMOVED***</Text>
+              <Text mt={4}>{parameterRes?.upload}</Text>
             </Box>
             <Box
-              p={5***REMOVED***
+              p={5}
               shadow="md"
               borderWidth="1px"
-              borderRadius={"20"***REMOVED***
-              w={"50%"***REMOVED***
+              borderRadius={"20"}
+              w={"50%"}
             >
               <Heading fontSize="xl">Config Addr</Heading>
-              <Text mt={4***REMOVED***>{parameterRes?.config***REMOVED***</Text>
+              <Text mt={4}>{parameterRes?.config}</Text>
             </Box>
           </Stack>
-          <Divider style={{ marginTop: "2rem" ***REMOVED******REMOVED*** />
+          <Divider style={{ marginTop: "2rem" }} />
           <Heading
             as="h6"
             size="md"
-            fontWeight={"450"***REMOVED***
-            alignSelf={"flex-start"***REMOVED***
-            p={3***REMOVED***
+            fontWeight={"450"}
+            alignSelf={"flex-start"}
+            p={3}
           >
             Settings
           </Heading>
           <Stack
-            direction={"row"***REMOVED***
+            direction={"row"}
             alignSelf="flex-start"
-            spacing={"5"***REMOVED***
-            w={"100%"***REMOVED***
+            spacing={"5"}
+            w={"100%"}
           >
             <Box
-              p={5***REMOVED***
+              p={5}
               shadow="md"
               borderWidth="1px"
-              borderRadius={"20"***REMOVED***
-              w={"50%"***REMOVED***
+              borderRadius={"20"}
+              w={"50%"}
             >
               <Heading fontSize="xl">General</Heading>
               <FormControl
-                as={SimpleGrid***REMOVED***
-                columns={{ base: 2, lg: 2 ***REMOVED******REMOVED***
-                style={{ marginTop: "1rem" ***REMOVED******REMOVED***
+                as={SimpleGrid}
+                columns={{ base: 2, lg: 2 }}
+                style={{ marginTop: "1rem" }}
               >
                 <FormLabel htmlFor="isChecked">Allow User Register:</FormLabel>
                 <Switch
                   id="isChecked"
                   size="md"
-                  isChecked={settings?.SignUp === "1" ? true : false***REMOVED***
+                  isChecked={settings?.SignUp === "1" ? true : false}
                   onChange={(e) => {
                     const val = e.target.checked ? "1" : "-1";
                     changeSignUp(val);
-***REMOVED*****REMOVED*****REMOVED******REMOVED***
+                  }}
                 />
                 <FormLabel htmlFor="isChecked">S-Safe UUID Mode:</FormLabel>
                 <Switch
                   id="isChecked"
                   size="md"
-                  isChecked={settings?.SSafeUUID === "1" ? true : false***REMOVED***
+                  isChecked={settings?.SSafeUUID === "1" ? true : false}
                   onChange={(e) => {
                     const val = e.target.checked ? "1" : "-1";
                     changeSSafe(val);
-***REMOVED*****REMOVED*****REMOVED******REMOVED***
+                  }}
                 />
               </FormControl>
               <Divider />
@@ -425,14 +425,14 @@ const AdminSettings: React.FC = () => {
                 <Select
                   id="country"
                   placeholder="Select Duration"
-                  value={settings?.TokenDuration***REMOVED***
+                  value={settings?.TokenDuration}
                   onChange={(e) => {
                     changeDuration(e.target.value);
                     setSettings((prevs) => ({
                       ...prevs,
                       TokenDuration: e.target.value,
-  ***REMOVED*****REMOVED*****REMOVED***));
-***REMOVED*****REMOVED*****REMOVED******REMOVED***
+                    }));
+                  }}
                 >
                   <option value="1">1 Day</option>
                   <option value="3">3 Day</option>
@@ -447,19 +447,19 @@ const AdminSettings: React.FC = () => {
               </FormControl>
             </Box>
             <Box
-              p={5***REMOVED***
+              p={5}
               shadow="md"
               borderWidth="1px"
-              borderRadius={"20"***REMOVED***
-              w={"50%"***REMOVED***
+              borderRadius={"20"}
+              w={"50%"}
             >
               <Heading fontSize="xl">Power</Heading>
               <Button
                 colorScheme="red"
-                style={{ marginTop: "1rem" ***REMOVED******REMOVED***
-                w={"100%"***REMOVED***
+                style={{ marginTop: "1rem" }}
+                w={"100%"}
                 variant="outline"
-                onClick={onOpenDeleteConfirm***REMOVED***
+                onClick={onOpenDeleteConfirm}
               >
                 Stop Service
               </Button>
@@ -469,6 +469,6 @@ const AdminSettings: React.FC = () => {
       </Center>
     </>
   );
-***REMOVED***;
+};
 
 export default AdminSettings;

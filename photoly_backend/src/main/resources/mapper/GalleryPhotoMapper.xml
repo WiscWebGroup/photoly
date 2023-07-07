@@ -2,12 +2,12 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chengbing.dao.GalleryPhotoMapper">
     <select id="selectPhotoByGallery" resultType="org.chengbing.entity.Photo">
-        select * from photo where photo_id in (select photo_id from gallery_photo where ga_id = #{gaId***REMOVED***)
+        select * from photo where photo_id in (select photo_id from gallery_photo where ga_id = #{gaId})
     </select>
 
     <select id="selectGalleryByPhoto" resultType="map">
         select p.photo_id, g.ga_id, g.ga_name
         from photo as p, gallery as g, gallery_photo as gp
-        where p.photo_id = gp.photo_id and g.ga_id = gp.ga_id and p.photo_id = #{photoId***REMOVED***
+        where p.photo_id = gp.photo_id and g.ga_id = gp.ga_id and p.photo_id = #{photoId}
     </select>
 </mapper>

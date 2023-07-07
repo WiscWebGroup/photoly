@@ -3,10 +3,10 @@ package org.chengbing.photolet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-***REMOVED***
+/**
  * @Author: Harold澂冰
  * @Date: 2022/7/10 17:18
-***REMOVED***
+ */
 public class RegexTest {
 
     public static void main(String[] args) {
@@ -19,7 +19,7 @@ public class RegexTest {
         String mysqlAddress = "";
         while (matcher.find()) {
             mysqlAddress = matcher.group(1);
-***REMOVED***
+        }
         System.out.println(mysqlAddress);
-***REMOVED***
-***REMOVED***
+    }
+}

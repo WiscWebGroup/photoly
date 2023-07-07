@@ -19,7 +19,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "allowSyntheticDefaultImports": true
-  ***REMOVED***,
+  },
   "exclude": [
     "node_modules"
   ],
@@ -28,4 +28,4 @@
     "**/*.ts",
     "**/*.tsx"
   ]
-***REMOVED***
+}

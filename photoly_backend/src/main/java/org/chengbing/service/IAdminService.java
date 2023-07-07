@@ -6,10 +6,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-***REMOVED***
+/**
  * @Author: Harold澂冰
  * @Date: 2022/7/15 15:28
-***REMOVED***
+ */
 
 public interface IAdminService {
     Boolean isAdmin(Integer userId);
@@ -40,4 +40,4 @@ public interface IAdminService {
     String getGeneralSetting(Integer adminId, String name);
 
     Integer setGeneralSetting(Integer adminId, String name, String val);
-***REMOVED***
+}

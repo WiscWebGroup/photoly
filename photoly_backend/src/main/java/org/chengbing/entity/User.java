@@ -9,14 +9,14 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-***REMOVED***
+/**
  * <p>
  * 
  * </p>
  *
  * @author HaroldCI
  * @since 2022-06-24
-***REMOVED***
+ */
 @Data
 @EqualsAndHashCode(callSuper = false)
 @ApiModel(value="User对象", description="")
@@ -42,5 +42,5 @@ public class User implements Serializable {
     public User(String email, String password) {
         this.email = email;
         this.password = password;
-***REMOVED***
-***REMOVED***
+    }
+}

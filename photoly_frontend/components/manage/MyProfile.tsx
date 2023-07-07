@@ -42,16 +42,16 @@ import {
   AccordionPanel,
   AccordionIcon,
   Box,
-***REMOVED*** from "@chakra-ui/react";
-import { AiOutlineEdit ***REMOVED*** from "react-icons/ai";
-import React, { useEffect, useState, useRef ***REMOVED*** from "react";
+} from "@chakra-ui/react";
+import { AiOutlineEdit } from "react-icons/ai";
+import React, { useEffect, useState, useRef } from "react";
 import useToken from "../../hooks/useToken";
 import useApi from "../../hooks/useApi";
 import ChangeInfoDrawer from "../ChangeInfoDrawer";
-import { AiOutlineCopy, AiOutlineDelete ***REMOVED*** from "react-icons/ai";
-import { GrUpdate, GrAdd ***REMOVED*** from "react-icons/gr";
-import { useRouter ***REMOVED*** from "next/router";
-import useLocalStorage, {TOKEN_KEY***REMOVED*** from "../../hooks/useLocalStorage";
+import { AiOutlineCopy, AiOutlineDelete } from "react-icons/ai";
+import { GrUpdate, GrAdd } from "react-icons/gr";
+import { useRouter } from "next/router";
+import useLocalStorage, {TOKEN_KEY} from "../../hooks/useLocalStorage";
 
 
 interface userInfo {
@@ -61,34 +61,34 @@ interface userInfo {
   createDate: string;
   role: string;
   uuid: string;
-***REMOVED***
+}
 
 interface cred {
   credId: number;
   userId: number;
   token: string;
   authorization: string;
-***REMOVED***
+}
 
 const MyProfile: React.FC = () => {
   const token = useToken();
-  const { get, post ***REMOVED*** = useApi();
+  const { get, post } = useApi();
   const [info, setInfo] = useState<userInfo>();
-  const { isOpen, onOpen, onClose ***REMOVED*** = useDisclosure();
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   const [credList, setCredList] = useState<cred[]>();
-  const { value, setValue ***REMOVED*** = useCheckboxGroup({***REMOVED***);
+  const { value, setValue } = useCheckboxGroup({});
 
   const [delCredId, setDelCredId] = useState<number>();
 
   const router = useRouter()
-  const {removeLS***REMOVED*** = useLocalStorage(TOKEN_KEY);
+  const {removeLS} = useLocalStorage(TOKEN_KEY);
   const toast = useToast();
   const {
     isOpen: isOpenDeleteConfirm,
     onOpen: onOpenDeleteConfirm,
     onClose: onCloseDeleteConfirm,
-  ***REMOVED*** = useDisclosure();
+  } = useDisclosure();
   const cancelRef = useRef<HTMLDivElement | HTMLButtonElement>(null);
   const cancelRefBtn = useRef<HTMLButtonElement>(null);
 
@@ -96,7 +96,7 @@ const MyProfile: React.FC = () => {
     isOpen: isOpenDeleteConfirm2,
     onOpen: onOpenDeleteConfirm2,
     onClose: onCloseDeleteConfirm2,
-  ***REMOVED*** = useDisclosure();
+  } = useDisclosure();
   const cancelRef2 = useRef<HTMLDivElement | HTMLButtonElement>(null);
   const cancelRefBtn2 = useRef<HTMLButtonElement>(null);
 
@@ -104,36 +104,36 @@ const MyProfile: React.FC = () => {
     isOpen: isOpenAdd,
     onOpen: onOpenAdd,
     onClose: onCloseAdd,
-  ***REMOVED*** = useDisclosure();
+  } = useDisclosure();
 
   const getInfo = async () => {
     const response = await get("/user/getInfo", {
-      headers: { "HRD-token": token ***REMOVED***,
-***REMOVED***);
+      headers: { "HRD-token": token },
+    });
     if (!!response && response.data.msgCode === 200) {
       setInfo(response.data.t);
-***REMOVED***
-  ***REMOVED***;
+    }
+  };
 
   const getCred = async () => {
     const response = await get("/cred/query", {
-      headers: { "HRD-token": token ***REMOVED***,
-***REMOVED***);
+      headers: { "HRD-token": token },
+    });
     if (!!response && response.data.msgCode === 200) {
       setCredList(response.data.t);
-***REMOVED***
-  ***REMOVED***;
+    }
+  };
 
   const delCred = async () => {
     const response = await post(
       "/cred/delete",
-  ***REMOVED******REMOVED***,
-  ***REMOVED***
-        headers: { "HRD-token": token ***REMOVED***,
+      {},
+      {
+        headers: { "HRD-token": token },
         params: {
           credId: delCredId,
-***REMOVED***,
-  ***REMOVED***
+        },
+      }
     );
     if (!!response && response.data.msgCode === 200) {
       toast({
@@ -142,35 +142,35 @@ const MyProfile: React.FC = () => {
         isClosable: true,
         position: "top",
         duration: 3000,
-  ***REMOVED***);
+      });
       getCred();
-***REMOVED***
-  ***REMOVED***;
+    }
+  };
 
   const getEditCred = (auth: string) => {
     var lst = [];
     if (auth.includes("C")) {
       lst?.push("C");
-***REMOVED***
+    }
     if (auth.includes("R")) {
       lst?.push("R");
-***REMOVED***
+    }
     if (auth.includes("D")) {
       lst?.push("D");
-***REMOVED***
+    }
     setValue(lst);
-  ***REMOVED***;
+  };
 
   const editCred = async (credId: number) => {
     const response = await post(
       "/cred/update",
-  ***REMOVED***
+      {
         credId: credId,
         authorization: value.join(),
-  ***REMOVED***,
-  ***REMOVED***
-        headers: { "HRD-token": token ***REMOVED***,
-  ***REMOVED***
+      },
+      {
+        headers: { "HRD-token": token },
+      }
     );
     if (!!response && response.data.msgCode === 200) {
       toast({
@@ -179,20 +179,20 @@ const MyProfile: React.FC = () => {
         isClosable: true,
         duration: 3000,
         position: "top",
-  ***REMOVED***);
+      });
       getCred();
-***REMOVED***
-  ***REMOVED***;
+    }
+  };
 
   const addCred = async () => {
     const response = await post(
       "/cred/create",
-  ***REMOVED***
+      {
         authorization: value.join(),
-  ***REMOVED***,
-  ***REMOVED***
-        headers: { "HRD-token": token ***REMOVED***,
-  ***REMOVED***
+      },
+      {
+        headers: { "HRD-token": token },
+      }
     );
     if (!!response && response.data.msgCode === 200) {
       toast({
@@ -201,10 +201,10 @@ const MyProfile: React.FC = () => {
         isClosable: true,
         duration: 3000,
         position: "top",
-  ***REMOVED***);
+      });
       getCred();
-***REMOVED***
-  ***REMOVED***;
+    }
+  };
 
   const copyToken = (token: string) => {
     navigator.clipboard.writeText(token);
@@ -214,15 +214,15 @@ const MyProfile: React.FC = () => {
       isClosable: true,
       duration: 3000,
       position: "top",
-***REMOVED***);
-  ***REMOVED***;
+    });
+  };
 
   const delUser = async () => {
     const response = await get(
       "/user/deleteUser",
-  ***REMOVED***
-        headers: { "HRD-token": token ***REMOVED***,
-  ***REMOVED***
+      {
+        headers: { "HRD-token": token },
+      }
     );
     if (!!response && response.data.msgCode === 200) {
       toast({
@@ -231,52 +231,52 @@ const MyProfile: React.FC = () => {
         isClosable: true,
         position: "top",
         duration: 3000,
-  ***REMOVED***);
-***REMOVED***
+      });
+    }
     router.push("/login")
     removeLS()
-  ***REMOVED***;
+  };
 
   useEffect(() => {
     if (!!token) {
       getInfo();
       getCred();
-***REMOVED***
-  ***REMOVED***, [token]);
+    }
+  }, [token]);
 
   return (
     <>
-      <ChangeInfoDrawer isOpen={isOpen***REMOVED*** onClose={onClose***REMOVED*** />
-      <Center h="calc(100%-4rem)" w={"85vw"***REMOVED***>
-        <VStack shadow={"lg"***REMOVED*** w={"55%"***REMOVED*** rounded={"lg"***REMOVED*** m={8***REMOVED*** p={8***REMOVED*** bg={"white"***REMOVED***>
+      <ChangeInfoDrawer isOpen={isOpen} onClose={onClose} />
+      <Center h="calc(100%-4rem)" w={"85vw"}>
+        <VStack shadow={"lg"} w={"55%"} rounded={"lg"} m={8} p={8} bg={"white"}>
           <HStack
-            justifyContent={"space-evenly"***REMOVED***
-            w={"100%"***REMOVED***
+            justifyContent={"space-evenly"}
+            w={"100%"}
             h="25vh"
             style={{
               backgroundImage: "linear-gradient(to right, #B2F5EA, #BEE3F8)",
-    ***REMOVED******REMOVED***
-            rounded={"lg"***REMOVED***
+            }}
+            rounded={"lg"}
           >
             <VStack>
               <Avatar
                 borderRadius="full"
-                h={24***REMOVED***
-                w={24***REMOVED***
-                src={`user/getAvatar/${token***REMOVED***`***REMOVED***
+                h={24}
+                w={24}
+                src={`user/getAvatar/${token}`}
               />
-              <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED*** color={"#97266D"***REMOVED***>
-            ***REMOVED***info?.userName***REMOVED***
+              <Text fontWeight={"semibold"} fontSize={"xl"} color={"#97266D"}>
+                {info?.userName}
               </Text>
             </VStack>
           </HStack>
 
-          <Divider style={{ marginTop: "2rem" ***REMOVED******REMOVED*** />
+          <Divider style={{ marginTop: "2rem" }} />
           <Heading
             as="h6"
             size="md"
-            fontWeight={"450"***REMOVED***
-            alignSelf={"flex-start"***REMOVED***
+            fontWeight={"450"}
+            alignSelf={"flex-start"}
           >
             Personal Profile
           </Heading>
@@ -284,95 +284,95 @@ const MyProfile: React.FC = () => {
             h="200px"
             templateRows="repeat(2, 1fr)"
             templateColumns="repeat(5, 1fr)"
-            gap={4***REMOVED***
+            gap={4}
             width="100%"
           >
-            <GridItem colSpan={2***REMOVED*** padding={3***REMOVED*** bg={"orange.200"***REMOVED*** rounded={"lg"***REMOVED***>
+            <GridItem colSpan={2} padding={3} bg={"orange.200"} rounded={"lg"}>
               <Heading
                 as="h6"
                 size="md"
-                fontWeight={"450"***REMOVED***
+                fontWeight={"450"}
                 color="RGBA(0, 0, 0, 0.80)"
               >
                 Name
               </Heading>
-              <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
-            ***REMOVED***info?.userName***REMOVED***
+              <Text marginTop={2} marginLeft={1}>
+                {info?.userName}
               </Text>
             </GridItem>
-            <GridItem colSpan={2***REMOVED*** padding={3***REMOVED*** bg="orange.200" rounded={"lg"***REMOVED***>
+            <GridItem colSpan={2} padding={3} bg="orange.200" rounded={"lg"}>
               <Heading
                 as="h6"
                 size="md"
-                fontWeight={"450"***REMOVED***
+                fontWeight={"450"}
                 color="RGBA(0, 0, 0, 0.80)"
               >
                 Register Time
               </Heading>
-              <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
-            ***REMOVED***info?.createDate.substr(0, 10)***REMOVED***
+              <Text marginTop={2} marginLeft={1}>
+                {info?.createDate.substr(0, 10)}
               </Text>
             </GridItem>
             <GridItem
-              rowSpan={2***REMOVED***
-              padding={3***REMOVED***
-              colSpan={1***REMOVED***
-              bg={"purple.50"***REMOVED***
-              rounded={"lg"***REMOVED***
+              rowSpan={2}
+              padding={3}
+              colSpan={1}
+              bg={"purple.50"}
+              rounded={"lg"}
             >
               <Heading
                 as="h6"
                 size="md"
-                fontWeight={"450"***REMOVED***
+                fontWeight={"450"}
                 color="RGBA(0, 0, 0, 0.80)"
               >
                 Edit Profile
               </Heading>
               <IconButton
-                variant={"ghost"***REMOVED***
-                aria-label={"Edit profile"***REMOVED***
-                icon={<AiOutlineEdit />***REMOVED***
-                onClick={onOpen***REMOVED***
-                size={"lg"***REMOVED***
-                mt={4***REMOVED***
-                padding={5***REMOVED***
-                w={"100%"***REMOVED***
+                variant={"ghost"}
+                aria-label={"Edit profile"}
+                icon={<AiOutlineEdit />}
+                onClick={onOpen}
+                size={"lg"}
+                mt={4}
+                padding={5}
+                w={"100%"}
               />
             </GridItem>
-            <GridItem colSpan={4***REMOVED*** padding={3***REMOVED*** bg={"teal.100"***REMOVED*** rounded={"lg"***REMOVED***>
-              <Heading as="h6" size="md" fontWeight={"450"***REMOVED***>
+            <GridItem colSpan={4} padding={3} bg={"teal.100"} rounded={"lg"}>
+              <Heading as="h6" size="md" fontWeight={"450"}>
                 Email
               </Heading>
-              <Text marginTop={2***REMOVED*** marginLeft={1***REMOVED***>
-            ***REMOVED***info?.email***REMOVED***
+              <Text marginTop={2} marginLeft={1}>
+                {info?.email}
               </Text>
             </GridItem>
           </Grid>
 
-          <Divider style={{ marginTop: "2rem" ***REMOVED******REMOVED*** />
+          <Divider style={{ marginTop: "2rem" }} />
           <Heading
             as="h6"
             size="md"
-            fontWeight={"450"***REMOVED***
-            alignSelf={"flex-start"***REMOVED***
+            fontWeight={"450"}
+            alignSelf={"flex-start"}
           >
             API
             <Popover
-              isOpen={isOpenAdd***REMOVED***
+              isOpen={isOpenAdd}
               onClose={() => {
                 onCloseAdd();
- ***REMOVED*****REMOVED******REMOVED***
+              }}
             >
               <PopoverTrigger>
                 <Button
                   colorScheme="teal"
                   variant="ghost"
-                  ml={4***REMOVED***
-                  rightIcon={<GrAdd />***REMOVED***
+                  ml={4}
+                  rightIcon={<GrAdd />}
                   onClick={() => {
                     onOpenAdd();
                     setValue([]);
-***REMOVED*****REMOVED*****REMOVED******REMOVED***
+                  }}
                 >
                   New API
                 </Button>
@@ -384,13 +384,13 @@ const MyProfile: React.FC = () => {
                 <PopoverBody>
                   <CheckboxGroup
                     colorScheme="green"
-                    defaultValue={[]***REMOVED***
-                    value={value***REMOVED***
+                    defaultValue={[]}
+                    value={value}
                     onChange={(e) => {
                       setValue(e);
-  ***REMOVED*****REMOVED*****REMOVED******REMOVED***
+                    }}
                   >
-                    <Stack spacing={[1, 5]***REMOVED*** direction={["column", "row"]***REMOVED***>
+                    <Stack spacing={[1, 5]} direction={["column", "row"]}>
                       <Checkbox value="C">Upload</Checkbox>
                       <Checkbox value="R">Read</Checkbox>
                       <Checkbox value="D">Delete</Checkbox>
@@ -399,12 +399,12 @@ const MyProfile: React.FC = () => {
                   <Button
                     colorScheme="twitter"
                     variant="outline"
-                    width={"100%"***REMOVED***
-                    mt={5***REMOVED***
+                    width={"100%"}
+                    mt={5}
                     onClick={() => {
                       addCred();
                       onCloseAdd();
-  ***REMOVED*****REMOVED*****REMOVED******REMOVED***
+                    }}
                   >
                     Create
                   </Button>
@@ -412,14 +412,14 @@ const MyProfile: React.FC = () => {
               </PopoverContent>
             </Popover>
           </Heading>
-          <Stack width={"100%"***REMOVED***>
-        ***REMOVED***credList?.length === 0 ? (
+          <Stack width={"100%"}>
+            {credList?.length === 0 ? (
               <>
                 <Text fontSize="xl">Nothing Here</Text>
                 <Divider />
               </>
             ) : (
-              <TableContainer w={"100vw"***REMOVED***>
+              <TableContainer w={"100vw"}>
                 <Table variant="simple">
                   <Thead>
                     <Tr>
@@ -430,31 +430,31 @@ const MyProfile: React.FC = () => {
                     </Tr>
                   </Thead>
                   <Tbody>
-                ***REMOVED***credList?.map((cred) => {
+                    {credList?.map((cred) => {
                       return (
-                        <Tr key={cred.credId***REMOVED***>
-                          <Td>{cred.credId***REMOVED***</Td>
+                        <Tr key={cred.credId}>
+                          <Td>{cred.credId}</Td>
                           <Td>
-                        ***REMOVED***cred.authorization
+                            {cred.authorization
                               .replace("C", "Upload ")
                               .replace("R", "Read ")
-                              .replace("D", "Delete")***REMOVED***
+                              .replace("D", "Delete")}
                           </Td>
-                          <Td>{cred.token***REMOVED***</Td>
+                          <Td>{cred.token}</Td>
                           <Td>
                             <Button
-                              leftIcon={<AiOutlineCopy />***REMOVED***
+                              leftIcon={<AiOutlineCopy />}
                               onClick={() => {
                                 copyToken(cred.token);
-       ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+                              }}
                             ></Button>
                             <Popover>
                               <PopoverTrigger>
                                 <Button
-                                  leftIcon={<GrUpdate />***REMOVED***
+                                  leftIcon={<GrUpdate />}
                                   onClick={() => {
                                     getEditCred(cred.authorization);
-           ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+                                  }}
                                 ></Button>
                               </PopoverTrigger>
                               <PopoverContent>
@@ -464,14 +464,14 @@ const MyProfile: React.FC = () => {
                                 <PopoverBody>
                                   <CheckboxGroup
                                     colorScheme="green"
-                                    value={value***REMOVED***
+                                    value={value}
                                     onChange={(e) => {
                                       setValue(e);
-             ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+                                    }}
                                   >
                                     <Stack
-                                      spacing={[1, 5]***REMOVED***
-                                      direction={["column", "row"]***REMOVED***
+                                      spacing={[1, 5]}
+                                      direction={["column", "row"]}
                                     >
                                       <Checkbox value="C">Upload</Checkbox>
                                       <Checkbox value="R">Read</Checkbox>
@@ -481,11 +481,11 @@ const MyProfile: React.FC = () => {
                                   <Button
                                     colorScheme="twitter"
                                     variant="outline"
-                                    width={"100%"***REMOVED***
-                                    mt={5***REMOVED***
+                                    width={"100%"}
+                                    mt={5}
                                     onClick={() => {
                                       editCred(cred.credId);
-             ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
+                                    }}
                                   >
                                     Confirm
                                   </Button>
@@ -494,35 +494,35 @@ const MyProfile: React.FC = () => {
                             </Popover>
 
                             <Button
-                              leftIcon={<AiOutlineDelete />***REMOVED***
+                              leftIcon={<AiOutlineDelete />}
                               onClick={() => {
                                 setDelCredId(cred.credId);
                                 onOpenDeleteConfirm();
-       ***REMOVED*****REMOVED*****REMOVED*****REMOVED******REMOVED***
-                              disabled={isOpenDeleteConfirm***REMOVED***
+                              }}
+                              disabled={isOpenDeleteConfirm}
                             ></Button>
                           </Td>
                         </Tr>
                       );
-  ***REMOVED*****REMOVED*****REMOVED***)***REMOVED***
+                    })}
                   </Tbody>
                 </Table>
               </TableContainer>
-            )***REMOVED***
+            )}
 
             <Heading
               as="h6"
               size="md"
-              fontWeight={"450"***REMOVED***
-              alignSelf={"flex-start"***REMOVED***
-              style={{ marginTop: 20 ***REMOVED******REMOVED***
+              fontWeight={"450"}
+              alignSelf={"flex-start"}
+              style={{ marginTop: 20 }}
             >
               API Documents
             </Heading>
             <Accordion
-              defaultIndex={[]***REMOVED***
+              defaultIndex={[]}
               allowMultiple
-              style={{ marginTop: 20 ***REMOVED******REMOVED***
+              style={{ marginTop: 20 }}
             >
               <AccordionItem>
                 <h2>
@@ -533,7 +533,7 @@ const MyProfile: React.FC = () => {
                     <AccordionIcon />
                   </AccordionButton>
                 </h2>
-                <AccordionPanel pb={4***REMOVED***>
+                <AccordionPanel pb={4}>
                   C: Able to upload photo (Create) <br></br>R: Able to query
                   namespace, photos in namespaces and render the photo (Read)
                   <br></br> D: Able to delete photo (Delete)
@@ -548,7 +548,7 @@ const MyProfile: React.FC = () => {
                     <AccordionIcon />
                   </AccordionButton>
                 </h2>
-                <AccordionPanel pb={4***REMOVED***>
+                <AccordionPanel pb={4}>
                   <Text fontSize="xl">C1 Upload Photo - POST:</Text>
                   <br></br>
                   Addr: server_path/cred/uploadPhoto/YOUR_TOKEN
@@ -615,25 +615,25 @@ const MyProfile: React.FC = () => {
                 </AccordionPanel>
               </AccordionItem>
             </Accordion>
-            <Divider style={{ marginTop: "2rem" ***REMOVED******REMOVED*** />
+            <Divider style={{ marginTop: "2rem" }} />
             <Heading
               as="h6"
               size="md"
-              fontWeight={"450"***REMOVED***
-              alignSelf={"flex-start"***REMOVED***
+              fontWeight={"450"}
+              alignSelf={"flex-start"}
             >
               Other
             </Heading>
-            <Button colorScheme="red" variant="ghost" w={"100%"***REMOVED*** onClick={onOpenDeleteConfirm2***REMOVED***>
+            <Button colorScheme="red" variant="ghost" w={"100%"} onClick={onOpenDeleteConfirm2}>
               Delete my Account
             </Button>
           </Stack>
         </VStack>
       </Center>
       <AlertDialog
-        isOpen={isOpenDeleteConfirm***REMOVED***
-        leastDestructiveRef={cancelRef***REMOVED***
-        onClose={onCloseDeleteConfirm***REMOVED***
+        isOpen={isOpenDeleteConfirm}
+        leastDestructiveRef={cancelRef}
+        onClose={onCloseDeleteConfirm}
       >
         <AlertDialogOverlay>
           <AlertDialogContent>
@@ -646,7 +646,7 @@ const MyProfile: React.FC = () => {
             </AlertDialogBody>
 
             <AlertDialogFooter>
-              <Button ref={cancelRefBtn***REMOVED*** onClick={onCloseDeleteConfirm***REMOVED***>
+              <Button ref={cancelRefBtn} onClick={onCloseDeleteConfirm}>
                 Cancel
               </Button>
               <Button
@@ -654,8 +654,8 @@ const MyProfile: React.FC = () => {
                 onClick={() => {
                   delCred();
                   onCloseDeleteConfirm();
-   ***REMOVED*****REMOVED******REMOVED***
-                ml={3***REMOVED***
+                }}
+                ml={3}
               >
                 Delete
               </Button>
@@ -665,9 +665,9 @@ const MyProfile: React.FC = () => {
       </AlertDialog>
 
       <AlertDialog
-        isOpen={isOpenDeleteConfirm2***REMOVED***
-        leastDestructiveRef={cancelRef2***REMOVED***
-        onClose={onCloseDeleteConfirm2***REMOVED***
+        isOpen={isOpenDeleteConfirm2}
+        leastDestructiveRef={cancelRef2}
+        onClose={onCloseDeleteConfirm2}
       >
         <AlertDialogOverlay>
           <AlertDialogContent>
@@ -680,7 +680,7 @@ const MyProfile: React.FC = () => {
             </AlertDialogBody>
 
             <AlertDialogFooter>
-              <Button ref={cancelRefBtn2***REMOVED*** onClick={onCloseDeleteConfirm2***REMOVED***>
+              <Button ref={cancelRefBtn2} onClick={onCloseDeleteConfirm2}>
                 Cancel
               </Button>
               <Button
@@ -688,8 +688,8 @@ const MyProfile: React.FC = () => {
                 onClick={() => {
                   delUser();
                   onCloseDeleteConfirm2();
-   ***REMOVED*****REMOVED******REMOVED***
-                ml={3***REMOVED***
+                }}
+                ml={3}
               >
                 DELETE
               </Button>
@@ -699,5 +699,5 @@ const MyProfile: React.FC = () => {
       </AlertDialog>
     </>
   );
-***REMOVED***;
+};
 export default MyProfile;

@@ -1,19 +1,19 @@
-import useLocalStorage, {TOKEN_KEY***REMOVED*** from "./useLocalStorage";
-import {useEffect, useState***REMOVED*** from "react";
-import {useRouter***REMOVED*** from "next/router";
+import useLocalStorage, {TOKEN_KEY} from "./useLocalStorage";
+import {useEffect, useState} from "react";
+import {useRouter} from "next/router";
 
 const useToken = () => {
     const router = useRouter()
-    const {getLS***REMOVED*** = useLocalStorage(TOKEN_KEY)
+    const {getLS} = useLocalStorage(TOKEN_KEY)
     const [token, setToken] = useState<string>("")
     useEffect(() => {
         const t = getLS()
         if (t === null){
             router.push("/login")
-***REMOVED***else{
+        }else{
             setToken(t)
-***REMOVED***
-***REMOVED***, [])
+        }
+    }, [])
     return token
-***REMOVED***
+}
 export default useToken

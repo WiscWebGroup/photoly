@@ -5,11 +5,11 @@ export interface serverAlbum {
   gaId: number
   gaName: string
   userId: number
-***REMOVED***
+}
 
 export interface IAlbum {
   id: number
   name: string
   coverId: number
   coverColor: string
-***REMOVED***
+}

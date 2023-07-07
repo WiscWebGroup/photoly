@@ -1,10 +1,10 @@
-import {createApi***REMOVED*** from "@reduxjs/toolkit/query/react";
-import { myBaseQuery ***REMOVED*** from "../customBaseQuery";
+import {createApi} from "@reduxjs/toolkit/query/react";
+import { myBaseQuery } from "../customBaseQuery";
 
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: myBaseQuery,
   tagTypes: ['tag', 'album'],
-  endpoints: () => ({***REMOVED***)
-***REMOVED***)
+  endpoints: () => ({})
+})
 

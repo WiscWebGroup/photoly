@@ -8,14 +8,14 @@ import org.chengbing.entity.Photo;
 import javax.naming.Name;
 import java.util.List;
 
-***REMOVED***
+/**
  * <p>
  *  服务类
  * </p>
  *
  * @author HaroldCI
  * @since 2022-06-24
-***REMOVED***
+ */
 public interface ICredService extends IService<Cred> {
     Integer createNewAPI(Integer userId, Cred cred);
     List<Cred> queryAPI(Integer userId);
@@ -30,4 +30,4 @@ public interface ICredService extends IService<Cred> {
     Namespace queryRootNamespace(Integer userId);
     List<Namespace> queryNamespaces(Integer userId, Integer parentId);
     List<Photo> queryPhotoList(Integer userId, Integer nsId);
-***REMOVED***
+}

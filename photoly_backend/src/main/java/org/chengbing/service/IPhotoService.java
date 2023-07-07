@@ -10,14 +10,14 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-***REMOVED***
+/**
  * <p>
  *  服务类
  * </p>
  *
  * @author HaroldCI
  * @since 2022-06-24
-***REMOVED***
+ */
 public interface IPhotoService extends IService<Photo> {
     Integer insertPhoto(Integer userId, MultipartFile file, @RequestBody Photo photo);
     Integer insertPhotos(Integer userId, MultipartFile[] files, @RequestBody List<Photo> photos);
@@ -37,4 +37,4 @@ public interface IPhotoService extends IService<Photo> {
     List<LinkedHashMap<String, Object>> selectTagByPhoto(Integer userId, Integer photoId);
 
     List<LinkedHashMap<String, Object>> selectGalleryByPhoto(Integer userId, Integer photoId);
-***REMOVED***
+}

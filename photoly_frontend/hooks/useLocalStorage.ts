@@ -1,4 +1,4 @@
-import { useCallback ***REMOVED*** from "react"
+import { useCallback } from "react"
 
 export const TOKEN_KEY = "HRD-Token"
 
@@ -9,7 +9,7 @@ const useLocalStorage = (key: string) => {
         [key]
     )
     const removeLS = useCallback(() => localStorage.removeItem(key), [key])
-    return { getLS, setLS, removeLS ***REMOVED***
-***REMOVED***
+    return { getLS, setLS, removeLS }
+}
 
 export default useLocalStorage

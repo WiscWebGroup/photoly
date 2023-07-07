@@ -1,5 +1,5 @@
-import {Stack***REMOVED*** from "@chakra-ui/react";
-import React, {useState***REMOVED*** from "react";
+import {Stack} from "@chakra-ui/react";
+import React, {useState} from "react";
 import useToken from "../../hooks/useToken";
 import Navbar from "../../components/Navbar";
 import NavManager from "../../components/manage/NavManager";
@@ -15,26 +15,26 @@ const Manage: React.FC = () => {
 
   const changeSelection = (num: number) => {
     setCurrentSelected(num);
-  ***REMOVED***;
+  };
 
   return (
     <>
       <Navbar />
 
       <Stack
-        bg={"gray.50"***REMOVED***
-        h={"calc(100% - 4rem)"***REMOVED***
+        bg={"gray.50"}
+        h={"calc(100% - 4rem)"}
         direction="row"
         w="100vw-4rem"
       >
-        <NavManager changeSelection={changeSelection***REMOVED*** />
-    ***REMOVED***currentSelected === 0 ? <MyProfile /> : ""***REMOVED***
-    ***REMOVED***currentSelected === 1 ? <TagSetting /> : ""***REMOVED***
-    ***REMOVED***currentSelected === 2 ? <GallerySetting /> : ""***REMOVED***
-    ***REMOVED***currentSelected === 3 ? <AdminSettings /> : ""***REMOVED***
-    ***REMOVED***currentSelected === 4 ? <AdminUser /> : ""***REMOVED***
+        <NavManager changeSelection={changeSelection} />
+        {currentSelected === 0 ? <MyProfile /> : ""}
+        {currentSelected === 1 ? <TagSetting /> : ""}
+        {currentSelected === 2 ? <GallerySetting /> : ""}
+        {currentSelected === 3 ? <AdminSettings /> : ""}
+        {currentSelected === 4 ? <AdminUser /> : ""}
       </Stack>
     </>
   );
-***REMOVED***;
+};
 export default Manage;
