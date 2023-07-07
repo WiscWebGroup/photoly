@@ -1,22 +1,22 @@
-import { DeleteIcon, EditIcon ***REMOVED*** from "@chakra-ui/icons"
-import { MenuList, MenuItem ***REMOVED*** from "@chakra-ui/react"
+import { DeleteIcon, EditIcon } from "@chakra-ui/icons"
+import { MenuList, MenuItem } from "@chakra-ui/react"
 
 interface TagContextMenuProps {
     handleRename: () => void
     handleDelete: () => void
-***REMOVED***
+}
 
-const TagContextMenu = ({ handleRename, handleDelete ***REMOVED***: TagContextMenuProps) => {
+const TagContextMenu = ({ handleRename, handleDelete }: TagContextMenuProps) => {
     return (
-        <MenuList zIndex={1020***REMOVED***>
-            <MenuItem icon={<DeleteIcon />***REMOVED*** onClick={handleDelete***REMOVED***>
+        <MenuList zIndex={1020}>
+            <MenuItem icon={<DeleteIcon />} onClick={handleDelete}>
                 Delete
             </MenuItem>
-            <MenuItem icon={<EditIcon />***REMOVED*** onClick={handleRename***REMOVED***>
+            <MenuItem icon={<EditIcon />} onClick={handleRename}>
                 Rename
             </MenuItem>
         </MenuList>
     )
-***REMOVED***
+}
 
 export default TagContextMenu

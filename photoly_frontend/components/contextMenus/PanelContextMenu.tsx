@@ -1,22 +1,22 @@
-import { MenuList, MenuItem ***REMOVED*** from "@chakra-ui/react"
-import { AiOutlineCloudUpload, AiOutlineFolderAdd ***REMOVED*** from "react-icons/ai"
+import { MenuList, MenuItem } from "@chakra-ui/react"
+import { AiOutlineCloudUpload, AiOutlineFolderAdd } from "react-icons/ai"
 
 interface PanelContextMenuProps {
     triggerUpload: () => void
     triggerCreate: () => void
-***REMOVED***
+}
 
-const PanelContextMenu = ({ triggerUpload, triggerCreate ***REMOVED***: PanelContextMenuProps) => {
+const PanelContextMenu = ({ triggerUpload, triggerCreate }: PanelContextMenuProps) => {
     return (
-        <MenuList zIndex={1020***REMOVED***>
-            <MenuItem icon={<AiOutlineCloudUpload />***REMOVED*** onClick={triggerUpload***REMOVED***>
+        <MenuList zIndex={1020}>
+            <MenuItem icon={<AiOutlineCloudUpload />} onClick={triggerUpload}>
                 Upload Photo
             </MenuItem>
-            <MenuItem icon={<AiOutlineFolderAdd />***REMOVED*** onClick={triggerCreate***REMOVED***>
+            <MenuItem icon={<AiOutlineFolderAdd />} onClick={triggerCreate}>
                 New Folder
             </MenuItem>
         </MenuList>
     )
-***REMOVED***
+}
 
 export default PanelContextMenu

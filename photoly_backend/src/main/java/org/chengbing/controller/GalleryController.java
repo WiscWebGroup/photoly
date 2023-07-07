@@ -17,14 +17,14 @@ import javax.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.util.List;
 
-***REMOVED***
+/**
  * <p>
  *  前端控制器
  * </p>
  *
  * @author HaroldCI
  * @since 2022-06-24
-***REMOVED***
+ */
 @RestController
 @RequestMapping("/gallery")
 public class GalleryController {
@@ -35,7 +35,7 @@ public class GalleryController {
 
     @PostMapping("/insert")
     public Result<Boolean> insertGallery(HttpServletRequest request, @RequestBody Gallery gallery)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(false, 403);
@@ -47,44 +47,44 @@ public class GalleryController {
         if (!res)
             return new Result<>(false, 401);
         return new Result<>(true, 200);
-***REMOVED***
+    }
 
     @GetMapping("/getAll")
     public Result<List<Gallery>> queryGallery(HttpServletRequest request)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(null, 403);
         return new Result<>(service.queryGallery(userId), 200);
-***REMOVED***
+    }
 
     @GetMapping("/getPage")
     public ResultPage<List<Gallery>> queryGalleryPage(HttpServletRequest request, Integer page, Integer rowsPerPage)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new ResultPage<>(-1, 403);
         return service.queryGalleryPage(userId, page, rowsPerPage);
-***REMOVED***
+    }
 
     @PostMapping("/delete")
     public Result<Integer> deleteGallery(HttpServletRequest request, Integer gaId)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-1, 403);
         int res = service.deleteGallery(userId, gaId);
         return res == 1 ? new Result<>(res, 200) : new Result<>(res, 400);
-***REMOVED***
+    }
 
     @PostMapping("/update")
     public Result<Integer> updateGallery(HttpServletRequest request,@RequestBody Gallery gallery)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-1, 403);
         int res = service.updateGallery(userId, gallery.getGaId(), gallery);
         return res == 1 ? new Result<>(res, 200) : new Result<>(res, 400);
-***REMOVED***
-***REMOVED***
+    }
+}
 

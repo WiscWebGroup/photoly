@@ -8,14 +8,14 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-***REMOVED***
+/**
  * <p>
  * 
  * </p>
  *
  * @author HaroldCI
  * @since 2022-06-24
-***REMOVED***
+ */
 @Data
 @EqualsAndHashCode(callSuper = false)
 @ApiModel(value="TagPhoto对象", description="")
@@ -33,11 +33,11 @@ public class TagPhoto implements Serializable {
     private Integer photoId;
 
     public TagPhoto() {
-***REMOVED***
+    }
 
     public TagPhoto(Integer userId, Integer tagId, Integer photoId) {
         this.userId = userId;
         this.tagId = tagId;
         this.photoId = photoId;
-***REMOVED***
-***REMOVED***
+    }
+}

@@ -27,21 +27,21 @@ import java.time.Duration;
 public class RedisConfig extends CachingConfigurerSupport {
     @Resource
     RedisConnectionFactory factory;
-    ***REMOVED***
-***REMOVED*** 连接池的设置
-***REMOVED***
-***REMOVED*** @return
-    ***REMOVED***
+    /**
+     * 连接池的设置
+     *
+     * @return
+     */
     @Bean
     public JedisPoolConfig getJedisPoolConfig() {
         JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
         return jedisPoolConfig;
-***REMOVED***
-    ***REMOVED***
-***REMOVED*** RedisTemplate
-***REMOVED*** @param factory
-***REMOVED*** @return
-    ***REMOVED***
+    }
+    /**
+     * RedisTemplate
+     * @param factory
+     * @return
+     */
     @Bean
     public RedisTemplate<String, Object> redisTemplate() {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
@@ -61,12 +61,12 @@ public class RedisConfig extends CachingConfigurerSupport {
         //value hashmap序列化
         template.setHashValueSerializer(jackson2JsonRedisSerializer);
         return template;
-***REMOVED***
-    ***REMOVED***
-***REMOVED*** 缓存处理
-***REMOVED*** @param factory
-***REMOVED*** @return
-    ***REMOVED***
+    }
+    /**
+     * 缓存处理
+     * @param factory
+     * @return
+     */
     @Bean
     public CacheManager cacheManager() {
         RedisSerializer<String> redisSerializer = new StringRedisSerializer();
@@ -86,5 +86,5 @@ public class RedisConfig extends CachingConfigurerSupport {
                 .cacheDefaults(config)
                 .build();
         return cacheManager;
-***REMOVED***
-***REMOVED***
+    }
+}

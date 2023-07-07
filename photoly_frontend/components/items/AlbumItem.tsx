@@ -1,26 +1,26 @@
-import { Box, Button, ButtonGroup, FormControl, FormLabel, Input, Popover, PopoverArrow, PopoverCloseButton, PopoverContent, Select, Stack, useDisclosure ***REMOVED*** from "@chakra-ui/react"
-import { useState, useRef, ChangeEvent ***REMOVED*** from "react";
-import { AiOutlineStar, AiOutlineFlag ***REMOVED*** from "react-icons/ai";
-import { BiPaperPlane ***REMOVED*** from "react-icons/bi";
-import { FaUmbrellaBeach ***REMOVED*** from "react-icons/fa";
-import { GiMountainCave ***REMOVED*** from "react-icons/gi";
-import { GrFavorite ***REMOVED*** from "react-icons/gr";
-import { HiOutlineAcademicCap ***REMOVED*** from "react-icons/hi";
-import { TbAlbum ***REMOVED*** from "react-icons/tb";
-import { ContextMenu ***REMOVED*** from "../ContextMenu"
+import { Box, Button, ButtonGroup, FormControl, FormLabel, Input, Popover, PopoverArrow, PopoverCloseButton, PopoverContent, Select, Stack, useDisclosure } from "@chakra-ui/react"
+import { useState, useRef, ChangeEvent } from "react";
+import { AiOutlineStar, AiOutlineFlag } from "react-icons/ai";
+import { BiPaperPlane } from "react-icons/bi";
+import { FaUmbrellaBeach } from "react-icons/fa";
+import { GiMountainCave } from "react-icons/gi";
+import { GrFavorite } from "react-icons/gr";
+import { HiOutlineAcademicCap } from "react-icons/hi";
+import { TbAlbum } from "react-icons/tb";
+import { ContextMenu } from "../ContextMenu"
 import AlbumContextMenu from "../contextMenus/AlbumContextMenu"
-import { useAppDispatch, useAppSelector ***REMOVED*** from "../../redux/hooks";
-import { clearAlbum, setAlbum ***REMOVED*** from "../../redux/states/searchFilterSlice";
-import { useDeleteAlbumMutation, useUpdateAlbumMutation ***REMOVED*** from "../../redux/api/albumSlice";
+import { useAppDispatch, useAppSelector } from "../../redux/hooks";
+import { clearAlbum, setAlbum } from "../../redux/states/searchFilterSlice";
+import { useDeleteAlbumMutation, useUpdateAlbumMutation } from "../../redux/api/albumSlice";
 
 interface AlbumItemProps {
     id: number
     name: string
     coverId: number
     coverColor: string
-***REMOVED***
+}
 
-const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProps) => {
+const AlbumItem = ({ id, name, coverId, coverColor } : AlbumItemProps) => {
     const [newName, setNewName] = useState(name)
     const [newCoverId, setNewCoverId] = useState(coverId)
     const [newCoverColor, setNewCovereColor] = useState(coverColor)
@@ -30,8 +30,8 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
     const [deleteAlbum, deleteStatus] = useDeleteAlbumMutation()
     const [updateAlbum, renameStatus] = useUpdateAlbumMutation()
 
-    const { isOpen: isReOpen, onOpen: onReOpen, onClose: onReClose ***REMOVED*** = useDisclosure()
-    const { isOpen: isIcOpen, onOpen: onIcOpen, onClose: onIcClose ***REMOVED*** = useDisclosure()
+    const { isOpen: isReOpen, onOpen: onReOpen, onClose: onReClose } = useDisclosure()
+    const { isOpen: isIcOpen, onOpen: onIcOpen, onClose: onIcClose } = useDisclosure()
 
     const albumId = useAppSelector((state) => state.searchFilter.albumId)
     const dispatch = useAppDispatch()
@@ -40,96 +40,96 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
         const value = e.currentTarget.value
         setIsError(value.length === 0)
         setNewName(value)
-***REMOVED***
+    }
 
     const handleReClose = () => {
         setNewName(name)
         onReClose()
-***REMOVED***
+    }
 
     const handleRename = () => {
         // setIsLoading(true)
-        // updateRequest({id, name: newName, coverId, coverColor***REMOVED***)
+        // updateRequest({id, name: newName, coverId, coverColor})
         // setIsLoading(false)
-        updateAlbum({id, name: newName, coverId, coverColor***REMOVED***)
+        updateAlbum({id, name: newName, coverId, coverColor})
         handleReClose()
-***REMOVED***
+    }
 
     const handleIcClose = () => {
         setNewCoverId(coverId)
         setNewCovereColor(coverColor)
         onIcClose()
-***REMOVED***
+    }
 
     const handleUpdateIcon = () => {
         if (coverId !== newCoverId || coverColor != newCoverColor) {
             // setIsLoading(true)
-            // updateRequest({id, name, coverId: newCoverId, coverColor: newCoverColor***REMOVED***)
+            // updateRequest({id, name, coverId: newCoverId, coverColor: newCoverColor})
             // setIsLoading(false)
-            updateAlbum({id, name, coverId: newCoverId, coverColor: newCoverColor***REMOVED***)
-***REMOVED***
+            updateAlbum({id, name, coverId: newCoverId, coverColor: newCoverColor})
+        }
         handleIcClose()
-***REMOVED***
+    }
 
     const handleAlbumClick = () => {
         // Want to de-select current album
         if (albumId !== -1 && id === albumId) {
             dispatch(clearAlbum())
-***REMOVED*** else {
+        } else {
             dispatch(setAlbum(id))
-***REMOVED***
-***REMOVED***
+        }
+    }
 
     return (
         <ContextMenu<HTMLDivElement>
             renderMenu={() => 
                 <AlbumContextMenu 
-                    handleDelete={() => deleteAlbum(id)***REMOVED***
-                    handleRename={onReOpen***REMOVED***
-                    handleChangeIcon={onIcOpen***REMOVED***
-                />***REMOVED***
+                    handleDelete={() => deleteAlbum(id)}
+                    handleRename={onReOpen}
+                    handleChangeIcon={onIcOpen}
+                />}
         >
-        ***REMOVED***ref => (
-                <Box ref={ref***REMOVED*** w="100%" position="relative" pl={4***REMOVED*** display="flex">
+            {ref => (
+                <Box ref={ref} w="100%" position="relative" pl={4} display="flex">
                     <Button 
                         variant="ghost" 
-                        isActive={albumId === id***REMOVED***
+                        isActive={albumId === id}
                         w="100%" 
                         justifyContent="flex-start"
                         fontWeight="normal"
-                        leftIcon={getCoverIcon(coverId, coverColor)***REMOVED***
-                        // onClick={() => searchUpdateDispatch({type: "set_album", payload: id***REMOVED***)***REMOVED***
-                        onClick={handleAlbumClick***REMOVED***
+                        leftIcon={getCoverIcon(coverId, coverColor)}
+                        // onClick={() => searchUpdateDispatch({type: "set_album", payload: id})}
+                        onClick={handleAlbumClick}
                     >
-                    ***REMOVED***name***REMOVED***
+                        {name}
                     </Button>
 
-                ***REMOVED***/* rename popover***REMOVED******REMOVED***
+                    {/* rename popover */}
                     <Popover
-                        isOpen={isReOpen***REMOVED***
-                        initialFocusRef={inputRef***REMOVED***
-                        onOpen={onReOpen***REMOVED***
-                        onClose={handleReClose***REMOVED***
+                        isOpen={isReOpen}
+                        initialFocusRef={inputRef}
+                        onOpen={onReOpen}
+                        onClose={handleReClose}
                         placement='auto'
-                        closeOnBlur={false***REMOVED***
+                        closeOnBlur={false}
                     >
-                        <PopoverContent p={5***REMOVED***>
+                        <PopoverContent p={5}>
                             <PopoverArrow />
                             <PopoverCloseButton />
-                            <Stack spacing={4***REMOVED***>
+                            <Stack spacing={4}>
                                 <FormControl>
                                     <FormLabel>New album name</FormLabel>
-                                    <Input size='sm' ref={inputRef***REMOVED*** onChange={handleReChange***REMOVED*** />
+                                    <Input size='sm' ref={inputRef} onChange={handleReChange} />
                                 </FormControl>
                                 <ButtonGroup display='flex' justifyContent='flex-end'>
-                                    <Button size='sm' variant='outline' onClick={handleReClose***REMOVED***>
+                                    <Button size='sm' variant='outline' onClick={handleReClose}>
                                         Cancel
                                     </Button>
                                     <Button 
                                         size='sm' 
-                                        isDisabled={isError***REMOVED*** 
-                                        isLoading={isLoading***REMOVED*** 
-                                        onClick={handleRename***REMOVED*** 
+                                        isDisabled={isError} 
+                                        isLoading={isLoading} 
+                                        onClick={handleRename} 
                                         colorScheme='teal'
                                     >
                                         Update
@@ -139,34 +139,34 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
                         </PopoverContent>
                     </Popover>
 
-                ***REMOVED***/* icon popover***REMOVED******REMOVED***
+                    {/* icon popover */}
                     <Popover
-                        isOpen={isIcOpen***REMOVED***
-                        initialFocusRef={inputRef***REMOVED***
-                        onOpen={onIcOpen***REMOVED***
-                        onClose={handleIcClose***REMOVED***
+                        isOpen={isIcOpen}
+                        initialFocusRef={inputRef}
+                        onOpen={onIcOpen}
+                        onClose={handleIcClose}
                         placement='auto'
-                        closeOnBlur={false***REMOVED***
+                        closeOnBlur={false}
                     >
-                        <PopoverContent p={5***REMOVED***>
+                        <PopoverContent p={5}>
                             <PopoverArrow />
                             <PopoverCloseButton />
-                            <Stack spacing={4***REMOVED***>
+                            <Stack spacing={4}>
                                 <FormControl>
                                     <FormLabel>Select Icon</FormLabel>
                                     <Select
                                         placeholder="Icon Format"
-                                        mt={3***REMOVED***
-                                        onChange={(e) => setNewCoverId(parseInt(e.target.value))***REMOVED***
+                                        mt={3}
+                                        onChange={(e) => setNewCoverId(parseInt(e.target.value))}
                                     >
-                                        <option value={0***REMOVED***>Default</option>
-                                        <option value={1***REMOVED***>Star</option>
-                                        <option value={2***REMOVED***>Favorite</option>
-                                        <option value={3***REMOVED***>Beach</option>
-                                        <option value={4***REMOVED***>Plane</option>
-                                        <option value={5***REMOVED***>Flag</option>
-                                        <option value={6***REMOVED***>Academic</option>
-                                        <option value={7***REMOVED***>Mountain</option>
+                                        <option value={0}>Default</option>
+                                        <option value={1}>Star</option>
+                                        <option value={2}>Favorite</option>
+                                        <option value={3}>Beach</option>
+                                        <option value={4}>Plane</option>
+                                        <option value={5}>Flag</option>
+                                        <option value={6}>Academic</option>
+                                        <option value={7}>Mountain</option>
                                     </Select>
                                 </FormControl>
                                 <FormControl>
@@ -174,19 +174,19 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
                                     <Input
                                         variant="filled"
                                         type="color"
-                                        value={coverColor***REMOVED***
-                                        onChange={(e) => setNewCovereColor(e.target.value)***REMOVED***
-                                        mt={3***REMOVED***
+                                        value={coverColor}
+                                        onChange={(e) => setNewCovereColor(e.target.value)}
+                                        mt={3}
                                     />
                                 </FormControl>
                                 <ButtonGroup display='flex' justifyContent='flex-end'>
-                                    <Button size='sm' variant='outline' onClick={handleIcClose***REMOVED***>
+                                    <Button size='sm' variant='outline' onClick={handleIcClose}>
                                         Cancel
                                     </Button>
                                     <Button 
                                         size='sm' 
-                                        isLoading={isLoading***REMOVED*** 
-                                        onClick={handleUpdateIcon***REMOVED*** 
+                                        isLoading={isLoading} 
+                                        onClick={handleUpdateIcon} 
                                         colorScheme='teal'
                                     >
                                         Update
@@ -196,29 +196,29 @@ const AlbumItem = ({ id, name, coverId, coverColor ***REMOVED*** : AlbumItemProp
                         </PopoverContent>
                     </Popover>
                 </Box>
-            )***REMOVED***
+            )}
         </ContextMenu>
     )
-***REMOVED***
+}
 
 const getCoverIcon = (coverId: number | null, coverColor: string) => {
     if (coverId === null || coverId === 0) {
-      return <TbAlbum color={coverColor***REMOVED*** />;
-***REMOVED*** else if (coverId === 1) {
-      return <AiOutlineStar color={coverColor***REMOVED*** />;
-***REMOVED*** else if (coverId === 2) {
-      return <GrFavorite color={coverColor***REMOVED*** />;
-***REMOVED*** else if (coverId === 3) {
-      return <FaUmbrellaBeach color={coverColor***REMOVED*** />;
-***REMOVED*** else if (coverId === 4) {
-      return <BiPaperPlane color={coverColor***REMOVED*** />;
-***REMOVED*** else if (coverId === 5) {
-      return <AiOutlineFlag color={coverColor***REMOVED*** />;
-***REMOVED*** else if (coverId === 6) {
-      return <HiOutlineAcademicCap color={coverColor***REMOVED*** />;
-***REMOVED*** else if (coverId === 7) {
-      return <GiMountainCave color={coverColor***REMOVED*** />;
-***REMOVED***
-  ***REMOVED***;
+      return <TbAlbum color={coverColor} />;
+    } else if (coverId === 1) {
+      return <AiOutlineStar color={coverColor} />;
+    } else if (coverId === 2) {
+      return <GrFavorite color={coverColor} />;
+    } else if (coverId === 3) {
+      return <FaUmbrellaBeach color={coverColor} />;
+    } else if (coverId === 4) {
+      return <BiPaperPlane color={coverColor} />;
+    } else if (coverId === 5) {
+      return <AiOutlineFlag color={coverColor} />;
+    } else if (coverId === 6) {
+      return <HiOutlineAcademicCap color={coverColor} />;
+    } else if (coverId === 7) {
+      return <GiMountainCave color={coverColor} />;
+    }
+  };
 
 export default AlbumItem

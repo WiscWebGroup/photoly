@@ -23,5 +23,5 @@ public class SwaggerConfig {
                 .select()
                 .apis(RequestHandlerSelectors.basePackage("org.chengbing.controller"))
                 .build();
-***REMOVED***
-***REMOVED***
+    }
+}

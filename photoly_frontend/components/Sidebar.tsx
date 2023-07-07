@@ -1,4 +1,4 @@
-import { Divider, HStack, Text, VStack ***REMOVED*** from "@chakra-ui/react";
+import { Divider, HStack, Text, VStack } from "@chakra-ui/react";
 import React from "react";
 import TagSection from "./TagSection";
 import AlbumContextProvider from "./contexts/AlbumContext";
@@ -6,9 +6,9 @@ import AlbumSection from "./AlbumSection";
 
 const Sidebar: React.FC = () => {
   return (
-    <VStack w={52***REMOVED*** mt={4***REMOVED*** ml={4***REMOVED*** rounded={"lg"***REMOVED*** bg={"blackAlpha.50"***REMOVED*** p={4***REMOVED*** boxShadow={"lg"***REMOVED***>
-      <HStack alignSelf={"flex-start"***REMOVED***>
-        <Text fontSize={"xl"***REMOVED***>Tags & Albums</Text>
+    <VStack w={52} mt={4} ml={4} rounded={"lg"} bg={"blackAlpha.50"} p={4} boxShadow={"lg"}>
+      <HStack alignSelf={"flex-start"}>
+        <Text fontSize={"xl"}>Tags & Albums</Text>
       </HStack>
 
       <Divider />
@@ -24,6 +24,6 @@ const Sidebar: React.FC = () => {
       </AlbumContextProvider>
     </VStack>
   );
-***REMOVED***;
+};
 
 export default Sidebar;

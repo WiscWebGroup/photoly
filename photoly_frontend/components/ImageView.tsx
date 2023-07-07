@@ -13,7 +13,7 @@ import {
     Text,
     useOutsideClick,
     VStack
-***REMOVED*** from "@chakra-ui/react";
+} from "@chakra-ui/react";
 
 interface ImageViewProps {
     isViewOpen: boolean,
@@ -24,75 +24,75 @@ interface ImageViewProps {
     orgsrc: string,
     tags: string[],
     albums: string[]
-***REMOVED***
+}
 
-const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pname, date, orgsrc, tags, albums***REMOVED***) => {
+const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pname, date, orgsrc, tags, albums}) => {
     const ref = React.useRef() as React.MutableRefObject<HTMLDivElement>
     useOutsideClick({
         ref: ref,
         handler: onViewClose,
-***REMOVED***)
+    })
     return (
         <>
-            <Modal isOpen={isViewOpen***REMOVED*** onClose={onViewClose***REMOVED***>
+            <Modal isOpen={isViewOpen} onClose={onViewClose}>
                 <ModalOverlay/>
-                <ModalContent maxW={"85vw"***REMOVED***>
+                <ModalContent maxW={"85vw"}>
                     <ModalCloseButton/>
-                    <HStack alignItems={"flex-start"***REMOVED***>
-                        <Image src={orgsrc***REMOVED*** alt={"image"***REMOVED***
-                               rounded={"md"***REMOVED***
-                               w={"80%"***REMOVED*** h={"100%"***REMOVED*** objectFit={"fill"***REMOVED***/>
-                        <VStack w={"100%"***REMOVED*** h={"100%"***REMOVED*** p={4***REMOVED*** overflow={"auto"***REMOVED***>
-                        ***REMOVED***tags.length > 0 && (<Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Tags</Text>)***REMOVED***
-                            <Flex flexWrap={"wrap"***REMOVED***>
-                            ***REMOVED***tags.map((tag) =>
+                    <HStack alignItems={"flex-start"}>
+                        <Image src={orgsrc} alt={"image"}
+                               rounded={"md"}
+                               w={"80%"} h={"100%"} objectFit={"fill"}/>
+                        <VStack w={"100%"} h={"100%"} p={4} overflow={"auto"}>
+                            {tags.length > 0 && (<Text fontWeight={"semibold"} fontSize={"xl"}>Tags</Text>)}
+                            <Flex flexWrap={"wrap"}>
+                                {tags.map((tag) =>
                                     <Tag
-                                        size={"md"***REMOVED***
-                                        key={tag***REMOVED***
+                                        size={"md"}
+                                        key={tag}
                                         borderRadius='full'
                                         variant='solid'
                                         colorScheme='teal'
-                                        m={1***REMOVED***
+                                        m={1}
                                     >
-                                        <TagLabel>{tag***REMOVED***</TagLabel>
+                                        <TagLabel>{tag}</TagLabel>
                                     </Tag>
-                                )***REMOVED***
+                                )}
                             </Flex>
-                        ***REMOVED***tags.length > 0 && (<Divider/>)***REMOVED***
-                        ***REMOVED***albums.length > 0 && (<Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Albums</Text>)***REMOVED***
-                            <Flex flexWrap={"wrap"***REMOVED***>
-                            ***REMOVED***albums.map((album) =>
+                            {tags.length > 0 && (<Divider/>)}
+                            {albums.length > 0 && (<Text fontWeight={"semibold"} fontSize={"xl"}>Albums</Text>)}
+                            <Flex flexWrap={"wrap"}>
+                                {albums.map((album) =>
                                     <Tag
-                                        size={"md"***REMOVED***
-                                        key={album***REMOVED***
+                                        size={"md"}
+                                        key={album}
                                         borderRadius='full'
                                         variant='solid'
                                         colorScheme='gray'
-                                        m={1***REMOVED***
+                                        m={1}
                                     >
-                                        <TagLabel>{album***REMOVED***</TagLabel>
+                                        <TagLabel>{album}</TagLabel>
                                     </Tag>
-                                )***REMOVED***
+                                )}
                             </Flex>
-                        ***REMOVED***albums.length > 0 && (<Divider/>)***REMOVED***
-                            <Text fontWeight={"semibold"***REMOVED*** fontSize={"xl"***REMOVED***>Metadata</Text>
-                            <HStack justifyContent={"space-between"***REMOVED*** alignItems={"flex-start"***REMOVED*** overflow={"auto"***REMOVED*** w={"100%"***REMOVED***>
+                            {albums.length > 0 && (<Divider/>)}
+                            <Text fontWeight={"semibold"} fontSize={"xl"}>Metadata</Text>
+                            <HStack justifyContent={"space-between"} alignItems={"flex-start"} overflow={"auto"} w={"100%"}>
                                 <Text>Name: </Text>
-                                <Text width={'80%'***REMOVED***>{pname***REMOVED***</Text>
+                                <Text width={'80%'}>{pname}</Text>
                             </HStack>
-                            <HStack justifyContent={"space-between"***REMOVED*** w={"100%"***REMOVED***>
+                            <HStack justifyContent={"space-between"} w={"100%"}>
                                 <Text>Upload Date: </Text>
-                                <Text>{date***REMOVED***</Text>
+                                <Text>{date}</Text>
                             </HStack>
-                            <HStack justifyContent={"space-between"***REMOVED*** w={"100%"***REMOVED***>
+                            <HStack justifyContent={"space-between"} w={"100%"}>
                                 <Text>Path: </Text>
-                                <Text>{path***REMOVED***</Text>
+                                <Text>{path}</Text>
                             </HStack>
-                            <HStack justifyContent={"space-between"***REMOVED*** w={"100%"***REMOVED***>
+                            <HStack justifyContent={"space-between"} w={"100%"}>
                                 <Text>Format: </Text>
                                 <Text>png</Text>
                             </HStack>
-                            <HStack justifyContent={"space-between"***REMOVED*** w={"100%"***REMOVED***>
+                            <HStack justifyContent={"space-between"} w={"100%"}>
                                 <Text>Shared: </Text>
                                 <Text>No</Text>
                             </HStack>
@@ -103,6 +103,6 @@ const ImageView: React.FC<ImageViewProps> = ({isViewOpen, onViewClose, path, pna
             </Modal>
         </>
     )
-***REMOVED***
+}
 
 export default ImageView

@@ -13,13 +13,13 @@ import {
   Text,
   useDisclosure,
   useToast,
-***REMOVED*** from "@chakra-ui/react";
-import React, { ChangeEvent,useRef, useState ***REMOVED*** from "react";
+} from "@chakra-ui/react";
+import React, { ChangeEvent,useRef, useState } from "react";
 import useApi from "../hooks/useApi";
 import useToken from "../hooks/useToken";
-import { ContextMenu ***REMOVED*** from "./ContextMenu";
+import { ContextMenu } from "./ContextMenu";
 import PanelContextMenu from "./contextMenus/PanelContextMenu";
-import { useOpenFolder, useSearchData ***REMOVED*** from "./contexts/SearchContext";
+import { useOpenFolder, useSearchData } from "./contexts/SearchContext";
 import FolderItem from "./items/FolderItem";
 
 import ImageItem from "./items/ImageItem";
@@ -30,12 +30,12 @@ const Images: React.FC = () => {
     isOpen: isUpOpen,
     onOpen: onUpOpen,
     onClose: onUpClose,
-  ***REMOVED*** = useDisclosure();
+  } = useDisclosure();
   const {
     isOpen: isCrOpen,
     onOpen: onCrOpen,
     onClose: onCrClose,
-  ***REMOVED*** = useDisclosure();
+  } = useDisclosure();
 
   const [files, setFiles] = useState<Blob[] | string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -45,7 +45,7 @@ const Images: React.FC = () => {
   const [isError, setIsError] = useState(true);
 
   const token = useToken();
-  const { post ***REMOVED*** = useApi();
+  const { post } = useApi();
   const toast = useToast();
   const openFolder = useOpenFolder();
 
@@ -59,16 +59,16 @@ const Images: React.FC = () => {
         let f = fs.item(i);
         if (f !== null && f.size <= 600000000) {
           fileArray.push(f);
-***REMOVED***
-  ***REMOVED***
+        }
+      }
       setFiles(fileArray);
-***REMOVED***
-  ***REMOVED***;
+    }
+  };
 
   const handleRestFile = () => {
     if (fileRef.current) fileRef.current.value = "";
     onUpClose();
-  ***REMOVED***;
+  };
 
    const handleUpload = async () => {
      setIsLoading(true);
@@ -77,127 +77,127 @@ const Images: React.FC = () => {
      const part = JSON.stringify({
        nsId: searchData.current.id,
        visibility: 1,
- ***REMOVED***);
+     });
      const photosStr = Array(files.length).fill(part);
      const response = await post("/photo/inserts", formData, {
-       headers: { "HRD-token": token ***REMOVED***,
-       params: { photosStr: "[" + photosStr + "]" ***REMOVED***,
- ***REMOVED***);
+       headers: { "HRD-token": token },
+       params: { photosStr: "[" + photosStr + "]" },
+     });
   
      if (!!response && response.data && response.data.msgCode === 200) {
        openFolder(searchData.current.id);
- ***REMOVED*** else {
+     } else {
        toast({
          title: "Failed to upload the photo",
          status: "error",
          isClosable: true,
          position: "top",
-   ***REMOVED***);
- ***REMOVED***
+       });
+     }
   
      setIsLoading(false);
      handleRestFile();
-   ***REMOVED***;
+   };
 
   const handleNewFolderName = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.currentTarget.value;
     setIsError(value.length === 0 || value === "/");
     setFolderName(value);
-  ***REMOVED***;
+  };
 
   const handleResetCreation = () => {
     setFolderName("");
     setIsError(true);
     onCrClose();
-  ***REMOVED***;
+  };
 
    const handleCreate = async () => {
      setIsLoading(true);
      const response = await post(
        "/namespace/insert",
-   ***REMOVED***
+       {
          nsParentId: searchData.current.id,
          nsName: folderName,
-   ***REMOVED***,
-   ***REMOVED***
-         headers: { "HRD-token": token ***REMOVED***,
-   ***REMOVED***
+       },
+       {
+         headers: { "HRD-token": token },
+       }
      );
   
      if (!!response && response.data && response.data.msgCode === 200) {
        openFolder(searchData.current.id);
- ***REMOVED*** else {
+     } else {
        toast({
-         title: `Failed to create a new folder named ${folderName***REMOVED***`,
+         title: `Failed to create a new folder named ${folderName}`,
          status: "error",
          isClosable: true,
          position: "top",
-   ***REMOVED***);
- ***REMOVED***
+       });
+     }
      setIsLoading(false);
      handleResetCreation();
-   ***REMOVED***;
+   };
 
   // const refresh = () => {
   //   openFolder(searchData.current.id);
-  // ***REMOVED***
+  // }
 
   return (
     <ContextMenu<HTMLDivElement>
       renderMenu={() => (
-        <PanelContextMenu triggerUpload={onUpOpen***REMOVED*** triggerCreate={onCrOpen***REMOVED*** />
-      )***REMOVED***
+        <PanelContextMenu triggerUpload={onUpOpen} triggerCreate={onCrOpen} />
+      )}
     >
-  ***REMOVED***(ref) => (
-        <Box ref={ref***REMOVED*** w="100%" h="100%">
-      ***REMOVED***searchData.folders.length > 0 && (<Text
-            alignSelf={"flex-start"***REMOVED***
-            fontSize={"xl"***REMOVED***
-            fontWeight={"semibold"***REMOVED***
-            pl={2***REMOVED***
+      {(ref) => (
+        <Box ref={ref} w="100%" h="100%">
+          {searchData.folders.length > 0 && (<Text
+            alignSelf={"flex-start"}
+            fontSize={"xl"}
+            fontWeight={"semibold"}
+            pl={2}
           >
             Folders
-          </Text>)***REMOVED***
+          </Text>)}
 
-          <Flex w={"100%"***REMOVED*** justifyContent={"flex-start"***REMOVED*** wrap={"wrap"***REMOVED***>
-        ***REMOVED***searchData.folders.map((folder, index) => {
+          <Flex w={"100%"} justifyContent={"flex-start"} wrap={"wrap"}>
+            {searchData.folders.map((folder, index) => {
               return (
                 <FolderItem
-                  key={index***REMOVED***
-                  id={folder.id***REMOVED***
-                  name={folder.name***REMOVED***
-                  parentId={searchData.current.id***REMOVED***
+                  key={index}
+                  id={folder.id}
+                  name={folder.name}
+                  parentId={searchData.current.id}
                 />
               );
-    ***REMOVED***)***REMOVED***
+            })}
           </Flex>
           <Text
-            alignSelf={"flex-start"***REMOVED***
-            fontSize={"xl"***REMOVED***
-            fontWeight={"semibold"***REMOVED***
-            pl={2***REMOVED***
+            alignSelf={"flex-start"}
+            fontSize={"xl"}
+            fontWeight={"semibold"}
+            pl={2}
           >
             Images
           </Text>
-          <Flex w={"100%"***REMOVED*** justifyContent={"flex-start"***REMOVED*** wrap={"wrap"***REMOVED***>
-        ***REMOVED***searchData.photos.map((photo, ind) => (
+          <Flex w={"100%"} justifyContent={"flex-start"} wrap={"wrap"}>
+            {searchData.photos.map((photo, ind) => (
               <ImageItem
-                key={ind***REMOVED***
-                src={`/photo/renderThumbnail/${token***REMOVED***?photoId=${photo.id***REMOVED***`***REMOVED***
-                pid={photo.id***REMOVED***
-                name={photo.name***REMOVED***
-                format={photo.format***REMOVED***
-                uploaddate={photo.uploaddate***REMOVED***
-                orgsrc={`/photo/render/${token***REMOVED***?photoId=${photo.id***REMOVED***`***REMOVED***
-                folder_name={searchData.path.map((f) => {if (f.name === "/") {return "/root"***REMOVED*** return f.name***REMOVED***).join("/")***REMOVED***
-                // refresh={refresh***REMOVED***
-                refresh={()=>{***REMOVED******REMOVED***
+                key={ind}
+                src={`/photo/renderThumbnail/${token}?photoId=${photo.id}`}
+                pid={photo.id}
+                name={photo.name}
+                format={photo.format}
+                uploaddate={photo.uploaddate}
+                orgsrc={`/photo/render/${token}?photoId=${photo.id}`}
+                folder_name={searchData.path.map((f) => {if (f.name === "/") {return "/root"} return f.name}).join("/")}
+                // refresh={refresh}
+                refresh={()=>{}}
               />
-            ))***REMOVED***
+            ))}
           </Flex>
 
-      ***REMOVED***/* upload modal***REMOVED******REMOVED***
-          <Modal isOpen={isUpOpen***REMOVED*** onClose={handleRestFile***REMOVED***>
+          {/* upload modal */}
+          <Modal isOpen={isUpOpen} onClose={handleRestFile}>
             <ModalOverlay />
             <ModalContent>
               <ModalHeader>Choose a photo</ModalHeader>
@@ -205,30 +205,30 @@ const Images: React.FC = () => {
               <ModalBody>
                 <Input
                   multiple
-                  ref={fileRef***REMOVED***
+                  ref={fileRef}
                   type="file"
                   accept="image/jpeg, image/png"
-                  onChange={handleUploadFile***REMOVED***
+                  onChange={handleUploadFile}
                 />
               </ModalBody>
               <ModalFooter>
                 <Button
                   colorScheme="teal"
-                  mr={3***REMOVED***
-                  onClick={handleUpload***REMOVED***
-                  isLoading={isLoading***REMOVED***
+                  mr={3}
+                  onClick={handleUpload}
+                  isLoading={isLoading}
                 >
                   Upload
                 </Button>
-                <Button variant="ghost" mr={3***REMOVED*** onClick={handleRestFile***REMOVED***>
+                <Button variant="ghost" mr={3} onClick={handleRestFile}>
                   Cancel
                 </Button>
               </ModalFooter>
             </ModalContent>
           </Modal>
 
-      ***REMOVED***/* create modal***REMOVED******REMOVED***
-          <Modal isOpen={isCrOpen***REMOVED*** onClose={handleResetCreation***REMOVED***>
+          {/* create modal */}
+          <Modal isOpen={isCrOpen} onClose={handleResetCreation}>
             <ModalOverlay />
             <ModalContent>
               <ModalHeader>Create a folder</ModalHeader>
@@ -237,33 +237,33 @@ const Images: React.FC = () => {
                 <Input
                   type="text"
                   placeholder="New folder name"
-                  onChange={handleNewFolderName***REMOVED***
+                  onChange={handleNewFolderName}
                 />
-            ***REMOVED***isError && (
+                {isError && (
                   <Text fontSize="sm" color="red">
                     Folder name must not be empty or &quot;/&quot;
                   </Text>
-                )***REMOVED***
+                )}
               </ModalBody>
               <ModalFooter>
                 <Button
                   colorScheme="teal"
-                  mr={3***REMOVED***
-                  onClick={handleCreate***REMOVED***
-                  disabled={isError***REMOVED***
-                  isLoading={isLoading***REMOVED***
+                  mr={3}
+                  onClick={handleCreate}
+                  disabled={isError}
+                  isLoading={isLoading}
                 >
                   Create
                 </Button>
-                <Button variant="ghost" mr={3***REMOVED*** onClick={handleResetCreation***REMOVED***>
+                <Button variant="ghost" mr={3} onClick={handleResetCreation}>
                   Cancel
                 </Button>
               </ModalFooter>
             </ModalContent>
           </Modal>
         </Box>
-      )***REMOVED***
+      )}
     </ContextMenu>
   );
-***REMOVED***;
+};
 export default Images;

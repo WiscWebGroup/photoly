@@ -3,5 +3,5 @@ export interface serverNamespace {
   nsName: string
   nsParentId: number
   userId: number
-***REMOVED***
+}
 

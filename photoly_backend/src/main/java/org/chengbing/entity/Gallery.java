@@ -8,14 +8,14 @@ import io.swagger.annotations.ApiModel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-***REMOVED***
+/**
  * <p>
  * 
  * </p>
  *
  * @author HaroldCI
  * @since 2022-06-24
-***REMOVED***
+ */
 @Data
 @EqualsAndHashCode(callSuper = false)
 @ApiModel(value="Gallery对象", description="")
@@ -37,4 +37,4 @@ public class Gallery implements Serializable {
     private String coverColor;
 
 
-***REMOVED***
+}

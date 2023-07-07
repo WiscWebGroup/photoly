@@ -24,14 +24,14 @@ import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
-***REMOVED***
+/**
  * <p>
  *  服务实现类
  * </p>
  *
  * @author HaroldCI
  * @since 2022-06-24
-***REMOVED***
+ */
 @Service
 public class CredServiceImpl extends ServiceImpl<CredMapper, Cred> implements ICredService {
 
@@ -44,7 +44,7 @@ public class CredServiceImpl extends ServiceImpl<CredMapper, Cred> implements IC
     @Resource
     IPhotoService photoService;
 
-    @Value("${file.uploadFolder***REMOVED***")
+    @Value("${file.uploadFolder}")
     String uploadFolder;
 
     @Resource
@@ -73,14 +73,14 @@ public class CredServiceImpl extends ServiceImpl<CredMapper, Cred> implements IC
         cred.setToken(UUID.randomUUID().toString());
         cred.setAuthorization(writeAuth);
         return mapper.insert(cred);
-***REMOVED***
+    }
 
     @Override
     public List<Cred> queryAPI(Integer userId) {
         QueryWrapper<Cred> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", userId);
         return mapper.selectList(queryWrapper);
-***REMOVED***
+    }
 
     @Override
     public Integer updateAPI(Integer userId, Cred cred) {
@@ -105,7 +105,7 @@ public class CredServiceImpl extends ServiceImpl<CredMapper, Cred> implements IC
         updateWrapper.eq("cred_id", cred.getCredId());
         updateWrapper.set("authorization", writeAuth);
         return mapper.update(null, updateWrapper);
-***REMOVED***
+    }
 
     @Override
     public Integer deleteAPI(Integer userId, Integer credId) {
@@ -117,7 +117,7 @@ public class CredServiceImpl extends ServiceImpl<CredMapper, Cred> implements IC
         if (cred1 == null || !cred1.getUserId().equals(userId))
             return -1;
         return mapper.deleteById(credId);
-***REMOVED***
+    }
 
     @Override
     public Integer getUserId(String token) {
@@ -125,7 +125,7 @@ public class CredServiceImpl extends ServiceImpl<CredMapper, Cred> implements IC
         queryWrapper.eq("token", token);
         Cred cred1 = mapper.selectOne(queryWrapper);
         return cred1 == null ? null : cred1.getUserId();
-***REMOVED***
+    }
 
     @Override
     public String getAuth(String token) {
@@ -133,7 +133,7 @@ public class CredServiceImpl extends ServiceImpl<CredMapper, Cred> implements IC
         queryWrapper.eq("token", token);
         Cred cred1 = mapper.selectOne(queryWrapper);
         return cred1 == null ? null : cred1.getAuthorization();
-***REMOVED***
+    }
 
     @Override
     public byte[] render(Integer userId, String uuid) {
@@ -146,16 +146,16 @@ public class CredServiceImpl extends ServiceImpl<CredMapper, Cred> implements IC
         File file = new File(uploadFolder + System.getProperty("file.separator") + UUID + System.getProperty("file.separator") + uuid
                 + "." + photo.getFormat());
         FileInputStream inputStream = null;
-***REMOVED***
+        try {
             inputStream = new FileInputStream(file);
             byte[] bytes = new byte[inputStream.available()];
             inputStream.read(bytes, 0, inputStream.available());
             return bytes;
-***REMOVED*** catch (IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
-***REMOVED***
+        }
         return new byte[0];
-***REMOVED***
+    }
 
     @Override
     public Integer deletePhoto(Integer userId, String uuid) {
@@ -165,17 +165,17 @@ public class CredServiceImpl extends ServiceImpl<CredMapper, Cred> implements IC
         if (photo == null || !photo.getUserId().equals(userId))
             return -1;
         return photoService.deletePhoto(userId, photo.getPhotoId());
-***REMOVED***
+    }
 
     @Override
     public Namespace queryRootNamespace(Integer userId) {
         return namespaceService.queryRootNamespace(userId);
-***REMOVED***
+    }
 
     @Override
     public List<Namespace> queryNamespaces(Integer userId, Integer parentId) {
         return namespaceService.queryNamespace(userId, parentId);
-***REMOVED***
+    }
 
     @Override
     public List<Photo> queryPhotoList(Integer userId, Integer nsId) {
@@ -184,12 +184,12 @@ public class CredServiceImpl extends ServiceImpl<CredMapper, Cred> implements IC
         nsVerify.eq("user_id", userId);
         Namespace namespace = namespaceService.getOne(nsVerify);
         if (namespace == null || !userId.equals(namespace.getUserId()))
-    ***REMOVED***
+            return null;
 
         QueryWrapper<Photo> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("ns_id", nsId);
         return photoMapper.selectList(queryWrapper);
-***REMOVED***
+    }
 
 
-***REMOVED***
+}

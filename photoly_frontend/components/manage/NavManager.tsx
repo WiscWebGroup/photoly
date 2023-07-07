@@ -1,108 +1,108 @@
-import { VStack, Button ***REMOVED*** from "@chakra-ui/react";
-import { AiOutlineHome, AiOutlineTag, AiOutlineUser ***REMOVED*** from "react-icons/ai";
-import { RiFileSettingsLine, RiGalleryLine ***REMOVED*** from "react-icons/ri";
-import React, { useEffect ***REMOVED*** from "react";
+import { VStack, Button } from "@chakra-ui/react";
+import { AiOutlineHome, AiOutlineTag, AiOutlineUser } from "react-icons/ai";
+import { RiFileSettingsLine, RiGalleryLine } from "react-icons/ri";
+import React, { useEffect } from "react";
 import useToken from "../../hooks/useToken";
 import useApi from "../../hooks/useApi";
 
 const NavManager = ({
   changeSelection,
-***REMOVED***: {
+}: {
   changeSelection: (num: number) => void;
-***REMOVED***) => {
+}) => {
   const token = useToken();
-  const { get ***REMOVED*** = useApi();
+  const { get } = useApi();
   const [admin, setAdmin] = React.useState<boolean>(false);
 
   const getAuth = async () => {
     const response = await get("/admin/isAdmin", {
-      headers: { "HRD-token": token ***REMOVED***,
-***REMOVED***);
+      headers: { "HRD-token": token },
+    });
     if (!!response && response.data.msgCode === 200) {
       setAdmin(response.data.t);
-***REMOVED***
-  ***REMOVED***;
+    }
+  };
   useEffect(() => {
     if (!!token) {
       getAuth();
-***REMOVED***
-  ***REMOVED***, [token]);
+    }
+  }, [token]);
   return (
     <>
-      <VStack spacing={0***REMOVED*** bg={"white"***REMOVED*** h={"calc(100%-4rem)"***REMOVED*** w={"15vw"***REMOVED***>
+      <VStack spacing={0} bg={"white"} h={"calc(100%-4rem)"} w={"15vw"}>
         <Button
-          leftIcon={<AiOutlineHome />***REMOVED***
+          leftIcon={<AiOutlineHome />}
           colorScheme="teal"
           variant="ghost"
-          padding={6***REMOVED***
+          padding={6}
           minW="100%"
           justifyContent="flex-start"
           onClick={() => {
             changeSelection(0);
-  ***REMOVED******REMOVED***
+          }}
         >
           My Profile
         </Button>
         <Button
-          leftIcon={<AiOutlineTag />***REMOVED***
+          leftIcon={<AiOutlineTag />}
           colorScheme="teal"
           variant="ghost"
-          padding={6***REMOVED***
+          padding={6}
           minW="100%"
           justifyContent="flex-start"
           onClick={() => {
             changeSelection(1);
-  ***REMOVED******REMOVED***
+          }}
         >
           Tag Settings
         </Button>
         <Button
-          leftIcon={<RiGalleryLine />***REMOVED***
+          leftIcon={<RiGalleryLine />}
           colorScheme="teal"
           variant="ghost"
-          padding={6***REMOVED***
+          padding={6}
           minW="100%"
           justifyContent="flex-start"
           onClick={() => {
             changeSelection(2);
-  ***REMOVED******REMOVED***
+          }}
         >
           Gallery Settings
         </Button>
-    ***REMOVED***admin ? (
+        {admin ? (
           <>
             <Button
-              leftIcon={<RiFileSettingsLine />***REMOVED***
+              leftIcon={<RiFileSettingsLine />}
               colorScheme="teal"
               variant="ghost"
-              padding={6***REMOVED***
+              padding={6}
               minW="100%"
               justifyContent="flex-start"
               onClick={() => {
                 changeSelection(3);
- ***REMOVED*****REMOVED******REMOVED***
+              }}
             >
               Admin Settings
             </Button>
             <Button
-              leftIcon={<AiOutlineUser />***REMOVED***
+              leftIcon={<AiOutlineUser />}
               colorScheme="teal"
               variant="ghost"
-              padding={6***REMOVED***
+              padding={6}
               minW="100%"
               justifyContent="flex-start"
               onClick={() => {
                 changeSelection(4);
- ***REMOVED*****REMOVED******REMOVED***
+              }}
             >
               Admin User Settings
             </Button>
           </>
         ) : (
           ""
-        )***REMOVED***
+        )}
       </VStack>
     </>
   );
-***REMOVED***;
+};
 export default NavManager;

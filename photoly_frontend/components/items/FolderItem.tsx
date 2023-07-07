@@ -15,25 +15,25 @@ import {
   Text,
   useDisclosure,
   useToast,
-***REMOVED*** from "@chakra-ui/react";
-import { ChangeEvent, useState ***REMOVED*** from "react";
-import { AiOutlineFolderOpen ***REMOVED*** from "react-icons/ai";
+} from "@chakra-ui/react";
+import { ChangeEvent, useState } from "react";
+import { AiOutlineFolderOpen } from "react-icons/ai";
 import useApi from "../../hooks/useApi";
 import useToken from "../../hooks/useToken";
-import { ContextMenu ***REMOVED*** from "../ContextMenu";
+import { ContextMenu } from "../ContextMenu";
 import FolderContextMenu from "../contextMenus/FolderContextMenu";
-import { useOpenFolder ***REMOVED*** from "../contexts/SearchContext";
+import { useOpenFolder } from "../contexts/SearchContext";
 import MovingFolderItem from "./MovingFolderItem";
-import { useAppDispatch ***REMOVED*** from "../../redux/hooks";
-import { setFolder ***REMOVED*** from "../../redux/states/searchFilterSlice";
+import { useAppDispatch } from "../../redux/hooks";
+import { setFolder } from "../../redux/states/searchFilterSlice";
 
 interface FolderItemProps {
   id: number;
   name: string;
   parentId: number;
-***REMOVED***
+}
 
-const FolderItem = ({ id, name, parentId ***REMOVED***: FolderItemProps) => {
+const FolderItem = ({ id, name, parentId }: FolderItemProps) => {
   const openFolder = useOpenFolder();
   const [newName, setNewName] = useState("");
   const [isError, setIsError] = useState(true);
@@ -42,97 +42,97 @@ const FolderItem = ({ id, name, parentId ***REMOVED***: FolderItemProps) => {
     isOpen: isRenameOpen,
     onOpen: onRenameOpen,
     onClose: onRenameClose,
-  ***REMOVED*** = useDisclosure();
+  } = useDisclosure();
   const {
     isOpen: isMoveOpen,
     onOpen: onMoveOpen,
     onClose: onMoveClose,
-  ***REMOVED*** = useDisclosure();
+  } = useDisclosure();
   const [movingToParentFolderId, setMovingToParentFolderId] = useState(-1);
   const [movingToParentFolderName, setMovingToParentFolderName] = useState("");
 
   const token = useToken();
-  const { post, get ***REMOVED*** = useApi();
+  const { post, get } = useApi();
   const toast = useToast();
 
   const dispatch = useAppDispatch()
 
   const deleteRequest = async () => {
     const response = await post("/namespace/delete", null, {
-      headers: { "HRD-token": token ***REMOVED***,
+      headers: { "HRD-token": token },
       params: {
         nsId: id,
-  ***REMOVED***,
-***REMOVED***);
+      },
+    });
 
     if (!!response && response.data && response.data.msgCode === 200) {
       openFolder(parentId);
-***REMOVED*** else {
+    } else {
       toast({
-        title: `Failed to delete the folder "${name***REMOVED***"`,
+        title: `Failed to delete the folder "${name}"`,
         status: "error",
         isClosable: true,
         position: "top",
-  ***REMOVED***);
-***REMOVED***
-  ***REMOVED***;
+      });
+    }
+  };
 
   const handleFolderRename = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.currentTarget.value;
     setIsError(value.length === 0 || value === "/");
     setNewName(value);
-  ***REMOVED***;
+  };
 
   const handleResetNewName = () => {
     setNewName("");
     setIsError(true);
     onRenameClose();
-  ***REMOVED***;
+  };
 
   const renameRequest = async () => {
     setIsLoading(true);
     const response = await post(
       "/namespace/updateName",
-  ***REMOVED***
+      {
         nsId: id,
         nsName: newName,
-  ***REMOVED***,
-  ***REMOVED***
-        headers: { "HRD-token": token ***REMOVED***,
-  ***REMOVED***
+      },
+      {
+        headers: { "HRD-token": token },
+      }
     );
 
     if (!!response && response.data && response.data.msgCode === 200) {
       openFolder(parentId);
-***REMOVED*** else {
+    } else {
       toast({
-        title: `Failed to rename the folder "${name***REMOVED***" to "${newName***REMOVED***"`,
+        title: `Failed to rename the folder "${name}" to "${newName}"`,
         status: "error",
         isClosable: true,
         position: "top",
-  ***REMOVED***);
-***REMOVED***
+      });
+    }
     setIsLoading(false);
     handleResetNewName();
-  ***REMOVED***;
+  };
 
   // TODO: handle moveto
 
   const getRoot = async () => {
     const response = await get("/namespace/getRoot", {
-      headers: { "HRD-token": token ***REMOVED***,
-***REMOVED***);
+      headers: { "HRD-token": token },
+    });
     if (!!response && response.data && response.data.msgCode === 200) {
       setRootId(response.data.t.nsId);
-***REMOVED*** else {
+    } else {
       toast({
         title: `Fail to Get Root2`,
         status: "error",
         isClosable: true,
         position: "top",
-  ***REMOVED***);
-***REMOVED***
-  ***REMOVED***;
+      });
+    }
+  };
 
   const [rootId, setRootId] = useState(-1);
 
@@ -140,26 +140,26 @@ const FolderItem = ({ id, name, parentId ***REMOVED***: FolderItemProps) => {
     setMovingToParentFolderId(-1);
     setMovingToParentFolderName("/");
     onMoveClose();
-  ***REMOVED***;
+  };
 
   const moveToOpen = () => {
     getRoot();
     setMovingToParentFolderName("/");
     setMovingToParentFolderId(rootId);
     onMoveOpen();
-  ***REMOVED***;
+  };
 
   const moveFolder = async () => {
     setIsLoading(true);
     const response = await post(
       "/namespace/updateParent",
-  ***REMOVED***
+      {
         nsId: id,
         nsParentId: movingToParentFolderId,
-  ***REMOVED***,
-  ***REMOVED***
-        headers: { "HRD-token": token ***REMOVED***,
-  ***REMOVED***
+      },
+      {
+        headers: { "HRD-token": token },
+      }
     );
     if (!!response && response.data && response.data.msgCode === 200) {
       toast({
@@ -168,44 +168,44 @@ const FolderItem = ({ id, name, parentId ***REMOVED***: FolderItemProps) => {
         isClosable: true,
         position: "top",
         duration: 1000,
-  ***REMOVED***);
+      });
       openFolder(parentId);
-***REMOVED*** else {
+    } else {
       toast({
         title: `Fail to move the folder`,
         status: "error",
         isClosable: true,
         position: "top",
-  ***REMOVED***);
-***REMOVED***
+      });
+    }
     handleMoveFolder();
     setIsLoading(false);
-  ***REMOVED***;
+  };
 
   return (
     <ContextMenu<HTMLDivElement>
       stopPropagation
       renderMenu={() => (
         <FolderContextMenu
-          handleDelete={deleteRequest***REMOVED***
-          handleRename={onRenameOpen***REMOVED***
-          handleMoveTo={moveToOpen***REMOVED***
+          handleDelete={deleteRequest}
+          handleRename={onRenameOpen}
+          handleMoveTo={moveToOpen}
         />
-      )***REMOVED***
+      )}
     >
-  ***REMOVED***(ref) => (
-        <Box ref={ref***REMOVED*** w={64***REMOVED*** overflow="hidden" position="relative" m={2***REMOVED***>
+      {(ref) => (
+        <Box ref={ref} w={64} overflow="hidden" position="relative" m={2}>
           <Button
-            leftIcon={<AiOutlineFolderOpen />***REMOVED***
+            leftIcon={<AiOutlineFolderOpen />}
             colorScheme="gray"
             variant="solid"
-            w={"100%"***REMOVED***
-            onClick={() => dispatch(setFolder(id))***REMOVED***
+            w={"100%"}
+            onClick={() => dispatch(setFolder(id))}
           >
-        ***REMOVED***name***REMOVED***
+            {name}
           </Button>
 
-          <Modal isOpen={isRenameOpen***REMOVED*** onClose={handleResetNewName***REMOVED***>
+          <Modal isOpen={isRenameOpen} onClose={handleResetNewName}>
             <ModalOverlay />
             <ModalContent>
               <ModalHeader>Rename a folder</ModalHeader>
@@ -213,76 +213,76 @@ const FolderItem = ({ id, name, parentId ***REMOVED***: FolderItemProps) => {
               <ModalBody>
                 <FormControl>
                   <FormLabel>Old folder name</FormLabel>
-                  <Input type="text" defaultValue={name***REMOVED*** readOnly />
+                  <Input type="text" defaultValue={name} readOnly />
                 </FormControl>
-                <FormControl isInvalid={isError***REMOVED***>
+                <FormControl isInvalid={isError}>
                   <FormLabel>New folder name</FormLabel>
                   <Input
                     type="text"
                     placeholder="New folder name"
-                    onChange={handleFolderRename***REMOVED***
+                    onChange={handleFolderRename}
                   />
-              ***REMOVED***isError && (
+                  {isError && (
                     <FormErrorMessage>
                       Folder name must not be empty or &quot;/&quot;
                     </FormErrorMessage>
-                  )***REMOVED***
+                  )}
                 </FormControl>
               </ModalBody>
               <ModalFooter>
                 <Button
                   colorScheme="teal"
-                  mr={3***REMOVED***
-                  onClick={renameRequest***REMOVED***
-                  disabled={isError***REMOVED***
-                  isLoading={isLoading***REMOVED***
+                  mr={3}
+                  onClick={renameRequest}
+                  disabled={isError}
+                  isLoading={isLoading}
                 >
                   Update
                 </Button>
-                <Button variant="ghost" mr={3***REMOVED*** onClick={handleResetNewName***REMOVED***>
+                <Button variant="ghost" mr={3} onClick={handleResetNewName}>
                   Cancel
                 </Button>
               </ModalFooter>
             </ModalContent>
           </Modal>
 
-          <Modal isOpen={isMoveOpen***REMOVED*** onClose={handleMoveFolder***REMOVED***>
+          <Modal isOpen={isMoveOpen} onClose={handleMoveFolder}>
             <ModalOverlay />
             <ModalContent>
               <ModalHeader>Move Folder</ModalHeader>
               <ModalCloseButton />
               <ModalBody>
                 <Text fontSize="md">
-                  Current Selected: {movingToParentFolderName***REMOVED***
+                  Current Selected: {movingToParentFolderName}
                 </Text>
                 <MovingFolderItem
-                  originalFolderId={id***REMOVED***
-                  movingFolderId={movingToParentFolderId***REMOVED***
-                  setMovingFolderId={setMovingToParentFolderId***REMOVED***
-                  setMovingFolderName={setMovingToParentFolderName***REMOVED***
-                  currentFolderId={rootId***REMOVED***
+                  originalFolderId={id}
+                  movingFolderId={movingToParentFolderId}
+                  setMovingFolderId={setMovingToParentFolderId}
+                  setMovingFolderName={setMovingToParentFolderName}
+                  currentFolderId={rootId}
                   currentFolderName="/"
                 ></MovingFolderItem>
               </ModalBody>
               <ModalFooter>
                 <Button
                   colorScheme="teal"
-                  mr={3***REMOVED***
-                  onClick={moveFolder***REMOVED***
-                  isLoading={isLoading***REMOVED***
+                  mr={3}
+                  onClick={moveFolder}
+                  isLoading={isLoading}
                 >
                   Update
                 </Button>
-                <Button variant="ghost" mr={3***REMOVED*** onClick={handleMoveFolder***REMOVED***>
+                <Button variant="ghost" mr={3} onClick={handleMoveFolder}>
                   Cancel
                 </Button>
               </ModalFooter>
             </ModalContent>
           </Modal>
         </Box>
-      )***REMOVED***
+      )}
     </ContextMenu>
   );
-***REMOVED***;
+};
 
 export default FolderItem;

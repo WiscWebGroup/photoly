@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { MutableRefObject, useCallback, useEffect, useRef, useState ***REMOVED*** from 'react';
-import { Portal, Menu, MenuButton, PortalProps, MenuButtonProps, MenuProps ***REMOVED*** from '@chakra-ui/react';
+import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { Portal, Menu, MenuButton, PortalProps, MenuButtonProps, MenuProps } from '@chakra-ui/react';
 
 export interface ContextMenuProps<T extends HTMLElement> {
   renderMenu: () => JSX.Element | null;
@@ -9,7 +9,7 @@ export interface ContextMenuProps<T extends HTMLElement> {
   portalProps?: PortalProps;
   menuButtonProps?: MenuButtonProps;
   stopPropagation?: boolean
-***REMOVED***
+}
 
 export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextMenuProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
@@ -25,16 +25,16 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
         setIsRendered(true);
         setTimeout(() => {
           setIsDeferredOpen(true);
-***REMOVED***);
-  ***REMOVED***);
-***REMOVED*** else {
+        });
+      });
+    } else {
       setIsDeferredOpen(false);
       const timeout = setTimeout(() => {
         setIsRendered(isOpen);
-  ***REMOVED***, 1000);
+      }, 1000);
       return () => clearTimeout(timeout);
-***REMOVED***
-  ***REMOVED***, [isOpen]);
+    }
+  }, [isOpen]);
 
   const handleContextMenu = (e: any) => {
     if (targetRef.current?.contains(e.target as any) || e.target === targetRef.current) {
@@ -43,14 +43,14 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
       if (props.stopPropagation) {
         e.stopPropagation()
         e.stopImmediatePropagation()
-  ***REMOVED***
+      }
       
       setIsOpen(true);
       setPosition([e.pageX, e.pageY]);
-***REMOVED*** else {
+    } else {
       setIsOpen(false);
-***REMOVED***
-  ***REMOVED***
+    }
+  }
 
   
 
@@ -58,49 +58,49 @@ export function ContextMenu<T extends HTMLElement = HTMLElement>(props: ContextM
     window.addEventListener('contextmenu', handleContextMenu)
     return () => {
       window.removeEventListener('contextmenu', handleContextMenu)
-***REMOVED***
-  ***REMOVED***, [])
+    }
+  }, [])
 
   const onCloseHandler = useCallback(() => {
     props.menuProps?.onClose?.();
     setIsOpen(false);
-  ***REMOVED***, [props.menuProps?.onClose, setIsOpen]);
+  }, [props.menuProps?.onClose, setIsOpen]);
 
   const handleClick = (event:any) => {
     if (event.type === "click" || event.type === "contextmenu") {
       event.preventDefault();
       setIsDeferredOpen(false)
-***REMOVED***else {
+    }else {
         event.preventDefault();
-***REMOVED***
-  ***REMOVED***
+    }
+  }
 
   return (
     <>
-  ***REMOVED***props.children(targetRef)***REMOVED***
-  ***REMOVED***isRendered && (
-        <Portal {...props.portalProps***REMOVED***>
-          <Menu isOpen={isDeferredOpen***REMOVED*** gutter={0***REMOVED*** {...props.menuProps***REMOVED*** onClose={onCloseHandler***REMOVED***> 
+      {props.children(targetRef)}
+      {isRendered && (
+        <Portal {...props.portalProps}>
+          <Menu isOpen={isDeferredOpen} gutter={0} {...props.menuProps} onClose={onCloseHandler}> 
             <MenuButton
-              aria-hidden={true***REMOVED***
-              w={1***REMOVED***
-              h={1***REMOVED***
+              aria-hidden={true}
+              w={1}
+              h={1}
               style={{
                 position: 'absolute',
                 left: position[0],
                 top: position[1],
                 cursor: 'default',
- ***REMOVED*****REMOVED******REMOVED***
-          ***REMOVED***...props.menuButtonProps***REMOVED***
+              }}
+              {...props.menuButtonProps}
               
             />
-        ***REMOVED***props.renderMenu()***REMOVED***
+            {props.renderMenu()}
           </Menu>
         </Portal>
-      )***REMOVED***
-  ***REMOVED***isDeferredOpen ? (<div style={{"zIndex": "999", "position": "fixed", "inset": "0px", "backgroundColor": "transparent" ***REMOVED******REMOVED*** onContextMenu={handleClick***REMOVED***>
+      )}
+      {isDeferredOpen ? (<div style={{"zIndex": "999", "position": "fixed", "inset": "0px", "backgroundColor": "transparent" }} onContextMenu={handleClick}>
         
-        </div>) : ("")***REMOVED***
+        </div>) : ("")}
     </>
   );
-***REMOVED***
+}

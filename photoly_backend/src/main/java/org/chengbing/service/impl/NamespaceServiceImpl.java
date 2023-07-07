@@ -20,14 +20,14 @@ import java.io.File;
 import java.util.List;
 import java.util.Objects;
 
-***REMOVED***
+/**
  * <p>
  *  服务实现类
  * </p>
  *
  * @author HaroldCI
  * @since 2022-06-24
-***REMOVED***
+ */
 @Service
 public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace> implements INamespaceService {
 
@@ -43,7 +43,7 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
     @Resource
     UserMapper userMapper;
 
-    @Value("${file.uploadFolder***REMOVED***")
+    @Value("${file.uploadFolder}")
     String folderPath;
 
     @Override
@@ -53,7 +53,7 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
         namespace.setNsParentId(parentId);
         namespace.setUserId(userId);
         return mapper.insert(namespace);
-***REMOVED***
+    }
 
     @Override
     public Namespace queryRootNamespace(Integer userId) {
@@ -61,7 +61,7 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
         wrapper.eq("user_id", userId);
         wrapper.eq("ns_name", "/");
         return mapper.selectOne(wrapper);
-***REMOVED***
+    }
 
     @Override
     public List<Namespace> queryNamespace(Integer userId, Integer parentId) {
@@ -69,7 +69,7 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
         wrapper.eq("user_id", userId);
         wrapper.eq("ns_parent_id", parentId);
         return mapper.selectList(wrapper);
-***REMOVED***
+    }
 
     @Override
     public Integer updateNamespaceName(int userId, Namespace namespace) {
@@ -81,14 +81,14 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
         Namespace selected = mapper.selectOne(wrapper);
         if (selected!=null && selected.getNsId() != null && selected.getUserId() != null && selected.getUserId() == userId &&
                 Objects.equals(selected.getNsId(), namespace.getNsId()) && !namespace.getNsName().equals("/") && !selected.getNsName().equals("/"))
-    ***REMOVED***
+        {
             UpdateWrapper<Namespace> updateWrapper = new UpdateWrapper<>();
             updateWrapper.eq("ns_id", namespace.getNsId());
             updateWrapper.set("ns_name", namespace.getNsName());
             return mapper.update(null, updateWrapper);
-***REMOVED***
+        }
         return -1;
-***REMOVED***
+    }
 
     @Override
     public Integer updateNamespaceParent(int userId, Namespace namespace) {
@@ -100,14 +100,14 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
         Namespace selected = mapper.selectOne(wrapper);
         if (selected!=null && selected.getNsId() != null && selected.getUserId() != null && selected.getUserId() == userId && Objects.equals(selected.getNsId(), namespace.getNsId())
         && !selected.getNsName().equals("/"))
-    ***REMOVED***
+        {
             UpdateWrapper<Namespace> updateWrapper = new UpdateWrapper<>();
             updateWrapper.eq("ns_id", namespace.getNsId());
             updateWrapper.set("ns_parent_id", namespace.getNsParentId());
             return mapper.update(null, updateWrapper);
-***REMOVED***
+        }
         return -1;
-***REMOVED***
+    }
 
     @Override
     public Integer insertNamespace(Integer userId, Namespace namespace) {
@@ -115,7 +115,7 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
             return -1;
         namespace.setUserId(userId);
         return mapper.insert(namespace);
-***REMOVED***
+    }
 
     @Override
     public Integer deleteNamespace(Integer userId, Integer nsId) {
@@ -125,16 +125,16 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
         Namespace selected = mapper.selectOne(wrapper);
         if (selected!=null && selected.getNsId() != null && selected.getUserId() != null && Objects.equals(selected.getUserId(), userId) &&
                 Objects.equals(selected.getNsId(), nsId) && !selected.getNsName().equals("/"))
-    ***REMOVED***
+        {
             String userUUID = userMapper.selectById(userId).getUuid();
             // Delete all the namespaces whose parent folder is this one and delete all photos
             return deletePhotoHelper(userId, nsId, userUUID);
-***REMOVED***
+        }
         return -1;
-***REMOVED***
+    }
 
     public Integer deletePhotoHelper(Integer userId, Integer nsId, String userUUID)
-***REMOVED***
+    {
         int results = 0;
         // Get all sub namespaces
         QueryWrapper<Namespace> wrapper = new QueryWrapper<>();
@@ -147,7 +147,7 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
         List<Photo> connection = photoMapper.selectList(wrapper2);
         // Delete photos both in table record and in hard drive
         for(Photo currPhoto : connection)
-    ***REMOVED***
+        {
             int photoId = currPhoto.getPhotoId();
             String photoUUID = currPhoto.getPhotoUuid();
             String format = currPhoto.getFormat();
@@ -159,13 +159,13 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
             results += photo.delete() ? 1 : 0;
             results += photoThumbnail.delete() ? 1 : 0;
             photoMapper.deleteById(photoId);
-***REMOVED***
+        }
         // Recursive on sub namespaces
         for(Namespace namespace : data)
             results += deletePhotoHelper(userId, namespace.getNsId(), userUUID);
         results += mapper.deleteById(nsId);
         return results;
-***REMOVED***
+    }
 
     @Override
     public String queryNameById(Integer nsId) {
@@ -173,5 +173,5 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
         wrapper.eq("ns_id", nsId);
         Namespace selected = mapper.selectOne(wrapper);
         return selected.getNsName();
-***REMOVED***
-***REMOVED***
+    }
+}

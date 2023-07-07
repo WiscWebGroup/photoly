@@ -16,10 +16,10 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-***REMOVED***
+/**
  * @Author: Harold澂冰
  * @Date: 2022/7/15 15:27
-***REMOVED***
+ */
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
@@ -33,86 +33,86 @@ public class AdminController {
 
     @GetMapping("/isAdmin")
     public Result<Boolean> isAdmin(HttpServletRequest request)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(Boolean.FALSE, 403);
         boolean res = service.isAdmin(userId);
         return new Result<>(res, 200);
-***REMOVED***
+    }
 
     @GetMapping("/pingMySQL")
     public Result<Integer> pingMySQL(HttpServletRequest request)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-2, 403);
         int res = service.pingMySQL(userId);
         return res == 1 ? new Result<>(res, 200) : new Result<>(res, 400);
-***REMOVED***
+    }
 
     @GetMapping("/pingRedis")
     public Result<Integer> pingRedis(HttpServletRequest request)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-2, 403);
         int res = service.pingRedis(userId);
         return res == 1 ? new Result<>(res, 200) : new Result<>(res, 400);
-***REMOVED***
+    }
 
     @GetMapping("/getAddress")
     public Result<LinkedHashMap<String, String>> getAddress(HttpServletRequest request)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(null, 403);
         LinkedHashMap<String, String> map = service.getAddress(userId);
         return map == null ? new Result<>(null, 400) : new Result<>(map, 200);
-***REMOVED***
+    }
 
     @GetMapping("/getSettings")
     public Result<LinkedHashMap<String, String>> getSettings(HttpServletRequest request)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(null, 403);
         LinkedHashMap<String, String> map = service.getSettings(userId);
         return map == null ? new Result<>(null, 400) : new Result<>(map, 200);
-***REMOVED***
+    }
 
     @PostMapping("/stop")
     public Result<Integer> stopServer(HttpServletRequest request)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-2, 403);
         return new Result<>(service.stopServer(userId), 591023);
-***REMOVED***
+    }
 
     @PostMapping("/setSignUpPermission")
     public Result<Integer> setSignUpPermission(HttpServletRequest request, Integer permission)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-2, 403);
         int res = service.setSignUpPermission(userId, permission);
         return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
-***REMOVED***
+    }
 
     @PostMapping("/setSSafeUUIDMode")
     public Result<Integer> setSSafeUUIDMode(HttpServletRequest request, Integer mode)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-2, 403);
         int res = service.setSSafeUUIDMode(userId, mode);
         return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
-***REMOVED***
+    }
 
     @PostMapping("/setTokenDuration")
     public Result<Integer> setTokenDuration(HttpServletRequest request, Integer days)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-2, 403);
@@ -120,103 +120,103 @@ public class AdminController {
             return new Result<>(-1, 403);
         int res = service.setTokenDuration(userId, days);
         return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
-***REMOVED***
+    }
 
     @GetMapping("/getUserPage")
     public ResultPage<List<User>> getUserPage(HttpServletRequest request, Integer page, Integer rowsPerPage)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new ResultPage<>(null, 0, 403);
         return service.getUserPage(userId, page, rowsPerPage);
-***REMOVED***
+    }
 
     @GetMapping("/searchUserPage")
     public ResultPage<List<User>> searchUserPage(HttpServletRequest request, String search, Integer page, Integer rowsPerPage)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new ResultPage<>(null, 0, 403);
         return service.searchUserPage(userId, search, page, rowsPerPage);
-***REMOVED***
+    }
 
     @PostMapping("/addUser")
     public Result<Integer> addUser(HttpServletRequest request, @RequestBody User user)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-2, 403);
         int res = service.addUser(userId, user);
         return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
-***REMOVED***
+    }
 
     @PostMapping("/deleteUser")
     public Result<Integer> deleteUser(HttpServletRequest request, Integer userId)
-***REMOVED***
+    {
         Integer id = verify.verifyUser(request);
         if (id < 0)
             return new Result<>(-2, 403);
         int res = service.deleteUser(id, userId);
         return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
-***REMOVED***
+    }
 
     @PostMapping("/resetUserPassword")
     public Result<Integer> resetUserPassword(HttpServletRequest request, @RequestBody User user)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-2, 403);
         int res = service.resetUserPassword(userId, user);
         return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
-***REMOVED***
+    }
 
     @PostMapping("/resetUserEmail")
     public Result<Integer> resetUserEmail(HttpServletRequest request, @RequestBody User user)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-2, 403);
         int res = service.resetUserEmail(userId, user);
         return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
-***REMOVED***
+    }
 
     @PostMapping("/resetUserRole")
     public Result<Integer> resetUserRole(HttpServletRequest request, @RequestBody User user)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-2, 403);
         int res = service.resetUserRole(userId, user);
         return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
-***REMOVED***
+    }
 
     @PostMapping("/resetUsername")
     public Result<Integer> resetUsername(HttpServletRequest request, @RequestBody User user)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-2, 403);
         int res = service.resetUsername(userId, user);
         return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
-***REMOVED***
+    }
 
     @PostMapping("/getGeneralSetting")
     public Result<String> getGeneral(HttpServletRequest request, String name)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(null, 403);
         String res = service.getGeneralSetting(userId, name);
         return res != null ? new Result<>(res, 200) : new Result<>(null, 400);
-***REMOVED***
+    }
 
     @PostMapping("/setGeneralSetting")
     public Result<Integer> setGeneral(HttpServletRequest request, String name, String val)
-***REMOVED***
+    {
         Integer userId = verify.verifyUser(request);
         if (userId < 0)
             return new Result<>(-2, 403);
         int res = service.setGeneralSetting(userId, name, val);
         return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
-***REMOVED***
-***REMOVED***
+    }
+}

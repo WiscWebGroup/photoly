@@ -8,14 +8,14 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-***REMOVED***
+/**
  * <p>
  * 
  * </p>
  *
  * @author HaroldCI
  * @since 2022-06-24
-***REMOVED***
+ */
 @Data
 @EqualsAndHashCode(callSuper = false)
 @ApiModel(value="Namespace对象", description="")
@@ -33,4 +33,4 @@ public class Namespace implements Serializable {
     private Integer userId;
 
 
-***REMOVED***
+}

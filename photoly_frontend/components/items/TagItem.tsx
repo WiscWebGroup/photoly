@@ -1,21 +1,21 @@
-import { Box, Checkbox, CheckboxGroup, Input, useDisclosure, useOutsideClick ***REMOVED*** from "@chakra-ui/react";
-import React, { ChangeEvent, KeyboardEvent, useRef, useState ***REMOVED*** from "react";
-import { ContextMenu ***REMOVED*** from "../ContextMenu";
+import { Box, Checkbox, CheckboxGroup, Input, useDisclosure, useOutsideClick } from "@chakra-ui/react";
+import React, { ChangeEvent, KeyboardEvent, useRef, useState } from "react";
+import { ContextMenu } from "../ContextMenu";
 import TagContextMenu from "../contextMenus/TagContextMenu";
-import { useDeleteTagMutation, useRenameTagMutation ***REMOVED*** from "../../redux/api/tagSlice";
-import { useAppDispatch, useAppSelector ***REMOVED*** from "../../redux/hooks";
-import { addTag, removeTag ***REMOVED*** from "../../redux/states/searchFilterSlice";
+import { useDeleteTagMutation, useRenameTagMutation } from "../../redux/api/tagSlice";
+import { useAppDispatch, useAppSelector } from "../../redux/hooks";
+import { addTag, removeTag } from "../../redux/states/searchFilterSlice";
 
 interface TagItemProps {
   tagId: number;
   tagName: string;
-***REMOVED***
+}
 
-const TagItem: React.FC<TagItemProps> = ({ tagId, tagName ***REMOVED***) => {
+const TagItem: React.FC<TagItemProps> = ({ tagId, tagName }) => {
   const [tag, setTag] = useState(tagName);
   const inputRef = useRef<HTMLInputElement>(null);
   const checkboxRef = useRef<HTMLInputElement>(null);
-  const { isOpen, onOpen, onClose ***REMOVED*** = useDisclosure();  // control edit mode
+  const { isOpen, onOpen, onClose } = useDisclosure();  // control edit mode
 
   const [deleteRequest] = useDeleteTagMutation();
   const [renameRequest] = useRenameTagMutation();
@@ -26,7 +26,7 @@ const TagItem: React.FC<TagItemProps> = ({ tagId, tagName ***REMOVED***) => {
   const handleRename = () => {
     onOpen();
     inputRef.current?.focus();
-  ***REMOVED***;
+  };
 
   const callThenClose = () => {
     // empty or unmodified
@@ -34,71 +34,71 @@ const TagItem: React.FC<TagItemProps> = ({ tagId, tagName ***REMOVED***) => {
       setTag(tagName);
       onClose();
       return;
-***REMOVED***
+    }
 
     // modified
-    renameRequest({ tag_id: tagId, new_name: tag ***REMOVED***);
+    renameRequest({ tag_id: tagId, new_name: tag });
     onClose();
-  ***REMOVED***;
+  };
 
   const handleEnterClose = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter")
       callThenClose();
-  ***REMOVED***;
+  };
 
   useOutsideClick({
     ref: inputRef,
     handler: callThenClose
-  ***REMOVED***);
+  });
 
   const handleDelete = () => {
     deleteRequest(tagId);
-  ***REMOVED***;
+  };
 
   const handleChecked = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.currentTarget.checked){
       dispatch(addTag(tagId))
-***REMOVED***
+    }
     else{
       dispatch(removeTag(tagId))
-***REMOVED***
-  ***REMOVED***;
+    }
+  };
 
   return (
     <ContextMenu<HTMLDivElement>
       renderMenu={() =>
         <TagContextMenu
-          handleRename={handleRename***REMOVED***
-          handleDelete={handleDelete***REMOVED***
-        />***REMOVED***
+          handleRename={handleRename}
+          handleDelete={handleDelete}
+        />}
     >
-  ***REMOVED***ref => (
-        <Box ref={ref***REMOVED*** w="100%" pl={4***REMOVED*** display="flex">
-          <CheckboxGroup value={curFilter.tagIds***REMOVED***>
+      {ref => (
+        <Box ref={ref} w="100%" pl={4} display="flex">
+          <CheckboxGroup value={curFilter.tagIds}>
             <Checkbox
-              ref={checkboxRef***REMOVED***
+              ref={checkboxRef}
               variant="ghost"
-              value={tagId***REMOVED***
-              pr={2***REMOVED***
-              onChange={handleChecked***REMOVED***
+              value={tagId}
+              pr={2}
+              onChange={handleChecked}
             >
-          ***REMOVED***isOpen ? "" : tagName***REMOVED***
+              {isOpen ? "" : tagName}
             </Checkbox>
-        ***REMOVED***isOpen &&
+            {isOpen &&
               <Input
-                ref={inputRef***REMOVED***
+                ref={inputRef}
                 variant="flushed"
-                value={tag***REMOVED***
+                value={tag}
                 autoFocus
-                onKeyDown={handleEnterClose***REMOVED***
-                onChange={(e) => setTag(e.currentTarget.value)***REMOVED***
+                onKeyDown={handleEnterClose}
+                onChange={(e) => setTag(e.currentTarget.value)}
               />
-    ***REMOVED***
+            }
           </CheckboxGroup>
         </Box>
-      )***REMOVED***
+      )}
     </ContextMenu>
 
   );
-***REMOVED***;
+};
 export default TagItem;

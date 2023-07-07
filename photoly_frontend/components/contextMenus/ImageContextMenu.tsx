@@ -1,5 +1,5 @@
-import {MenuItem, MenuList***REMOVED*** from "@chakra-ui/menu";
-import {ArrowForwardIcon, DownloadIcon, EditIcon, ViewIcon, DeleteIcon***REMOVED*** from "@chakra-ui/icons";
+import {MenuItem, MenuList} from "@chakra-ui/menu";
+import {ArrowForwardIcon, DownloadIcon, EditIcon, ViewIcon, DeleteIcon} from "@chakra-ui/icons";
 import React from "react";
 
 interface ImageContextMenuProps {
@@ -8,28 +8,28 @@ interface ImageContextMenuProps {
     handleDownload: () => void
     handleRename: () => void
     handleMoveTo: () => void
-***REMOVED***
+}
 
-const ImageContextMenu = ({ handleDelete, handleView, handleDownload, handleRename, handleMoveTo ***REMOVED*** : ImageContextMenuProps) => {
+const ImageContextMenu = ({ handleDelete, handleView, handleDownload, handleRename, handleMoveTo } : ImageContextMenuProps) => {
     return (
-        <MenuList zIndex={1030***REMOVED***>
-            <MenuItem icon={<DeleteIcon />***REMOVED*** onClick={handleDelete***REMOVED***>
+        <MenuList zIndex={1030}>
+            <MenuItem icon={<DeleteIcon />} onClick={handleDelete}>
                 Delete
             </MenuItem>
-            <MenuItem icon={<ViewIcon />***REMOVED*** onClick={handleView***REMOVED***>
+            <MenuItem icon={<ViewIcon />} onClick={handleView}>
                 View
             </MenuItem>
-            <MenuItem icon={<DownloadIcon />***REMOVED*** onClick={handleDownload***REMOVED***>
+            <MenuItem icon={<DownloadIcon />} onClick={handleDownload}>
                 Download
             </MenuItem>
-            <MenuItem icon={<EditIcon />***REMOVED*** onClick={handleRename***REMOVED***>
+            <MenuItem icon={<EditIcon />} onClick={handleRename}>
                 Rename
             </MenuItem>
-            <MenuItem icon={<ArrowForwardIcon />***REMOVED*** onClick={handleMoveTo***REMOVED***>
+            <MenuItem icon={<ArrowForwardIcon />} onClick={handleMoveTo}>
                 Move to...
             </MenuItem>
         </MenuList>
     )
-***REMOVED***
+}
 
 export default ImageContextMenu

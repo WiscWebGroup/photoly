@@ -4,10 +4,10 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-***REMOVED***
+/**
  * @Author: Harold澂冰
  * @Date: 2022/7/22 10:58
-***REMOVED***
+ */
 public class PingTest {
 
     public static void main(String[] args) throws IOException {
@@ -15,5 +15,5 @@ public class PingTest {
         boolean reachable = address.isReachable(10000);
 
         System.out.println("Is host reachable? " + reachable);
-***REMOVED***
-***REMOVED***
+    }
+}

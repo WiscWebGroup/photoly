@@ -5,10 +5,10 @@ import javax.servlet.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-***REMOVED***
+/**
  * @Author: Harold澂冰
  * @Date: 2022/6/24 15:09
-***REMOVED***
+ */
 @Configuration
 public class CorsConfig implements Filter {
     @Override
@@ -22,12 +22,12 @@ public class CorsConfig implements Filter {
         response.setHeader("Access-Control-Allow-Headers", "*");
         if (request.getMethod().equals("OPTIONS")){
             return;
-***REMOVED***
+        }
         chain.doFilter(req, res);
-***REMOVED***
+    }
     @Override
-    public void init(FilterConfig filterConfig) {***REMOVED***
+    public void init(FilterConfig filterConfig) {}
 
     @Override
-    public void destroy() {***REMOVED***
-***REMOVED***
+    public void destroy() {}
+}

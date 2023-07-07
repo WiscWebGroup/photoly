@@ -1,39 +1,39 @@
-***REMOVED*** @type {import('next').NextConfig***REMOVED******REMOVED***
+/** @type {import('next').NextConfig} */
 const serverAddr = "http://129.146.3.179:8088";
 const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
     return [
-  ***REMOVED***
+      {
         source: "/user/:path*",
-        destination: `${serverAddr***REMOVED***/user/:path*`,
-  ***REMOVED***,
-  ***REMOVED***
+        destination: `${serverAddr}/user/:path*`,
+      },
+      {
         source: "/cred/:path*",
-        destination: `${serverAddr***REMOVED***/cred/:path*`,
-  ***REMOVED***,
-  ***REMOVED***
+        destination: `${serverAddr}/cred/:path*`,
+      },
+      {
         source: "/photo/:path*",
-        destination: `${serverAddr***REMOVED***/photo/:path*`,
-  ***REMOVED***,
-  ***REMOVED***
+        destination: `${serverAddr}/photo/:path*`,
+      },
+      {
         source: "/namespace/:path*",
-        destination: `${serverAddr***REMOVED***/namespace/:path*`,
-  ***REMOVED***,
-  ***REMOVED***
+        destination: `${serverAddr}/namespace/:path*`,
+      },
+      {
         source: "/gallery/:path*",
-        destination: `${serverAddr***REMOVED***/gallery/:path*`,
-  ***REMOVED***,
-  ***REMOVED***
+        destination: `${serverAddr}/gallery/:path*`,
+      },
+      {
         source: "/tag/:path*",
-        destination: `${serverAddr***REMOVED***/tag/:path*`,
-  ***REMOVED***,
-  ***REMOVED***
+        destination: `${serverAddr}/tag/:path*`,
+      },
+      {
         source: "/admin/:path*",
-        destination: `${serverAddr***REMOVED***/admin/:path*`,
-  ***REMOVED***,
+        destination: `${serverAddr}/admin/:path*`,
+      },
     ];
-  ***REMOVED***,
-***REMOVED***;
+  },
+};
 
 module.exports = nextConfig;

@@ -1,6 +1,6 @@
-import {apiSlice***REMOVED*** from "./apiSlice";
-import { serverNamespace ***REMOVED*** from "../types/namespaceInterface";
-import { ServerInterface ***REMOVED*** from "../types/serverInterface";
+import {apiSlice} from "./apiSlice";
+import { serverNamespace } from "../types/namespaceInterface";
+import { ServerInterface } from "../types/serverInterface";
 
 const extendedNamespaceApi = apiSlice.injectEndpoints({
   endpoints: builder => ({
@@ -8,19 +8,19 @@ const extendedNamespaceApi = apiSlice.injectEndpoints({
       query: () => '/namespace/getRoot',
       transformResponse(response: ServerInterface<serverNamespace>) {
         return response.t
-  ***REMOVED***
-***REMOVED***),
+      }
+    }),
     getChildren: builder.query<serverNamespace[], number>({
-      query: (parent_id: number) => `/namespace/getChildren?parentId=${parent_id***REMOVED***`,
+      query: (parent_id: number) => `/namespace/getChildren?parentId=${parent_id}`,
       transformResponse(response: ServerInterface<serverNamespace[]>) {
         return response.t
-  ***REMOVED***
-***REMOVED***)
-  ***REMOVED***)
-***REMOVED***)
+      }
+    })
+  })
+})
 
 export const {
   useGetRootQuery,
   useLazyGetRootQuery,
   useGetChildrenQuery
-***REMOVED*** = extendedNamespaceApi
+} = extendedNamespaceApi

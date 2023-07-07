@@ -15,6 +15,6 @@ public class PhotoletApplication {
 
     public static void main(String[] args) {
         ConfigurableApplicationContext ctx = SpringApplication.run(PhotoletApplication.class, args);
-***REMOVED***
+    }
 
-***REMOVED***
+}
