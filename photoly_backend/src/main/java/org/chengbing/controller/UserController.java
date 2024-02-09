@@ -59,21 +59,41 @@ public class UserController {
     @Resource
     UserIdentity verify;
 
+    /***
+     * Function used to sign up users.
+     * @param user: an JSON serialized User object with userName, email and password
+     *            example:
+     *                  {
+     *                     "userName": "test20240202_1",
+     *                     "email": "test20240202_1@test.com",
+     *                     "password": "hello123"
+     *                   }
+     * @return an ResultToken object, 200 means succeed, other means failed. Message is included.
+     */
     @PostMapping("/signUp")
     public ResultToken<String> signUp(@RequestBody User user)
     {
         QueryWrapper<Setting> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("setting_name", "SignUp");
         Setting setting = settingMapper.selectOne(queryWrapper);
+
+        // if the "SignUp" setting value in the database is 1, that means that the admin has enabled the sign up
+        // function, so that the program goes to proceed to sign up for the user.
         if (setting.getSettingValue().equals("1"))
         {
             String email = user.getEmail();
+
+            // if the email address is null, then return an 400 error.
             if (email == null)
                 return new ResultToken<>("Email is null", null, 400);
+
+            // check if the email format is correct. If not, return an 400 error.
             Pattern pattern = Pattern.compile(".+@.+\\..+");
             Matcher matcher = pattern.matcher(email);
             if (!matcher.find())
                 return new ResultToken<>("Email is incorrect", null, 400);
+
+            // force to clear the userId (avoid injection), and encrypt the user's password.
             user.setUserId(null);
             user.setCreateDate(LocalDateTime.now());
             user.setPassword(AESUtil.aesEncryptStr(user.getPassword(), AESUtil.getPkey()));
@@ -85,6 +105,8 @@ public class UserController {
             queryWrapper2.eq("setting_name", "SSafeUUID");
             Setting setting2 = settingMapper.selectOne(queryWrapper2);
 
+            // If the SSafe UUID mode is enabled, make sure that the new UUID for the user will
+            // not be the UUID of any other user (although very unlikely).
             if (setting2.getSettingValue().equals("1"))
             {
                 boolean verified = false;
@@ -100,9 +122,14 @@ public class UserController {
             }
 
             user.setUuid(userUUID);
+
+            // Check if the user's email is already registered by other.
             if (service.selectUsers(user.getEmail()).size() > 0)
                 return new ResultToken<>("Repeated Email Address", null, 401);
             boolean succeed = service.save(user);
+
+            // If successful, do some default settings and use the Redis Template to insert the login token
+            // into the designated Redis database.
             if (succeed) {
                 String token = UUID.randomUUID().toString();
                 Integer id = service.selectUserByEmail(user.getEmail()).getUserId();
@@ -122,10 +149,22 @@ public class UserController {
         }
     }
 
+    /***
+     * Function used to sign in users.
+     * @param user: an JSON serialized User object with email and password
+     *            example:
+     *                  {
+     *                     "email": "test20240202_1@test.com",
+     *                     "password": "hello123"
+     *                   }
+     * @return an ResultToken object, 200 means succeed, other means failed. Message is included.
+     */
     @PostMapping("/signIn")
     public ResultToken<String> signIn(@RequestBody User user)
     {
         User user1 = service.selectUserToLogin(user);
+
+        // insert into the Redis database with the login token for this user
         if (user1!=null && user1.getUserId() != null && user1.getEmail() != null)
         {
             Integer userId = user1.getUserId();
@@ -142,6 +181,13 @@ public class UserController {
         }
     }
 
+    /***
+     * Function used to sign out users.
+     * @param request an HttpServletRequest which pass in the user's current access token.
+     *            example:
+     *               (In Header):  (Key: HRD-Token, Value: 41d4d274-286d-4244-8bed-2c9090d62db0)
+     * @return an ResultToken object, 200 means succeed, other means failed. Message is included.
+     */
     @PostMapping("/signOut")
     public Result<Integer> signOut(HttpServletRequest request)
     {
@@ -150,6 +196,27 @@ public class UserController {
         return new Result<>(1, 200);
     }
 
+    /***
+     * Function used to get user's information.
+     * @param request an HttpServletRequest which pass in the user's current access token.
+     *            example:
+     *               (In Header):  (Key: HRD-Token, Value: 41d4d274-286d-4244-8bed-2c9090d62db0)
+     * @return an Result object, 200 means succeed, other means failed. Message is included. User object is included.
+     * please note that password will not be included into this query.
+     *      example:
+     *          {
+     *             "t": {
+     *             "userId": 39,
+     *             "userName": "test20240202_1",
+     *             "email": "test20240202_1@test.com",
+     *             "createDate": "2024-02-02T16:34:27",
+     *             "role": "user",
+     *             "password": null,
+     *             "uuid": "188f9163-493b-47a5-bca5-4fab21ffaa46"
+     *         },
+     *     "msgCode": 200
+     *           }
+     */
     @GetMapping("/getInfo")
     public Result<User> getInfo(HttpServletRequest request)
     {
@@ -170,6 +237,16 @@ public class UserController {
         }
     }
 
+    /***
+     * Function used to update user's username.
+     * @param request an HttpServletRequest which pass in the user's current access token.
+     *            example:
+     *               (In Header):  (Key: HRD-Token, Value: 41d4d274-286d-4244-8bed-2c9090d62db0)
+     *        username a string of new username
+     *                example:
+     *                  "ad977暴暴龙"
+     * @return a Result object, 200 means succeed, other means failed. Message is included.
+     */
     @PostMapping("/updateUsername")
     public Result<Integer> updateUsername(HttpServletRequest request, String username)
     {
@@ -182,6 +259,16 @@ public class UserController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
     }
 
+    /***
+     * Function used to update user's email.
+     * @param request an HttpServletRequest which pass in the user's current access token.
+     *            example:
+     *               (In Header):  (Key: HRD-Token, Value: 41d4d274-286d-4244-8bed-2c9090d62db0)
+     *        email a string of new email
+     *                example:
+     *                  "ad977@baobaolong.com"
+     * @return a Result object, 200 means succeed, other means failed. Message is included.
+     */
     @PostMapping("/updateEmail")
     public Result<Integer> updateEmail(HttpServletRequest request, String email)
     {
@@ -198,6 +285,19 @@ public class UserController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
     }
 
+    /***
+     * Function used to update user's password.
+     * @param request an HttpServletRequest which pass in the user's current access token.
+     *            example:
+     *               (In Header):  (Key: HRD-Token, Value: 41d4d274-286d-4244-8bed-2c9090d62db0)
+     *        oldPass a string of the old password
+     *                example:
+     *                  "hello123"
+     *        newPass a string of new password
+     *                example:
+     *                  "hello1234"
+     * @return a Result object, 200 means succeed, other means failed. Message is included.
+     */
     @PostMapping("/updatePassword")
     public Result<Integer> updatePassword(HttpServletRequest request, String oldPass, String newPass)
     {
@@ -208,6 +308,16 @@ public class UserController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
     }
 
+    /***
+     * Function used to update user's avatar.
+     * @param request an HttpServletRequest which pass in the user's current access token.
+     *            example:
+     *               (In Header):  (Key: HRD-Token, Value: 41d4d274-286d-4244-8bed-2c9090d62db0)
+     *        file a MultipartFile object
+     *                example:
+     *                  (form-data): (Key: file, Value: [a file selected])
+     * @return a Result object, 200 means succeed, other means failed. Message is included.
+     */
     @PostMapping("/updateAvatar")
     public Result<Integer> updateAvatar(HttpServletRequest request, MultipartFile file)
     {
@@ -218,6 +328,13 @@ public class UserController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
     }
 
+    /***
+     * Function used to get user's avatar via authenticate token that gave after the login.
+     * @param token a authenticate token that gave after the login.
+     *            example:
+     *               {url}/user/getAvatar/41d4d274-286d-4244-8bed-2c9090d62db0
+     * @return an array of byte that encode the user's avatar.
+     */
     @GetMapping(value="/getAvatar/{token}", produces = MediaType.IMAGE_JPEG_VALUE)
     public byte[] getAvatar(@PathVariable String token)
     {
@@ -227,6 +344,13 @@ public class UserController {
         return service.getAvatar(userId);
     }
 
+    /***
+     * Function used to remove the user completely. Use this function with extreme caution.
+     * @param request an HttpServletRequest which pass in the user's current access token.
+     *            example:
+     *               (In Header):  (Key: HRD-Token, Value: 41d4d274-286d-4244-8bed-2c9090d62db0)
+     * @return an Result<Integer>, res=1 and code=200 means successful.
+     */
     @GetMapping("/deleteUser")
     public Result<Integer> deleteUser(HttpServletRequest request)
     {

@@ -150,6 +150,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
         User goodbye_and_good_luck = mapper.selectById(deleteUserId);
 
+        // if the user does not exist
+        if (goodbye_and_good_luck == null)
+        {
+            return -5;
+        }
+
+        // if exist then check
         if (operator!= null && (operator.getUserId().equals(deleteUserId) || operator.getRole().equals("admin")))
         {
             // Delete Namespace
