@@ -61,6 +61,19 @@ public class PhotoController {
     @Value("${server.path}")
     String serverPath;
 
+    /**
+     * Function to insert one photo into a namespace of current user's
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param file a file uploaded (photo file)
+     * @param photo a string representation of a JSON serialized Photo object. Only "nsId" is required. "visibility"
+     *              is optional.
+     * @return a result of integer to indicate success or not. (1, 200) means successful.
+     * example:
+     * {
+     *     "t": 1,
+     *     "msgCode": 200
+     * }
+     */
     @PostMapping("/insert")
     public Result<Integer> insertPhoto(HttpServletRequest request, MultipartFile file, @RequestParam String photo)
     {
@@ -72,6 +85,21 @@ public class PhotoController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
     }
 
+    /**
+     * Function to insert multiple photos into (one or more) namespace of current user's
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param files files uploaded (photo files)
+     * @param photosStr a string representation of a JSON serialized List of Photo object. Only "nsId" is required.
+     *              "visibility" is optional.
+     * example for photosStr:
+     * '[{"nsId": 60}, {"nsId": 60, "visibility": 0}]'
+     * @return a result of integer to indicate success or not. (>=1 (# of photos you uploaded), 200) means successful.
+     * example:
+     * {
+     *     "t": 2,
+     *     "msgCode": 200
+     * }
+     */
     @PostMapping("/inserts")
     public Result<Integer> insertPhotos(HttpServletRequest request, MultipartFile[] files, @RequestParam String photosStr)
     {
@@ -85,6 +113,17 @@ public class PhotoController {
         return change >= 1 ? new Result<>(change, 200) : new Result<>(change, 400);
     }
 
+    /**
+     * Function to delete a photo of current user's
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param photoId the ID of the photo to be deleted
+     * @return a result of integer to indicate success or not. (1, 200) means successful.
+     * example:
+     * {
+     *     "t": 1,
+     *     "msgCode": 200
+     * }
+     */
     @PostMapping("/delete")
     public Result<Integer> deletePhoto(HttpServletRequest request, Integer photoId)
     {
@@ -95,6 +134,23 @@ public class PhotoController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
     }
 
+    /**
+     * Function to update a photo of current user's with its name or (and) visibility
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param photo a Photo object with its "photoId", "photoName", and "visibility" params included
+     * example:
+     * {
+     *     "photoId": 645,
+     *     "photoName": "hawaii-halo",
+     *     "visibility": 1
+     * }
+     * @return a result of integer to indicate success or not. (1, 200) means successful.
+     * example:
+     * {
+     *     "t": 1,
+     *     "msgCode": 200
+     * }
+     */
     @PostMapping("/update")
     public Result<Integer> updatePhotoNameAndVisibility(HttpServletRequest request, @RequestBody Photo photo)
     {
@@ -105,6 +161,40 @@ public class PhotoController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
     }
 
+    /**
+     * Function to get all photos within a namespace
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param nsId a namespace's ID to query on
+     * @return a result list of Photo objects within that namespace.
+     * example:
+     * {
+     *     "t": [
+     *         {
+     *             "photoId": 111,
+     *             "photoName": "hahaha",
+     *             "uploadDate": "2023-02-12T14:55:00",
+     *             "format": "jpg",
+     *             "nsId": 65,
+     *             "visibility": 1,
+     *             "token": "c1101411-b003-41e6-b046-11111993c977",
+     *             "photoUuid": "641c6881-0914-1111-9bca-1111f5e5310d",
+     *             "userId": 321
+     *         },
+     *         {
+     *             "photoId": 113,
+     *             "photoName": "cuda",
+     *             "uploadDate": "2023-02-12T15:08:33",
+     *             "format": "png",
+     *             "nsId": 65,
+     *             "visibility": 0,
+     *             "token": "1117952d-1111-4845-a663-63c11134151f",
+     *             "photoUuid": "c4882783-4982-4b67-84b2-111164ef4071",
+     *             "userId": 321
+     *         },...
+     *     ],
+     *     "msgCode": 200
+     * }
+     */
     @GetMapping("/getByNamespace")
     public Result<List<Photo>> queryPhotoByNamespace(HttpServletRequest request, Integer nsId)
     {
@@ -114,6 +204,35 @@ public class PhotoController {
         return new Result<>(service.queryPhotoByNamespace(userId, nsId), 200);
     }
 
+    /**
+     * Function to get all photos with one or more tags. Only the photo with all the tags on them gets selected.
+     * For example, we have (photo1, photo2). photo1 is tagged with tagId 1 and 2, whereas photo2 is tagged with tagId 1.
+     * If we are selecting from "tagIds": 1, 2; then only photo1 is selected. If we use "tagIds": 1; then photo 1 and 2
+     * are both selected.
+     *
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param tagIds a list of integer (tag's IDs)
+     * example for tagIds:
+     * (Key: Value) - (tagIds: 57, 56)
+     * @return a result list of Photo objects fulfill the tag requirement.
+     * example:
+     * {
+     *     "t": [
+     *         {
+     *             "photoId": 65,
+     *             "photoName": "Picture1",
+     *             "uploadDate": "2023-02-12T15:08:34",
+     *             "format": "png",
+     *             "nsId": 61,
+     *             "visibility": 0,
+     *             "token": "11111117-3781-4987-bab2-111113cd5704",
+     *             "photoUuid": "111111ec-405d-49e1-aafa-11111c802602",
+     *             "userId": 321
+     *         }
+     *     ],...
+     *     "msgCode": 200
+     * }
+     */
     @GetMapping("/getByTags")
     public Result<List<Photo>> queryPhotoByTags(HttpServletRequest request, @RequestParam List<Integer> tagIds)
     {
@@ -123,6 +242,30 @@ public class PhotoController {
         return new Result<>(service.queryPhotoByTags(userId, tagIds), 200);
     }
 
+    /**
+     * Function to get all photos within the gallery
+     *
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param gaId gallery's ID to query in
+     * @return a result list of Photo objects which are associated with that gallery.
+     * example:
+     * {
+     *     "t": [
+     *         {
+     *             "photoId": 315,
+     *             "photoName": "Picture1",
+     *             "uploadDate": "2023-02-12T15:08:34",
+     *             "format": "png",
+     *             "nsId": 40,
+     *             "visibility": 0,
+     *             "token": "11111117-3781-4987-bab2-111113cd5704",
+     *             "photoUuid": "111111ec-405d-49e1-aafa-11111c802602",
+     *             "userId": 321
+     *         }
+     *     ],...
+     *     "msgCode": 200
+     * }
+     */
     @GetMapping("/getByGallery")
     public Result<List<Photo>> queryPhotoByGallery(HttpServletRequest request, Integer gaId)
     {
@@ -132,6 +275,19 @@ public class PhotoController {
         return new Result<>(service.queryPhotoByGallery(userId, gaId), 200);
     }
 
+    /**
+     * Function to change the folder (namespace) of a photo
+     *
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param photoId the ID of the photo you would like to transfer
+     * @param nsId the ID of the new namespace you want the photo go to
+     * @return a result of integer to indicate success or not. (1, 200) means successful.
+     * example:
+     * {
+     *     "t": 1,
+     *     "msgCode": 200
+     * }
+     */
     @PostMapping("/changeNamespace")
     public Result<Integer> changeNamespace(HttpServletRequest request, Integer photoId, Integer nsId)
     {
@@ -142,6 +298,19 @@ public class PhotoController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
     }
 
+    /**
+     * Function to associate tags with a photo
+     *
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param photoId the ID of the photo you would like to transfer
+     * @param tagIds a list of integer (tag's IDs) you want the photo to be associated with
+     * @return a result of integer to indicate success or not. (>=1, 200) means successful.
+     * example:
+     * {
+     *     "t": 2,
+     *     "msgCode": 200
+     * }
+     */
     @PostMapping("/addTags")
     public Result<Integer> addTags(HttpServletRequest request, Integer photoId, @RequestParam List<Integer> tagIds)
     {
@@ -152,6 +321,19 @@ public class PhotoController {
         return change >= 1 ? new Result<>(change, 200) : new Result<>(change, 400);
     }
 
+    /**
+     * Function to remove the association of a tag with a photo
+     *
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param photoId the ID of the photo you would like to de-associate with the tag
+     * @param tagId the tag's ID you would like to de-associate with the photo
+     * @return a result of integer to indicate success or not. (1, 200) means successful.
+     * example:
+     * {
+     *     "t": 1,
+     *     "msgCode": 200
+     * }
+     */
     @PostMapping("/deleteTag")
     public Result<Integer> deleteTag(HttpServletRequest request, Integer photoId, Integer tagId)
     {
@@ -162,6 +344,46 @@ public class PhotoController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
     }
 
+    /**
+     * Function to remove the association of many tags with a photo
+     *
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param photoId the ID of the photo you would like to transfer
+     * @param tagIds a list of integer (tag's IDs) you want the photo to be associated with
+     * example:
+     * (Key: Value) - (tagIds: 57, 56)
+     * @return a result of integer to indicate success or not. (>=1, 200) means successful.
+     * example:
+     * {
+     *     "t": 2,
+     *     "msgCode": 200
+     * }
+     */
+    @PostMapping("/deleteTags")
+    public Result<Integer> deleteTags(HttpServletRequest request, Integer photoId, @RequestParam List<Integer> tagIds)
+    {
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(null, 403);
+        int change = 0;
+        for (Integer tagId : tagIds)
+            change += deleteTag(request, photoId, tagId).getT();
+        return change >= 1 ? new Result<>(change, 200) : new Result<>(change, 400);
+    }
+
+    /**
+     * Function to add a photo to a gallery
+     *
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param photoId the ID of the photo you would like to add to the gallery
+     * @param gaId the gallery you want the photo to be associated with
+     * @return a result of integer to indicate success or not. (1, 200) means successful.
+     * example:
+     * {
+     *     "t": 1,
+     *     "msgCode": 200
+     * }
+     */
     @PostMapping("/addToGallery")
     public Result<Integer> addToGallery(HttpServletRequest request, Integer photoId, Integer gaId)
     {
@@ -172,6 +394,19 @@ public class PhotoController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
     }
 
+    /**
+     * Function to remove a photo from a gallery (de connect them, instead of deleting photo or gallery)
+     *
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param photoId the ID of the photo you would like to remove from the gallery
+     * @param gaId the gallery you want the photo to be de-associated with
+     * @return a result of integer to indicate success or not. (1, 200) means successful.
+     * example:
+     * {
+     *     "t": 1,
+     *     "msgCode": 200
+     * }
+     */
     @PostMapping("/deleteFromGallery")
     public Result<Integer> deleteFromGallery(HttpServletRequest request, Integer photoId, Integer gaId)
     {
@@ -182,6 +417,29 @@ public class PhotoController {
         return change == 1 ? new Result<>(change, 200) : new Result<>(change, 400);
     }
 
+    /**
+     * Function to get all tags of a photo given that photo's ID
+     *
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param photoId the ID of the photo you would like to query
+     * @return a result of List of LinkedHashMap that contains the tag and photo information
+     * example:
+     * {
+     *     "t": [
+     *         {
+     *             "photo_id": 111,
+     *             "tag_name": "testTag2",
+     *             "tag_id": 516
+     *         },
+     *         {
+     *             "photo_id": 112,
+     *             "tag_name": "testTag123",
+     *             "tag_id": 517
+     *         },...
+     *     ],
+     *     "msgCode": 200
+     * }
+     */
     @GetMapping("/getTagByPhoto")
     public Result<List<LinkedHashMap<String, Object>>> selectTagByPhoto(HttpServletRequest request, Integer photoId)
     {
@@ -195,6 +453,24 @@ public class PhotoController {
             return new Result<>(res, 200);
     }
 
+    /**
+     * Function to get all galleries a photo associated with given that photo's ID
+     *
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param photoId the ID of the photo you would like to query
+     * @return a result of List of LinkedHashMap that contains the gallery and photo information
+     * example:
+     * {
+     *     "t": [
+     *         {
+     *             "photo_id": 415,
+     *             "ga_name": "testGallery123",
+     *             "ga_id": 421
+     *         }
+     *     ],
+     *     "msgCode": 200
+     * }
+     */
     @GetMapping("/getGalleryByPhoto")
     public Result<List<LinkedHashMap<String, Object>>> selectGalleryByPhoto(HttpServletRequest request, Integer photoId)
     {
@@ -208,6 +484,13 @@ public class PhotoController {
             return new Result<>(res, 200);
     }
 
+    /**
+     * Function to render a photo using the photoId and the user's access token (given after login)
+     *
+     * @param token the token of the owner user of that photo
+     * @param photoId the ID of the photo to be rendered
+     * @return a ResponseEntity of Object (that image's bytes)
+     */
     @GetMapping(value = "/render/{token}", produces = MediaType.IMAGE_JPEG_VALUE)
     public ResponseEntity<Object> renderImage(@PathVariable String token, Integer photoId) throws IOException {
         Integer userId = verify.verifyUserByToken(token);
@@ -224,6 +507,13 @@ public class PhotoController {
         return null;
     }
 
+    /**
+     * Function to render a thumbnail version of the photo using the photoId and the user's access token (given after login)
+     *
+     * @param token the token of the owner user of that photo
+     * @param photoId the ID of the photo to be rendered
+     * @return a ResponseEntity of Object (that image's bytes)
+     */
     @GetMapping(value = "/renderThumbnail/{token}", produces = "image/jpeg")
     public ResponseEntity<Object> renderThumbnailImage(@PathVariable String token, Integer photoId) throws IOException {
         Integer userId = verify.verifyUserByToken(token);
@@ -240,6 +530,17 @@ public class PhotoController {
         return null;
     }
 
+    /**
+     * Function to render a photo using the photo's individual token, the photo's path (explain below). Only render when
+     * "visibility" of that photo is 1.
+     *
+     * @param token the token that belongs to the photo trying to access to.
+     * @param path the path is constructed by 3 parts: <user's UUID>/<photo's UUID>.<photo's extension>.
+     *             for example: 11111111-493b-47a5-bca5-4fab21ff1111/22222222-405d-49e1-1111-797abc802602.png
+     *             is trying to access user with UUID (1111...)'s photo which with UUID (2222...) and this photo
+     *             is a png.
+     * @return a ResponseEntity of Object (that image's bytes)
+     */
     @GetMapping(value = "/renderToken", produces = MediaType.IMAGE_JPEG_VALUE)
     public ResponseEntity<Object> renderImageToken(String path, String token) throws IOException {
         String photoUUID = path.split("/")[1];
@@ -267,7 +568,17 @@ public class PhotoController {
         }
         return null;
     }
-
+    /**
+     * Function to render a thumbnail of a photo using the photo's individual token, the photo's path (explain below). Only render when
+     * "visibility" of that photo is 1.
+     *
+     * @param token the token that belongs to the photo trying to access to.
+     * @param path the path is constructed by 3 parts: <user's UUID>/<photo's UUID>.<photo's extension>.
+     *             for example: 11111111-493b-47a5-bca5-4fab21ff1111/22222222-405d-49e1-1111-797abc802602_thumbnail.png
+     *             is trying to access user with UUID (1111...)'s photo which with UUID (2222...) and this photo
+     *             is a png. PLEASE NOT: _thumbnail must be included to indicate that you are trying to access a thumbnail
+     * @return a ResponseEntity of Object (that image's bytes)
+     */
     @GetMapping(value = "/renderToken/Thumbnail", produces = MediaType.IMAGE_JPEG_VALUE)
     public ResponseEntity<Object> renderImageTokenThumbnail(String path, String token) throws IOException {
         String photoUUID = path.split("/")[1];
@@ -296,6 +607,14 @@ public class PhotoController {
         return null;
     }
 
+    /**
+     * Function to render a video using the owner's login token. Only render when
+     * "visibility" of that photo is 1.
+     *
+     * @param token the token of the owner user of that video
+     * @param photoId the video's photoId
+     * @return an array of bytes of that video
+     */
     @GetMapping(value = "/renderV/{token}", produces = "video/mp4")
     public byte[] renderVideo(@PathVariable String token, Integer photoId) throws IOException {
         Integer userId = verify.verifyUserByToken(token);
@@ -313,6 +632,17 @@ public class PhotoController {
         return null;
     }
 
+    /**
+     * Function to render a video using the video (photo)'s individual token, the video's path (explain below). Only render when
+     * "visibility" of that video (photo) is 1.
+     *
+     * @param token the token of the owner user of that video
+     * @param path the path is constructed by 3 parts: <user's UUID>/<photo's UUID>.<video's extension>.
+     *             for example: 11111111-493b-47a5-bca5-4fab21ff1111/22222222-405d-49e1-1111-797abc802602.mp4
+     *             is trying to access user with UUID (1111...)'s photo which with UUID (2222...) and this video
+     *             is a mp4.
+     * @return an array of bytes of that video
+     */
     @GetMapping(value = "/renderVToken", produces = "video/mp4")
     public byte[] renderVideoToken(String path, String token) throws IOException {
         String photoUUID = path.split("/")[1];
@@ -343,6 +673,13 @@ public class PhotoController {
         return null;
     }
 
+    /**
+     * Function to download a photo (or video) using the photoId and the user's access token (given after login)
+     *
+     * @param response a HttpServletResponse object for the download to work
+     * @param token the token of the owner user of that photo
+     * @param photoId the ID of the photo (or video) to be downloaded
+     */
     @GetMapping(value = "/download/{token}")
     public void download(@PathVariable String token, Integer photoId, HttpServletResponse response) {
         Integer userId = verify.verifyUserByToken(token);
@@ -390,6 +727,18 @@ public class PhotoController {
         }
     }
 
+    /**
+     * Function to get a photo's out-site render path (render using that photo's token and path)
+     *
+     * @param request a HttpServletRequest to verify the user's token
+     * @param photoId the ID of the photo (or video) to get the path
+     * @return a result of string which is the path of that photo (or video)
+     * example:
+     * {
+     *     "t": "127.0.0.1:8084/photo/renderVToken?path=11111111-493b-47a5-bca5-4fab21ffaa46/6f0b2f16-1111-47b6-9a69-161e35ed77d6.mp4&token=11111111-ecb7-4f64-1111-1111158da4e0",
+     *     "msgCode": 200
+     * }
+     */
     @GetMapping("/getPath")
     public Result<String> getImagePath(HttpServletRequest request, Integer photoId)
     {
@@ -426,6 +775,13 @@ public class PhotoController {
             return new Result<>(null, 403);
     }
 
+    /**
+     * Function to get a photo's out-site rendering QR code
+     *
+     * @param request a HttpServletRequest to verify the user's token
+     * @param photoId the ID of the photo (or video) to get the path
+     * @return a result of bytes which can be constructed to a QR code image
+     */
     @GetMapping(value = "/getQR", produces = MediaType.IMAGE_JPEG_VALUE)
     public byte[] getImageQR(HttpServletRequest request, Integer photoId)
     {

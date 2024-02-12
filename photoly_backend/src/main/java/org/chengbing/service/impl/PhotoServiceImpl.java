@@ -56,19 +56,27 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
     String uploadFolder;
 
     public void insertPhotoThumbnail(MultipartFile multipartFile, File saveFile, String format) throws IOException {
-        InputStream inputStream = new ByteArrayInputStream(multipartFile.getBytes());
-        BufferedImage bimg = ImageIO.read(inputStream);
-        int width = bimg.getWidth();
-        int height = bimg.getHeight();
-        boolean compress = width > 400 || height > 250;
-        int compressedWidth = compress ? 400 : width;
-        int compressedHeight = compress ? 400 * height / width : height;
+        String lowerFormat = format.toLowerCase();
+        if (lowerFormat.equals("mp4") || lowerFormat.equals("mov") || lowerFormat.equals("avi") || lowerFormat.equals("wmv")
+                || lowerFormat.equals("flv") || lowerFormat.equals("f4v") || lowerFormat.equals("avchd")
+                || lowerFormat.equals("mkv") || lowerFormat.equals("webm"))
+        {
+            // nothing to do with the video, could compress as well in the future.
+        }else {
+            InputStream inputStream = new ByteArrayInputStream(multipartFile.getBytes());
+            BufferedImage bimg = ImageIO.read(inputStream);
+            int width = bimg.getWidth();
+            int height = bimg.getHeight();
+            boolean compress = width > 400 || height > 250;
+            int compressedWidth = compress ? 400 : width;
+            int compressedHeight = compress ? 400 * height / width : height;
 
-        BufferedImage img = new BufferedImage(compressedWidth, compressedHeight, BufferedImage.TYPE_INT_RGB);
-        img.createGraphics().drawImage(bimg.getScaledInstance(compressedWidth, compressedHeight, Image.SCALE_SMOOTH),
-                0,0,null);
+            BufferedImage img = new BufferedImage(compressedWidth, compressedHeight, BufferedImage.TYPE_INT_RGB);
+            img.createGraphics().drawImage(bimg.getScaledInstance(compressedWidth, compressedHeight, Image.SCALE_SMOOTH),
+                    0,0,null);
 
-        ImageIO.write(img, format, saveFile);
+            ImageIO.write(img, format, saveFile);
+        }
     }
 
     @Override
@@ -292,8 +300,14 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
         {
             UpdateWrapper<Photo> updateWrapper = new UpdateWrapper<>();
             updateWrapper.eq("photo_id", photo.getPhotoId());
-            updateWrapper.set("photo_name", photo.getPhotoName());
-            updateWrapper.set("visibility", photo.getVisibility());
+            if (photo.getPhotoName() != null)
+                updateWrapper.set("photo_name", photo.getPhotoName());
+            else
+                updateWrapper.set("photo_name", selected.getPhotoName());
+            if (photo.getVisibility() != null)
+                updateWrapper.set("visibility", photo.getVisibility());
+            else
+                updateWrapper.set("visibility", selected.getVisibility());
             return mapper.update(null, updateWrapper);
         }
         return -1;
