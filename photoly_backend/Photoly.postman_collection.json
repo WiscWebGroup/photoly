@@ -1,0 +1,2783 @@
+{
+	"info": {
+		"_postman_id": "9f2d520a-5656-4d3a-acba-f37701af31bf",
+		"name": "Photoly",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "18043753"
+	},
+	"item": [
+		{
+			"name": "User",
+			"item": [
+				{
+					"name": "SignUp",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"userName\": \"test20240202_1\",\r\n    \"email\": \"test20240202_1@test.com\",\r\n    \"password\": \"hello123\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/user/signUp",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"user",
+								"signUp"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "SignIn",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n     \"email\": \"test20240202_1@test.com\",\r\n     \"password\": \"hello123\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/user/signIn",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"user",
+								"signIn"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "SignOut",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "41d4d274-286d-4244-8bed-2c9090d62db0",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/user/signOut",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"user",
+								"signOut"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getInfo",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/user/getInfo",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"user",
+								"getInfo"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Username",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/user/updateUsername?username=test20240202_2",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"user",
+								"updateUsername"
+							],
+							"query": [
+								{
+									"key": "username",
+									"value": "test20240202_2"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Email",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/user/updateEmail?email=test20240202_1@gmail.com",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"user",
+								"updateEmail"
+							],
+							"query": [
+								{
+									"key": "email",
+									"value": "test20240202_1@gmail.com"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/user/updatePassword?oldPass=hello123&newPass=hello1234",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"user",
+								"updatePassword"
+							],
+							"query": [
+								{
+									"key": "oldPass",
+									"value": "hello123"
+								},
+								{
+									"key": "newPass",
+									"value": "hello1234"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Avatar",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/D:/OneDrives/OneDrive - UW-Madison/素材&图片/Icon_Connect_Facebook.png"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{url}}/user/updateAvatar",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"user",
+								"updateAvatar"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAvatar",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/user/getAvatar/7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"user",
+								"getAvatar",
+								"7291fd2b-ebd7-4cad-8dec-9eef4941e23f"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin",
+			"item": [
+				{
+					"name": "isAdmin",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/admin/isAdmin",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"isAdmin"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "pingMySQL",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/admin/pingMySQL",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"pingMySQL"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "pingRedis",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/admin/pingRedis",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"pingRedis"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAddress",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/admin/getAddress",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"getAddress"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getSettings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/admin/getSettings",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"getSettings"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "stopServer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/admin/stop",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"stop"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "setSignUpPermission",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/admin/setSignUpPermission?permission=1",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"setSignUpPermission"
+							],
+							"query": [
+								{
+									"key": "permission",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "setSSafeUUIDMode",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/admin/setSSafeUUIDMode?mode=1",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"setSSafeUUIDMode"
+							],
+							"query": [
+								{
+									"key": "mode",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "setTokenDuration",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/admin/setTokenDuration?days=60",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"setTokenDuration"
+							],
+							"query": [
+								{
+									"key": "days",
+									"value": "60"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getUserPage",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/admin/getUserPage?page=1&rowsPerPage=2",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"getUserPage"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "rowsPerPage",
+									"value": "2"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "searchUserPage",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/admin/searchUserPage?page=1&rowsPerPage=2&search=test",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"searchUserPage"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "rowsPerPage",
+									"value": "2"
+								},
+								{
+									"key": "search",
+									"value": "test"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "addUser",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"role\": \"admin\",\r\n    \"userName\": \"test2ca\",\r\n    \"email\": \"test20240208_2ca@test.com\",\r\n    \"password\": \"hello12345\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/admin/addUser",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"addUser"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deleteUser",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/admin/deleteUser?userId=40",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"deleteUser"
+							],
+							"query": [
+								{
+									"key": "userId",
+									"value": "40"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "resetUserPassword",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"userId\": 39,\r\n    \"password\": \"hello1234\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/admin/resetUserPassword",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"resetUserPassword"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "resetUserEmail",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"userId\": 39,\r\n    \"email\": \"test20240202_2@gmail.com\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/admin/resetUserEmail",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"resetUserEmail"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "resetUserRole",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"userId\": 39,\r\n    \"role\": \"admin\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/admin/resetUserRole",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"resetUserRole"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "resetUsername",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"userId\": 39,\r\n    \"userName\": \"test_admin\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/admin/resetUsername",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"resetUsername"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "resetUserRole Copy",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "HRD-Token",
+										"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"userId\": 39,\r\n    \"userName\": \"test_admin\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/admin/resetUsername",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"admin",
+										"resetUsername"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Access-Control-Allow-Origin",
+									"value": "*"
+								},
+								{
+									"key": "Access-Control-Allow-Methods",
+									"value": "POST, GET, OPTIONS, DELETE, PUT, GET"
+								},
+								{
+									"key": "Access-Control-Allow-Credentials",
+									"value": "true"
+								},
+								{
+									"key": "Access-Control-Max-Age",
+									"value": "3600"
+								},
+								{
+									"key": "Access-Control-Allow-Headers",
+									"value": "*"
+								},
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								},
+								{
+									"key": "Transfer-Encoding",
+									"value": "chunked"
+								},
+								{
+									"key": "Date",
+									"value": "Fri, 09 Feb 2024 01:29:59 GMT"
+								},
+								{
+									"key": "Keep-Alive",
+									"value": "timeout=60"
+								},
+								{
+									"key": "Connection",
+									"value": "keep-alive"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"t\": 1,\n    \"msgCode\": 200\n}"
+						}
+					]
+				},
+				{
+					"name": "getGeneralSetting",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/admin/getGeneralSetting?name=ping",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"getGeneralSetting"
+							],
+							"query": [
+								{
+									"key": "name",
+									"value": "ping"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "setGeneralSetting",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/admin/setGeneralSetting?name=ping&val=pong",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"admin",
+								"setGeneralSetting"
+							],
+							"query": [
+								{
+									"key": "name",
+									"value": "ping"
+								},
+								{
+									"key": "val",
+									"value": "pong"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Credential",
+			"item": [
+				{
+					"name": "createNewAPI",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"authorization\": \"CDR\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/cred/create",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"cred",
+								"create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "queryAPI",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/cred/query",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"cred",
+								"query"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updateAPI",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"authorization\": \"C\",\r\n    \"credId\": 33\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/cred/update",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"cred",
+								"update"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deleteAPI",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/cred/delete?credId=33",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"cred",
+								"delete"
+							],
+							"query": [
+								{
+									"key": "credId",
+									"value": "33"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "uploadPhoto",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "photo",
+									"value": "{\"visibility\": 0, \"nsId\": 56}",
+									"type": "text"
+								},
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/D:/OneDrives/OneDrive - UW-Madison/素材&图片/jiaran2.jpg"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{url}}/cred/uploadPhoto/548f74c7-522b-405a-b0ae-56bef4d6940c",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"cred",
+								"uploadPhoto",
+								"548f74c7-522b-405a-b0ae-56bef4d6940c"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "uploadPhotos",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "photosStr",
+									"value": "[{\"visibility\": 0, \"nsId\": 56}, {\"visibility\": 1, \"nsId\": 56}]",
+									"type": "text"
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": [
+										"/D:/OneDrives/OneDrive - UW-Madison/素材&图片/lappland.png",
+										"/D:/OneDrives/OneDrive - UW-Madison/素材&图片/newone.jpg"
+									]
+								}
+							]
+						},
+						"url": {
+							"raw": "{{url}}/cred/uploadPhotos/548f74c7-522b-405a-b0ae-56bef4d6940c",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"cred",
+								"uploadPhotos",
+								"548f74c7-522b-405a-b0ae-56bef4d6940c"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "renderImage",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "photosStr",
+									"value": "[{\"visibility\": 0, \"nsId\": 56}, {\"visibility\": 1, \"nsId\": 56}]",
+									"type": "text"
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": [
+										"/D:/OneDrives/OneDrive - UW-Madison/素材&图片/lappland.png",
+										"/D:/OneDrives/OneDrive - UW-Madison/素材&图片/newone.jpg"
+									]
+								}
+							]
+						},
+						"url": {
+							"raw": "{{url}}/cred/render/548f74c7-522b-405a-b0ae-56bef4d6940c?uuid=163a1dba-93f0-4e3b-810c-33096f9748f0",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"cred",
+								"render",
+								"548f74c7-522b-405a-b0ae-56bef4d6940c"
+							],
+							"query": [
+								{
+									"key": "uuid",
+									"value": "163a1dba-93f0-4e3b-810c-33096f9748f0"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deletePhoto",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "photosStr",
+									"value": "[{\"visibility\": 0, \"nsId\": 56}, {\"visibility\": 1, \"nsId\": 56}]",
+									"type": "text"
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": [
+										"/D:/OneDrives/OneDrive - UW-Madison/素材&图片/lappland.png",
+										"/D:/OneDrives/OneDrive - UW-Madison/素材&图片/newone.jpg"
+									]
+								}
+							]
+						},
+						"url": {
+							"raw": "{{url}}/cred/deletePhoto/548f74c7-522b-405a-b0ae-56bef4d6940c?uuid=b4e8d619-f3a0-485a-9e4f-c4bf2f072ead",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"cred",
+								"deletePhoto",
+								"548f74c7-522b-405a-b0ae-56bef4d6940c"
+							],
+							"query": [
+								{
+									"key": "uuid",
+									"value": "b4e8d619-f3a0-485a-9e4f-c4bf2f072ead"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "queryRootNamespace",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "photosStr",
+									"value": "[{\"visibility\": 0, \"nsId\": 56}, {\"visibility\": 1, \"nsId\": 56}]",
+									"type": "text"
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": [
+										"/D:/OneDrives/OneDrive - UW-Madison/素材&图片/lappland.png",
+										"/D:/OneDrives/OneDrive - UW-Madison/素材&图片/newone.jpg"
+									]
+								}
+							]
+						},
+						"url": {
+							"raw": "{{url}}/cred/queryRootNamespace/548f74c7-522b-405a-b0ae-56bef4d6940c",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"cred",
+								"queryRootNamespace",
+								"548f74c7-522b-405a-b0ae-56bef4d6940c"
+							],
+							"query": [
+								{
+									"key": "",
+									"value": "",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "queryNamespaces",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "photosStr",
+									"value": "[{\"visibility\": 0, \"nsId\": 56}, {\"visibility\": 1, \"nsId\": 56}]",
+									"type": "text"
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": [
+										"/D:/OneDrives/OneDrive - UW-Madison/素材&图片/lappland.png",
+										"/D:/OneDrives/OneDrive - UW-Madison/素材&图片/newone.jpg"
+									]
+								}
+							]
+						},
+						"url": {
+							"raw": "{{url}}/cred/queryNamespaces/548f74c7-522b-405a-b0ae-56bef4d6940c?parentId=56",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"cred",
+								"queryNamespaces",
+								"548f74c7-522b-405a-b0ae-56bef4d6940c"
+							],
+							"query": [
+								{
+									"key": "parentId",
+									"value": "56"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "queryPhotoList",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "photosStr",
+									"value": "[{\"visibility\": 0, \"nsId\": 56}, {\"visibility\": 1, \"nsId\": 56}]",
+									"type": "text"
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": [
+										"/D:/OneDrives/OneDrive - UW-Madison/素材&图片/lappland.png",
+										"/D:/OneDrives/OneDrive - UW-Madison/素材&图片/newone.jpg"
+									]
+								}
+							]
+						},
+						"url": {
+							"raw": "{{url}}/cred/queryPhotoList/548f74c7-522b-405a-b0ae-56bef4d6940c?nsId=56",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"cred",
+								"queryPhotoList",
+								"548f74c7-522b-405a-b0ae-56bef4d6940c"
+							],
+							"query": [
+								{
+									"key": "nsId",
+									"value": "56"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Namespace",
+			"item": [
+				{
+					"name": "getRoot",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/namespace/getRoot",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"namespace",
+								"getRoot"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getChildren",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/namespace/getChildren?parentId=56",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"namespace",
+								"getChildren"
+							],
+							"query": [
+								{
+									"key": "parentId",
+									"value": "56"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "queryNameById",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/namespace/getNameById?nsId=58",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"namespace",
+								"getNameById"
+							],
+							"query": [
+								{
+									"key": "nsId",
+									"value": "58"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updateName",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"nsName\": \"folder_change_name1\",\r\n    \"nsId\": 58\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/namespace/updateName",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"namespace",
+								"updateName"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updateParent",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"nsParentId\": 59,\r\n    \"nsId\": 58\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/namespace/updateParent",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"namespace",
+								"updateParent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "insert",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"nsParentId\": ,\r\n    \"nsName\": \"中れ2\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/namespace/insert",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"namespace",
+								"insert"
+							],
+							"query": [
+								{
+									"key": "",
+									"value": "",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/namespace/delete?nsId=61",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"namespace",
+								"delete"
+							],
+							"query": [
+								{
+									"key": "nsId",
+									"value": "61"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "trace",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/namespace/trace?nsId=60",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"namespace",
+								"trace"
+							],
+							"query": [
+								{
+									"key": "nsId",
+									"value": "60"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Gallery",
+			"item": [
+				{
+					"name": "Insert",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"gaName\": \"testGallery4\",\r\n    \"coverId\": 1,\r\n    \"coverColor\": \"#f589cd\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/gallery/insert",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"gallery",
+								"insert"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/gallery/delete?gaId=63",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"gallery",
+								"delete"
+							],
+							"query": [
+								{
+									"key": "gaId",
+									"value": "63"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"gaId\": 62,\r\n    \"gaName\": \"testGallery123\",\r\n    \"coverId\": 1,\r\n    \"coverColor\": \"#f589cd\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/gallery/update",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"gallery",
+								"update"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAll",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/gallery/getAll",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"gallery",
+								"getAll"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getPage",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/gallery/getPage?page=1&rowsPerPage=1",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"gallery",
+								"getPage"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "rowsPerPage",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tag",
+			"item": [
+				{
+					"name": "Insert",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"tagName\": \"testTag6\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/tag/insert",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"tag",
+								"insert"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAll",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/tag/getAll",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"tag",
+								"getAll"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getPage",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/tag/getPage?page=1&rowsPerPage=2",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"tag",
+								"getPage"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "rowsPerPage",
+									"value": "2"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/tag/delete?tagId=58",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"tag",
+								"delete"
+							],
+							"query": [
+								{
+									"key": "tagId",
+									"value": "58"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"tagId\": 57,\r\n    \"tagName\": \"testTag123\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/tag/update",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"tag",
+								"update"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Photo",
+			"item": [
+				{
+					"name": "InsertPhoto",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/Users/harol/Videos/2023-04-27 22-12-13.mp4"
+								},
+								{
+									"key": "photo",
+									"value": "{\"nsId\": 60}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{url}}/photo/insert",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"insert"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "InsertPhotos",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "files",
+									"type": "file",
+									"src": [
+										"/D:/OneDrives/OneDrive - UW-Madison/素材&图片/cuda.png",
+										"/D:/OneDrives/OneDrive - UW-Madison/素材&图片/OIP.jpg",
+										"/D:/OneDrives/OneDrive - UW-Madison/素材&图片/Picture1.png"
+									]
+								},
+								{
+									"key": "photosStr",
+									"value": "[{\"nsId\": 60}, {\"nsId\": 60, \"visibility\": 0}, {\"nsId\": 60, \"visibility\": 0}]",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{url}}/photo/inserts",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"inserts"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deletePhoto",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/delete?photoId=62",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"delete"
+							],
+							"query": [
+								{
+									"key": "photoId",
+									"value": "62"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updatePhotoNameAndVisibility",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"photoId\": 60,\r\n    \"photoName\": \"hahaha\",\r\n    \"visibility\": 1\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/photo/update",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"update"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getByNamespace",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/getByNamespace?nsId=60",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"getByNamespace"
+							],
+							"query": [
+								{
+									"key": "nsId",
+									"value": "60"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getByTags",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/getByTags?tagIds=57, 56",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"getByTags"
+							],
+							"query": [
+								{
+									"key": "tagIds",
+									"value": "57, 56"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getByGallery",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/getByGallery?gaId=62",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"getByGallery"
+							],
+							"query": [
+								{
+									"key": "gaId",
+									"value": "62"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "changeNamespace",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/changeNamespace?photoId=65&nsId=59",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"changeNamespace"
+							],
+							"query": [
+								{
+									"key": "photoId",
+									"value": "65"
+								},
+								{
+									"key": "nsId",
+									"value": "59"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "addTags",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/addTags?photoId=65&tagIds=59, 60",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"addTags"
+							],
+							"query": [
+								{
+									"key": "photoId",
+									"value": "65"
+								},
+								{
+									"key": "tagIds",
+									"value": "59, 60"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deleteTag",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/deleteTag?photoId=65&tagId=59",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"deleteTag"
+							],
+							"query": [
+								{
+									"key": "photoId",
+									"value": "65"
+								},
+								{
+									"key": "tagId",
+									"value": "59"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deleteTags",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/deleteTags?photoId=65&tagIds=59, 60",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"deleteTags"
+							],
+							"query": [
+								{
+									"key": "photoId",
+									"value": "65"
+								},
+								{
+									"key": "tagIds",
+									"value": "59, 60"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "addToGallery",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/addToGallery?photoId=65&gaId=61",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"addToGallery"
+							],
+							"query": [
+								{
+									"key": "photoId",
+									"value": "65"
+								},
+								{
+									"key": "gaId",
+									"value": "61"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deleteFromGallery",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/deleteFromGallery?photoId=65&gaId=61",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"deleteFromGallery"
+							],
+							"query": [
+								{
+									"key": "photoId",
+									"value": "65"
+								},
+								{
+									"key": "gaId",
+									"value": "61"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getTagByPhoto",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/getTagByPhoto?photoId=65",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"getTagByPhoto"
+							],
+							"query": [
+								{
+									"key": "photoId",
+									"value": "65"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getGalleryByPhoto",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/getGalleryByPhoto?photoId=65",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"getGalleryByPhoto"
+							],
+							"query": [
+								{
+									"key": "photoId",
+									"value": "65"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "renderImage",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/render/7291fd2b-ebd7-4cad-8dec-9eef4941e23f?photoId=65",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"render",
+								"7291fd2b-ebd7-4cad-8dec-9eef4941e23f"
+							],
+							"query": [
+								{
+									"key": "photoId",
+									"value": "65"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "renderImageThumbnail",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/renderThumbnail/7291fd2b-ebd7-4cad-8dec-9eef4941e23f?photoId=65",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"renderThumbnail",
+								"7291fd2b-ebd7-4cad-8dec-9eef4941e23f"
+							],
+							"query": [
+								{
+									"key": "photoId",
+									"value": "65"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "renderImageToken",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/renderToken?path=188f9163-493b-47a5-bca5-4fab21ffaa46/ed2687ec-405d-49e1-aafa-797abc802602.png&token=734c4717-3781-4987-bab2-6f1ad3cd5704",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"renderToken"
+							],
+							"query": [
+								{
+									"key": "path",
+									"value": "188f9163-493b-47a5-bca5-4fab21ffaa46/ed2687ec-405d-49e1-aafa-797abc802602.png"
+								},
+								{
+									"key": "token",
+									"value": "734c4717-3781-4987-bab2-6f1ad3cd5704"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "renderImageTokenThumbnail",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/renderToken/Thumbnail?path=188f9163-493b-47a5-bca5-4fab21ffaa46/ed2687ec-405d-49e1-aafa-797abc802602_thumbnail.png&token=734c4717-3781-4987-bab2-6f1ad3cd5704",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"renderToken",
+								"Thumbnail"
+							],
+							"query": [
+								{
+									"key": "path",
+									"value": "188f9163-493b-47a5-bca5-4fab21ffaa46/ed2687ec-405d-49e1-aafa-797abc802602_thumbnail.png"
+								},
+								{
+									"key": "token",
+									"value": "734c4717-3781-4987-bab2-6f1ad3cd5704"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "renderVideo",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/renderV/7291fd2b-ebd7-4cad-8dec-9eef4941e23f?photoId=66",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"renderV",
+								"7291fd2b-ebd7-4cad-8dec-9eef4941e23f"
+							],
+							"query": [
+								{
+									"key": "photoId",
+									"value": "66"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "renderVideoToken",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/renderVToken?path=188f9163-493b-47a5-bca5-4fab21ffaa46/6f0b2f16-be4e-47b6-9a69-161e35ed77d6.mp4&token=d900d1f7-ecb7-4f64-ba4f-2547158da4e0",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"renderVToken"
+							],
+							"query": [
+								{
+									"key": "path",
+									"value": "188f9163-493b-47a5-bca5-4fab21ffaa46/6f0b2f16-be4e-47b6-9a69-161e35ed77d6.mp4"
+								},
+								{
+									"key": "token",
+									"value": "d900d1f7-ecb7-4f64-ba4f-2547158da4e0"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "download",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/download/7291fd2b-ebd7-4cad-8dec-9eef4941e23f?photoId=66",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"download",
+								"7291fd2b-ebd7-4cad-8dec-9eef4941e23f"
+							],
+							"query": [
+								{
+									"key": "photoId",
+									"value": "66"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getImagePath",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/getPath?photoId=66",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"getPath"
+							],
+							"query": [
+								{
+									"key": "photoId",
+									"value": "66"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getQR",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "HRD-Token",
+								"value": "7291fd2b-ebd7-4cad-8dec-9eef4941e23f",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/photo/getQR?photoId=66",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"photo",
+								"getQR"
+							],
+							"query": [
+								{
+									"key": "photoId",
+									"value": "66"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
