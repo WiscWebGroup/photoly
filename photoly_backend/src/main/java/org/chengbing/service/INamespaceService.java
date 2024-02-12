@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
@@ -34,5 +35,7 @@ public interface INamespaceService extends IService<Namespace> {
     Integer deletePhotoHelper(Integer userId, Integer nsId, String userUUID);
 
     String queryNameById(Integer nsId);
+
+    List<LinkedHashMap<String, Object>> traceNamespaceBack(Integer userId, Integer nsId);
 
 }

@@ -2,6 +2,7 @@ package org.chengbing.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import io.swagger.v3.oas.annotations.links.Link;
 import org.chengbing.dao.NamespacePhotoMapper;
 import org.chengbing.dao.PhotoMapper;
 import org.chengbing.dao.UserMapper;
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.io.File;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 
@@ -173,5 +176,34 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
         wrapper.eq("ns_id", nsId);
         Namespace selected = mapper.selectOne(wrapper);
         return selected.getNsName();
+    }
+
+    @Override
+    public List<LinkedHashMap<String, Object>> traceNamespaceBack(Integer userId, Integer nsId)
+    {
+        Namespace selected = mapper.selectById(nsId);
+        if (selected!=null && selected.getNsId() != null && selected.getUserId() != null
+                && selected.getUserId().equals(userId) && Objects.equals(selected.getNsId(), nsId))
+        {
+            // the authentication is okay
+            List<LinkedHashMap<String, Object>> retList = new LinkedList<>();
+            Namespace currentNs = selected;
+            while (currentNs.getNsParentId() != null && currentNs.getNsParentId() != -1)
+            {
+                LinkedHashMap<String, Object> map = new LinkedHashMap<>();
+                map.put("nsId", currentNs.getNsId());
+                map.put("nsName", currentNs.getNsName());
+                retList.add(0, map);
+
+                currentNs = mapper.selectById(currentNs.getNsParentId());
+            }
+            LinkedHashMap<String, Object> map = new LinkedHashMap<>();
+            map.put("nsId", currentNs.getNsId());
+            map.put("nsName", currentNs.getNsName());
+            retList.add(0, map);
+
+            return retList;
+        }
+        return null;
     }
 }

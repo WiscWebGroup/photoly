@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
@@ -233,6 +234,38 @@ public class NamespaceController {
             return new Result<>(null, 403);
         int change = service.deleteNamespace(userId, nsId);
         return change >= 0 ? new Result<>(change, 200) : new Result<>(change, 400);
+    }
+
+    /**
+     * Function to trace the chain or folders until root is reached.
+     *
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param nsId the ID of the namespace to go back from
+     *
+     * @return a result of List of dict that records the chain going up
+     * example:
+     * {
+     *     "t": [
+     *         {
+     *             "nsId": 123,
+     *             "nsName": "/"
+     *         },
+     *         {
+     *             "nsId": 155,
+     *             "nsName": "中れ"
+     *         }
+     *     ],
+     *     "msgCode": 200
+     * }
+     */
+    @GetMapping("/trace")
+    public Result<List<LinkedHashMap<String, Object>>> traceNamespaceBack(HttpServletRequest request, Integer nsId)
+    {
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(null, 403);
+        List<LinkedHashMap<String, Object>> res = service.traceNamespaceBack(userId, nsId);
+        return res != null ? new Result<>(res, 200) : new Result<>(res, 400);
     }
 
 
