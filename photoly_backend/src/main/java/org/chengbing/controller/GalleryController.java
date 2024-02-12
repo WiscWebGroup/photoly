@@ -159,6 +159,13 @@ public class GalleryController {
      * Function to update a gallery
      * @param request an HttpServletRequest which pass in the current user's access token
      * @param gallery a gallery object
+     * example:
+     * {
+     *     "gaId": 952,
+     *     "gaName": "renamed_gallery123",
+     *     "coverId": 1,
+     *     "coverColor": "#f489bd"
+     * }
      * @return a result of integer suggesting if the operation is successful
      * example:
      * {

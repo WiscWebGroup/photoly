@@ -2,6 +2,7 @@ package org.chengbing.service;
 
 import org.chengbing.entity.Tag;
 import com.baomidou.mybatisplus.extension.service.IService;
+import org.chengbing.util.ResultPage;
 
 import java.util.List;
 
@@ -15,6 +16,8 @@ import java.util.List;
  */
 public interface ITagService extends IService<Tag> {
     List<Tag> queryTag(Integer userId);
+
+    ResultPage<List<Tag>> queryTagPage(Integer userId, Integer page, Integer rowsPerPage);
     Integer deleteTag(Integer userId, Integer tagId);
     Integer updateTag(int userId, Tag tag);
     Integer insertTag(Integer userId, Tag tag);

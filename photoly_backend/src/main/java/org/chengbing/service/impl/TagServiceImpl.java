@@ -2,11 +2,14 @@ package org.chengbing.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.chengbing.entity.Gallery;
 import org.chengbing.entity.Tag;
 import org.chengbing.dao.TagMapper;
 import org.chengbing.service.ITagService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.chengbing.util.ResultPage;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -31,6 +34,15 @@ public class TagServiceImpl extends ServiceImpl<TagMapper, Tag> implements ITagS
         QueryWrapper<Tag> wrapper = new QueryWrapper<>();
         wrapper.eq("user_id", userId);
         return mapper.selectList(wrapper);
+    }
+
+    @Override
+    public ResultPage<List<Tag>> queryTagPage(Integer userId, Integer page, Integer rowsPerPage) {
+        QueryWrapper<Tag> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", userId);
+        Page<Tag> tagPage = new Page<>(page, rowsPerPage);
+        IPage<Tag> tags = mapper.selectPage(tagPage, wrapper);
+        return new ResultPage<>(tags.getRecords(), Math.toIntExact(tags.getPages()), 200);
     }
 
     @Override
