@@ -33,6 +33,25 @@ public class GalleryController {
     @Resource
     UserIdentity verify;
 
+    /**
+     * Function to create a new gallery. The object passed in must have "gaName" and "coverColor". optional "coverId"
+     * coverColor is in hex color format, for example, "#f589cd". CoverId should be in range 1-10.
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param gallery is a Gallery object with some params
+     * example:
+     * {
+     *     "gaName": "testGallery1",
+     *     "coverId": 1,
+     *     "coverColor": "#f589cd"
+     * }
+     *
+     * @return a result of boolean indicates success or not. (true, 200) means success
+     * example:
+     * {
+     *     "t": true,
+     *     "msgCode": 200
+     * }
+     */
     @PostMapping("/insert")
     public Result<Boolean> insertGallery(HttpServletRequest request, @RequestBody Gallery gallery)
     {
@@ -41,6 +60,7 @@ public class GalleryController {
             return new Result<>(false, 403);
         if (gallery.getGaName() == null || gallery.getGaName().equals(""))
             return new Result<>(false, 400);
+        gallery.setGaId(null);
         gallery.setUserId(userId);
         gallery.setCreateDate(LocalDateTime.now());
         boolean res = service.save(gallery);
@@ -49,6 +69,33 @@ public class GalleryController {
         return new Result<>(true, 200);
     }
 
+    /**
+     * Function to get all galleries created by this user
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @return a result of list of gallery objects
+     * example:
+     * {
+     *     "t": [
+     *         {
+     *             "gaId": 11,
+     *             "gaName": "My Favorite",
+     *             "userId": 321,
+     *             "createDate": "2023-12-02T16:34:27",
+     *             "coverId": 1,
+     *             "coverColor": "#FFFFFF"
+     *         },
+     *         {
+     *             "gaId": 12,
+     *             "gaName": "testGallery1",
+     *             "userId": 321,
+     *             "createDate": "2023-05-12T14:11:12",
+     *             "coverId": 1,
+     *             "coverColor": "#f589cd"
+     *         }
+     *     ],...
+     *     "msgCode": 200
+     * }
+     */
     @GetMapping("/getAll")
     public Result<List<Gallery>> queryGallery(HttpServletRequest request)
     {
@@ -58,6 +105,26 @@ public class GalleryController {
         return new Result<>(service.queryGallery(userId), 200);
     }
 
+    /**
+     * Function to get galleries based on pagination
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @return a result of list of gallery objects
+     * example (with page=1 and rowsPerPage=1):
+     * {
+     *     "t": [
+     *         {
+     *             "gaId": 11,
+     *             "gaName": "My Favorite",
+     *             "userId": 321,
+     *             "createDate": "2023-02-02T16:34:27",
+     *             "coverId": null,
+     *             "coverColor": "#FFFFFF"
+     *         }
+     *     ],
+     *     "pageNum": 2,
+     *     "msgCode": 200
+     * }
+     */
     @GetMapping("/getPage")
     public ResultPage<List<Gallery>> queryGalleryPage(HttpServletRequest request, Integer page, Integer rowsPerPage)
     {
@@ -67,6 +134,17 @@ public class GalleryController {
         return service.queryGalleryPage(userId, page, rowsPerPage);
     }
 
+    /**
+     * Function to delete a gallery
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param gaId the ID of the gallery to be deleted
+     * @return a result of integer suggesting if the operation is successful
+     * example:
+     * {
+     *     "t": 1,
+     *     "msgCode": 200
+     * }
+     */
     @PostMapping("/delete")
     public Result<Integer> deleteGallery(HttpServletRequest request, Integer gaId)
     {
@@ -77,6 +155,17 @@ public class GalleryController {
         return res == 1 ? new Result<>(res, 200) : new Result<>(res, 400);
     }
 
+    /**
+     * Function to update a gallery
+     * @param request an HttpServletRequest which pass in the current user's access token
+     * @param gallery a gallery object
+     * @return a result of integer suggesting if the operation is successful
+     * example:
+     * {
+     *     "t": 1,
+     *     "msgCode": 200
+     * }
+     */
     @PostMapping("/update")
     public Result<Integer> updateGallery(HttpServletRequest request,@RequestBody Gallery gallery)
     {
