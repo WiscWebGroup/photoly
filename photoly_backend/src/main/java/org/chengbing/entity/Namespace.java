@@ -15,6 +15,10 @@ import lombok.EqualsAndHashCode;
  *
  * @author HaroldCI
  * @since 2022-06-24
+ * Note: "namespace" is an abstraction of folder to store the photos in. In photoly we don't
+ * actually has folders of folders in the file system for each user. Instead, we store all photos
+ * of one user into its own (one) folder and associates these photos of their respective namespaces
+ * and thus achieve a structure that resembles regular file system.
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
