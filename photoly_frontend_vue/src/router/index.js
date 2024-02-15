@@ -4,7 +4,7 @@ import Login from '../views/Login.vue'
 import Signup from '../views/Signup.vue'
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHistory(import.meta.env.VITE_APP_BASE_URL),
   routes: [
     {
       path: "/",

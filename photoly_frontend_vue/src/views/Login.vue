@@ -1,14 +1,153 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
+import router from "../router/index.js";
+import axios from "axios";
 
 </script>
 
 <template>
-  <div>
+  
+  <div class="centralContainer">
+    
+    <div class="register">
+      <n-card title="Login">
+        <n-alert title="Warning" type="error" style="border-radius: 15px; margin-bottom: 1rem" v-show="warningShow">
+          {{ errors }}
+        </n-alert>
+        <n-space vertical size="large">
+        
+          <n-auto-complete
+            v-model:value="emailInput"
+            placeholder="Email"
+            clearable
+          />
+
+          <n-auto-complete
+            v-model:value="password"
+            placeholder="Password"
+            clearable
+            id="passwordTextbox"
+            
+          />
+
+          <n-button strong secondary round style="width: 100%;" type="primary" :loading="loading" @click="login">
+            Login
+          </n-button>
+
+          <n-button strong secondary round style="width: 100%;" @click="toSignup">
+            Signup
+          </n-button>
+        </n-space>      
+      
+      </n-card>
+      
+    </div>
     
   </div>
 </template>
 
-<style scoped>
+<script>
 
+export default{
+  data() {
+    return {
+      emailInput: "",
+      password: "",
+      loading: false,
+      warningShow: false,
+      errors: "",
+    }
+  },
+  setup () {
+    return {
+      
+    }
+  },
+  methods: {
+    toLogin: function() {
+      router.push('/login');
+    },
+    toSignup: function () {
+      router.push('/signup');
+    },
+    checkInput() {
+      var re = new RegExp(".+@.+\..+");
+      if (this.emailInput !== "" && re.test(this.emailInput) && this.password !== "")
+      {
+        return true
+      }
+      return false
+    },
+    showWarning(error) {
+      this.warningShow = true
+      this.errors = error
+      setTimeout(() => {this.warningShow = false}, 5000);
+    },
+    async login() {
+      this.loading = true;
+      if (this.checkInput())
+      {
+        await axios({
+          method: 'post',
+          baseURL: '',
+          url: import.meta.env.VITE_APP_BASE_URL + "/user/signIn/",
+          headers: {},
+          data: {
+            "email": this.emailInput,
+            "password": this.password,
+        }
+        }).then((response) => {
+          console.log(response)
+
+        })
+        .catch(function (error) { // 请求失败处理
+          // console.log(error);
+          this.showWarning(error);
+        });
+      }else {
+        this.loading = false;
+        this.showWarning("Please input correct email and password format!")
+      }
+      
+    }
+  },
+  computed: {
+
+  },
+  mounted () {
+  },
+  components: {
+
+  }
+}
+
+</script>
+
+<style scoped>
+  .centralContainer {
+    padding: 0;
+    margin: 0;
+    display: block;
+    height: 100vh;
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center 0;
+    background-repeat: no-repeat;
+    background-image: url("@/assets/JH_20211030_5406.jpg");
+  }
+  .register {
+    display:flex;
+    align-items: center;
+    -webkit-box-pack: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+  .n-card {
+    max-width: 30vw;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    -webkit-transform: translateX(-50%) translateY(-70%);
+    background-color: rgba(255, 255, 255, 0.92);
+  }
 </style>
