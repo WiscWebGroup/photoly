@@ -360,5 +360,22 @@ public class UserController {
         int res = service.deleteAccount(id, id);
         return res >= 1 ? new Result<>(res, 200) : new Result<>(res, 400);
     }
+
+    /***
+     * Function used to see if a token is still alive.
+     * @param request an HttpServletRequest which pass in the user's current access token.
+     *            example:
+     *               (In Header):  (Key: HRD-Token, Value: 41d4d274-286d-4244-8bed-2c9090d62db0)
+     * @return an Result<Integer>, res=1 and code=200 means successful.
+     */
+    @PostMapping("/pingToken")
+    public Result<Integer> pingToken(HttpServletRequest request)
+    {
+        Integer id = verify.verifyUser(request);
+        if (id < 0)
+            return new Result<>(null, 403);
+
+        return new Result<>(1, 200);
+    }
 }
 
