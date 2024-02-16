@@ -1,6 +1,7 @@
 package org.chengbing.dao;
 
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.chengbing.entity.Photo;
 import org.chengbing.entity.TagPhoto;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -20,4 +21,6 @@ import java.util.List;
 public interface TagPhotoMapper extends BaseMapper<TagPhoto> {
     List<Photo> selectByTags(Integer userId, List list, Integer totalNum);
     List<LinkedHashMap<String, Object>> selectTagByPhoto(Integer photoId);
+
+    List<Photo> queryPhotoByTagName(@Param("userId") Integer userId, @Param("tagName") String tagName);
 }

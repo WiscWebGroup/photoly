@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chengbing.dao.NamespacePhotoMapper">
-
+    <select id="queryPhotoByNsName" resultType="org.chengbing.entity.Photo">
+        select photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id from photo as ph where ph.ns_id IN (
+            select ns_id from namespace ns where ns.ns_name like "%"#{nsName}"%" and user_id = #{userId}
+        )
+    </select>
 </mapper>

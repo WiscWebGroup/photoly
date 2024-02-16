@@ -21,4 +21,14 @@
         from photo as p, tag as t, tag_photo as tp
         where p.photo_id = tp.photo_id and t.tag_id = tp.tag_id and p.photo_id = #{photoId}
     </select>
+
+    <select id="queryPhotoByTagName" resultType="org.chengbing.entity.Photo">
+        select photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id from photo as ph where ph.photo_id IN
+           (
+               select photo_id from tag_photo gh where tag_id IN
+                   (
+                       select ta.tag_id from tag as ta where ta.tag_name like "%"#{tagName}"%" and ta.user_id = #{userId}
+                   )
+           )
+    </select>
 </mapper>

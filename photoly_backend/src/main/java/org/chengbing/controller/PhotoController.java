@@ -799,5 +799,25 @@ public class PhotoController {
         }
         return new byte[]{};
     }
+
+    /**
+     * Function to search photo by conditions
+     *
+     * @param request a HttpServletRequest to verify the user's token
+     * @param option a string that could either be "photoName, tag, gallery, or namespace"
+     * @param query a string that is the keyword you want to query
+     * @return a Result of List of Photos which are related to the query
+     */
+    @GetMapping(value = "/searchPhoto")
+    public Result<List<Photo>> searchPhoto(HttpServletRequest request, String option, String query)
+    {
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(null, 403);
+        List<Photo> retList = service.searchPhoto(userId, option, query);
+        if (retList == null || retList.size() == 0)
+            return new Result<>(retList, 404);
+        return new Result<>(retList, 200);
+    }
 }
 

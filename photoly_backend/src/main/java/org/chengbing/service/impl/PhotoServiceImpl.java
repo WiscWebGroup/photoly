@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import org.apache.commons.io.FileUtils;
 import org.chengbing.dao.*;
 import org.chengbing.entity.*;
+import org.chengbing.service.INamespacePhotoService;
 import org.chengbing.service.IPhotoService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,7 +48,7 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
     GalleryPhotoMapper galleryPhotoMapper;
 
     @Resource
-    NamespacePhotoMapper namespacePhotoMapper;
+    INamespacePhotoService namespacePhotoService;
 
     @Resource
     NamespaceMapper namespaceMapper;
@@ -425,5 +426,29 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
             return galleryPhotoMapper.selectGalleryByPhoto(photoId);
         }
         return null;
+    }
+
+    @Override
+    public List<Photo> searchPhoto(Integer userId, String option, String query) {
+        List<Photo> retList = new ArrayList<>();
+        switch (option) {
+            case "photoName":
+                QueryWrapper<Photo> wrapper = new QueryWrapper<>();
+                wrapper.like("photo_name", query);
+                wrapper.eq("user_id", userId);
+                retList = mapper.selectList(wrapper);
+                break;
+            case "tag":
+                retList = tagPhotoMapper.queryPhotoByTagName(userId, query);
+                break;
+            case "gallery":
+                retList = galleryPhotoMapper.queryPhotoByGaName(userId, query);
+                break;
+            case "namespace":
+                retList = namespacePhotoService.queryPhotoByNsName(userId, query);
+                break;
+        }
+
+        return retList;
     }
 }

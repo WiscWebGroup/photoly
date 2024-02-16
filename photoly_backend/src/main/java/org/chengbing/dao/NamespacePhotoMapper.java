@@ -1,8 +1,12 @@
 package org.chengbing.dao;
 
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.chengbing.entity.NamespacePhoto;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.chengbing.entity.Photo;
+
+import java.util.List;
 
 /**
  * <p>
@@ -14,5 +18,5 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
  */
 @Mapper
 public interface NamespacePhotoMapper extends BaseMapper<NamespacePhoto> {
-
+    List<Photo> queryPhotoByNsName(@Param("userId") Integer userId, @Param("nsName") String nsName);
 }

@@ -37,4 +37,7 @@ public interface IPhotoService extends IService<Photo> {
     List<LinkedHashMap<String, Object>> selectTagByPhoto(Integer userId, Integer photoId);
 
     List<LinkedHashMap<String, Object>> selectGalleryByPhoto(Integer userId, Integer photoId);
+
+    // option: "photoName, tag, gallery, or namespace"
+    List<Photo> searchPhoto(Integer userId, String option, String query);
 }

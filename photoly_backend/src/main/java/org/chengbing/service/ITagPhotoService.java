@@ -1,5 +1,7 @@
 package org.chengbing.service;
 
+import org.apache.ibatis.annotations.Param;
+import org.chengbing.entity.Photo;
 import org.chengbing.entity.Tag;
 import org.chengbing.entity.TagPhoto;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -15,5 +17,5 @@ import java.util.List;
  * @since 2022-06-24
  */
 public interface ITagPhotoService extends IService<TagPhoto> {
-
+    List<Photo> queryPhotoByTagName(Integer userId, String tagName);
 }

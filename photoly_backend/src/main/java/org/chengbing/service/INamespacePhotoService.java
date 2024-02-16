@@ -2,6 +2,9 @@ package org.chengbing.service;
 
 import org.chengbing.entity.NamespacePhoto;
 import com.baomidou.mybatisplus.extension.service.IService;
+import org.chengbing.entity.Photo;
+
+import java.util.List;
 
 /**
  * <p>
@@ -12,5 +15,5 @@ import com.baomidou.mybatisplus.extension.service.IService;
  * @since 2022-06-24
  */
 public interface INamespacePhotoService extends IService<NamespacePhoto> {
-
+    List<Photo> queryPhotoByNsName(Integer userId, String nsName);
 }

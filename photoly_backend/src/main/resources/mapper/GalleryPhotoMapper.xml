@@ -10,4 +10,14 @@
         from photo as p, gallery as g, gallery_photo as gp
         where p.photo_id = gp.photo_id and g.ga_id = gp.ga_id and p.photo_id = #{photoId}
     </select>
+
+    <select id="queryPhotoByGaName" resultType="org.chengbing.entity.Photo">
+        select photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id from photo as ph where ph.photo_id IN
+           (
+                select photo_id from gallery_photo gh where ga_id IN
+                   (
+                       select ga_id from gallery ga where ga.ga_name like "%"#{gaName}"%" and user_id = #{userId}
+                    )
+           )
+    </select>
 </mapper>

@@ -1,6 +1,7 @@
 package org.chengbing.dao;
 
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.chengbing.entity.GalleryPhoto;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.chengbing.entity.Photo;
@@ -21,4 +22,6 @@ public interface GalleryPhotoMapper extends BaseMapper<GalleryPhoto> {
     List<Photo> selectPhotoByGallery(Integer gaId);
 
     List<LinkedHashMap<String, Object>> selectGalleryByPhoto(Integer photoId);
+
+    List<Photo> queryPhotoByGaName(@Param("userId") Integer userId, @Param("gaName") String gaName);
 }
