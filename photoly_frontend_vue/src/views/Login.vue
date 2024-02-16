@@ -20,6 +20,7 @@ import axios from "axios";
             v-model:value="emailInput"
             placeholder="Email"
             clearable
+            @keydown.enter="login"
           />
 
           <n-auto-complete
@@ -27,14 +28,15 @@ import axios from "axios";
             placeholder="Password"
             clearable
             id="passwordTextbox"
+            @keydown.enter="login"
             
           />
 
-          <n-button strong secondary round style="width: 100%;" type="primary" :loading="loading" @click="login">
+          <n-button strong secondary round style="width: 100%;" type="primary" :loading="loading" @click="login" >
             Login
           </n-button>
 
-          <n-button strong secondary round style="width: 100%;" @click="toSignup">
+          <n-button strong secondary round style="width: 100%;" @click="toSignup" >
             Signup
           </n-button>
         </n-space>      
@@ -97,7 +99,14 @@ export default{
             "password": this.password,
         }
         }).then((response) => {
-          console.log(response)
+          if (response.data.msgCode === 200)
+          {
+            // success
+            localStorage.setItem("HRD-Token", response.data.token);
+            router.push('/home');
+          }else {
+            this.showWarning("Wrong Email or Password!");
+          }
 
         })
         .catch(function (error) { // 请求失败处理
@@ -110,11 +119,33 @@ export default{
       }
       
     }
-  },
+},
   computed: {
 
   },
   mounted () {
+    if (localStorage.getItem("HRD-Token") !== null)
+    {
+      axios({
+          method: 'post',
+          baseURL: '',
+          url: import.meta.env.VITE_APP_BASE_URL + "/user/pingToken/",
+          headers: {
+            "HRD-Token": localStorage.getItem("HRD-Token")
+          },
+          data: {
+        }
+        }).then((response) => {
+          if (response.data.msgCode === 200)
+          {
+            router.push('/home');
+          }
+        })
+        .catch(function (error) { // 请求失败处理
+          // console.log(error);
+          this.showWarning(error);
+        });
+    }
   },
   components: {
 

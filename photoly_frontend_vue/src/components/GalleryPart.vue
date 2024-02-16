@@ -6,7 +6,7 @@ import axios from "axios";
 
 <template>
   <div>
-    
+    GalleryPart
   </div>
 </template>
 

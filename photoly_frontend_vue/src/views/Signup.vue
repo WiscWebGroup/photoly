@@ -1,23 +1,28 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
 import router from "../router/index.js";
+import axios from "axios";
 </script>
 
 <template>
   <div class="centralContainer">
     <div class="register">
       <n-card title="Login">
-        
+        <n-alert title="Warning" type="error" style="border-radius: 15px; margin-bottom: 1rem" v-show="warningShow">
+          {{ errors }}
+        </n-alert>
         <n-space vertical size="large">
           <n-auto-complete
             v-model:value="username"
             placeholder="Username"
             clearable
+            @keydown.enter="signup"
           />
           <n-auto-complete
             v-model:value="emailInput"
             placeholder="Email"
             clearable
+            @keydown.enter="signup"
           />
 
           <n-auto-complete
@@ -25,7 +30,7 @@ import router from "../router/index.js";
             placeholder="Password"
             clearable
             id="passwordTextbox"
-            
+            @keydown.enter="signup"
           />
 
           <n-button strong secondary round style="width: 100%;" type="primary" :loading="loading" @click="signup">
@@ -53,6 +58,8 @@ export default{
       emailInput: "",
       password: "",
       loading: false,
+      warningShow: false,
+      errors: "",
     }
   },
   setup () {
@@ -67,8 +74,53 @@ export default{
     toSignup: function () {
       router.push('/signup');
     },
-    signup() {
+    checkInput() {
+      var re = new RegExp(".+@.+\..+");
+      if (this.emailInput !== "" && re.test(this.emailInput) && this.password !== "" && this.username !== "")
+      {
+        return true
+      }
+      return false
+    },
+    showWarning(error) {
+      this.warningShow = true
+      this.errors = error
+      setTimeout(() => {this.warningShow = false}, 5000);
+    },
+    async signup() {
       this.loading = true;
+
+      if (this.checkInput())
+      {
+        await axios({
+          method: 'post',
+          baseURL: '',
+          url: import.meta.env.VITE_APP_BASE_URL + "/user/signUp/",
+          headers: {},
+          data: {
+            "userName": this.userName,
+            "email": this.emailInput,
+            "password": this.password,
+        }
+        }).then((response) => {
+          if (response.data.msgCode === 200)
+          {
+            // success
+            localStorage.setItem("HRD-Token", response.data.token);
+            router.push('/home');
+          }else {
+            this.showWarning("Wrong Email or Password!");
+          }
+
+        })
+        .catch(function (error) { // 请求失败处理
+          // console.log(error);
+          this.showWarning(error);
+        });
+      }else {
+        this.loading = false;
+        this.showWarning("Please input correct email and password format!")
+      }
     }
   },
   computed: {

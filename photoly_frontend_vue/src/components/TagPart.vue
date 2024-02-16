@@ -1,12 +1,12 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
 import router from "../router/index.js";
-import { defineConfig, loadEnv } from 'vite';
+import axios from "axios";
 </script>
 
 <template>
   <div>
-    123
+    TagPart
   </div>
 </template>
 
