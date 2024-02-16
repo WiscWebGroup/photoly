@@ -15,6 +15,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.chengbing.util.AESUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ResourceUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
@@ -138,7 +139,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             inputStream.read(bytes, 0, inputStream.available());
             return bytes;
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            // throw new RuntimeException(e);
+            try {
+                inputStream = new FileInputStream(ResourceUtils.getFile("classpath:defaultAvatar.jpg"));
+                byte[] bytes = new byte[inputStream.available()];
+                inputStream.read(bytes, 0, inputStream.available());
+                return bytes;
+            }catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
         }
     }
 
