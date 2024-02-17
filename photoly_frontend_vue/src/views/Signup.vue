@@ -24,13 +24,13 @@ import axios from "axios";
             clearable
             @keydown.enter="signup"
           />
-
-          <n-auto-complete
-            v-model:value="password"
+          <n-input
+            type="password"
+            show-password-on="mousedown"
             placeholder="Password"
-            clearable
-            id="passwordTextbox"
+            v-model:value="password"
             @keydown.enter="signup"
+            id="passwordTextbox"
           />
 
           <n-button strong secondary round style="width: 100%;" type="primary" :loading="loading" @click="signup">
@@ -107,7 +107,7 @@ export default{
           {
             // success
             localStorage.setItem("HRD-Token", response.data.token);
-            router.push('/home');
+            router.push('/home/HomePart');
           }else {
             this.showWarning("Wrong Email or Password!");
           }

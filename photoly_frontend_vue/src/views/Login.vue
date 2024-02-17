@@ -22,14 +22,13 @@ import axios from "axios";
             clearable
             @keydown.enter="login"
           />
-
-          <n-auto-complete
-            v-model:value="password"
+          <n-input
+            type="password"
+            show-password-on="mousedown"
             placeholder="Password"
-            clearable
-            id="passwordTextbox"
+            v-model:value="password"
             @keydown.enter="login"
-            
+            id="passwordTextbox"
           />
 
           <n-button strong secondary round style="width: 100%;" type="primary" :loading="loading" @click="login" >
@@ -103,7 +102,7 @@ export default{
           {
             // success
             localStorage.setItem("HRD-Token", response.data.token);
-            router.push('/home');
+            router.push('/home/HomePart');
           }else {
             this.showWarning("Wrong Email or Password!");
           }
@@ -138,7 +137,7 @@ export default{
         }).then((response) => {
           if (response.data.msgCode === 200)
           {
-            router.push('/home');
+            router.push('/home/HomePart');
           }
         })
         .catch(function (error) { // 请求失败处理

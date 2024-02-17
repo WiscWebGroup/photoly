@@ -9,31 +9,32 @@ import axios from "axios";
     <n-space vertical size="large" >
     <n-layout>
       <n-layout-header id="header1">
-        <img src="@/assets/logo.ico" id="img1"/>
+        <img src="@/assets/logo.ico" id="img1" v-on:click="changeHomeComponent('HomePart')"/>
         <n-gradient-text :size="20" :gradient="{
           from: 'rgb(255 255 255)',
           to: 'rgb(245 245 245)'
-        }" id="photolyText">PHOTOLY</n-gradient-text>
+        }" id="photolyText" v-on:click="changeHomeComponent('HomePart')">PHOTOLY</n-gradient-text>
         <div id="naviContainer">
-            <n-button class="naviBarBtn" quaternary round strong="true" color="aliceblue" @click="changeHomeComponent('HomePart')">
+            <n-button class="naviBarBtn" quaternary round strong color="aliceblue" @click="changeHomeComponent('HomePart')">
                 Home
             </n-button>
-            <n-button class="naviBarBtn" quaternary round strong="true" color="aliceblue" @click="changeHomeComponent('GalleryPart')">
+            <n-button class="naviBarBtn" quaternary round strong color="aliceblue" @click="changeHomeComponent('GalleryPart')">
                 Gallery
             </n-button>
-            <n-button class="naviBarBtn" quaternary round strong="true" color="aliceblue" @click="changeHomeComponent('TagPart')">
+            <n-button class="naviBarBtn" quaternary round strong color="aliceblue" @click="changeHomeComponent('TagPart')">
                 Tag
             </n-button>
-            <n-button class="naviBarBtn" quaternary round strong="true" color="aliceblue" @click="changeHomeComponent('SearchPart')">
+            <n-button class="naviBarBtn" quaternary round strong color="aliceblue" @click="changeHomeComponent('SearchPart')">
                 Search
             </n-button>
-            <n-button class="naviBarBtn" quaternary round strong="true" color="aliceblue" @click="">
+            <n-button class="naviBarBtn" quaternary round strong color="aliceblue" @click="logOut">
                 Logout
             </n-button>
-            <n-button class="naviBarBtn" quaternary round strong="true" color="aliceblue" @click="changeHomeComponent('ManagePart')">
+            <n-button class="naviBarBtn" quaternary round strong color="aliceblue" @click="changeHomeComponent('ManagePart')">
                 Manage
             </n-button>
-            <img src="@/assets/logo.ico" id="userImg"/>
+            <img :src="avatarAddr" id="userImg" v-on:click="changeHomeComponent('ManagePart')"/>
+            
         </div>
       </n-layout-header>
     </n-layout>
@@ -46,7 +47,8 @@ import axios from "axios";
 export default{
   data() {
     return {
-        
+      warningShow: false,
+      errors: "",
     }
   },
   setup () {
@@ -55,8 +57,38 @@ export default{
     }
   },
   methods: {
+    showWarning(error) {
+      this.warningShow = true
+      this.errors = error
+      setTimeout(() => {this.warningShow = false}, 5000);
+    },
     changeHomeComponent(cp_name) {
-        this.$emit('updateCurrComponent', cp_name);
+        // this.$emit('updateCurrComponent', cp_name);
+        router.push("/home/"+cp_name);
+    },
+    logOut() {
+      axios({
+        method: 'post',
+        baseURL: '',
+        url: import.meta.env.VITE_APP_BASE_URL + "/user/signOut/",
+        headers: {
+          "HRD-Token": localStorage.getItem("HRD-Token")
+        },
+        data: {
+      }
+      }).then((response) => {
+        if (response.data.msgCode === 200)
+        {
+          localStorage.removeItem("HRD-Token")
+          router.push("/");
+        }else {
+          this.showWarning("User Info Response Error!")
+        }
+      })
+      .catch(function (error) { // 请求失败处理
+        // console.log(error);
+        this.showWarning(error);
+      });
     }
   },
   computed: {
@@ -68,6 +100,9 @@ export default{
   components: {
 
   },
+  props: {
+    avatarAddr: String
+  }
 }
 
 </script>
@@ -122,10 +157,10 @@ export default{
   color: #EDF2F7;
 }
 #userImg {
-  width: 50px;
+  width: 45px;
   border-radius: 30px;
   vertical-align:top;
-  margin-left: 10px;
+
 
   cursor: pointer;
 
