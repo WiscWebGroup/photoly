@@ -25,11 +25,13 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.annotation.Resource;
 import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.URLEncoder;
+import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -798,6 +800,62 @@ public class PhotoController {
             return qrCode.stream().toByteArray();
         }
         return new byte[]{};
+    }
+
+    /**
+     * Function to get a photo's out-site rendering QR code
+     *
+     * @param request a HttpServletRequest to verify the user's token
+     * @param photoId the ID of the photo (or video) to get the path
+     * @return a result of bytes which can be constructed to a QR code image
+     */
+    @GetMapping(value = "/getQR2", produces = MediaType.IMAGE_JPEG_VALUE)
+    public byte[] getImageQR2(String token, Integer photoId)
+    {
+        String QRPath = "";
+
+        Integer userId = verify.verifyUserByToken(token);
+        if (userId < 0)
+            return new byte[]{};
+        String UUID = userService.getById(userId).getUuid();
+        QueryWrapper<Photo> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("photo_id", photoId);
+        queryWrapper.eq("user_id", userId);
+        Photo photo = service.getOne(queryWrapper);
+        if (photo != null)
+        {
+            String format = photo.getFormat().toLowerCase();
+            if (format.equals("jpg") || format.equals("jpeg") || format.equals("gif") || format.equals("png")
+                    || format.equals("webp")|| format.equals("ico") || format.equals("bmp")|| format.equals("tif")
+                    || format.equals("svg")|| format.equals("psd") || format.equals("raw")|| format.equals("pcd"))
+            {
+                String path = serverPath + "/photo/renderToken?path=" + UUID + "/" + photo.getPhotoUuid() + "." + photo.getFormat()
+                        + "&token=" + photo.getToken();
+                QRPath = path;
+            }else if (format.equals("mp4") || format.equals("avi") || format.equals("wmv") || format.equals("mpeg")
+                    || format.equals("m4v") || format.equals("mov") || format.equals("flv") || format.equals("asf")
+                    || format.equals("f4v") || format.equals("rmvb") || format.equals("vob") || format.equals("rm"))
+            {
+                String path = serverPath + "/photo/renderVToken?path=" + UUID + "/" + photo.getPhotoUuid() + "." + photo.getFormat()
+                        + "&token=" + photo.getToken();
+                QRPath = path;
+            }else {
+                return new byte[]{};
+            }
+
+        }else
+            return new byte[]{};
+
+
+        String URL = QRPath;
+        QRCode qrCode;
+        if (URL.contains("http") || URL.contains("https"))
+        {
+            qrCode = QRCode.from(URL).withSize(250, 250);
+        }else {
+            qrCode = QRCode.from("http://" + URL).withSize(250, 250);
+        }
+        return qrCode.stream().toByteArray();
     }
 
     /**
