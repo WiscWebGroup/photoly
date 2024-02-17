@@ -162,7 +162,6 @@ import { useMessage } from 'naive-ui'
           </n-card>
       </n-modal>
 
-
       <n-dropdown
         placement="bottom-start"
         trigger="manual"
@@ -170,12 +169,34 @@ import { useMessage } from 'naive-ui'
         :y="mouseY"
         :options="blankSpaceMenuOptions"
         :show="showBlankSpaceMenu"
-        :on-clickoutside="onClickOutside('blank')"
-        @select="handleSelect"
+        :on-clickoutside="onClickOutsideBlank"
+        @select="handleSelectBlank"
+      />
+      <n-dropdown
+        placement="bottom-start"
+        trigger="manual"
+        :x="mouseX"
+        :y="mouseY"
+        :options="FolderSpaceMenuOptions"
+        :show="showFolderSpaceMenu"
+        :on-clickoutside="onClickOutsideFolder"
+        @select="handleSelectFolder"
+      />
+      <n-dropdown
+        placement="bottom-start"
+        trigger="manual"
+        :x="mouseX"
+        :y="mouseY"
+        :options="PhotoSpaceMenuOptions"
+        :show="showPhotoSpaceMenu"
+        :on-clickoutside="onClickOutsidePhoto"
+        @select="handleSelectPhoto"
       />
     </div>
-
+    
   </div>
+
+  
 </template>
 
 <script>
@@ -219,8 +240,42 @@ export default defineComponent({
           key: "create_folder"
         }
       ],
-      FolderSpaceMenuOptions: [],
-      PhotoSpaceMenuOptions: [],
+      FolderSpaceMenuOptions: [
+        {
+          label: "Delete",
+          key: "delete"
+        },
+        {
+          label: "Rename",
+          key: "rename"
+        },
+        {
+          label: "Move To",
+          key: "move_to"
+        }
+      ],
+      PhotoSpaceMenuOptions: [
+        {
+          label: "View",
+          key: "view"
+        },
+        {
+          label: "Download",
+          key: "download"
+        },
+        {
+          label: "Delete",
+          key: "delete"
+        },
+        {
+          label: "Rename",
+          key: "rename"
+        },
+        {
+          label: "Move To",
+          key: "move_to"
+        }
+      ],
     }
   },
   setup() {
@@ -232,43 +287,54 @@ export default defineComponent({
   methods: {
     blankSpaceMenu (e) {
       e.preventDefault();
-      window.$message.success("blankSpaceMenu!")
+      e.stopPropagation();
       this.showBlankSpaceMenu = false;
       nextTick().then(() => {
         this.showBlankSpaceMenu = true;
         this.mouseX = e.clientX;
         this.mouseY = e.clientY;
-        
         });
       
     },
-    handleSelect(key) {
+    handleSelectBlank(key) {
       this.showBlankSpaceMenu = false;
-      window.$message.success(String(key))
     },
-    onClickOutside (which) {
-      if (which === "blank")
-      {
-        this.showBlankSpaceMenu = false;
-      }
-      if (which === "photo")
-      {
-        this.showPhotoSpaceMenu = false;
-      }
-      if (which === "folder")
-      {
-        this.showFolderSpaceMenu = false;
-      }
+    handleSelectFolder(key) {
+      this.showFolderSpaceMenu = false;
+    },
+    handleSelectPhoto(key) {
+      this.showPhotoSpaceMenu = false;
+    },
+    onClickOutsideBlank () {
+      this.showBlankSpaceMenu = false;
+    },
+    onClickOutsideFolder () {
+      this.showFolderSpaceMenu = false;
+    },
+    onClickOutsidePhoto () {
+      this.showPhotoSpaceMenu = false;
     },
     folderSpaceMenu(e) {
       e.preventDefault();
       e.stopPropagation();
-      window.$message.success("folderSpaceMenu!")
+      this.showFolderSpaceMenu = false;
+      nextTick().then(() => {
+        this.showFolderSpaceMenu = true;
+        this.mouseX = e.clientX;
+        this.mouseY = e.clientY;
+        
+        });
     },
     photoSpaceMenu(e) {
       e.preventDefault();
       e.stopPropagation();
-      window.$message.success("photoSpaceMenu!")
+      this.showPhotoSpaceMenu = false;
+      nextTick().then(() => {
+        this.showPhotoSpaceMenu = true;
+        this.mouseX = e.clientX;
+        this.mouseY = e.clientY;
+        
+        });
     },
     isphotoOrVideo (format) {
       format = format.toLowerCase();
