@@ -58,12 +58,10 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
 
     public void insertPhotoThumbnail(MultipartFile multipartFile, File saveFile, String format) throws IOException {
         String lowerFormat = format.toLowerCase();
-        if (lowerFormat.equals("mp4") || lowerFormat.equals("mov") || lowerFormat.equals("avi") || lowerFormat.equals("wmv")
-                || lowerFormat.equals("flv") || lowerFormat.equals("f4v") || lowerFormat.equals("avchd")
-                || lowerFormat.equals("mkv") || lowerFormat.equals("webm"))
+        if (lowerFormat.equals("jpg") || lowerFormat.equals("jpeg") || lowerFormat.equals("gif") || lowerFormat.equals("png")
+                || lowerFormat.equals("jfif") || lowerFormat.equals("ico") || lowerFormat.equals("bmp")
+                || lowerFormat.equals("tif"))
         {
-            // nothing to do with the video, could compress as well in the future.
-        }else {
             InputStream inputStream = new ByteArrayInputStream(multipartFile.getBytes());
             BufferedImage bimg = ImageIO.read(inputStream);
             int width = bimg.getWidth();
@@ -284,9 +282,15 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
             File photoFileThumbnail = new File(uploadFolder + System.getProperty("file.separator") + uuid +
                     System.getProperty("file.separator") + photoUUID + "_thumbnail" + "." + suffix);
             boolean isDeleted = photoFile.delete();
-            boolean isDeletedThumbnail = photoFileThumbnail.delete();
-            if (isDeleted && isDeletedThumbnail)
-                return mapper.deleteById(photoId);
+            if (photoFileThumbnail.exists())
+            {
+                boolean isDeletedThumbnail = photoFileThumbnail.delete();
+                if (isDeleted && isDeletedThumbnail)
+                    return mapper.deleteById(photoId);
+            }else {
+                if (isDeleted)
+                    return mapper.deleteById(photoId);
+            }
         }
         return -1;
     }

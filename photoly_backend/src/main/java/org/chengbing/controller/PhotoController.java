@@ -525,6 +525,11 @@ public class PhotoController {
         {
             File file = new File(uploadFolder + System.getProperty("file.separator") + UUID + System.getProperty("file.separator") + photo.getPhotoUuid()
                     + "_thumbnail" + "." + photo.getFormat());
+            if (!file.exists())
+            {
+                file = new File(uploadFolder + System.getProperty("file.separator") + UUID + System.getProperty("file.separator") + photo.getPhotoUuid()
+                        + "." + photo.getFormat());
+            }
             FileInputStream inputStream = new FileInputStream(file);
             InputStreamSource inputStreamSource = new InputStreamResource(inputStream);
             return new ResponseEntity<>(inputStreamSource, new HttpHeaders(), HttpStatus.OK);
