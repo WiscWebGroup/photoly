@@ -805,7 +805,7 @@ public class PhotoController {
     /**
      * Function to get a photo's out-site rendering QR code
      *
-     * @param request a HttpServletRequest to verify the user's token
+     * @param token the user's token
      * @param photoId the ID of the photo (or video) to get the path
      * @return a result of bytes which can be constructed to a QR code image
      */
