@@ -2,7 +2,7 @@
 import { RouterLink, RouterView } from 'vue-router'
 import router from "../router/index.js";
 import axios from "axios";
-import {Folder28Regular, Search20Regular} from "@vicons/fluent"
+import {Folder28Regular, Archive16Regular as ArchiveIcon } from "@vicons/fluent"
 import { ref, defineComponent, nextTick } from 'vue';
 import { NTag } from "naive-ui";
 import { useMessage } from 'naive-ui'
@@ -10,6 +10,9 @@ import { useMessage } from 'naive-ui'
 
 <template>
   <div>
+
+    <!-- This part is for the navigation bar -->
+
     <n-back-top :right="100" />
     <n-breadcrumb separator=">">
       <n-icon size="25" :depth="3" style="vertical-align:top">
@@ -22,7 +25,13 @@ import { useMessage } from 'naive-ui'
     </n-breadcrumb>
 
     <n-divider />
+
+    <!-- This part is for folder and medias -->
+
     <div @contextmenu="blankSpaceMenu">
+
+      <!-- This part is for loading folders' buttons into the "folders" section -->
+
       <div>
         <n-h2>Folders</n-h2>
         <n-space>
@@ -36,11 +45,14 @@ import { useMessage } from 'naive-ui'
           </n-button>
         </n-space>
       </div>
+      <!-- ENDOF: This part is for loading folders' buttons into the "folders" section -->
+
+      <!-- This part is for loading photos cards into the "media" section -->
 
       <div style="margin-top: 1rem;">
         <n-h2>Medias</n-h2>
         <n-space>
-          <n-card style="border-radius: 20px;" v-for="photo in photoChildren" v-on:click="photoModalOpen(photo)" hoverable @click.right.native="photoSpaceMenu">
+          <n-card style="border-radius: 20px;" v-for="photo in photoChildren" v-on:click="photoModalOpen(photo)" hoverable @click.right.native="photoSpaceMenu(photo, $event)">
             <template #cover>
               <div class="cardImgDiv" v-show="isphotoOrVideo(photo.format) === 1"><img v-bind:src="baseUThumbnail + userToken + '?photoId=' + photo.photoId" class="cardImg"></div>
               <div class="cardImgDiv" v-show="isphotoOrVideo(photo.format) === 2"><img src="@/assets/icons/Video.png" class="cardImg"></div>
@@ -50,6 +62,9 @@ import { useMessage } from 'naive-ui'
           </n-card>
         </n-space>
       </div>
+      <!-- ENDOF: This part is for loading photos cards into the "media" section -->
+
+      <!-- This modal is for the photo detail after click on 'view' or open by left click the photo -->
       <n-modal v-model:show="showPhoto">
           <n-card
           style="width: 85vw; padding: 0; border-radius: 0.375rem;"
@@ -73,7 +88,7 @@ import { useMessage } from 'naive-ui'
                   >
               </video>
 
-              <div style="margin-left: 2rem;">
+              <div style="padding-left: 2rem;">
                 <n-h2 >Metadata</n-h2>
                 
                 <n-collapse :default-expanded-names="['cm']">
@@ -136,24 +151,37 @@ import { useMessage } from 'naive-ui'
                     <n-button circle style="margin-top: 5px;" @click="addGa">
                       Submit
                     </n-button>
+
                   </n-collapse-item>
                   <n-collapse-item title="Share" name="share">
-                    <n-button strong secondary type="default" @click="copyShareAddr" style="width: 10rem;">
-                      Copy Share Addr
-                    </n-button>
-                    <n-popover trigger="click">
-                      <template #trigger>
-                        <n-button strong secondary type="info" style="margin-top: 10px; width: 10rem">
-                          Get QR Code
-                        </n-button>
-                      </template>
-                      <img v-bind:src="baseQR + 'token=' + userToken + '&photoId=' + showPhotoInfo.photoId" style="width:170px;"/>
-                    </n-popover>
-                    <div style="width: 10rem; display: flex; flex-direction: row; align-items:center;">
-                      <p>Visibility</p>
-                      <n-switch v-model:value="showPhotoInfoVisibility" @update:value="changeVisibility" style="margin-left: 8px;"/>
-                    </div>
+                    <n-space vertical :size=1>
+                      <n-button strong secondary type="default" @click="copyShareAddr" style="width: 10rem;">
+                        Copy Share Addr
+                      </n-button>
+                      <n-popover trigger="click">
+                        <template #trigger>
+                          <n-button strong secondary type="info" style="margin-top: 10px; width: 10rem">
+                            Get QR Code
+                          </n-button>
+                        </template>
+                        <img v-bind:src="baseQR + 'token=' + userToken + '&photoId=' + showPhotoInfo.photoId" style="width:170px;"/>
+                      </n-popover>
+                    </n-space>
+                    
                   </n-collapse-item>
+
+                  <n-collapse-item title="Edit Info" name="ei">
+                    <p>Visibility</p>
+                    <n-switch v-model:value="showPhotoInfoVisibility" @update:value="changeVisibility" style="margin-left: 8px;"/>
+                    <p>Change Name</p>
+                    <n-input-group>
+                        <n-input type="text" round size="small" placeholder="New Name" v-model:value="newNameVal"/>
+                        <n-button type="primary" ghost style="width:5rem" @click="changeName">
+                          Update
+                        </n-button>
+                      </n-input-group>
+                  </n-collapse-item>
+
                 </n-collapse>
               </div>
             </div>
@@ -162,7 +190,14 @@ import { useMessage } from 'naive-ui'
           </n-card>
       </n-modal>
 
-      <n-dropdown
+      <!-- ENDOF: This modal is for the photo detail after click on 'view' or open by left click the photo -->
+
+    </div>
+    <!-- ENDOF: This part is for folder and medias -->
+
+    <!-- MENU PART -->
+    <!-- This part is for redesign of right click menu for folder, media, and blank space -->
+    <n-dropdown
         placement="bottom-start"
         trigger="manual"
         :x="mouseX"
@@ -192,8 +227,51 @@ import { useMessage } from 'naive-ui'
         :on-clickoutside="onClickOutsidePhoto"
         @select="handleSelectPhoto"
       />
-    </div>
+      <!-- ENDOF: This part is for redesign of right click menu for folder, media, and blank space -->
+      <!-- ENDOF: MENU PART -->
+
+    <!-- MODAL PART -->
+
+    <!-- This part is for modal of uploading photos to the current folder -->
+    <n-modal v-model:show="showUploadPhotoModal">
+      <n-card
+        style="width: 400px; border-radius: 10px;"
+        title="Upload Photo or Video"
+        :bordered="false"
+        size="huge"
+        role="dialog"
+        aria-modal="true"
+      >
+        <n-upload
+            ref="fileUploader"
+            multiple
+            default-upload: false
+            :custom-request="addPhotoToArea"
+            :on-remove="removeItemFromUpload"
+            :max="15"
+        >
+          <n-upload-dragger>
+            <div style="margin-bottom: 12px">
+              <n-icon size="48" :depth="3">
+                <archive-icon />
+              </n-icon>
+            </div>
+            <n-text style="font-size: 16px">
+              Click or Drag File to This Area
+            </n-text>
+          </n-upload-dragger>
+        </n-upload>
+
+        <n-button color="#74D2E7" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="doUpload">
+          Upload
+        </n-button>
+
+      </n-card>
+    </n-modal>
+    <!-- ENDOF: This part is for modal of uploading photos to the current folder -->
     
+    <!-- ENDOF: MODAL PART -->
+
   </div>
 
   
@@ -224,10 +302,12 @@ export default defineComponent({
       gaVal: ref(null),
       tagOptions: [],
       gaOptions: [],
+      newNameVal: "",
       baseUVideo: "" ,
       showBlankSpaceMenu: false,
       showFolderSpaceMenu: false,
       showPhotoSpaceMenu: false,
+      showPhotoSpaceMenuPhotoInfo: null,
       mouseX: null,
       mouseY: null,
       blankSpaceMenuOptions: [
@@ -268,14 +348,13 @@ export default defineComponent({
           key: "delete"
         },
         {
-          label: "Rename",
-          key: "rename"
-        },
-        {
           label: "Move To",
           key: "move_to"
         }
       ],
+      showUploadPhotoModal: false,
+      uploadPhotoFiles: new FormData(),
+
     }
   },
   setup() {
@@ -297,13 +376,35 @@ export default defineComponent({
       
     },
     handleSelectBlank(key) {
+      console.log(key)
       this.showBlankSpaceMenu = false;
+      if (key === "upload")
+      {
+        this.showUploadPhotoModal = true;
+      }
     },
     handleSelectFolder(key) {
       this.showFolderSpaceMenu = false;
     },
     handleSelectPhoto(key) {
       this.showPhotoSpaceMenu = false;
+      if (key === "view")
+      {
+        this.photoModalOpen(this.showPhotoSpaceMenuPhotoInfo);
+      }
+      if (key === "download")
+      {
+        this.showPhotoInfo = this.showPhotoSpaceMenuPhotoInfo;
+        this.download();
+      }
+      if (key === "delete")
+      {
+        this.deletePhoto();
+      }
+      if (key === "move_to")
+      {
+        window.$message.warning("Not Implemented yet!")
+      }
     },
     onClickOutsideBlank () {
       this.showBlankSpaceMenu = false;
@@ -325,7 +426,8 @@ export default defineComponent({
         
         });
     },
-    photoSpaceMenu(e) {
+    photoSpaceMenu(photo, e) {
+      this.showPhotoSpaceMenuPhotoInfo = photo;
       e.preventDefault();
       e.stopPropagation();
       this.showPhotoSpaceMenu = false;
@@ -336,9 +438,104 @@ export default defineComponent({
         
         });
     },
+    removeItemFromUpload(file)
+    {
+      console.log("remove")
+      var tempList = []
+      this.uploadPhotoFiles.forEach((f) => {
+        if (f.name !== file.file.name && f.size !== file.file.size)
+        {
+          tempList.push(f)
+        }
+      })
+      this.uploadPhotoFiles = new FormData();
+      for(var i = 0; i < tempList.length; i ++)
+      {
+        this.uploadPhotoFiles.append("files", tempList[i]);
+      }
+      
+    },
+    doUpload() {
+      if (this.uploadPhotoFiles.has("files"))
+      {
+        var tempList = []
+        this.uploadPhotoFiles.forEach((f) => {
+            tempList.push(f)
+        })
+        this.uploadPhotoFiles = new FormData();
+        for(var i = 0; i < tempList.length; i ++)
+        {
+          this.uploadPhotoFiles.append("files", tempList[i]);
+        }
+
+        let photoList = [];
+        this.uploadPhotoFiles.forEach((file) => {
+          photoList.push({
+            "nsId": this.nsId
+          })
+        })
+        let photoStr = JSON.stringify(photoList);
+        this.uploadPhotoFiles.append("photosStr", photoStr);
+        
+        axios
+          .post( import.meta.env.VITE_APP_BASE_URL + "/photo/inserts", this.uploadPhotoFiles, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              "HRD-Token": localStorage.getItem("HRD-Token")
+            }
+          })
+          .then((response) => {
+            if (response.data.msgCode === 200)
+            {
+              window.$message.success("Upload successful!");
+              this.$refs['fileUploader'].clear();
+              this.uploadPhotoFiles = new FormData();
+              this.queryPhotos();
+              this.showUploadPhotoModal = false;
+            }else {
+              window.$message.warning("Submit upload error!")
+            }
+            
+          })
+          .catch(function (error) {
+            window.$message.warning(error)
+          });
+        
+      }else {
+        window.$message.warning("No Photo selected!")
+      }
+      
+    },
+    addPhotoToArea({file}) {
+      this.uploadPhotoFiles.append("files", file.file);
+
+    },
+    deletePhoto() {
+      axios({
+          method: 'post',
+          baseURL: '',
+          url: import.meta.env.VITE_APP_BASE_URL + "/photo/delete?photoId=" + this.showPhotoSpaceMenuPhotoInfo.photoId,
+          headers: {
+            "HRD-Token": localStorage.getItem("HRD-Token")
+          },
+          data: {
+        }
+        }).then((response) => {
+          if (response.data.msgCode === 200)
+          {
+            this.queryPhotos();
+            window.$message.success("Photo deleted!")
+          }else {
+            window.$message.warning("User Info Response Error!")
+          }
+        })
+        .catch(function (error) { // 请求失败处理
+          window.$message.error(error);
+        });
+    },
     isphotoOrVideo (format) {
       format = format.toLowerCase();
-      let photoFormats = ["jpg", "jpeg", "gif", "png", "webp", "ico", "bmp", "tif", "svg", "psd", "raw", "arw", "pcd"]
+      let photoFormats = ["jpg", "jpeg", "gif", "png", "webp", "ico", "bmp", "tif", "svg", "psd", "raw", "arw", "pcd", "jfif"]
       let videoFormats = ["mp4", "avi", "wmv", "mpeg", "m4v", "mov", "flv", "asf", "f4v", "rmvb", "vob", "rm"]
       if (photoFormats.includes(format))
       {
@@ -349,6 +546,38 @@ export default defineComponent({
         return 2;
       }
       return -1;
+    },
+    changeName() {
+      if (this.newNameVal === "" || this.newNameVal === null)
+      {
+        window.$message.warning("Image name cannot be empty!")
+      }else {
+        axios({
+          method: 'post',
+          baseURL: '',
+          url: import.meta.env.VITE_APP_BASE_URL + "/photo/update",
+          headers: {
+            "HRD-Token": localStorage.getItem("HRD-Token")
+          },
+          data: {
+            "photoId": this.showPhotoInfo.photoId,
+            "photoName": this.newNameVal
+        }
+        }).then((response) => {
+          if (response.data.msgCode === 200)
+          {
+            this.showPhotoInfo.photoName = this.newNameVal;
+            this.queryPhotos();
+            window.$message.success("Photo name changed!")
+          }else {
+            window.$message.warning("User Info Response Error!")
+          }
+        })
+        .catch(function (error) { // 请求失败处理
+          window.$message.error(error);
+        });
+      }
+      
     },
     changeVisibility() {
       this.showPhotoInfoVisibility ? this.showPhotoInfo.visibility = 1 : this.showPhotoInfo.visibility = 0;
@@ -366,7 +595,6 @@ export default defineComponent({
       }).then((response) => {
         if (response.data.msgCode === 200)
         {
-          navigator.clipboard.writeText(response.data.t);
           window.$message.success("visibility changed!")
         }else {
           window.$message.warning("User Info Response Error!")
@@ -500,7 +728,6 @@ export default defineComponent({
         }
       })
       .catch(function (error) { // 请求失败处理
-        // console.log(error);
         window.$message.error(error);
       });
     },
@@ -632,11 +859,12 @@ export default defineComponent({
     photoModalOpen(photoInfo) {
       this.showPhotoInfo = photoInfo;
       this.showPhotoInfoVisibility = this.showPhotoInfo.visibility === 1 ? true : false;
+      this.newNameVal = this.showPhotoInfo.photoName;
+      this.baseUVideo = import.meta.env.VITE_APP_BASE_URL + "/photo/renderV/" + this.userToken + "?photoId=" + this.showPhotoInfo.photoId
       this.getTags();
       this.getGas();
-      this.showPhoto = true;
 
-      this.baseUVideo = import.meta.env.VITE_APP_BASE_URL + "/photo/renderV/" + this.userToken + "?photoId=" + this.showPhotoInfo.photoId
+      this.showPhoto = true;
     },
     setCurrNsId(nsId) {
       if (this.nsId !== nsId)
