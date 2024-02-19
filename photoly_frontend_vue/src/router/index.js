@@ -3,6 +3,7 @@ import Welcome from '../views/Welcome.vue'
 import Login from '../views/Login.vue'
 import Signup from '../views/Signup.vue'
 import Home from '../views/Home.vue'
+import MoveToShowFolderVue from '@/components/MoveToShowFolder.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -27,6 +28,11 @@ const router = createRouter({
     name: "home",
     component: Home,
     props: true
+   },
+   {
+    path: "/test",
+    name: "test",
+    component: MoveToShowFolderVue,
    }
   ]
 })

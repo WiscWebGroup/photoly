@@ -2,6 +2,7 @@
 import { RouterLink, RouterView } from 'vue-router'
 import router from "../router/index.js";
 import axios from "axios";
+import { ref, defineComponent } from 'vue';
 </script>
 
 <template>
@@ -12,7 +13,7 @@ import axios from "axios";
 
 <script>
 
-export default{
+export default defineComponent({
   data() {
     return {
       
@@ -34,8 +35,11 @@ export default{
   },
   components: {
 
+  },
+  props: {
+    
   }
-}
+})
 
 </script>
 

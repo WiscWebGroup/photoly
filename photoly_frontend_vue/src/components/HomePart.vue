@@ -2,10 +2,12 @@
 import { RouterLink, RouterView } from 'vue-router'
 import router from "../router/index.js";
 import axios from "axios";
-import {Folder28Regular, Archive16Regular as ArchiveIcon } from "@vicons/fluent"
-import { ref, defineComponent, nextTick } from 'vue';
+import {Folder28Regular, Archive16Regular as ArchiveIcon, FolderAdd20Regular, FolderArrowRight20Regular, ArrowUpload20Filled,
+  ArrowDownload20Filled, Eye20Regular, Delete20Regular, Edit20Regular } from "@vicons/fluent"
+import { ref, defineComponent, nextTick, h } from 'vue';
 import { NTag } from "naive-ui";
-import { useMessage } from 'naive-ui'
+import { useMessage, NIcon } from 'naive-ui'
+import MoveToShowFolder from "./MoveToShowFolder.vue"
 </script>
 
 <template>
@@ -35,7 +37,7 @@ import { useMessage } from 'naive-ui'
       <div>
         <n-h2>Folders</n-h2>
         <n-space>
-          <n-button secondary strong size="large" v-for="folder in nsChildren" v-on:click="setCurrNsId(folder.nsId)" @click.right.native="folderSpaceMenu">
+          <n-button secondary strong size="large" v-for="folder in nsChildren" v-on:click="setCurrNsId(folder.nsId)" @click.right.native="folderSpaceMenu(folder.nsId, folder.nsName, $event)">
             <template #icon>
               <n-icon>
                 <Folder28Regular />
@@ -66,8 +68,9 @@ import { useMessage } from 'naive-ui'
 
       <!-- This modal is for the photo detail after click on 'view' or open by left click the photo -->
       <n-modal v-model:show="showPhoto">
+        <div style="min-width: 40vw ;max-width: 85vw; padding: 0; border-radius: 0.375rem;">
           <n-card
-          style="width: 85vw; padding: 0; border-radius: 0.375rem;"
+          style="padding: 0; border-radius: 0.375rem;"
             :bordered="false"
             size="huge"
             role="dialog"
@@ -75,7 +78,7 @@ import { useMessage } from 'naive-ui'
           >
             <div style="display: flex; align-items: flex-start; flex-direction: row;">
               <img v-show="isphotoOrVideo(showPhotoInfo.format) === 1" v-bind:src="baseUPhoto + userToken + '?photoId=' + showPhotoInfo.photoId" 
-              style="object-fit: fill; border-radius: 0.375rem; width: 75%; height: 100%; max-width: 90%;"/>
+              style="object-fit: fill; border-radius: 0.375rem; height: 100%; min-width: 30%; max-width: 75%;" @click.left.native="() => {this.showPhoto = false}"/>
               <video
                   v-show="isphotoOrVideo(showPhotoInfo.format) === 2"
                   :key="baseUVideo"
@@ -188,6 +191,7 @@ import { useMessage } from 'naive-ui'
             
 
           </n-card>
+        </div>
       </n-modal>
 
       <!-- ENDOF: This modal is for the photo detail after click on 'view' or open by left click the photo -->
@@ -269,6 +273,76 @@ import { useMessage } from 'naive-ui'
       </n-card>
     </n-modal>
     <!-- ENDOF: This part is for modal of uploading photos to the current folder -->
+
+    <!-- This part is for modal of creating a new folder to the current folder -->
+    <n-modal v-model:show="showCreateFolderModal">
+      <n-card
+        style="width: 400px; border-radius: 10px;"
+        title="Create a New Folder"
+        :bordered="false"
+        size="huge"
+        role="dialog"
+        aria-modal="true"
+      >
+        <n-input type="text" round size="medium" placeholder="Folder Name" v-model:value="createFolderInputName"/>
+
+        <n-button color="#74D2E7" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="createFolder">
+          Create
+        </n-button>
+
+      </n-card>
+    </n-modal>
+    <!-- ENDOF: This part is for modal of creating a new folder to the current folder -->
+
+    <!-- This part is for modal of confirming to delete a child folder -->
+    <n-modal v-model:show="showDeleteFolderConfirmModal">
+      <n-card
+        style="width: 400px; border-radius: 10px;"
+        title="Confirm to Delete"
+        :bordered="false"
+        size="huge"
+        role="dialog"
+        aria-modal="true"
+      >
+        Do you really want to DELETE this folder?
+        <p>*All photos and folders within this folder will be destroied.</p>
+
+        <n-space style="margin-top: 1rem">
+          <n-button type="error" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="deleteFolder">
+            Delete
+          </n-button>
+          <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {this.showDeleteFolderConfirmModal = false;}">
+            Cancel
+          </n-button>
+        </n-space>
+
+      </n-card>
+    </n-modal>
+    <!-- ENDOF: This part is for modal of confirming to delete a child folder -->
+
+    <!-- This part is for modal of edit a folder's name -->
+    <n-modal v-model:show="showEditFolderNameModal">
+      <n-card
+        style="width: 400px; border-radius: 10px;"
+        title="Edit Folder's Name"
+        :bordered="false"
+        size="huge"
+        role="dialog"
+        aria-modal="true"
+      >
+        <n-input type="text" round size="medium" placeholder="Folder Name" v-model:value="editFolderInputName"/>
+
+        <n-button color="#74D2E7" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="updateFolderName">
+          Update Name
+        </n-button>
+
+      </n-card>
+    </n-modal>
+    <!-- ENDOF: This part is for modal of edit a folder's name -->
+
+    <!-- This part is for modal of moveTo Functions -->
+    <MoveToShowFolder @moveToUpdate="moveItem" ref="moveToModuleRef" :originalNsId="moveToModalOriginalNsId" :disableOrgNsId="moveToModalDisableOrgNsId"/>
+    <!-- ENDOF: This part is for modal of moveTo Functions -->
     
     <!-- ENDOF: MODAL PART -->
 
@@ -278,6 +352,8 @@ import { useMessage } from 'naive-ui'
 </template>
 
 <script>
+
+const moveToModuleRef = ref(null);
 
 export default defineComponent({
   data() {
@@ -313,48 +389,104 @@ export default defineComponent({
       blankSpaceMenuOptions: [
         {
           label: "Upload Photo",
-          key: "upload"
+          key: "upload",
+          icon() {
+            return h(NIcon, null, {
+              default: () => h(ArrowUpload20Filled)
+            });
+          },
         },
         {
           label: "Create Folder",
-          key: "create_folder"
+          key: "create_folder",
+          icon() {
+            return h(NIcon, null, {
+              default: () => h(FolderAdd20Regular)
+            });
+          },
         }
       ],
       FolderSpaceMenuOptions: [
         {
           label: "Delete",
-          key: "delete"
+          key: "delete",
+          icon() {
+            return h(NIcon, null, {
+              default: () => h(Delete20Regular)
+            });
+          }
         },
         {
           label: "Rename",
-          key: "rename"
+          key: "rename",
+          icon() {
+            return h(NIcon, null, {
+              default: () => h(Edit20Regular)
+            });
+          }
         },
         {
           label: "Move To",
-          key: "move_to"
+          key: "move_to",
+          icon() {
+            return h(NIcon, null, {
+              default: () => h(FolderArrowRight20Regular)
+            });
+          }
         }
       ],
       PhotoSpaceMenuOptions: [
         {
           label: "View",
-          key: "view"
+          key: "view",
+          icon() {
+            return h(NIcon, null, {
+              default: () => h(Eye20Regular)
+            });
+          }
         },
         {
           label: "Download",
-          key: "download"
+          key: "download",
+          icon() {
+            return h(NIcon, null, {
+              default: () => h(ArrowDownload20Filled)
+            });
+          }
         },
         {
           label: "Delete",
-          key: "delete"
+          key: "delete",
+          icon() {
+            return h(NIcon, null, {
+              default: () => h(Delete20Regular)
+            });
+          }
         },
         {
           label: "Move To",
-          key: "move_to"
+          key: "move_to",
+          icon() {
+            return h(NIcon, null, {
+              default: () => h(FolderArrowRight20Regular)
+            });
+          }
         }
       ],
       showUploadPhotoModal: false,
       uploadPhotoFiles: new FormData(),
 
+      showCreateFolderModal: false,
+      createFolderInputName: "",
+
+      showDeleteFolderConfirmModal: false,
+      showOperateFolderConfirmNsId: -1,
+
+      showEditFolderNameModal: false,
+      editFolderInputName: "",
+      
+      moveToModalOriginalNsId: -1,
+      moveToModalDisableOrgNsId: false,
     }
   },
   setup() {
@@ -376,15 +508,32 @@ export default defineComponent({
       
     },
     handleSelectBlank(key) {
-      console.log(key)
       this.showBlankSpaceMenu = false;
       if (key === "upload")
       {
         this.showUploadPhotoModal = true;
       }
+      if (key === "create_folder")
+      {
+        this.showCreateFolderModal = true;
+      }
     },
     handleSelectFolder(key) {
       this.showFolderSpaceMenu = false;
+      if (key === "delete")
+      {
+        this.showDeleteFolderConfirmModal = true;
+      }
+      if (key === "rename")
+      {
+        this.showEditFolderNameModal = true;
+      }
+      if (key === "move_to")
+      {
+        this.moveToModalOriginalNsId = this.showOperateFolderConfirmNsId;
+        this.moveToModalDisableOrgNsId = true;
+        this.openMoveToModal();
+      }
     },
     handleSelectPhoto(key) {
       this.showPhotoSpaceMenu = false;
@@ -403,7 +552,9 @@ export default defineComponent({
       }
       if (key === "move_to")
       {
-        window.$message.warning("Not Implemented yet!")
+        this.moveToModalOriginalNsId = this.nsId;
+        this.moveToModalDisableOrgNsId = false;
+        this.openMoveToModal();
       }
     },
     onClickOutsideBlank () {
@@ -415,15 +566,16 @@ export default defineComponent({
     onClickOutsidePhoto () {
       this.showPhotoSpaceMenu = false;
     },
-    folderSpaceMenu(e) {
+    folderSpaceMenu(childNsId, childFolderName, e) {
       e.preventDefault();
       e.stopPropagation();
       this.showFolderSpaceMenu = false;
+      this.showOperateFolderConfirmNsId = childNsId;
+      this.editFolderInputName = childFolderName;
       nextTick().then(() => {
         this.showFolderSpaceMenu = true;
         this.mouseX = e.clientX;
         this.mouseY = e.clientY;
-        
         });
     },
     photoSpaceMenu(photo, e) {
@@ -438,9 +590,160 @@ export default defineComponent({
         
         });
     },
+    moveItem (nsId) {
+      // if it is true then this is a folder move
+      if (this.moveToModalDisableOrgNsId)
+      {
+        axios({
+          method: 'post',
+          baseURL: '',
+          url: import.meta.env.VITE_APP_BASE_URL + "/namespace/updateParent",
+          headers: {
+            "HRD-Token": localStorage.getItem("HRD-Token")
+          },
+          data: {
+            "nsParentId": nsId,
+            "nsId": this.showOperateFolderConfirmNsId
+        }
+        }).then((response) => {
+          if (response.data.msgCode === 200)
+          {
+            this.queryNsChildren();
+            window.$message.success("Folder Location Updated!");
+            this.moveToModalOriginalNsId = -1;
+            this.moveToModalDisableOrgNsId = false;
+          }else {
+            window.$message.warning("Update Error!")
+          }
+        })
+        .catch(function (error) { // 请求失败处理
+          window.$message.error(error);
+        });
+      }else {
+        // else this is a photo move
+
+        axios({
+          method: 'post',
+          baseURL: '',
+          url: import.meta.env.VITE_APP_BASE_URL + "/photo/changeNamespace?photoId=" + this.showPhotoSpaceMenuPhotoInfo.photoId + "&nsId=" + nsId,
+          headers: {
+            "HRD-Token": localStorage.getItem("HRD-Token")
+          },
+          data: {
+        }
+        }).then((response) => {
+          if (response.data.msgCode === 200)
+          {
+            this.queryPhotos();
+            window.$message.success("Media Location Updated!");
+            this.moveToModalOriginalNsId = -1;
+            this.moveToModalDisableOrgNsId = false;
+          }else {
+            window.$message.warning("Update Error!")
+          }
+        })
+        .catch(function (error) { // 请求失败处理
+          window.$message.error(error);
+        });
+      }
+      
+    },
+    openMoveToModal () {
+      moveToModuleRef.value.openModal();
+    },
+    updateFolderName () {
+      if (this.editFolderInputName === "" || this.editFolderInputName === "root" || this.editFolderInputName === "/" || this.editFolderInputName === null)
+      {
+        window.$message.warning("Please input a valid folder name!")
+      }else {
+        axios({
+          method: 'post',
+          baseURL: '',
+          url: import.meta.env.VITE_APP_BASE_URL + "/namespace/updateName",
+          headers: {
+            "HRD-Token": localStorage.getItem("HRD-Token")
+          },
+          data: {
+            "nsName": this.editFolderInputName,
+            "nsId": this.showOperateFolderConfirmNsId
+        }
+        }).then((response) => {
+          if (response.data.msgCode === 200)
+          {
+            this.queryNsChildren();
+            window.$message.success("Folder Name Updated!");
+            this.showOperateFolderConfirmNsId = -1;
+            this.editFolderInputName = "";
+            this.showEditFolderNameModal = false;
+          }else {
+            window.$message.warning("Update Error!")
+          }
+        })
+        .catch(function (error) { // 请求失败处理
+          window.$message.error(error);
+        });
+      }
+    },
+    deleteFolder() {
+      
+      axios({
+          method: 'post',
+          baseURL: '',
+          url: import.meta.env.VITE_APP_BASE_URL + "/namespace/delete?nsId=" + this.showDeleteFolderConfirmNsId,
+          headers: {
+            "HRD-Token": localStorage.getItem("HRD-Token")
+          },
+          data: {
+        }
+        }).then((response) => {
+          if (response.data.msgCode === 200)
+          {
+            this.queryNsChildren();
+            window.$message.success("Folder deleted!");
+            this.showDeleteFolderConfirmNsId = -1;
+            this.showDeleteFolderConfirmModal = false;
+          }else {
+            window.$message.warning("Delete Error!")
+          }
+        })
+        .catch(function (error) { // 请求失败处理
+          window.$message.error(error);
+        });
+    },
+    createFolder() {
+      if (this.createFolderInputName === "" || this.createFolderInputName === "root" || this.createFolderInputName === "/" || this.createFolderInputName === null)
+      {
+        window.$message.warning("Please input a valid folder name!")
+      }else {
+        axios({
+          method: 'post',
+          baseURL: '',
+          url: import.meta.env.VITE_APP_BASE_URL + "/namespace/insert",
+          headers: {
+            "HRD-Token": localStorage.getItem("HRD-Token")
+          },
+          data: {
+            "nsParentId": this.nsId,
+            "nsName": this.createFolderInputName
+        }
+        }).then((response) => {
+          if (response.data.msgCode === 200)
+          {
+            this.queryNsChildren();
+            window.$message.success("Folder created!");
+            this.createFolderInputName = "";
+            this.showCreateFolderModal = false;
+          }else {
+            window.$message.warning("Creation Error!")
+          }
+        })
+        .catch(function (error) { // 请求失败处理
+          window.$message.error(error);
+        });
+      }
+    },
     removeItemFromUpload(file)
     {
-      console.log("remove")
       var tempList = []
       this.uploadPhotoFiles.forEach((f) => {
         if (f.name !== file.file.name && f.size !== file.file.size)
