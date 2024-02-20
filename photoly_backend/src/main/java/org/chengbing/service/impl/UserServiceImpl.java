@@ -137,6 +137,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             inputStream = new FileInputStream(file);
             byte[] bytes = new byte[inputStream.available()];
             inputStream.read(bytes, 0, inputStream.available());
+            inputStream.close();
             return bytes;
         } catch (IOException e) {
             // throw new RuntimeException(e);
@@ -144,6 +145,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                 inputStream = new FileInputStream(ResourceUtils.getFile("classpath:defaultAvatar.jpg"));
                 byte[] bytes = new byte[inputStream.available()];
                 inputStream.read(bytes, 0, inputStream.available());
+                inputStream.close();
                 return bytes;
             }catch (IOException ex) {
                 throw new RuntimeException(ex);

@@ -75,6 +75,7 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
                     0,0,null);
 
             ImageIO.write(img, format, saveFile);
+            inputStream.close();
         }
     }
 

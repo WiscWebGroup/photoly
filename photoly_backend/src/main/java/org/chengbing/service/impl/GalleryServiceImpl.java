@@ -32,6 +32,10 @@ public class GalleryServiceImpl extends ServiceImpl<GalleryMapper, Gallery> impl
     @Override
     public Integer insertGallery(String name, Integer userId, String color) {
         Gallery gallery = new Gallery();
+        if (name.equals("My Favorite"))
+        {
+            gallery.setCoverId(2);
+        }
         gallery.setGaName(name);
         gallery.setCreateDate(LocalDateTime.now());
         gallery.setUserId(userId);
