@@ -1,5 +1,5 @@
 <script setup>
-import { RouterLink, RouterView } from 'vue-router'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 import router from "../router/index.js";
 import axios from "axios";
 import NavigationBar from "../components/NavigationBar.vue"
@@ -19,7 +19,7 @@ import { shallowRef } from 'vue'
           {{ errors }}
     </n-alert>
     <NavigationBar :avatarAddr="avatarAddr"/>
-    <component :is="componentParts[part]" style="padding: 1.5rem; margin-left: 1.5rem;"/>
+    <component :is="componentParts[part]" :style="{'padding': $route.path !== '/home/ManagePart' ? '1.5rem' : '0', 'margin-left' : $route.path !== '/home/ManagePart' ? '1.5rem' : '0'}"/>
   </div>
 </template>
 
@@ -41,7 +41,7 @@ export default{
   },
   setup () {
     return {
-
+      route: useRoute()
     }
       
   },

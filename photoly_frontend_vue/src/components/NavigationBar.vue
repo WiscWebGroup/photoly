@@ -31,7 +31,7 @@ import axios from "axios";
                 Logout
             </n-button>
             <n-button class="naviBarBtn" quaternary round strong color="aliceblue" @click="changeHomeComponent('ManagePart')">
-                Manage
+                User
             </n-button>
             <img :src="avatarAddr" id="userImg" v-on:click="changeHomeComponent('ManagePart')"/>
             

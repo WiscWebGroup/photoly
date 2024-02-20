@@ -29,11 +29,13 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
     <n-divider />
 
     <!-- This part is for folder and medias -->
-
-    <div @contextmenu="blankSpaceMenu">
+    <n-space v-show="nsId === -1">
+          <n-spin size="large" />
+    </n-space>
+    <div @contextmenu="blankSpaceMenu" v-show="nsId !== -1">
 
       <!-- This part is for loading folders' buttons into the "folders" section -->
-
+      
       <div>
         <n-h2>Folders</n-h2>
         <n-space>
@@ -829,7 +831,7 @@ export default defineComponent({
             this.queryPhotos();
             window.$message.success("Photo deleted!")
           }else {
-            window.$message.warning("User Info Response Error!")
+            window.$message.warning("delete photo Response Error!")
           }
         })
         .catch(function (error) { // 请求失败处理
@@ -873,7 +875,7 @@ export default defineComponent({
             this.queryPhotos();
             window.$message.success("Photo name changed!")
           }else {
-            window.$message.warning("User Info Response Error!")
+            window.$message.warning("change name Response Error!")
           }
         })
         .catch(function (error) { // 请求失败处理
@@ -900,7 +902,7 @@ export default defineComponent({
         {
           window.$message.success("visibility changed!")
         }else {
-          window.$message.warning("User Info Response Error!")
+          window.$message.warning("change visibility Response Error!")
         }
       })
       .catch(function (error) { // 请求失败处理
@@ -923,7 +925,7 @@ export default defineComponent({
           navigator.clipboard.writeText(response.data.t);
           window.$message.success("Successful copied to clipboard!")
         }else {
-          window.$message.warning("User Info Response Error!")
+          window.$message.warning("get share addr Response Error!")
         }
       })
       .catch(function (error) { // 请求失败处理
@@ -969,7 +971,7 @@ export default defineComponent({
           this.getTags();
           window.$message.success("added to tag!")
         }else {
-          window.$message.error("User Info Response Error!")
+          window.$message.error("add tag Response Error!")
         }
       })
       .catch(function (error) { // 请求失败处理
@@ -993,7 +995,7 @@ export default defineComponent({
           this.getGas();
           window.$message.success("added to gallery!")
         }else {
-          window.$message.error("User Info Response Error!")
+          window.$message.error("add gallery Response Error!")
         }
       })
       .catch(function (error) { // 请求失败处理
@@ -1027,7 +1029,7 @@ export default defineComponent({
           }
           this.tagOptions = alltags;
         }else {
-          window.$message.error("User Info Response Error!")
+          window.$message.error("get tags Response Error!")
         }
       })
       .catch(function (error) { // 请求失败处理
@@ -1060,7 +1062,7 @@ export default defineComponent({
           }
           this.gaOptions = allgas;
         }else {
-          window.$message.error("User Info Response Error!")
+          window.$message.error("get galleries Response Error!")
         }
       })
       .catch(function (error) { // 请求失败处理
@@ -1081,8 +1083,9 @@ export default defineComponent({
         if (response.data.msgCode === 200)
         {
           this.getGas();
+          window.$message.success("Gallery detached!")
         }else {
-          window.$message.error("User Info Response Error!")
+          window.$message.error("remove gallery Response Error!")
         }
       })
       .catch(function (error) { // 请求失败处理
@@ -1104,8 +1107,9 @@ export default defineComponent({
         if (response.data.msgCode === 200)
         {
           this.getTags();
+          window.$message.success("Tag detached!")
         }else {
-          window.$message.error("User Info Response Error!")
+          window.$message.error("remove tag Response Error!")
         }
       })
       .catch(function (error) { // 请求失败处理
@@ -1129,7 +1133,7 @@ export default defineComponent({
           var infoT = response.data.t;
           this.showPhotoTagList = infoT;
         }else {
-          window.$message.error("User Info Response Error!")
+          window.$message.error("get tags Response Error!")
         }
       })
       .catch(function (error) { // 请求失败处理
@@ -1152,7 +1156,7 @@ export default defineComponent({
           var infoT = response.data.t;
           this.showPhotoGaList = infoT;
         }else {
-          window.$message.error("User Info Response Error!")
+          window.$message.error("get galleries Response Error!")
         }
       })
       .catch(function (error) { // 请求失败处理
@@ -1209,7 +1213,7 @@ export default defineComponent({
             this.parentNsId = infoT[infoT.length - 2]["nsId"];
           }
         }else {
-          window.$message.error("User Info Response Error!")
+          window.$message.error("trace Response Error!")
         }
       })
       .catch(function (error) { // 请求失败处理
@@ -1232,7 +1236,7 @@ export default defineComponent({
           var infoT = response.data.t;
           this.nsChildren = infoT
         }else {
-          window.$message.error("User Info Response Error!")
+          window.$message.error("query folder Response Error!")
         }
       })
       .catch(function (error) { // 请求失败处理
@@ -1256,7 +1260,7 @@ export default defineComponent({
           var infoT = response.data.t;
           this.photoChildren = infoT
         }else {
-          window.$message.error("User Info Response Error!")
+          window.$message.error("query photo Response Error!")
         }
       })
       .catch(function (error) { // 请求失败处理
@@ -1287,7 +1291,7 @@ export default defineComponent({
           this.nsName = infoT.nsName;
           this.update();
         }else {
-          window.$message.error("User Info Response Error!")
+          window.$message.error("get root folder Response Error!")
         }
       })
       .catch(function (error) { // 请求失败处理
