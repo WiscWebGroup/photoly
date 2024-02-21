@@ -1,5 +1,5 @@
 <script setup>
-import { RouterLink, RouterView } from 'vue-router'
+import { RouterLink, RouterView, useRouter } from 'vue-router'
 import router from "../router/index.js";
 import axios from "axios";
 import { ref, defineComponent, nextTick, h } from 'vue';
@@ -40,6 +40,8 @@ import { ArrowUpload20Filled, Copy20Regular, DocumentEdit20Regular, Delete20Regu
             <n-button strong secondary type="default" style="" @click="loadEditInfo">Edit Info</n-button>
             <n-divider vertical/>
             <n-button strong secondary type="info" style="" @click="loadEditAvatar">Edit Avatar</n-button>
+            <n-divider vertical v-if="userInfo.role === 'admin'"/>
+            <n-button strong secondary type="primary" style="" @click="goToAdminPanel" v-if="userInfo.role === 'admin'">Admin Panel</n-button>
           </n-space>
         </template>
       </n-card>
@@ -442,6 +444,32 @@ export default defineComponent({
     }
   },
   methods: {
+    goToAdminPanel () {
+      axios({
+        method: 'get',
+        baseURL: '',
+        url: import.meta.env.VITE_APP_BASE_URL + "/admin/isAdmin",
+        headers: {
+          "HRD-Token": localStorage.getItem("HRD-Token")
+        },
+        data: {
+        }
+      }).then((response) => {
+        if (response.data.t)
+        {
+          window.$message.success("Admin Identity Verified, Now Teleporting!");
+          let adminAddr = this.$router.resolve({path: '/thepersonincharge/dashboard'});
+          window.open(adminAddr.href, '_blank');
+        }else {
+          window.$message.error("You are not an admin!")
+        }
+      })
+      .catch(function (error) { // 请求失败处理
+        // console.log(error);
+        window.$message.error(error);
+      });
+      
+    },
     doAPIAdd () {
       axios({
         method: 'post',

@@ -2,7 +2,7 @@
 import { RouterLink, RouterView } from 'vue-router'
 import router from "../router/index.js";
 import axios from "axios";
-import { ref, defineComponent, h, defineExpose } from 'vue';
+import { ref, defineComponent, h } from 'vue';
 import { useMessage, NIcon } from 'naive-ui'
 import {
     Folder20Regular as Folder

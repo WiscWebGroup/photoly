@@ -4,6 +4,8 @@ import Login from '../views/Login.vue'
 import Signup from '../views/Signup.vue'
 import Home from '../views/Home.vue'
 import MoveToShowFolderVue from '@/components/MoveToShowFolder.vue'
+import AdminDashboard from '@/views/AdminDashboard.vue'
+import AdminUserManagement from '@/views/AdminUserManagement.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -33,6 +35,16 @@ const router = createRouter({
     path: "/test",
     name: "test",
     component: MoveToShowFolderVue,
+   },
+   {
+    path: "/thepersonincharge/dashboard",
+    name: "thepersonincharge_dashboard",
+    component: AdminDashboard,
+   },
+   {
+    path: "/thepersonincharge/usermanage",
+    name: "thepersonincharge_usermanage",
+    component: AdminUserManagement,
    }
   ]
 })
