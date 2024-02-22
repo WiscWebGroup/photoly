@@ -11,7 +11,6 @@ pipeline {
         stage('Stop Old Backend & Frontend') {
             steps {
                 sh 'fuser -k -n tcp 8088 || true'
-                sh 'fuser -k -n tcp 8084 || true'
             }
         }
 
@@ -29,18 +28,17 @@ mvn clean package -Dmaven.test.skip=true'''
         stage('Initialize Frontend Deployment') {
             steps {
                 sh 'rm -rf /home/ubuntu/photoly_f/photoly_frontend'
-                sh 'cp -r /root/.jenkins/workspace/photoly/photoly_frontend /home/ubuntu/photoly_f'
-                sh 'rm /home/ubuntu/photoly_f/photoly_frontend/next.config.js'
-                sh 'cp /home/ubuntu/photoly_f/config/next.config.js /home/ubuntu/photoly_f/photoly_frontend'
+                sh 'cp -r /root/.jenkins/workspace/photoly/photoly_frontend_vue /home/ubuntu/photoly_f'
+                sh 'rm /home/ubuntu/photoly_f/photoly_frontend_vue/.env'
+                sh 'cp /home/ubuntu/photoly_f/config/.env /home/ubuntu/photoly_f/photoly_frontend_vue'
             }
         }
         
         stage('Build Frontend and Deploy') {
             steps {
-                dir('/home/ubuntu/photoly_f/photoly_frontend') {
+                dir('/home/ubuntu/photoly_f/photoly_frontend_vue') {
                     sh 'npm install'
                     sh 'npm run build'
-                    sh 'JENKINS_NODE_COOKIE=dontKillMe nohup npm run start -- -p 8084 > /home/ubuntu/photoly_f/photoly_f.log 2>1&'
                 }
             }
         }
