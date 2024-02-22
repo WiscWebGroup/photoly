@@ -817,7 +817,6 @@ export default defineComponent({
         window.$message.warning("No Photo selected!");
         this.uploadBtnLoading = false;
       }
-      this.uploadBtnLoading = false;
     },
     addPhotoToArea({file}) {
       this.uploadPhotoFiles.append("files", file.file);
