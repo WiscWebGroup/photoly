@@ -255,7 +255,9 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
             :custom-request="addPhotoToArea"
             :on-remove="removeItemFromUpload"
             :max="15"
+            accept="image/*, video/*"
         >
+
           <n-upload-dragger>
             <div style="margin-bottom: 12px">
               <n-icon size="48" :depth="3">

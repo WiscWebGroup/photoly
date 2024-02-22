@@ -109,7 +109,13 @@ export default{
             localStorage.setItem("HRD-Token", response.data.token);
             router.push('/home/HomePart');
           }else {
-            this.showWarning("Wrong Email or Password!");
+            if (response.data.t === "Register is closed by Admin")
+            {
+              this.showWarning("Register Closed!");
+            }else {
+              this.showWarning("Wrong Email or Password!");
+            }
+            this.loading = false;
           }
 
         })
