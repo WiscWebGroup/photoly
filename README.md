@@ -4,14 +4,14 @@
 <img src="https://raw.githubusercontent.com/Harold-y/photoly/main/Logo.png" height="160px" width="160px" />
 <br>
 
-This is a picture host application. There are demands for the self-host and reliable picture-host applications. Photoly provides a solution just right for that. Using Photoly, you can manage your pictures and photos with easy clicks, and categorize them using tags, galleries, and namespaces. Moreover, Photoly provides API for you to access our functionalities for embedding in other applications.
+This is a picture host application. There are demands for the self-host and reliable picture-host applications. Photoly provides a solution just right for that. Using Photoly, you can manage your pictures and photos with easy clicks, and categorize them using tags, galleries, and namespaces. We are also sure that the search functionality could make it easier to see the photos you are interested in. Moreover, Photoly provides API for you to access our functionalities for embedding in other applications.
 
-Photoly是一款非常美丽的图床网页应用。随着人们对自助托管和可靠的图片托管应用程序需求增加，Photoly应运而生。使用 Photoly，您可以轻松点击管理图片和照片，并使用标签、图库和命名空间对图片和照片进行分类。此外，Photoly 还提供 API，方便您将我们的功能嵌入到其他应用程序中。
+Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自助图片托管应用需求增加，Photoly应运而生。使用 Photoly，您可以轻松管理图片和视频，并使用标签、图库和文件夹对图片和视频进行分类；利用搜索功能，充分探索您的媒体库。此外，Photoly 还提供 API，方便您将我们的功能嵌入到其他应用程序中。
 
 ## Screenshots
 <img src="https://github.com/WiscWebGroup/photoly/assets/68500948/3304e591-7b8a-49d2-a483-61e04206e8dd" style="width: 800px;" />
 
-<img src="https://github.com/WiscWebGroup/photoly/assets/68500948/98744546-4840-4f23-94a1-229082def337" style="width: 800px;" />
+<img src="https://github.com/WiscWebGroup/photoly/assets/68500948/bd6cc12e-dc89-4e98-9cf7-2eaf35ba95b7" style="width: 800px;" />
 
 <img src="https://github.com/WiscWebGroup/photoly/assets/68500948/9abba9c7-c475-4463-91de-1da18b49a5ae" style="width: 800px;" />
 
