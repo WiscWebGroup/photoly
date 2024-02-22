@@ -125,7 +125,7 @@ export default{
         });
       }else {
         this.loading = false;
-        this.showWarning("Please input correct email and password format!")
+        this.showWarning("incorrect email, blank username or password format!")
       }
     }
   },
