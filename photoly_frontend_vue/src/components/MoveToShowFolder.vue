@@ -30,6 +30,7 @@ import {
             :data="selectedOptionF"
             :on-update:selected-keys="handleUpdateSelection"
             :on-update:expanded-keys="handleExpansion"
+            @keyup.enter="doUpdate"
         />
 
         <n-space>

@@ -29,7 +29,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
                       Add a New Tag
                       <template #footer>
                         <n-space vertical>
-                          <n-input v-model:value="addNewTagInput" type="text" placeholder="Tag Name" />
+                          <n-input v-model:value="addNewTagInput" type="text" placeholder="Tag Name" @keyup.enter="createTag" />
                           <n-button strong secondary style="width: 100%; " @click="createTag">
                             Add
                           </n-button>
@@ -199,7 +199,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
                     <n-switch v-model:value="showPhotoInfoVisibility" @update:value="changeVisibility" style="margin-left: 8px;"/>
                     <p>Change Name</p>
                     <n-input-group>
-                        <n-input type="text" round size="small" placeholder="New Name" v-model:value="newNameVal"/>
+                        <n-input type="text" round size="small" placeholder="New Name" v-model:value="newNameVal" @keyup.enter="changeName" />
                         <n-button type="primary" ghost style="width:5rem" @click="changeName">
                           Update
                         </n-button>

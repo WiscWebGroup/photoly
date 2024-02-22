@@ -25,7 +25,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
             <n-card title="Query Information" style="width: 60vw; border-radius: 10px;" size="huge">
               <n-input-group style="width: 50vw; ">
                 <n-select :style="{ width: '30%' }" :options="searchOptions" v-model:value="searchTypeSelectVal" />
-                <n-input :style="{ width: '60%' }" v-model:value="searchInput" clearable/>
+                <n-input :style="{ width: '60%' }" v-model:value="searchInput" clearable @keyup.enter="queryPhotos" />
                 <n-button :style="{ width: '20%' }" type="success" ghost @click="queryPhotos">
                   Search
                 </n-button>
@@ -171,7 +171,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
                     <n-switch v-model:value="showPhotoInfoVisibility" @update:value="changeVisibility" style="margin-left: 8px;"/>
                     <p>Change Name</p>
                     <n-input-group>
-                        <n-input type="text" round size="small" placeholder="New Name" v-model:value="newNameVal"/>
+                        <n-input type="text" round size="small" placeholder="New Name" v-model:value="newNameVal" @keyup.enter="changeName"/>
                         <n-button type="primary" ghost style="width:5rem" @click="changeName">
                           Update
                         </n-button>

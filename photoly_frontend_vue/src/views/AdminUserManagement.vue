@@ -3,7 +3,7 @@ import { RouterLink, RouterView } from 'vue-router'
 import router from "../router/index.js";
 import axios from "axios";
 import { ref, defineComponent, h, reactive } from 'vue';
-import { useMessage, NIcon, NButton, NInput } from "naive-ui";
+import { useMessage, NIcon, NButton, NInput, NSelect } from "naive-ui";
 import {
     Book20Regular as BookIcon,
     Person20Regular as PersonIcon,
@@ -12,9 +12,178 @@ import {
 
 window.$message = useMessage();
 const users = ref([]);
+const openPasswordEditModal = ref(false);
+const openDeleteModal = ref(false);
+const operateUserId = ref(-1);
+const operateUsername = ref("");
+const deleteBtnLoading = ref(false);
+const newPasswordVal = ref("");
+const editBtnLoading = ref(false);
+
+const useSearch = ref(false);
+const searchVal = ref("")
+
+const updateUsername = (userId, userName) => {
+  axios({
+      method: 'post',
+      baseURL: '',
+      url: import.meta.env.VITE_APP_BASE_URL + "/admin/resetUsername",
+      headers: {
+      "HRD-Token": localStorage.getItem("HRD-Token")
+      },
+      data: {
+        "userId": userId,
+        "userName": userName
+      }
+  }).then((response) => {
+      if (response.data.msgCode === 200)
+      {
+        getUserPage(pagination.page, pagination.pageSize);
+        window.$message.success("update successful!");
+      }else {
+          window.$message.error("Get User Information Error!")
+      }
+  })
+  .catch(function (error) { // 请求失败处理
+      window.$message.error(error);
+  });
+}
+
+const updateEmail = (userId, email) => {
+  axios({
+      method: 'post',
+      baseURL: '',
+      url: import.meta.env.VITE_APP_BASE_URL + "/admin/resetUserEmail",
+      headers: {
+      "HRD-Token": localStorage.getItem("HRD-Token")
+      },
+      data: {
+        "userId": userId,
+        "email": email
+      }
+  }).then((response) => {
+      if (response.data.msgCode === 200)
+      {
+        getUserPage(pagination.page, pagination.pageSize);
+        window.$message.success("update successful!");
+      }else {
+          window.$message.error("Get User Information Error!")
+      }
+  })
+  .catch(function (error) { // 请求失败处理
+      window.$message.error(error);
+  });
+}
+
+const updateRole = (userId, role) => {
+  axios({
+      method: 'post',
+      baseURL: '',
+      url: import.meta.env.VITE_APP_BASE_URL + "/admin/resetUserRole",
+      headers: {
+      "HRD-Token": localStorage.getItem("HRD-Token")
+      },
+      data: {
+        "userId": userId,
+        "role": role
+      }
+  }).then((response) => {
+      if (response.data.msgCode === 200)
+      {
+        getUserPage(pagination.page, pagination.pageSize);
+        window.$message.success("update successful!");
+      }else {
+          window.$message.error("Get User Information Error!")
+      }
+  })
+  .catch(function (error) { // 请求失败处理
+      window.$message.error(error);
+  });
+}
+
+const updatePassword = (userId, userName) => {
+  openPasswordEditModal.value = true;
+  operateUserId.value = userId;
+  operateUsername.value = userName;
+}
+
+const deleteUser = (userId, userName) => {
+  openDeleteModal.value = true;
+  operateUserId.value = userId;
+  operateUsername.value = userName;
+}
+
+const doDelete = () => {
+  deleteBtnLoading.value = true;
+  axios({
+      method: 'post',
+      baseURL: '',
+      url: import.meta.env.VITE_APP_BASE_URL + "/admin/deleteUser?userId=" + operateUserId.value,
+      headers: {
+      "HRD-Token": localStorage.getItem("HRD-Token")
+      },
+      data: {
+      }
+  }).then((response) => {
+      if (response.data.msgCode === 200)
+      {
+        getUserPage(pagination.page, pagination.pageSize);
+        window.$message.success("Delete successful!");
+        openDeleteModal.value = false;
+      }else {
+          window.$message.error("Delete Error!")
+      }
+      deleteBtnLoading.value = false;
+  })
+  .catch(function (error) { // 请求失败处理
+      window.$message.error(error);
+      deleteBtnLoading.value = false;
+  });
+  
+}
+
+const doUpdatePassword = () => {
+  editBtnLoading.value = true;
+  axios({
+      method: 'post',
+      baseURL: '',
+      url: import.meta.env.VITE_APP_BASE_URL + "/admin/resetUserPassword",
+      headers: {
+      "HRD-Token": localStorage.getItem("HRD-Token")
+      },
+      data: {
+        "userId": operateUserId.value,
+        "password": newPasswordVal.value
+      }
+  }).then((response) => {
+      if (response.data.msgCode === 200)
+      {
+        getUserPage(pagination.page, pagination.pageSize);
+        window.$message.success("Update successful!");
+        openPasswordEditModal.value = false;
+      }else {
+          window.$message.error("Update Error!")
+      }
+      editBtnLoading.value = false;
+  })
+  .catch(function (error) { // 请求失败处理
+      window.$message.error(error);
+      editBtnLoading.value = false;
+  });
+}
+
+const doSearch = () => {
+  useSearch.value = true;
+  searchUserPage(1, pagination.pageSize, searchVal.value);
+}
+
+const backToNormalIndexing = () => {
+  useSearch.value = false;
+  getUserPage(1, pagination.pageSize);
+}
 
 const createColumns = ({
-showUsername
+
 }) => {
 return [
     {
@@ -31,7 +200,7 @@ return [
                     users.value[index].userName = v;
                 },
                 onBlur() {
-                    console.log(users.value[index].userName)
+                    updateUsername(users.value[index].userId, users.value[index].userName);
                 }
             });
         }
@@ -44,7 +213,9 @@ return [
                 value: row.email,
                 onUpdateValue(v) {
                     users.value[index].email = v;
-                    console.log(v)
+                },
+                onBlur () {
+                  updateEmail(users.value[index].userId, users.value[index].email)
                 }
             });
         }
@@ -55,33 +226,91 @@ return [
     },
     {
         title: 'Role',
-        key: 'role'
+        key: 'role',
+        render(row, index) {
+            return h(NSelect, {
+                value: row.role,
+                options: roleOptions,
+                onUpdateValue(v) {
+                  updateRole(users.value[index].userId, v)
+                  users.value[index].role = v
+                },
+            });
+        }
     },
     {
         title: 'UUID',
         key: 'uuid'
     },
     {
-    title: "Action",
-    key: "actions",
-    render(row) {
-        return h(
-        NButton,
-        {
-            strong: true,
-            tertiary: true,
-            size: "small",
-            onClick: () => showUsername(row)
-        },
-        { default: () => "Play" }
-        );
-    }
+      title: "Password",
+      key: "actions",
+      render(row, index) {
+          return h(
+            NButton,
+            {
+                strong: true,
+                tertiary: true,
+                type: 'info',
+                size: "small",
+                onClick: () => updatePassword(users.value[index].userId, users.value[index].userName)
+            },
+            { default: () => "Change" },
+            
+          );
+      }
+    },
+    {
+      title: "Delete",
+      key: "actions",
+      render(row, index) {
+          return h(
+            NButton,
+            {
+                strong: true,
+                tertiary: true,
+                type: 'error',
+                size: "small",
+                onClick: () => deleteUser(users.value[index].userId, users.value[index].userName)
+            },
+            { default: () => "Delete User" },
+            
+          );
+      }
     }
     ]
 };
-const pagination = {
-        pageSize: 10
+
+const pagination = reactive(
+  {
+    page: 1,
+    pageSize: 10,
+    pageCount: 5,
+    showSizePicker: true,
+    pageSizes: [10, 20, 30],
+    onChange: (page) => {
+      pagination.page = page;
+      if (useSearch)
+      {
+        searchUserPage(page, pagination.pageSize, searchVal.value);
+      }else {
+        getUserPage(page, pagination.pageSize);
+      }
+      
+    },
+    onUpdatePageSize: (pageSize) => {
+      pagination.pageSize = pageSize;
+      pagination.page = 1;
+      if (useSearch)
+      {
+        searchUserPage(pagination.page, pageSize, searchVal.value);
+      }else {
+        getUserPage(pagination.page, pageSize);
+      }
+      
+    }
 }
+)
 const columns = createColumns(
     {
         showUsername(row) {
@@ -90,30 +319,67 @@ const columns = createColumns(
     }
 );
 
-const getUserPage = () => {
-        axios({
-            method: 'get',
-            baseURL: '',
-            url: import.meta.env.VITE_APP_BASE_URL + "/admin/getUserPage?page=1&rowsPerPage=2",
-            headers: {
-            "HRD-Token": localStorage.getItem("HRD-Token")
-            },
-            data: {
-            }
-        }).then((response) => {
-            if (response.data.msgCode === 200)
-            {
-                users.value = response.data.t;
-            }else {
-                window.$message.error("Get User Information Error!")
-            }
-        })
-        .catch(function (error) { // 请求失败处理
-            window.$message.error(error);
-        });
+const roleOptions = [
+  {
+    label: "admin",
+    value: "admin"
+  },
+  {
+    label: "user",
+    value: "user"
+  }
+]
+
+const getUserPage = (page, rowsPerPage) => {
+  axios({
+      method: 'get',
+      baseURL: '',
+      url: import.meta.env.VITE_APP_BASE_URL + "/admin/getUserPage?rowsPerPage=" + rowsPerPage + "&page=" + page,
+      headers: {
+      "HRD-Token": localStorage.getItem("HRD-Token")
+      },
+      data: {
+      }
+  }).then((response) => {
+      if (response.data.msgCode === 200)
+      {
+          users.value = response.data.t;
+          pagination.pageCount = response.data.pageNum;
+      }else {
+          window.$message.error("Get User Information Error!")
+      }
+  })
+  .catch(function (error) { // 请求失败处理
+      window.$message.error(error);
+  });
 }
 
-getUserPage();
+const searchUserPage = (page, rowsPerPage, query) => {
+  axios({
+          method: 'get',
+          baseURL: '',
+          url: import.meta.env.VITE_APP_BASE_URL + "/admin/searchUserPage?rowsPerPage=" + rowsPerPage + "&page=" + page + "&search=" + query,
+          headers: {
+          "HRD-Token": localStorage.getItem("HRD-Token")
+          },
+          data: {
+          }
+      }).then((response) => {
+          if (response.data.msgCode === 200)
+          {
+              users.value = response.data.t;
+              pagination.pageCount = response.data.pageNum;
+          }else {
+              window.$message.error("Get User Information Error!")
+          }
+      })
+      .catch(function (error) { // 请求失败处理
+          window.$message.error(error);
+      });
+}
+
+getUserPage(1, pagination.pageSize);
+
 </script>
 
 <template>
@@ -145,19 +411,86 @@ getUserPage();
         <n-card title="" size="medium" style="border-radius: 10px; width: 85vw">
           <n-space vertical>
             <n-h2>User Management</n-h2>
-            <n-data-table
+
+            <n-input-group>
+              <n-input :style="{ width: '20%' }" v-model:value="searchVal" @keyup.enter="doSearch"/>
+              <n-button type="primary" ghost @click="doSearch" >
+                Search
+              </n-button>
+              <n-button type="primary" ghost @click="backToNormalIndexing">
+                Back to Indexing
+              </n-button>
+            </n-input-group>
+
+            <n-data-table remote
                 :columns="columns"
                 :data="users"
                 :pagination="pagination"
                 :bordered="false"
                 striped
+                style="margin-top: 1rem;"
             />
           </n-space>
           
         </n-card>
     </n-space>
-    
   </div>
+
+  <!-- This part is for modal of edit password of an user -->
+  <n-modal v-model:show="openPasswordEditModal">
+      <n-card
+        style="width: 400px; border-radius: 10px;"
+        title="Edit Password"
+        :bordered="false"
+        size="huge"
+        role="dialog"
+        aria-modal="true"
+      >
+      <n-space vertical>
+        <n-p></n-p>
+        <n-p>ID: {{ operateUserId }} | Username: {{ operateUsername }}</n-p>
+        <n-space style="align-items: center;">
+          <n-input placeholder="New Password" v-model:value="newPasswordVal" @keyup.enter="doUpdatePassword"></n-input>
+        </n-space>
+      </n-space>
+
+        <n-space style="margin-top: 1rem">
+          <n-button type="primary" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="doUpdatePassword" :loading="editBtnLoading">
+            Submit
+          </n-button>
+          <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {openPasswordEditModal = false;}">
+            Cancel
+          </n-button>
+        </n-space>
+
+      </n-card>
+  </n-modal>
+  <!-- ENDOF: This part is for modal of edit password of an user -->
+
+  <!-- This part is for modal of confirming to delete an user -->
+  <n-modal v-model:show="openDeleteModal">
+      <n-card
+        style="width: 400px; border-radius: 10px;"
+        title="Confirm to Delete"
+        :bordered="false"
+        size="huge"
+        role="dialog"
+        aria-modal="true"
+      >
+        Do you really want to Delete this User with ID {{ operateUserId }} and Username {{ operateUsername }}?
+
+        <n-space style="margin-top: 1rem">
+          <n-button type="error" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="doDelete" :loading="deleteBtnLoading">
+            Delete
+          </n-button>
+          <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {openDeleteModal = false;}">
+            Cancel
+          </n-button>
+        </n-space>
+
+      </n-card>
+  </n-modal>
+  <!-- ENDOF: This part is for modal of confirming to delete an user -->
     
   </div>
 </template>

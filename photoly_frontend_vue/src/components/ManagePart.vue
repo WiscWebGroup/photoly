@@ -247,14 +247,14 @@ import { ArrowUpload20Filled, Copy20Regular, DocumentEdit20Regular, Delete20Regu
         aria-modal="true" :bordered="false">
             <n-space vertical>
 
-                Username: <n-input v-model:value="editUserInfo.userName" type="text" placeholder="User Name" />
-                Email: <n-input v-model:value="editUserInfo.email" type="text" placeholder="Email" />
+                Username: <n-input v-model:value="editUserInfo.userName" type="text" placeholder="User Name" @keyup.enter="doEdit"/>
+                Email: <n-input v-model:value="editUserInfo.email" type="text" placeholder="Email" @keyup.enter="doEdit"/>
 
                 <n-divider />
 
                 Current Password: <n-input v-model:value="oldPassword" type="password" placeholder="Confirm Password" />
                 New Password: <n-input v-model:value="editUserInfo.password" type="password" placeholder="Password" />
-                Confirm Password: <n-input v-model:value="confirmPassword" type="password" placeholder="Confirm Password" />
+                Confirm Password: <n-input v-model:value="confirmPassword" type="password" placeholder="Confirm Password" @keyup.enter="doEdit"/>
 
                 <n-space style="margin-top: 1rem">
                   <n-button type="success" round size="large" style="margin-top: 1rem; width: 100%;" @click="doEdit">
@@ -436,6 +436,8 @@ export default defineComponent({
 
       showAddAPIModal: false,
       APIAddAuthorization: [],
+
+      commonBtnLoading: false,
     }
   },
   setup () {

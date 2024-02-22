@@ -32,7 +32,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
                       Add a New Gallery
                       <template #footer>
                         <n-space vertical>
-                          <n-input v-model:value="addNewGalleryInput" type="text" placeholder="Gallery Name" />
+                          <n-input v-model:value="addNewGalleryInput" type="text" placeholder="Gallery Name" @keyup.enter="createGa" />
                           <n-select v-model:value="addNewGalleryIconSelectVal" :options="addNewGalleryIconSelectOptions" />
                           <n-color-picker v-model:value="addNewGalleryIconColorVal" :show-alpha="false" :modes="['hex']" />
                           <n-button strong secondary style="width: 100%; " @click="createGa">
@@ -202,7 +202,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
                     <n-switch v-model:value="showPhotoInfoVisibility" @update:value="changeVisibility" style="margin-left: 8px;"/>
                     <p>Change Name</p>
                     <n-input-group>
-                        <n-input type="text" round size="small" placeholder="New Name" v-model:value="newNameVal"/>
+                        <n-input type="text" round size="small" placeholder="New Name" v-model:value="newNameVal" @keyup.enter="changeName"  />
                         <n-button type="primary" ghost style="width:5rem" @click="changeName">
                           Update
                         </n-button>
@@ -288,9 +288,9 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
       <n-card title="Edit Gallery" size="huge" style="width: 400px; border-radius: 10px;" role="dialog"
         aria-modal="true" :bordered="false">
             <n-space vertical>
-                <n-input v-model:value="editGalleryInfo.gaName" type="text" placeholder="Gallery Name" />
+                <n-input v-model:value="editGalleryInfo.gaName" type="text" placeholder="Gallery Name" @keyup.enter="editGa"/>
                 <n-select v-model:value="editGalleryInfo.coverId" :options="addNewGalleryIconSelectOptions" />
-                <n-color-picker v-model:value="editGalleryInfo.coverColor" :show-alpha="false" :modes="['hex']" />
+                <n-color-picker v-model:value="editGalleryInfo.coverColor" :show-alpha="false" :modes="['hex']"/>
                 <n-button strong secondary style="width: 100%; " @click="editGa">
                   Submit
                 </n-button>

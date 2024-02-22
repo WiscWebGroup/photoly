@@ -180,7 +180,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
                     <n-switch v-model:value="showPhotoInfoVisibility" @update:value="changeVisibility" style="margin-left: 8px;"/>
                     <p>Change Name</p>
                     <n-input-group>
-                        <n-input type="text" round size="small" placeholder="New Name" v-model:value="newNameVal"/>
+                        <n-input type="text" round size="small" placeholder="New Name" v-model:value="newNameVal" @keyup.enter="changeName"  />
                         <n-button type="primary" ghost style="width:5rem" @click="changeName">
                           Update
                         </n-button>
@@ -268,7 +268,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
           </n-upload-dragger>
         </n-upload>
 
-        <n-button color="#74D2E7" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="doUpload">
+        <n-button color="#74D2E7" round size="large" style="margin-top: 1rem; width: 100%;" @click="doUpload" :loading="uploadBtnLoading">
           Upload
         </n-button>
 
@@ -286,7 +286,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
         role="dialog"
         aria-modal="true"
       >
-        <n-input type="text" round size="medium" placeholder="Folder Name" v-model:value="createFolderInputName"/>
+        <n-input type="text" round size="medium" placeholder="Folder Name" v-model:value="createFolderInputName" @keyup.enter="createFolder"  />
 
         <n-button color="#74D2E7" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="createFolder">
           Create
@@ -332,7 +332,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
         role="dialog"
         aria-modal="true"
       >
-        <n-input type="text" round size="medium" placeholder="Folder Name" v-model:value="editFolderInputName"/>
+        <n-input type="text" round size="medium" placeholder="Folder Name" v-model:value="editFolderInputName" @keyup.enter="updateFolderName"  />
 
         <n-button color="#74D2E7" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="updateFolderName">
           Update Name
@@ -477,6 +477,7 @@ export default defineComponent({
       ],
       showUploadPhotoModal: false,
       uploadPhotoFiles: new FormData(),
+      uploadBtnLoading: true,
 
       showCreateFolderModal: false,
       createFolderInputName: "",
@@ -513,6 +514,7 @@ export default defineComponent({
       this.showBlankSpaceMenu = false;
       if (key === "upload")
       {
+        this.uploadBtnLoading = false;
         this.showUploadPhotoModal = true;
       }
       if (key === "create_folder")
@@ -761,6 +763,7 @@ export default defineComponent({
       
     },
     doUpload() {
+      this.uploadBtnLoading = true;
       if (this.uploadPhotoFiles.has("files"))
       {
         var tempList = []
@@ -797,19 +800,22 @@ export default defineComponent({
               this.uploadPhotoFiles = new FormData();
               this.queryPhotos();
               this.showUploadPhotoModal = false;
+              this.uploadBtnLoading = false;
             }else {
               window.$message.warning("Submit upload error!")
             }
             
           })
           .catch(function (error) {
+            this.uploadBtnLoading = false;
             window.$message.warning(error)
           });
         
       }else {
-        window.$message.warning("No Photo selected!")
+        window.$message.warning("No Photo selected!");
+        this.uploadBtnLoading = false;
       }
-      
+      this.uploadBtnLoading = false;
     },
     addPhotoToArea({file}) {
       this.uploadPhotoFiles.append("files", file.file);
