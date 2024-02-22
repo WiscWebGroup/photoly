@@ -53,7 +53,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
 
       <!-- This part is for loading photos cards into the "media" section -->
 
-      <div style="margin-top: 1rem;">
+      <div style="margin-top: 1rem; min-width: 90vh;">
         <n-h2>Medias</n-h2>
         <n-space>
           <n-card style="border-radius: 20px;" v-for="photo in photoChildren" v-on:click="photoModalOpen(photo)" hoverable @click.right.native="photoSpaceMenu(photo, $event)">
