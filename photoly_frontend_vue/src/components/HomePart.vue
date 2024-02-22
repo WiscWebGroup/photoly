@@ -764,7 +764,7 @@ export default defineComponent({
       }
       
     },
-    doUpload() {
+    async doUpload() {
       this.uploadBtnLoading = true;
       if (this.uploadPhotoFiles.has("files"))
       {
@@ -787,7 +787,7 @@ export default defineComponent({
         let photoStr = JSON.stringify(photoList);
         this.uploadPhotoFiles.append("photosStr", photoStr);
         
-        axios
+        await axios
           .post( import.meta.env.VITE_APP_BASE_URL + "/photo/inserts", this.uploadPhotoFiles, {
             headers: {
               'Content-Type': 'multipart/form-data',
