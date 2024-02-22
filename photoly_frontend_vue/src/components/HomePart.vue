@@ -80,7 +80,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
           >
             <div style="display: flex; align-items: flex-start; flex-direction: row;">
               <img v-show="isphotoOrVideo(showPhotoInfo.format) === 1" v-bind:src="baseUPhoto + userToken + '?photoId=' + showPhotoInfo.photoId" 
-              style="object-fit: fill; border-radius: 0.375rem; height: 100%; min-width: 30%; max-width: 75%;" @click.left.native="() => {this.showPhoto = false}"/>
+              style="object-fit: fill; border-radius: 0.375rem; height: 100%; min-width: 30%; max-width: 75%;" @click.left.native="() => {showPhoto = false}"/>
               <video
                   v-show="isphotoOrVideo(showPhotoInfo.format) === 2"
                   :key="baseUVideo"
@@ -315,7 +315,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
           <n-button type="error" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="deleteFolder">
             Delete
           </n-button>
-          <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {this.showDeleteFolderConfirmModal = false;}">
+          <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showDeleteFolderConfirmModal = false;}">
             Cancel
           </n-button>
         </n-space>

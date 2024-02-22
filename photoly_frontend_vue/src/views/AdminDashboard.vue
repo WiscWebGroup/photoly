@@ -177,7 +177,7 @@ import {
                   <td>Power</td>
                   <td>Power down the backend server</td>
                   <td>
-                    <n-button type="error" @click="() => {this.showShutdownModal = true;}" :loading="shutdownBtnLoading">
+                    <n-button type="error" @click="() => {showShutdownModal = true;}" :loading="shutdownBtnLoading">
                       Shut Down
                     </n-button>
                   </td>
@@ -211,7 +211,7 @@ import {
           <n-button type="error" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="powerDown" :loading="shutdownBtnLoading">
             Shutdown
           </n-button>
-          <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {this.showShutdownModal = false;}">
+          <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showShutdownModal = false;}">
             Cancel
           </n-button>
         </n-space>

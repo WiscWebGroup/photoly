@@ -71,7 +71,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
           >
             <div style="display: flex; align-items: flex-start; flex-direction: row;">
               <img v-show="isphotoOrVideo(showPhotoInfo.format) === 1" v-bind:src="baseUPhoto + userToken + '?photoId=' + showPhotoInfo.photoId" 
-              style="object-fit: fill; border-radius: 0.375rem; height: 100%; min-width: 30%; max-width: 75%;" @click.left.native="() => {this.showPhoto = false}"/>
+              style="object-fit: fill; border-radius: 0.375rem; height: 100%; min-width: 30%; max-width: 75%;" @click.left.native="() => {showPhoto = false}"/>
               <video
                   v-show="isphotoOrVideo(showPhotoInfo.format) === 2"
                   :key="baseUVideo"

@@ -79,7 +79,7 @@ import { ArrowUpload20Filled, Copy20Regular, DocumentEdit20Regular, Delete20Regu
        <n-space vertical>
           <n-h2>
             API Table
-            <n-button strong secondary circle type="success" @click="() => {this.showAddAPIModal = true;}">
+            <n-button strong secondary circle type="success" @click="() => {showAddAPIModal = true;}">
               <template #icon>
                 <n-icon><AddCircle20Regular /></n-icon>
               </template>
@@ -260,7 +260,7 @@ import { ArrowUpload20Filled, Copy20Regular, DocumentEdit20Regular, Delete20Regu
                   <n-button type="success" round size="large" style="margin-top: 1rem; width: 100%;" @click="doEdit">
                     Submit
                   </n-button>
-                  <n-button round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {this.showEditUserInfoModal = false;}">
+                  <n-button round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showEditUserInfoModal = false;}">
                     Cancel
                   </n-button>
                 </n-space>
@@ -292,7 +292,7 @@ import { ArrowUpload20Filled, Copy20Regular, DocumentEdit20Regular, Delete20Regu
                   <n-button type="success" round size="large" style="margin-top: 1rem; width: 100%;" @click="doAvatarUpdate">
                     Submit
                   </n-button>
-                  <n-button round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {this.showEditUserAvatarModal = false;}">
+                  <n-button round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showEditUserAvatarModal = false;}">
                     Cancel
                   </n-button>
                 </n-space>
@@ -326,7 +326,7 @@ import { ArrowUpload20Filled, Copy20Regular, DocumentEdit20Regular, Delete20Regu
                   <n-button type="success" round size="large" style="margin-top: 1rem; width: 100%;" @click="doAPIUpdate">
                     Update
                   </n-button>
-                  <n-button round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {this.showEditAPIModal = false;}">
+                  <n-button round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showEditAPIModal = false;}">
                     Cancel
                   </n-button>
                 </n-space>
@@ -352,7 +352,7 @@ import { ArrowUpload20Filled, Copy20Regular, DocumentEdit20Regular, Delete20Regu
           <n-button type="error" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="doAPIDelete">
             Delete
           </n-button>
-          <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {this.showDeleteAPIModal = false;}">
+          <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showDeleteAPIModal = false;}">
             Cancel
           </n-button>
         </n-space>
@@ -379,7 +379,7 @@ import { ArrowUpload20Filled, Copy20Regular, DocumentEdit20Regular, Delete20Regu
                   <n-button type="success" round size="large" style="margin-top: 1rem; width: 100%;" @click="doAPIAdd">
                     Create
                   </n-button>
-                  <n-button round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {this.showAddAPIModal = false;}">
+                  <n-button round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showAddAPIModal = false;}">
                     Cancel
                   </n-button>
                 </n-space>

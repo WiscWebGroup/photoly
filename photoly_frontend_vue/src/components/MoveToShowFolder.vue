@@ -37,7 +37,7 @@ import {
             <n-button type="primary" secondary round size="large" style="margin-top: 1rem; width: 100%;" @click="doUpdate">
                 Update
             </n-button>
-            <n-button round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {this.showMoveToModal = false;}">
+            <n-button round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showMoveToModal = false;}">
                 Cancel
             </n-button>
         </n-space>
