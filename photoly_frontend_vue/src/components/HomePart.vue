@@ -695,7 +695,7 @@ export default defineComponent({
       axios({
           method: 'post',
           baseURL: '',
-          url: import.meta.env.VITE_APP_BASE_URL + "/namespace/delete?nsId=" + this.showDeleteFolderConfirmNsId,
+          url: import.meta.env.VITE_APP_BASE_URL + "/namespace/delete?nsId=" + this.showOperateFolderConfirmNsId,
           headers: {
             "HRD-Token": localStorage.getItem("HRD-Token")
           },
@@ -706,7 +706,7 @@ export default defineComponent({
           {
             this.queryNsChildren();
             window.$message.success("Folder deleted!");
-            this.showDeleteFolderConfirmNsId = -1;
+            this.showOperateFolderConfirmNsId = -1;
             this.showDeleteFolderConfirmModal = false;
           }else {
             window.$message.warning("Delete Error!")
