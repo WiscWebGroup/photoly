@@ -49,11 +49,10 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
                     @click.left.native="() => {
                       if (renderPhotoGaId == gallery.gaId)
                       {
-                        this.renderPhotoGaId = -1;
+                        renderPhotoGaId = -1;
                         photoChildren = []
                       }else {
-                        console.log(this.renderPhotoGaId);
-                        this.renderPhotoGaId = gallery.gaId;
+                        renderPhotoGaId = gallery.gaId;
                         queryPhotos();
                       }
                     }" @click.right.native="GalleryMenu(gallery, $event)">
