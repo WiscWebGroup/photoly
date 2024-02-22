@@ -52,6 +52,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
                         this.renderPhotoGaId = -1;
                         photoChildren = []
                       }else {
+                        console.log(this.renderPhotoGaId);
                         this.renderPhotoGaId = gallery.gaId;
                         queryPhotos();
                       }
