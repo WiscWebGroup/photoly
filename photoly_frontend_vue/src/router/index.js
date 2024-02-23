@@ -3,7 +3,6 @@ import Welcome from '../views/Welcome.vue'
 import Login from '../views/Login.vue'
 import Signup from '../views/Signup.vue'
 import Home from '../views/Home.vue'
-import MoveToShowFolderVue from '@/components/MoveToShowFolder.vue'
 import AdminDashboard from '@/views/AdminDashboard.vue'
 import AdminUserManagement from '@/views/AdminUserManagement.vue'
 
@@ -30,11 +29,6 @@ const router = createRouter({
     name: "home",
     component: Home,
     props: true
-   },
-   {
-    path: "/test",
-    name: "test",
-    component: MoveToShowFolderVue,
    },
    {
     path: "/thepersonincharge/dashboard",

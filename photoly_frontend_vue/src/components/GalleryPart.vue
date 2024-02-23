@@ -70,18 +70,49 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
           </div>
 
           <div style="margin-left: 2rem;">
-            <n-h2>Medias</n-h2>
+            <n-space style="align-items:baseline">
+              <n-h2>Medias</n-h2>
+              <n-switch v-model:value="photoMultiSelectMode" >
+                <template #checked>
+                  Photo Select Mode
+                </template>
+                <template #unchecked>
+                  Select Mode Off
+                </template>
+              </n-switch>
+              <n-button round style="width: 5rem" v-show="photoMultiSelectMode" @click="clearCheckboxPhoto">
+                  Clear
+              </n-button>
+              <n-button round style="width: 7rem" v-show="photoMultiSelectMode" @click="selectAllCheckboxPhoto">
+                  Select All
+              </n-button>
+              <n-button round style="width: 7rem" v-show="photoMultiSelectMode" @click="moveSelectedPhoto" type="info">
+                  Move
+              </n-button>
+              <n-button round style="width: 12rem" v-show="photoMultiSelectMode" @click="() => {showPhotoMultiDetachModal = true;}" type="warning">
+                  Remove From Gallery
+              </n-button>
+              <n-button round style="width: 10rem" v-show="photoMultiSelectMode" @click="() => {showPhotoMultiDeleteModal = true;}" type="error">
+                  Delete Selected
+              </n-button>
+            </n-space>
             <n-empty v-show="photoChildren.length <= 0" style="padding-left: 30vw; padding-top: 20vh;">
             </n-empty>
             <n-space>
-              <n-card style="border-radius: 20px;" v-for="photo in photoChildren" v-on:click="photoModalOpen(photo)" hoverable @click.right.native="photoSpaceMenu(photo, $event)">
-                <template #cover>
-                  <div class="cardImgDiv" v-show="isphotoOrVideo(photo.format) === 1"><img v-bind:src="baseUThumbnail + userToken + '?photoId=' + photo.photoId" class="cardImg"></div>
-                  <div class="cardImgDiv" v-show="isphotoOrVideo(photo.format) === 2"><img src="@/assets/icons/Video.png" class="cardImg"></div>
-                  <div class="cardImgDiv" v-show="isphotoOrVideo(photo.format) === -1"><img src="@/assets/logo.ico" class="cardImg"></div>
-                </template>
-                <p>{{ photo.photoName.length <= 14 ? photo.photoName : photo.photoName.substring(0, 12) + "..." }}.{{ photo.format }}</p>
-              </n-card>
+              <div v-for="photo in photoChildren">
+                <n-card style="border-radius: 20px; background-color: #f4f2f2;" v-show="photoMultiSelectMode">
+                  <n-checkbox size="large"
+                  style="margin-left: 0.5rem;" @update:checked="() => {photo.checked = !photo.checked}" :checked="photo.checked"/>
+                </n-card>
+                <n-card style="border-radius: 20px;" @click.left.native="handlePhotoMulti(photo, $event)" hoverable @click.right.native="photoSpaceMenu(photo, $event)">
+                  <template #cover>
+                    <div class="cardImgDiv" v-show="isphotoOrVideo(photo.format) === 1"><img v-bind:src="baseUThumbnail + userToken + '?photoId=' + photo.photoId" class="cardImg"></div>
+                    <div class="cardImgDiv" v-show="isphotoOrVideo(photo.format) === 2"><img src="@/assets/icons/Video.png" class="cardImg"></div>
+                    <div class="cardImgDiv" v-show="isphotoOrVideo(photo.format) === -1"><img src="@/assets/logo.ico" class="cardImg"></div>
+                  </template>
+                  <p>{{ photo.photoName.length <= 14 ? photo.photoName : photo.photoName.substring(0, 12) + "..." }}.{{ photo.format }}</p>
+                </n-card>
+              </div>
             </n-space>
           </div>
 
@@ -257,6 +288,10 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
     <MoveToShowFolder @moveToUpdate="moveItem" ref="moveToModuleRef" :originalNsId="moveToModalOriginalNsId" :disableOrgNsId="moveToModalDisableOrgNsId"/>
     <!-- ENDOF: This part is for modal of moveTo Functions -->
 
+    <!-- This part is for modal of Multiple moveTo Functions -->
+    <MoveToShowFolder @moveToUpdate="moveItemMulti" ref="moveToMultiModuleRef" :originalNsId="moveToModalOriginalNsId" :disableOrgNsId="moveToModalDisableOrgNsId"/>
+    <!-- ENDOF: This part is for modal of Multiple moveTo Functions -->
+
     <!-- This part is for modal of confirming to delete a gallery -->
     <n-modal v-model:show="showDeleteGalleryConfirmModal">
       <n-card
@@ -298,6 +333,57 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
       </n-card>
     </n-modal>
     <!-- ENDOF: This part is for modal of edit a gallery's information -->
+
+    <!-- This part is for modal of confirming to delete multiple photos -->
+    <n-modal v-model:show="showPhotoMultiDeleteModal">
+      <n-card
+        style="width: 400px; border-radius: 10px;"
+        title="Confirm to Delete"
+        :bordered="false"
+        size="huge"
+        role="dialog"
+        aria-modal="true"
+      >
+        Do you really want to DELETE these photos?
+        <p>*All photos will be destroied.</p>
+
+        <n-space style="margin-top: 1rem">
+          <n-button type="error" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="deleteSelectedPhoto">
+            Delete
+          </n-button>
+          <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showPhotoMultiDeleteModal = false;}">
+            Cancel
+          </n-button>
+        </n-space>
+
+      </n-card>
+    </n-modal>
+    <!-- ENDOF: This part is for modal of confirming to delete multiple photos -->
+
+    <!-- This part is for modal of confirming to detach multiple photos -->
+    <n-modal v-model:show="showPhotoMultiDetachModal">
+      <n-card
+        style="width: 400px; border-radius: 10px;"
+        title="Confirm to Detach"
+        :bordered="false"
+        size="huge"
+        role="dialog"
+        aria-modal="true"
+      >
+        Do you really want to Detach these photos from this gallery?
+
+        <n-space style="margin-top: 1rem">
+          <n-button type="warning" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="removeFromGallerySelectedPhoto">
+            Confirm
+          </n-button>
+          <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showPhotoMultiDetachModal = false;}">
+            Cancel
+          </n-button>
+        </n-space>
+
+      </n-card>
+    </n-modal>
+    <!-- ENDOF: This part is for modal of confirming to detach multiple photos -->
     
     
     <!-- ENDOF: MODAL PART -->
@@ -312,6 +398,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
 <script>
 
 const moveToModuleRef = ref(null);
+const moveToMultiModuleRef = ref(null);
 
 export default defineComponent({
   data() {
@@ -456,6 +543,10 @@ export default defineComponent({
 
       showDeleteGalleryConfirmModal: false,
       showEditGalleryModal: false,
+
+      photoMultiSelectMode: false,
+      showPhotoMultiDeleteModal: false,
+      showPhotoMultiDetachModal: false,
     }
   },
   setup() {
@@ -465,6 +556,139 @@ export default defineComponent({
     };
   },
   methods: {
+    moveSelectedPhoto() {
+      this.moveToModalOriginalNsId = this.nsId;
+      this.moveToModalDisableOrgNsId = false;
+      this.openMoveToModalMulti();
+    },
+    openMoveToModalMulti () {
+      moveToMultiModuleRef.value.openModal();
+    },
+    moveItemMulti (nsId) {
+      // if it is true then this is a folder move
+      if (this.moveToModalDisableOrgNsId)
+      {
+        
+      }else {
+        // else this is a photo move
+        this.photoChildren.forEach((photo) => {
+          if (photo["checked"])
+          {
+            axios({
+              method: 'post',
+              baseURL: '',
+              url: import.meta.env.VITE_APP_BASE_URL + "/photo/changeNamespace?photoId=" + photo.photoId + "&nsId=" + nsId,
+              headers: {
+                "HRD-Token": localStorage.getItem("HRD-Token")
+              },
+              data: {
+            }
+            }).then((response) => {
+              if (response.data.msgCode === 200)
+              {
+                this.queryPhotos();
+                window.$message.success("Media Location Updated!");
+                
+              }else {
+                window.$message.warning("Update Error!")
+              }
+            })
+            .catch(function (error) { // 请求失败处理
+              window.$message.error(error);
+            });
+          }
+        })
+        this.moveToModalOriginalNsId = -1;
+        this.moveToModalDisableOrgNsId = false;
+
+        this.photoMultiSelectMode = false;
+        this.clearCheckboxPhoto();
+      }
+      
+    },
+    removeFromGallerySelectedPhoto () {
+      this.photoChildren.forEach((photo) => {
+        if(photo["checked"])
+        {
+          axios({
+            method: 'post',
+            baseURL: '',
+            url: import.meta.env.VITE_APP_BASE_URL + "/photo/deleteFromGallery?photoId=" + photo.photoId + "&gaId=" + this.renderPhotoGaId,
+            headers: {
+              "HRD-Token": localStorage.getItem("HRD-Token")
+            },
+            data: {
+          }
+          }).then((response) => {
+            if (response.data.msgCode === 200)
+            {
+              this.queryPhotos();
+              window.$message.success("Detached from gallery!");
+              
+            }else {
+              window.$message.error("removeGa Response Error!")
+            }
+          })
+          .catch(function (error) { // 请求失败处理
+            // console.log(error);
+            window.$message.error(error);
+          });
+            }
+          })
+      this.showPhotoMultiDetachModal = false;
+      this.photoMultiSelectMode = false;
+    },
+    deleteSelectedPhoto () {
+      this.photoChildren.forEach((photo) => {
+        if(photo["checked"])
+        {
+          axios({
+            method: 'post',
+            baseURL: '',
+            url: import.meta.env.VITE_APP_BASE_URL + "/photo/delete?photoId=" + photo.photoId,
+            headers: {
+              "HRD-Token": localStorage.getItem("HRD-Token")
+            },
+            data: {
+          }
+          }).then((response) => {
+            if (response.data.msgCode === 200)
+            {
+              this.queryPhotos();
+              window.$message.success("Photo deleted!");
+            }else {
+              window.$message.warning("delete photo Response Error!")
+            }
+          })
+          .catch(function (error) { // 请求失败处理
+            window.$message.error(error);
+          });
+        }
+      })
+      this.showPhotoMultiDeleteModal = false;
+      this.clearCheckboxPhoto();
+      this.photoMultiSelectMode = false;
+    },
+    selectAllCheckboxPhoto () {
+      this.photoChildren.forEach((photo) => {
+        photo["checked"] = true;
+      })
+    },
+    clearCheckboxPhoto () {
+      this.photoChildren.forEach((photo) => {
+        photo["checked"] = false;
+      })
+    },
+    handlePhotoMulti(photo, event)
+    {
+      if (this.photoMultiSelectMode)
+      {
+        event.preventDefault();
+        event.stopPropagation();
+      }else {
+        this.photoModalOpen(photo);
+      }
+    },
     blankSpaceMenu (e) {
       e.preventDefault();
       e.stopPropagation();

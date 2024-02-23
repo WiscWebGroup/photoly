@@ -37,15 +37,41 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
       <!-- This part is for loading folders' buttons into the "folders" section -->
       
       <div>
-        <n-h2>Folders</n-h2>
+        <n-space style="align-items:baseline">
+          <n-h2>Folders</n-h2>
+          <n-switch v-model:value="folderMultiSelectMode" >
+            <template #checked>
+              Folder Select Mode
+            </template>
+            <template #unchecked>
+              Select Mode Off
+            </template>
+          </n-switch>
+          <n-button round style="width: 5rem" v-show="folderMultiSelectMode" @click="clearCheckboxFolder">
+              Clear
+          </n-button>
+          <n-button round style="width: 7rem" v-show="folderMultiSelectMode" @click="selectAllCheckboxFolder">
+              Select All
+          </n-button>
+          <n-button round style="width: 7rem" v-show="folderMultiSelectMode" @click="moveSelectedFolder" type="info">
+              Move
+          </n-button>
+          <n-button round style="width: 10rem" v-show="folderMultiSelectMode" @click="() => {showFolderMultiDeleteModal = true;}" type="error">
+              Delete Selected
+          </n-button>
+        </n-space>
         <n-space>
-          <n-button secondary strong size="large" v-for="folder in nsChildren" v-on:click="setCurrNsId(folder.nsId)" @click.right.native="folderSpaceMenu(folder.nsId, folder.nsName, $event)">
+          <n-button secondary strong size="large" v-for="folder in nsChildren" @click.left.native="handleFolderMulti(folder.nsId, $event)"
+           @click.right.native="folderSpaceMenu(folder.nsId, folder.nsName, $event)">
             <template #icon>
               <n-icon>
                 <Folder28Regular />
               </n-icon>
             </template>
             {{ folder.nsName.length <= 14 ? folder.nsName : folder.nsName.substring(0, 12) + "..." }}
+            <n-checkbox size="large" 
+                 style="margin-left: 0.5rem;" @update:checked="() => {folder.checked = !folder.checked;}"
+                  v-show="folderMultiSelectMode" class="folderChecks" :checked="folder.checked"/>
           </n-button>
         </n-space>
       </div>
@@ -54,16 +80,46 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
       <!-- This part is for loading photos cards into the "media" section -->
 
       <div style="margin-top: 1rem; min-width: 90vh;">
-        <n-h2>Medias</n-h2>
-        <n-space>
-          <n-card style="border-radius: 20px;" v-for="photo in photoChildren" v-on:click="photoModalOpen(photo)" hoverable @click.right.native="photoSpaceMenu(photo, $event)">
-            <template #cover>
-              <div class="cardImgDiv" v-show="isphotoOrVideo(photo.format) === 1"><img v-bind:src="baseUThumbnail + userToken + '?photoId=' + photo.photoId" class="cardImg"></div>
-              <div class="cardImgDiv" v-show="isphotoOrVideo(photo.format) === 2"><img src="@/assets/icons/Video.png" class="cardImg"></div>
-              <div class="cardImgDiv" v-show="isphotoOrVideo(photo.format) === -1"><img src="@/assets/logo.ico" class="cardImg"></div>
+        <n-space style="align-items:baseline">
+          <n-h2>Medias</n-h2>
+          <n-switch v-model:value="photoMultiSelectMode" >
+            <template #checked>
+              Photo Select Mode
             </template>
-            <p>{{ photo.photoName.length <= 14 ? photo.photoName : photo.photoName.substring(0, 12) + "..." }}.{{ photo.format }}</p>
-          </n-card>
+            <template #unchecked>
+              Select Mode Off
+            </template>
+          </n-switch>
+          <n-button round style="width: 5rem" v-show="photoMultiSelectMode" @click="clearCheckboxPhoto">
+              Clear
+          </n-button>
+          <n-button round style="width: 7rem" v-show="photoMultiSelectMode" @click="selectAllCheckboxPhoto">
+              Select All
+          </n-button>
+          <n-button round style="width: 7rem" v-show="photoMultiSelectMode" @click="moveSelectedPhoto" type="info">
+              Move
+          </n-button>
+          <n-button round style="width: 10rem" v-show="photoMultiSelectMode" @click="() => {showPhotoMultiDeleteModal = true;}" type="error">
+              Delete Selected
+          </n-button>
+        </n-space>
+        
+        <n-space>
+          <div v-for="photo in photoChildren">
+              <n-card style="border-radius: 20px; background-color: #f4f2f2;" v-show="photoMultiSelectMode">
+                <n-checkbox size="large"
+                 style="margin-left: 0.5rem;" @update:checked="() => {photo.checked = !photo.checked}" :checked="photo.checked"/>
+              </n-card>
+              <n-card style="border-radius: 20px;" @click.left.native="handlePhotoMulti(photo, $event)" hoverable @click.right.native="photoSpaceMenu(photo, $event)">
+                <template #cover>
+                  <div class="cardImgDiv" v-show="isphotoOrVideo(photo.format) === 1"><img v-bind:src="baseUThumbnail + userToken + '?photoId=' + photo.photoId" class="cardImg"></div>
+                  <div class="cardImgDiv" v-show="isphotoOrVideo(photo.format) === 2"><img src="@/assets/icons/Video.png" class="cardImg"></div>
+                  <div class="cardImgDiv" v-show="isphotoOrVideo(photo.format) === -1"><img src="@/assets/logo.ico" class="cardImg"></div>
+                </template>
+                <p>{{ photo.photoName.length <= 14 ? photo.photoName : photo.photoName.substring(0, 12) + "..." }}.{{ photo.format }}</p>
+              </n-card>
+          </div>
+          
         </n-space>
       </div>
       <!-- ENDOF: This part is for loading photos cards into the "media" section -->
@@ -344,9 +400,66 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
     </n-modal>
     <!-- ENDOF: This part is for modal of edit a folder's name -->
 
+    <!-- This part is for modal of confirming to delete multiple folders -->
+    <n-modal v-model:show="showFolderMultiDeleteModal">
+      <n-card
+        style="width: 400px; border-radius: 10px;"
+        title="Confirm to Delete"
+        :bordered="false"
+        size="huge"
+        role="dialog"
+        aria-modal="true"
+      >
+        Do you really want to DELETE these folders?
+        <p>*All photos and folders within this folder will be destroied.</p>
+
+        <n-space style="margin-top: 1rem">
+          <n-button type="error" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="deleteSelectedFolder">
+            Delete
+          </n-button>
+          <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showFolderMultiDeleteModal = false;}">
+            Cancel
+          </n-button>
+        </n-space>
+
+      </n-card>
+    </n-modal>
+    <!-- ENDOF: This part is for modal of confirming to delete multiple folders -->
+
+    <!-- This part is for modal of confirming to delete multiple photos -->
+    <n-modal v-model:show="showPhotoMultiDeleteModal">
+      <n-card
+        style="width: 400px; border-radius: 10px;"
+        title="Confirm to Delete"
+        :bordered="false"
+        size="huge"
+        role="dialog"
+        aria-modal="true"
+      >
+        Do you really want to DELETE these photos?
+        <p>*All photos will be destroied.</p>
+
+        <n-space style="margin-top: 1rem">
+          <n-button type="error" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="deleteSelectedPhoto">
+            Delete
+          </n-button>
+          <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showPhotoMultiDeleteModal = false;}">
+            Cancel
+          </n-button>
+        </n-space>
+
+      </n-card>
+    </n-modal>
+    <!-- ENDOF: This part is for modal of confirming to delete multiple photos -->
+
+    
     <!-- This part is for modal of moveTo Functions -->
     <MoveToShowFolder @moveToUpdate="moveItem" ref="moveToModuleRef" :originalNsId="moveToModalOriginalNsId" :disableOrgNsId="moveToModalDisableOrgNsId"/>
     <!-- ENDOF: This part is for modal of moveTo Functions -->
+
+    <!-- This part is for modal of Multiple moveTo Functions -->
+    <MoveToShowFolder @moveToUpdate="moveItemMulti" ref="moveToMultiModuleRef" :originalNsId="moveToModalOriginalNsId" :disableOrgNsId="moveToModalDisableOrgNsId"/>
+    <!-- ENDOF: This part is for modal of Multiple moveTo Functions -->
     
     <!-- ENDOF: MODAL PART -->
 
@@ -358,6 +471,7 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
 <script>
 
 const moveToModuleRef = ref(null);
+const moveToMultiModuleRef = ref(null);
 
 export default defineComponent({
   data() {
@@ -492,6 +606,11 @@ export default defineComponent({
       
       moveToModalOriginalNsId: -1,
       moveToModalDisableOrgNsId: false,
+      
+      folderMultiSelectMode: false,
+      photoMultiSelectMode: false,
+      showFolderMultiDeleteModal: false,
+      showPhotoMultiDeleteModal: false,
     }
   },
   setup() {
@@ -501,6 +620,122 @@ export default defineComponent({
     };
   },
   methods: {
+    moveSelectedFolder() {
+      // this.moveToModalOriginalNsId = this.showOperateFolderConfirmNsId;
+      // this.moveToModalDisableOrgNsId = true;
+      // this.openMoveToModalMulti();
+      window.$message.warning("This is not implemented yet!");
+    },
+    moveSelectedPhoto() {
+      this.moveToModalOriginalNsId = this.nsId;
+      this.moveToModalDisableOrgNsId = false;
+      this.openMoveToModalMulti();
+    },
+    deleteSelectedFolder() {
+      this.nsChildren.forEach((ns) => {
+        if (ns["checked"])
+        {
+          axios({
+            method: 'post',
+            baseURL: '',
+            url: import.meta.env.VITE_APP_BASE_URL + "/namespace/delete?nsId=" + ns.nsId,
+            headers: {
+              "HRD-Token": localStorage.getItem("HRD-Token")
+            },
+            data: {
+          }
+          }).then((response) => {
+            if (response.data.msgCode === 200)
+            {
+              window.$message.success("Folder deleted!");
+              this.queryNsChildren();
+            }else {
+              window.$message.warning("Delete Error!")
+            }
+          })
+          .catch(function (error) { // 请求失败处理
+            window.$message.error(error);
+          });
+        }
+      })
+      
+      this.clearCheckboxFolder();
+      this.folderMultiSelectMode = false;
+      this.showFolderMultiDeleteModal = false;
+      
+    },
+    deleteSelectedPhoto () {
+      this.photoChildren.forEach((photo) => {
+        if(photo["checked"])
+        {
+          axios({
+            method: 'post',
+            baseURL: '',
+            url: import.meta.env.VITE_APP_BASE_URL + "/photo/delete?photoId=" + photo.photoId,
+            headers: {
+              "HRD-Token": localStorage.getItem("HRD-Token")
+            },
+            data: {
+          }
+          }).then((response) => {
+            if (response.data.msgCode === 200)
+            {
+              window.$message.success("Photo deleted!");
+              this.queryPhotos();
+            }else {
+              window.$message.warning("delete photo Response Error!")
+            }
+          })
+          .catch(function (error) { // 请求失败处理
+            window.$message.error(error);
+          });
+        }
+      })
+      this.photoMultiSelectMode = false;
+      this.showPhotoMultiDeleteModal = false;
+      this.clearCheckboxPhoto();
+      
+    },
+    selectAllCheckboxFolder() {
+      this.nsChildren.forEach((ns) => {
+        ns["checked"] = true;
+      })
+    },
+    selectAllCheckboxPhoto () {
+      this.photoChildren.forEach((photo) => {
+        photo["checked"] = true;
+      })
+    },
+    clearCheckboxFolder() {
+      this.nsChildren.forEach((ns) => {
+        ns["checked"] = false;
+      })
+    },
+    clearCheckboxPhoto () {
+      this.photoChildren.forEach((photo) => {
+        photo["checked"] = false;
+      })
+    },
+    handleFolderMulti(folderId, event)
+    {
+      if (this.folderMultiSelectMode)
+      {
+        event.preventDefault();
+        event.stopPropagation();
+      }else {
+        this.setCurrNsId(folderId);
+      }
+    },
+    handlePhotoMulti(photo, event)
+    {
+      if (this.photoMultiSelectMode)
+      {
+        event.preventDefault();
+        event.stopPropagation();
+      }else {
+        this.photoModalOpen(photo);
+      }
+    },
     blankSpaceMenu (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -596,6 +831,50 @@ export default defineComponent({
         
         });
     },
+    moveItemMulti (nsId) {
+      // if it is true then this is a folder move
+      if (this.moveToModalDisableOrgNsId)
+      {
+        
+      }else {
+        // else this is a photo move
+        this.photoChildren.forEach((photo) => {
+          if (photo["checked"])
+          {
+            axios({
+              method: 'post',
+              baseURL: '',
+              url: import.meta.env.VITE_APP_BASE_URL + "/photo/changeNamespace?photoId=" + photo.photoId + "&nsId=" + nsId,
+              headers: {
+                "HRD-Token": localStorage.getItem("HRD-Token")
+              },
+              data: {
+            }
+            }).then((response) => {
+              if (response.data.msgCode === 200)
+              {
+                window.$message.success("Media Location Updated!");
+                this.queryPhotos();
+
+              }else {
+                window.$message.warning("Update Error!")
+              }
+            })
+            .catch(function (error) { // 请求失败处理
+              window.$message.error(error);
+            });
+          }
+        })
+        this.moveToModalOriginalNsId = -1;
+        this.moveToModalDisableOrgNsId = false;
+
+        this.photoMultiSelectMode = false;
+        this.clearCheckboxPhoto();
+        this.photoMultiSelectMode = false;
+        
+      }
+      
+    },
     moveItem (nsId) {
       // if it is true then this is a folder move
       if (this.moveToModalDisableOrgNsId)
@@ -656,6 +935,9 @@ export default defineComponent({
     },
     openMoveToModal () {
       moveToModuleRef.value.openModal();
+    },
+    openMoveToModalMulti () {
+      moveToMultiModuleRef.value.openModal();
     },
     updateFolderName () {
       if (this.editFolderInputName === "" || this.editFolderInputName === "root" || this.editFolderInputName === "/" || this.editFolderInputName === null)
@@ -1241,6 +1523,10 @@ export default defineComponent({
         if (response.data.msgCode === 200)
         {
           var infoT = response.data.t;
+          for(var i = 0; i < infoT.length; i ++)
+          {
+            infoT[i]["checked"] = false;
+          }
           this.nsChildren = infoT
         }else {
           window.$message.error("query folder Response Error!")
@@ -1265,6 +1551,10 @@ export default defineComponent({
         if (response.data.msgCode === 200)
         {
           var infoT = response.data.t;
+          for(var i = 0; i < infoT.length; i ++)
+          {
+            infoT[i]["checked"] = false;
+          }
           this.photoChildren = infoT
         }else {
           window.$message.error("query photo Response Error!")

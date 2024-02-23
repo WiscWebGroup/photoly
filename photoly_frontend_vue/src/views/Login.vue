@@ -105,12 +105,14 @@ export default{
             router.push('/home/HomePart');
           }else {
             this.showWarning("Wrong Email or Password!");
+            this.loading = false;
           }
 
         })
         .catch(function (error) { // 请求失败处理
           // console.log(error);
           this.showWarning(error);
+          this.loading = false;
         });
       }else {
         this.loading = false;
