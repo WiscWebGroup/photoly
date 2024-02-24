@@ -13,7 +13,7 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 
 <img src="https://github.com/WiscWebGroup/photoly/assets/68500948/bd6cc12e-dc89-4e98-9cf7-2eaf35ba95b7" style="width: 800px;" />
 
-<img src="https://github.com/WiscWebGroup/photoly/assets/68500948/9abba9c7-c475-4463-91de-1da18b49a5ae" style="width: 800px;" />
+<img src="https://github.com/WiscWebGroup/photoly/assets/68500948/1518dfcc-eee2-4c5e-b686-aa1c5cdb57ae" style="width: 800px;" />
 
 <img src="https://github.com/WiscWebGroup/photoly/assets/68500948/72e5adf6-d4bb-4f20-bd20-d6c7ea7921c8" style="width: 800px;" />
 
