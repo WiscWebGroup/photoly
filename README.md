@@ -37,7 +37,11 @@ Frontend: Vue3 (new version of frontend) + Naive UI
 root@cbr-gov-frostland1-dev:/test/photoly$ > docker-compose up
 ```
 
-*Note: the initial MySQL will take longer to execute the initialization ("photoly\database\mysql-dump"), and the data will persist to ("photoly\database\mysql-data"). Redis data (login tokens) do not persist because we don't have to. In the docker-compose.yml file and two Dockerfiles inside photoly_backend and photoly_frontend_vue, we have defined (hardcoded) the ports, names, etc. so if you just want to conveniently run the photoly, try not to change these settings. However, if you decide to change some settings, make sure to go over photoly_backend\src\main\resources\application.properties, photoly_frontend_vue\.env, photoly_backend\Dockerfile, photoly_frontend_vue\Dockerfile, and .\docker-compose.yml.
+*Note: the initial MySQL will take longer to execute the initialization ("photoly\database\mysql-dump"), and the data will persist to ("photoly\database\mysql-data"). Redis data (login tokens) do not persist because we don't have to. In the docker-compose.yml file and two Dockerfiles inside photoly_backend and photoly_frontend_vue, we have defined (hardcoded) the ports, names, etc. so if you just want to conveniently run the photoly, try not to change these settings. 
+
+
+
+However, if you decide to change some settings, make sure to go over photoly_backend\src\main\resources\application.properties, photoly_frontend_vue\.env, photoly_backend\Dockerfile, photoly_frontend_vue\Dockerfile, photoly_frontend_vue\nginx_conf, and .\docker-compose.yml.
 
 ### Normal VM/Host Version
 
