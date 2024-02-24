@@ -1,0 +1,39 @@
+version: "1.1"
+services:
+  web:
+    depends_on:
+     - backend
+    build: ./photoly_frontend_vue
+    container_name: photoly_vue
+    ports:
+      - "5200:80"
+  backend:
+    depends_on:
+     - db_mysql
+     - db_redis
+    build: ./photoly_backend
+    container_name: photoly_back
+    ports:
+      - "8384:8084"
+  db_mysql:
+    image: mysql:8.3.0
+    container_name: photoly_mysql
+    ports:
+      - "3308:3306"
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: G8aAYw24FGVw3i2311Hasvd241
+      MYSQL_PASSWORD: G8aAYw24FGVw3i2311Hasvd241
+      MYSQL_DATABASE: photoly
+    volumes:
+      - ./database/mysql-dump:/docker-entrypoint-initdb.d
+      - ./database/mysql-data:/var/lib/mysql
+  db_redis:
+    image: redis:7.2.4
+    container_name: photoly_redis
+    command: redis-server --requirepass haroldci --save 600 1000
+    ports:
+      - "6390:6379"
+    restart: always
+    volumes:
+      - ./database/redis-conf/redis.conf:/usr/local/etc/redis/redis.conf
