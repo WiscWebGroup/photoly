@@ -32,10 +32,12 @@ Frontend: Vue3 (new version of frontend) + Naive UI
 ### Docker Version
 
 1. Make sure that you have docker and docker-compose installed in your VM / Host
-2. cd photoly
+2. Create a folder named "mysql-data" in the photoly/database folder (make sure photoly/database/mysql-data exist and is empty first time you start it)
+3. cd photoly and execute this command
 ```
 root@cbr-gov-frostland1-dev:/test/photoly$ > docker-compose up
 ```
+4. Access localhost:5200
 
 *Note: the initial MySQL will take longer to execute the initialization ("photoly\database\mysql-dump"), and the data will persist to ("photoly\database\mysql-data"). Redis data (login tokens) do not persist because we don't have to. In the docker-compose.yml file and two Dockerfiles inside photoly_backend and photoly_frontend_vue, we have defined (hardcoded) the ports, names, etc. so if you just want to conveniently run the photoly, try not to change these settings. 
 
