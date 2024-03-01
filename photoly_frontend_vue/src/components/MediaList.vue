@@ -49,6 +49,8 @@ import 'leaflet/dist/leaflet.css';
         </n-space>
         
         <n-space>
+        <n-empty v-show="photoChildren.length <= 0" style="padding-left: 30vw; padding-top: 20vh;">
+        </n-empty>
           <div v-for="photo in photoChildren">
               <n-card style="border-radius: 20px; background-color: #f4f2f2;" v-show="photoMultiSelectMode">
                 <n-checkbox size="large"

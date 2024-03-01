@@ -47,16 +47,7 @@ import MediaList from '@/components/MediaList.vue'
               <n-collapse-item title="Galleries" name="show">
                 <n-flex vertical>
                   <n-card class="galleryCard" title="" size="small" v-for="gallery in galleryChildren" :style="{'background-color' : renderPhotoGaId === gallery.gaId ? '#8fd2ce' : '#EDF2F7', 'border-radius': '7px'}"
-                    @click.left.native="() => {
-                      if (renderPhotoGaId == gallery.gaId)
-                      {
-                        renderPhotoGaId = -1;
-                        photoChildren = []
-                      }else {
-                        renderPhotoGaId = gallery.gaId;
-                        queryPhotos();
-                      }
-                    }" @click.right.native="GalleryMenu(gallery, $event)">
+                    @click.left.native="selectGallery(gallery)" @click.right.native="GalleryMenu(gallery, $event)">
                     <n-flex>
                       <n-p>{{ gallery.gaName.length > 15 ? gallery.gaName.substring(0, 15) + "..." : gallery.gaName }}</n-p>
                       <n-icon size="25" :color="gallery.coverColor" :component="renderGaIcon(gallery.coverId)"></n-icon>
@@ -245,6 +236,82 @@ export default defineComponent({
     };
   },
   methods: {
+    editGa() {
+      if (this.editGalleryInfo.gaName === null || this.editGalleryInfo.gaName === "")
+      {
+        window.$message.warning("Please Input a Valid Gallery Name!");
+      }else {
+        axios({
+          method: 'post',
+          baseURL: '',
+          url: import.meta.env.VITE_APP_BASE_URL + "/gallery/update",
+          headers: {
+            "HRD-Token": localStorage.getItem("HRD-Token")
+          },
+          data: this.editGalleryInfo
+        }).then((response) => {
+          if (response.data.msgCode === 200)
+          {
+            window.$message.success("Information Updated!");
+            this.getAllGas();
+            this.showEditGalleryModal = false;
+          }else {
+            window.$message.error("Update Response Error!")
+          }
+        })
+        .catch(function (error) { // 请求失败处理
+          // console.log(error);
+          window.$message.error(error);
+        });
+      }
+      
+    },
+    createGa() {
+      if (this.addNewGalleryInput === null || this.addNewGalleryInput === "")
+      {
+        window.$message.warning("Please Input a Valid Gallery Name!");
+      }else {
+        axios({
+          method: 'post',
+          baseURL: '',
+          url: import.meta.env.VITE_APP_BASE_URL + "/gallery/insert",
+          headers: {
+            "HRD-Token": localStorage.getItem("HRD-Token")
+          },
+          data: {
+            "gaName": this.addNewGalleryInput,
+            "coverId": this.addNewGalleryIconSelectVal,
+            "coverColor": this.addNewGalleryIconColorVal
+        }
+        }).then((response) => {
+          if (response.data.msgCode === 200)
+          {
+            window.$message.success("Created a New Gallery!");
+            this.getAllGas();
+            this.addNewGalleryInput = "";
+            this.addNewGalleryIconSelectVal = 0;
+            this.addNewGalleryIconColorVal = "#000000";
+          }else {
+            window.$message.error("createGa Response Error!")
+          }
+        })
+        .catch(function (error) { // 请求失败处理
+          // console.log(error);
+          window.$message.error(error);
+        });
+      }
+      
+    },
+    selectGallery(gallery) {
+      if (this.renderPhotoGaId == gallery.gaId)
+      {
+        this.renderPhotoGaId = -1;
+        mediaListRef.value.updatePhotoList([]);
+      }else {
+        this.renderPhotoGaId = gallery.gaId;
+        this.queryPhotos();
+      }
+    },
     removeFromGallerySelectedPhoto (photoChildren) {
       photoChildren.forEach((photo) => {
         if(photo["checked"])
