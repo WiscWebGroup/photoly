@@ -40,4 +40,6 @@ public interface IPhotoService extends IService<Photo> {
 
     // option: "photoName, tag, gallery, or namespace"
     List<Photo> searchPhoto(Integer userId, String option, String query);
+
+    LinkedHashMap<String, String> getPhotoExif(Integer userId, Integer photoId, String userUUID);
 }

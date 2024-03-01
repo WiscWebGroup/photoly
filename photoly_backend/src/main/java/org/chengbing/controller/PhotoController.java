@@ -882,5 +882,26 @@ public class PhotoController {
             return new Result<>(retList, 404);
         return new Result<>(retList, 200);
     }
+
+    /**
+     * Function to get Photo's Exif information
+     *
+     * @param request a HttpServletRequest to verify the user's token
+     * @param photoId the photoId of the photo you want to get the information on
+     * @return a Result of LinkedHashMao (dictionary) of Exif info
+     */
+    @GetMapping(value = "/getPhotoExif")
+    public Result<LinkedHashMap<String, String>> getPhotoExif(HttpServletRequest request, Integer photoId)
+    {
+        Integer userId = verify.verifyUser(request);
+        if (userId < 0)
+            return new Result<>(null, 403);
+        String UUID = userService.getById(userId).getUuid();
+        LinkedHashMap<String, String> res = service.getPhotoExif(userId, photoId, UUID);
+        if (res == null)
+            return new Result<>(null, 404);
+        return new Result<>(res, 200);
+
+    }
 }
 
