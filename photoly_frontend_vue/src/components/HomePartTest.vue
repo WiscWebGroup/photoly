@@ -83,7 +83,7 @@ import MediaList from '@/components/MediaList.vue'
 
       <!-- This part is for loading photos cards into the "media" section -->
 
-      <MediaList @queryPhotos="queryPhotos" ref="mediaListRef" :nsOrNot="true" :detachEnabled="false"/>
+      <MediaList @queryPhotos="queryPhotos" ref="mediaListRef" :nsOrNot="true"/>
       <!-- ENDOF: This part is for loading photos cards into the "media" section -->
 
     </div>

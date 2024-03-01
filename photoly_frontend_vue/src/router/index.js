@@ -5,6 +5,7 @@ import Signup from '../views/Signup.vue'
 import Home from '../views/Home.vue'
 import AdminDashboard from '@/views/AdminDashboard.vue'
 import AdminUserManagement from '@/views/AdminUserManagement.vue'
+import HomePartTest from '@/components/HomePartTest.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -39,6 +40,11 @@ const router = createRouter({
     path: "/thepersonincharge/usermanage",
     name: "thepersonincharge_usermanage",
     component: AdminUserManagement,
+   },
+   {
+    path: "/test",
+    name: "test",
+    component: HomePartTest,
    }
   ]
 })

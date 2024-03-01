@@ -38,9 +38,14 @@ import 'leaflet/dist/leaflet.css';
           <n-button round style="width: 7rem" v-show="photoMultiSelectMode" @click="moveSelectedPhoto" type="info">
               Move
           </n-button>
+          <n-button round style="width: 12rem" v-show="photoMultiSelectMode" @click="showDetach" type="warning" v-if="detachEnabled">
+                Remove From {{ detachStr }}
+         </n-button>
           <n-button round style="width: 10rem" v-show="photoMultiSelectMode" @click="() => {showPhotoMultiDeleteModal = true;}" type="error">
               Delete Selected
           </n-button>
+
+          
         </n-space>
         
         <n-space>
@@ -219,16 +224,6 @@ import 'leaflet/dist/leaflet.css';
 
     <!-- MENU PART -->
     <!-- This part is for redesign of right click menu for folder, media, and blank space -->
-    <n-dropdown
-        placement="bottom-start"
-        trigger="manual"
-        :x="mouseX"
-        :y="mouseY"
-        :options="blankSpaceMenuOptions"
-        :show="showBlankSpaceMenu"
-        :on-clickoutside="onClickOutsideBlank"
-        @select="handleSelectBlank"
-      />
       <n-dropdown
         placement="bottom-start"
         trigger="manual"
@@ -243,66 +238,6 @@ import 'leaflet/dist/leaflet.css';
       <!-- ENDOF: MENU PART -->
 
     <!-- MODAL PART -->
-
-    <!-- This part is for modal of uploading photos to the current folder -->
-    <n-modal v-model:show="showUploadPhotoModal">
-      <n-card
-        style="width: 400px; border-radius: 10px;"
-        title="Upload Photo or Video"
-        :bordered="false"
-        size="huge"
-        role="dialog"
-        aria-modal="true"
-      >
-        <n-upload
-            ref="fileUploader"
-            multiple
-            default-upload: false
-            :custom-request="addPhotoToArea"
-            :on-remove="removeItemFromUpload"
-            :max="15"
-            accept="image/*, video/*"
-        >
-
-          <n-upload-dragger>
-            <div style="margin-bottom: 12px">
-              <n-icon size="48" :depth="3">
-                <archive-icon />
-              </n-icon>
-            </div>
-            <n-text style="font-size: 16px">
-              Click or Drag File to This Area
-            </n-text>
-          </n-upload-dragger>
-        </n-upload>
-
-        <n-button color="#74D2E7" round size="large" style="margin-top: 1rem; width: 100%;" @click="doUpload" :loading="uploadBtnLoading">
-          Upload
-        </n-button>
-
-      </n-card>
-    </n-modal>
-    <!-- ENDOF: This part is for modal of uploading photos to the current folder -->
-
-    <!-- This part is for modal of creating a new folder to the current folder -->
-    <n-modal v-model:show="showCreateFolderModal">
-      <n-card
-        style="width: 400px; border-radius: 10px;"
-        title="Create a New Folder"
-        :bordered="false"
-        size="huge"
-        role="dialog"
-        aria-modal="true"
-      >
-        <n-input type="text" round size="medium" placeholder="Folder Name" v-model:value="createFolderInputName" @keyup.enter="createFolder"  />
-
-        <n-button color="#74D2E7" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="createFolder">
-          Create
-        </n-button>
-
-      </n-card>
-    </n-modal>
-    <!-- ENDOF: This part is for modal of creating a new folder to the current folder -->
 
     <!-- This part is for modal of confirming to delete multiple photos -->
     <n-modal v-model:show="showPhotoMultiDeleteModal">
@@ -330,6 +265,32 @@ import 'leaflet/dist/leaflet.css';
     </n-modal>
     <!-- ENDOF: This part is for modal of confirming to delete multiple photos -->
 
+    <!-- This part is for modal of confirming to detach multiple photos -->
+    <n-modal v-model:show="showPhotoMultiDetachModal">
+        <n-card
+            style="width: 400px; border-radius: 10px;"
+            title="Confirm to Detach"
+            :bordered="false"
+            size="huge"
+            role="dialog"
+            aria-modal="true"
+        >
+            Do you really want to Detach these photos from this {{ detachStr }}?
+
+            <n-space style="margin-top: 1rem">
+            <n-button type="warning" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="detachPhotos">
+                Confirm
+            </n-button>
+            <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showPhotoMultiDetachModal = false;}">
+                Cancel
+            </n-button>
+            </n-space>
+
+        </n-card>
+    </n-modal>
+    <!-- ENDOF: This part is for modal of confirming to detach multiple photos -->
+    
+
     <!-- This part is for modal of moveTo Functions -->
     <MoveToShowFolder @moveToUpdate="moveItem" ref="moveToModuleRef" :originalNsId="moveToModalOriginalNsId" :disableOrgNsId="moveToModalDisableOrgNsId"/>
     <!-- ENDOF: This part is for modal of moveTo Functions -->
@@ -353,8 +314,10 @@ const moveToMultiModuleRef = ref(null);
 export default defineComponent({
   props: {
     nsOrNot: Boolean,
+    detachEnabled: Boolean,
+    detachStr: String,
   },
-  emits: ["queryNsChildren"],
+  emits: ["queryPhotos", "doDetach"],
   expose: ["updateNsId", "updatePhotoList"],
   data() {
     return {
@@ -379,31 +342,10 @@ export default defineComponent({
       gaOptions: [],
       newNameVal: "",
       baseUVideo: "" ,
-      showBlankSpaceMenu: false,
       showPhotoSpaceMenu: false,
       showPhotoSpaceMenuPhotoInfo: null,
       mouseX: null,
       mouseY: null,
-      blankSpaceMenuOptions: [
-        {
-          label: "Upload Photo",
-          key: "upload",
-          icon() {
-            return h(NIcon, null, {
-              default: () => h(ArrowUpload20Filled)
-            });
-          },
-        },
-        {
-          label: "Create Folder",
-          key: "create_folder",
-          icon() {
-            return h(NIcon, null, {
-              default: () => h(FolderAdd20Regular)
-            });
-          },
-        }
-      ],
       PhotoSpaceMenuOptions: [
         {
           label: "View",
@@ -442,18 +384,13 @@ export default defineComponent({
           }
         }
       ],
-      showUploadPhotoModal: false,
-      uploadPhotoFiles: new FormData(),
-      uploadBtnLoading: true,
-
-      showCreateFolderModal: false,
-      createFolderInputName: "",
       
       moveToModalOriginalNsId: -1,
       moveToModalDisableOrgNsId: false,
       
       photoMultiSelectMode: false,
       showPhotoMultiDeleteModal: false,
+      showPhotoMultiDetachModal: false,
     }
   },
   setup() {
@@ -462,10 +399,17 @@ export default defineComponent({
     };
   },
   methods: {
+    detachPhotos() {
+        this.$emit('doDetach', this.photoChildren);
+        this.showPhotoMultiDetachModal = false;
+        this.photoMultiSelectMode = false;
+    },
+    showDetach () {
+        this.showPhotoMultiDetachModal = true;
+    },
     updateNsId (newNsId) {
         this.nsId = newNsId;
-        this.update();
-        if (nsOrNot)
+        if (this.nsOrNot)
         {
             this.trace(this.nsId);
         }
@@ -495,7 +439,7 @@ export default defineComponent({
             if (response.data.msgCode === 200)
             {
               window.$message.success("Photo deleted!");
-              this.queryPhotos();
+              this.$emit('queryPhotos');
             }else {
               window.$message.warning("delete photo Response Error!")
             }
@@ -530,31 +474,6 @@ export default defineComponent({
         this.photoModalOpen(photo);
       }
     },
-    blankSpaceMenu (e) {
-        if (nsOrNot)
-        {
-            e.preventDefault();
-            e.stopPropagation();
-            this.showBlankSpaceMenu = false;
-            nextTick().then(() => {
-                this.showBlankSpaceMenu = true;
-                this.mouseX = e.clientX;
-                this.mouseY = e.clientY;
-                });
-        }
-    },
-    handleSelectBlank(key) {
-      this.showBlankSpaceMenu = false;
-      if (key === "upload")
-      {
-        this.uploadBtnLoading = false;
-        this.showUploadPhotoModal = true;
-      }
-      if (key === "create_folder")
-      {
-        this.showCreateFolderModal = true;
-      }
-    },
     handleSelectPhoto(key) {
       this.showPhotoSpaceMenu = false;
       if (key === "view")
@@ -576,9 +495,6 @@ export default defineComponent({
         this.moveToModalDisableOrgNsId = false;
         this.openMoveToModal();
       }
-    },
-    onClickOutsideBlank () {
-      this.showBlankSpaceMenu = false;
     },
     onClickOutsidePhoto () {
       this.showPhotoSpaceMenu = false;
@@ -618,7 +534,7 @@ export default defineComponent({
               if (response.data.msgCode === 200)
               {
                 window.$message.success("Media Location Updated!");
-                this.queryPhotos();
+                this.$emit('queryPhotos');
 
               }else {
                 window.$message.warning("Update Error!")
@@ -659,7 +575,7 @@ export default defineComponent({
         }).then((response) => {
           if (response.data.msgCode === 200)
           {
-            this.queryPhotos();
+            this.$emit('queryPhotos');
             window.$message.success("Media Location Updated!");
             this.moveToModalOriginalNsId = -1;
             this.moveToModalDisableOrgNsId = false;
@@ -679,112 +595,6 @@ export default defineComponent({
     openMoveToModalMulti () {
       moveToMultiModuleRef.value.openModal();
     },
-    createFolder() {
-      if (this.createFolderInputName === "" || this.createFolderInputName === "root" || this.createFolderInputName === "/" || this.createFolderInputName === null)
-      {
-        window.$message.warning("Please input a valid folder name!")
-      }else {
-        axios({
-          method: 'post',
-          baseURL: '',
-          url: import.meta.env.VITE_APP_BASE_URL + "/namespace/insert",
-          headers: {
-            "HRD-Token": localStorage.getItem("HRD-Token")
-          },
-          data: {
-            "nsParentId": this.nsId,
-            "nsName": this.createFolderInputName
-        }
-        }).then((response) => {
-          if (response.data.msgCode === 200)
-          {
-            window.$message.success("Folder created!");
-            this.$emit('queryNsChildren');
-            this.createFolderInputName = "";
-            this.showCreateFolderModal = false;
-          }else {
-            window.$message.warning("Creation Error!")
-          }
-        })
-        .catch(function (error) { // 请求失败处理
-          window.$message.error(error);
-        });
-      }
-    },
-    removeItemFromUpload(file)
-    {
-      var tempList = []
-      this.uploadPhotoFiles.forEach((f) => {
-        if (f.name !== file.file.name && f.size !== file.file.size)
-        {
-          tempList.push(f)
-        }
-      })
-      this.uploadPhotoFiles = new FormData();
-      for(var i = 0; i < tempList.length; i ++)
-      {
-        this.uploadPhotoFiles.append("files", tempList[i]);
-      }
-      
-    },
-    async doUpload() {
-      this.uploadBtnLoading = true;
-      if (this.uploadPhotoFiles.has("files"))
-      {
-        var tempList = []
-        this.uploadPhotoFiles.forEach((f) => {
-            tempList.push(f)
-        })
-        this.uploadPhotoFiles = new FormData();
-        for(var i = 0; i < tempList.length; i ++)
-        {
-          this.uploadPhotoFiles.append("files", tempList[i]);
-        }
-
-        let photoList = [];
-        this.uploadPhotoFiles.forEach((file) => {
-          photoList.push({
-            "nsId": this.nsId
-          })
-        })
-        let photoStr = JSON.stringify(photoList);
-        this.uploadPhotoFiles.append("photosStr", photoStr);
-        
-        await axios
-          .post( import.meta.env.VITE_APP_BASE_URL + "/photo/inserts", this.uploadPhotoFiles, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-              "HRD-Token": localStorage.getItem("HRD-Token")
-            }
-          })
-          .then((response) => {
-            if (response.data.msgCode === 200)
-            {
-              window.$message.success("Upload successful!");
-              this.$refs['fileUploader'].clear();
-              this.uploadPhotoFiles = new FormData();
-              this.queryPhotos();
-              this.showUploadPhotoModal = false;
-              this.uploadBtnLoading = false;
-            }else {
-              window.$message.warning("Submit upload error!")
-            }
-            
-          })
-          .catch(function (error) {
-            this.uploadBtnLoading = false;
-            window.$message.warning(error)
-          });
-        
-      }else {
-        window.$message.warning("No Photo selected!");
-        this.uploadBtnLoading = false;
-      }
-    },
-    addPhotoToArea({file}) {
-      this.uploadPhotoFiles.append("files", file.file);
-
-    },
     deletePhoto() {
       axios({
           method: 'post',
@@ -798,7 +608,7 @@ export default defineComponent({
         }).then((response) => {
           if (response.data.msgCode === 200)
           {
-            this.queryPhotos();
+            this.$emit('queryPhotos');
             window.$message.success("Photo deleted!")
           }else {
             window.$message.warning("delete photo Response Error!")
@@ -882,7 +692,7 @@ export default defineComponent({
           if (response.data.msgCode === 200)
           {
             this.showPhotoInfo.photoName = this.newNameVal;
-            this.queryPhotos();
+            this.$emit('queryPhotos');
             window.$message.success("Photo name changed!")
           }else {
             window.$message.warning("change name Response Error!")
@@ -1183,7 +993,7 @@ export default defineComponent({
       this.getExifInfo();
       this.showPhoto = true;
       
-      if (!nsOrNot)
+      if (!this.nsOrNot)
       {
         this.trace(photoInfo.nsId);
       }
