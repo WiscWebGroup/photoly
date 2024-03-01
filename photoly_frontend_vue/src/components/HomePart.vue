@@ -8,6 +8,9 @@ import { ref, defineComponent, nextTick, h } from 'vue';
 import { NTag } from "naive-ui";
 import { useMessage, NIcon } from 'naive-ui'
 import MoveToShowFolder from "./MoveToShowFolder.vue"
+import L from "leaflet";
+import 'leaflet/dist/leaflet.css';
+
 </script>
 
 <template>
@@ -152,17 +155,38 @@ import MoveToShowFolder from "./MoveToShowFolder.vue"
               <div style="padding-left: 2rem;">
                 <n-h2 >Metadata</n-h2>
                 
-                <n-collapse :default-expanded-names="['cm']">
+                <n-collapse :default-expanded-names="['cm', 'lo']">
                   <n-collapse-item title="Common Metadata" name="cm">
                     <p>Name: {{ showPhotoInfo.photoName.length <= 14 ? showPhotoInfo.photoName : showPhotoInfo.photoName.substring(0, 12) + "..." }}.{{ showPhotoInfo.format }}</p>
                     <p>Upload Date: {{ showPhotoInfo.uploadDate }}</p>
                     <p>Format: {{ showPhotoInfo.format }}</p>
+                    <p v-if="showPhotoExifInfo.File_Size">Size: {{ showPhotoExifInfo.File_Size }} </p>
                     <p>Path: {{ nsPathStr }}</p>
                     <p>Shared: {{ showPhotoInfo.visibility === 0 ? "No" : "Yes" }}</p>
                     <n-button strong secondary type="success" @click="download">
                       Download
                     </n-button>
                   </n-collapse-item>
+
+                  <n-collapse-item title="Location" name="lo" v-show="showPhotoExifInfo.GPS_Latitude" display-directive="show">
+                    <div id="img_map" style="height: 250px; width: 250px;"></div>
+                  </n-collapse-item>
+
+                  <n-collapse-item title="Exif Metadata" name="ex">
+                    <p v-if="showPhotoExifInfo.Time">Time Taken: {{ showPhotoExifInfo.Time }} </p>
+                    <p v-if="showPhotoExifInfo.Image_Height && showPhotoExifInfo.Image_Width">H/W: {{ showPhotoExifInfo.Image_Height ? showPhotoExifInfo.Image_Height.split(' ')[0] : showPhotoExifInfo.Image_Height }} * {{ showPhotoExifInfo.Image_Width }} </p>
+                    <p v-if="showPhotoExifInfo.GPS_Latitude">GPS DD: {{ showPhotoExifInfo.GPS_Latitude }} {{ showPhotoExifInfo.GPS_Longitude }} </p>
+                    <n-divider/>
+                    <p v-if="showPhotoExifInfo.Model">Camera: {{ showPhotoExifInfo.Make }} {{ showPhotoExifInfo.Model }}</p>
+                    <p v-if="showPhotoExifInfo.Lens_Make || showPhotoExifInfo.Lens_Model">Lens: {{ showPhotoExifInfo.Lens_Make }} {{ showPhotoExifInfo.Lens_Model }}</p>
+                    <p v-if="showPhotoExifInfo.Focal_Length">Focal: {{ showPhotoExifInfo.Focal_Length }} </p>
+                    <p v-if="showPhotoExifInfo.Aperture_Value">Aperture: {{ showPhotoExifInfo.Aperture_Value }} </p>
+                    <p v-if="showPhotoExifInfo.Shutter_Speed_Value">Shutter: {{ showPhotoExifInfo.Shutter_Speed_Value }} </p>
+                    <p v-if="showPhotoExifInfo.ISO_Speed_Ratings">ISO: {{ showPhotoExifInfo.ISO_Speed_Ratings }} </p>
+                    <p v-if="showPhotoExifInfo.Data_Precision">Data Precision: {{ showPhotoExifInfo.Data_Precision }} </p>  
+                    
+                  </n-collapse-item>
+                  
                   <n-collapse-item title="Secrets" name="se">
                     <p>Token: {{ showPhotoInfo.token }}</p>
                     <p>UUID: {{ showPhotoInfo.photoUuid }}</p>
@@ -476,6 +500,7 @@ const moveToMultiModuleRef = ref(null);
 export default defineComponent({
   data() {
     return {
+      globalMap: null,
       nsId: -1,
       parentNsId: -1,
       nsName: "",
@@ -489,6 +514,7 @@ export default defineComponent({
       userToken: localStorage.getItem("HRD-Token"),
       showPhoto: ref(false),
       showPhotoInfo: null,
+      showPhotoExifInfo: {},
       showPhotoInfoVisibility: false,
       showPhotoTagList: [],
       showPhotoGaList: [],
@@ -1141,6 +1167,46 @@ export default defineComponent({
       }
       return -1;
     },
+    setUpMap() {
+      if (this.showPhotoExifInfo.GPS_Longitude && this.showPhotoExifInfo.GPS_Latitude)
+      {
+        this.globalMap = null;
+        this.globalMap = L.map('img_map', {attributionControl: false}).setView([this.showPhotoExifInfo.GPS_Latitude, this.showPhotoExifInfo.GPS_Longitude], 13);
+        L.tileLayer('http://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 13,
+        }).addTo(this.globalMap);
+        var marker = L.marker([this.showPhotoExifInfo.GPS_Latitude, this.showPhotoExifInfo.GPS_Longitude]).addTo(this.globalMap);
+
+        setTimeout(() => {this.globalMap.invalidateSize();}, 100);
+      }
+      
+    },
+    getExifInfo() {
+      axios({
+          method: 'get',
+          baseURL: '',
+          url: import.meta.env.VITE_APP_BASE_URL + "/photo/getPhotoExif?photoId=" + this.showPhotoInfo.photoId,
+          headers: {
+            "HRD-Token": localStorage.getItem("HRD-Token")
+          },
+          data: {
+            
+        }
+        }).then((response) => {
+          if (response.data.msgCode === 200)
+          {
+            this.showPhotoExifInfo = response.data.t;
+            this.setUpMap();
+            
+          }else {
+            window.$message.warning("Exif Info Response Error!")
+          }
+        })
+        .catch(function (error) { // 请求失败处理
+          window.$message.error(error.$message)
+          console.log(error)
+        });
+    },
     changeName() {
       if (this.newNameVal === "" || this.newNameVal === null)
       {
@@ -1459,8 +1525,10 @@ export default defineComponent({
       this.baseUVideo = import.meta.env.VITE_APP_BASE_URL + "/photo/renderV/" + this.userToken + "?photoId=" + this.showPhotoInfo.photoId
       this.getTags();
       this.getGas();
-
+      this.getExifInfo();
       this.showPhoto = true;
+
+      
     },
     setCurrNsId(nsId) {
       if (this.nsId !== nsId)
