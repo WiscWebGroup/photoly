@@ -113,6 +113,9 @@ import 'leaflet/dist/leaflet.css';
 
                   <n-collapse-item title="Location" name="lo" v-show="showPhotoExifInfo.GPS_Latitude" display-directive="show">
                     <div id="img_map" style="height: 250px; width: 250px;"></div>
+                    <n-button strong secondary type="info" style="width: 250px; border-radius: 0px; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;" @click="openMapInNewTab">
+                      Open in Map
+                    </n-button>
                   </n-collapse-item>
 
                   <n-collapse-item title="Exif Metadata" name="ex">
@@ -401,6 +404,10 @@ export default defineComponent({
     };
   },
   methods: {
+    openMapInNewTab() {
+        var url = "http://maps.google.com/?q=" + this.showPhotoExifInfo.GPS_Latitude + "," + this.showPhotoExifInfo.GPS_Longitude;
+        window.open(url, '_blank').focus();
+    },
     detachPhotos() {
         this.$emit('doDetach', this.photoChildren);
         this.showPhotoMultiDetachModal = false;
