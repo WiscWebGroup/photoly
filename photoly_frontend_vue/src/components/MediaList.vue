@@ -87,8 +87,10 @@ import 'leaflet/dist/leaflet.css';
             aria-modal="true"
           >
             <div style="display: flex; align-items: flex-start; flex-direction: row;">
-              <img v-show="isphotoOrVideo(showPhotoInfo.format) === 1" v-bind:src="baseUPhoto + userToken + '?photoId=' + showPhotoInfo.photoId" 
-              style="object-fit: fill; border-radius: 0.375rem; height: 100%; min-width: 30%; max-width: 75%;" @click.left.native="() => {showPhoto = false}"/>
+              <img id="showImg" v-show="isphotoOrVideo(showPhotoInfo.format) === 1" v-bind:src="baseUPhoto + userToken + '?photoId=' + showPhotoInfo.photoId" 
+               @click.left.native="() => {showPhoto = false}"
+              :class="{'longImg': (!showPhotoExifInfo.Image_Height) || (showPhotoExifInfo.Image_Height && Number(showPhotoExifInfo.Image_Height.split(' ')[0]) > Number(showPhotoExifInfo.Image_Width.split(' ')[0])),
+               'wideImg': showPhotoExifInfo.Image_Height && Number(showPhotoExifInfo.Image_Height.split(' ')[0]) <= Number(showPhotoExifInfo.Image_Width.split(' ')[0])}"/>
               <video
                   v-show="isphotoOrVideo(showPhotoInfo.format) === 2"
                   :key="baseUVideo"
@@ -108,13 +110,18 @@ import 'leaflet/dist/leaflet.css';
                   <n-collapse-item title="Common Metadata" name="cm">
                     <p>Name: {{ showPhotoInfo.photoName.length <= 14 ? showPhotoInfo.photoName : showPhotoInfo.photoName.substring(0, 12) + "..." }}.{{ showPhotoInfo.format }}</p>
                     <p>Upload Date: {{ showPhotoInfo.uploadDate }}</p>
-                    <p>Format: {{ showPhotoInfo.format }}</p>
                     <p v-if="showPhotoExifInfo.File_Size">Size: {{ showPhotoExifInfo.File_Size }} </p>
                     <p>Path: {{ nsPathStr }}</p>
                     <p>Shared: {{ showPhotoInfo.visibility === 0 ? "No" : "Yes" }}</p>
+                    <n-space vertical>
+                      <n-button strong secondary type="info" @click="seeFullPicture">
+                      Full Picture
+                    </n-button>
                     <n-button strong secondary type="success" @click="download">
                       Download
                     </n-button>
+                    </n-space>
+                    
                   </n-collapse-item>
 
                   <n-collapse-item title="Location" name="lo" v-show="showPhotoExifInfo.GPS_Latitude" display-directive="show">
@@ -192,12 +199,12 @@ import 'leaflet/dist/leaflet.css';
                   </n-collapse-item>
                   <n-collapse-item title="Share" name="share">
                     <n-space vertical :size=1>
-                      <n-button strong secondary type="default" @click="copyShareAddr" style="width: 10rem;">
+                      <n-button strong secondary type="default" @click="copyShareAddr" >
                         Copy Share Addr
                       </n-button>
                       <n-popover trigger="click">
                         <template #trigger>
-                          <n-button strong secondary type="info" style="margin-top: 10px; width: 10rem">
+                          <n-button strong secondary type="info" style="margin-top: 10px; ">
                             Get QR Code
                           </n-button>
                         </template>
@@ -223,7 +230,6 @@ import 'leaflet/dist/leaflet.css';
               </div>
             </div>
             
-
           </n-card>
         </div>
       </n-modal>
@@ -410,6 +416,10 @@ export default defineComponent({
     };
   },
   methods: {
+    seeFullPicture() {
+      var url = import.meta.env.VITE_APP_BASE_URL + "/photo/render/" + this.userToken + "?photoId=" + this.showPhotoInfo.photoId;
+        window.open(url, '_blank').focus();
+    },
     openMapInNewTab() {
         var url = "https://maps.google.com/?q=" + this.showPhotoExifInfo.GPS_Latitude + "," + this.showPhotoExifInfo.GPS_Longitude;
         window.open(url, '_blank').focus();
@@ -1091,5 +1101,20 @@ export default defineComponent({
 .n-card {
   /*cursor: pointer;*/
   padding: 0;
+}
+
+.longImg {
+  object-fit: fill;
+  border-radius: 0.375rem;
+  max-width:75%;
+  height:90vh;
+}
+
+.wideImg {
+  object-fit: fill;
+  border-radius: 0.375rem;
+  height: 100%;
+  min-width: 30%;
+  max-width: 75%;
 }
 </style>

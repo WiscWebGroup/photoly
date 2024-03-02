@@ -4,6 +4,7 @@ COPY . /app/
 WORKDIR /app
 
 RUN npm install
+RUN npm install --save leaflet
 RUN npm run build
 
 FROM nginx:alpine
