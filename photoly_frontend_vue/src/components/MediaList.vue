@@ -10,6 +10,8 @@ import { useMessage, NIcon } from 'naive-ui'
 import MoveToShowFolder from "./MoveToShowFolder.vue"
 import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet';
+import icon from '@/assets/icons/leaflet/marker-icon.png';
+import iconShadow from '@/assets/icons/leaflet/marker-shadow.png';
 </script>
 
 <template>
@@ -404,7 +406,7 @@ export default defineComponent({
   },
   methods: {
     openMapInNewTab() {
-        var url = "http://maps.google.com/?q=" + this.showPhotoExifInfo.GPS_Latitude + "," + this.showPhotoExifInfo.GPS_Longitude;
+        var url = "https://maps.google.com/?q=" + this.showPhotoExifInfo.GPS_Latitude + "," + this.showPhotoExifInfo.GPS_Longitude;
         window.open(url, '_blank').focus();
     },
     detachPhotos() {
@@ -645,7 +647,11 @@ export default defineComponent({
       {
         this.globalMap = null;
         this.globalMap = L.map('img_map', {attributionControl: false}).setView([this.showPhotoExifInfo.GPS_Latitude, this.showPhotoExifInfo.GPS_Longitude], 13);
-        L.Icon.Default.imagePath='/src/assets/icons/leaflet/'
+        var customDefault = L.icon({
+			iconUrl: icon,
+			shadowUrl: iconShadow,
+		});
+        L.Marker.prototype.options.icon = customDefault;
         L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 13,
         }).addTo(this.globalMap);
@@ -1076,4 +1082,5 @@ export default defineComponent({
   /*cursor: pointer;*/
   padding: 0;
 }
+
 </style>
