@@ -635,6 +635,11 @@ public class PhotoController {
             FileInputStream inputStream = new FileInputStream(file);
             byte[] bytes = new byte[inputStream.available()];
             inputStream.read(bytes, 0, inputStream.available());
+
+            response.setHeader("Accept-Ranges", "bytes");
+            response.setHeader("Content-Length", String.valueOf(file.length()));
+            response.setHeader("Content-Range", "bytes 0-" + (file.length() - 1) + "/" + file.length());
+
             return bytes;
         }
         return null;
