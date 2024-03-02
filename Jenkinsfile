@@ -38,6 +38,7 @@ mvn clean package -Dmaven.test.skip=true'''
             steps {
                 dir('/home/ubuntu/photoly_f/photoly_frontend_vue') {
                     sh 'npm install'
+                    sh 'npm i --save leaflet'
                     sh 'npm run build'
                 }
             }
