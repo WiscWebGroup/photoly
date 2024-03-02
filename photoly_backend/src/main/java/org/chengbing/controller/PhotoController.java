@@ -12,6 +12,7 @@ import org.chengbing.service.IUserService;
 import org.chengbing.util.Result;
 import org.chengbing.util.UserIdentity;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.InputStreamSource;
 import org.springframework.http.HttpHeaders;
@@ -623,8 +624,8 @@ public class PhotoController {
      * @param response the servlet response
      * @return an array of bytes of that video
      */
-    @GetMapping(value = "/renderV/{token}", produces = "video/mp4")
-    public byte[] renderVideo(@PathVariable String token, Integer photoId, HttpServletResponse response) throws IOException {
+    @GetMapping(value = "/renderV/{token}", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    public void renderVideo(@PathVariable String token, Integer photoId, HttpServletResponse response) throws IOException {
         Integer userId = verify.verifyUserByToken(token);
         Photo photo = service.getById(photoId);
         String UUID = userService.getById(userId).getUuid();
@@ -636,13 +637,18 @@ public class PhotoController {
             byte[] bytes = new byte[inputStream.available()];
             inputStream.read(bytes, 0, inputStream.available());
 
+            response.setContentType("video/mp4");
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + file.getName() + "\"");
+            response.setContentLength(bytes.length);
             response.setHeader("Accept-Ranges", "bytes");
-            response.setHeader("Content-Length", String.valueOf(file.length()));
-            response.setHeader("Content-Range", "bytes 0-" + (file.length() - 1) + "/" + file.length());
+            response.setHeader("Content-Range", String.valueOf(bytes.length - 1));
 
-            return bytes;
+            OutputStream os = response.getOutputStream();
+             os.write(bytes);
+             os.flush();
+             os.close();
+             inputStream.close();
         }
-        return null;
     }
 
     /**
