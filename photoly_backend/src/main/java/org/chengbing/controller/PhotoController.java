@@ -632,14 +632,13 @@ public class PhotoController {
         {
             File file = new File(uploadFolder + System.getProperty("file.separator") + UUID + System.getProperty("file.separator") + photo.getPhotoUuid()
                     + "." + photo.getFormat());
-            FileInputStream inputStream = new FileInputStream(file);
-            byte[] bytes = new byte[inputStream.available()];
-
             response.setContentType("application/octet-stream");
             response.setHeader("Accept-Ranges", "bytes");
             response.setHeader("Content-Length", String.valueOf(file.length()));
             response.setHeader("Content-Range", "bytes 0-" + (file.length() - 1) + "/" + file.length());
 
+            FileInputStream inputStream = new FileInputStream(file);
+            byte[] bytes = new byte[inputStream.available()];
             inputStream.read(bytes, 0, inputStream.available());
             return bytes;
         }
