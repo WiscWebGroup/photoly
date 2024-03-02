@@ -646,7 +646,7 @@ export default defineComponent({
       {
         this.globalMap = null;
         this.globalMap = L.map('img_map', {attributionControl: false}).setView([this.showPhotoExifInfo.GPS_Latitude, this.showPhotoExifInfo.GPS_Longitude], 13);
-        L.tileLayer('http://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 13,
         }).addTo(this.globalMap);
         var marker = L.marker([this.showPhotoExifInfo.GPS_Latitude, this.showPhotoExifInfo.GPS_Longitude]).addTo(this.globalMap);
