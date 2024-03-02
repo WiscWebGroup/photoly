@@ -87,10 +87,14 @@ import 'leaflet/dist/leaflet.css';
             aria-modal="true"
           >
             <div style="display: flex; align-items: flex-start; flex-direction: row;">
-              <img id="showImg" v-show="isphotoOrVideo(showPhotoInfo.format) === 1" v-bind:src="baseUPhoto + userToken + '?photoId=' + showPhotoInfo.photoId" 
-               @click.left.native="() => {showPhoto = false}"
+              <img id="showImg" v-show="isphotoOrVideo(showPhotoInfo.format) === 1 && showPhotoIsLoaded" v-bind:src="baseUPhoto + userToken + '?photoId=' + showPhotoInfo.photoId" 
+               @click.left.native="() => {showPhoto = false}" @load="onShowPhotoLoad"
               :class="{'longImg': (!showPhotoExifInfo.Image_Height) || (showPhotoExifInfo.Image_Height && Number(showPhotoExifInfo.Image_Height.split(' ')[0]) > Number(showPhotoExifInfo.Image_Width.split(' ')[0])),
                'wideImg': showPhotoExifInfo.Image_Height && Number(showPhotoExifInfo.Image_Height.split(' ')[0]) <= Number(showPhotoExifInfo.Image_Width.split(' ')[0])}"/>
+              <n-spin :show="isphotoOrVideo(showPhotoInfo.format) === 1 && !showPhotoIsLoaded">
+                <n-skeleton v-show="isphotoOrVideo(showPhotoInfo.format) === 1 && !showPhotoIsLoaded" :sharp="false" style="width:40vw; height:80vh;" />
+              </n-spin>
+              
               <video
                   v-show="isphotoOrVideo(showPhotoInfo.format) === 2"
                   :key="baseUVideo"
@@ -102,7 +106,7 @@ import 'leaflet/dist/leaflet.css';
                     :type="'video/' + showPhotoInfo.format"
                   >
               </video>
-
+              
               <div style="padding-left: 2rem;">
                 <n-h2 >Metadata</n-h2>
                 
@@ -349,6 +353,7 @@ export default defineComponent({
       userToken: localStorage.getItem("HRD-Token"),
       showPhoto: ref(false),
       showPhotoInfo: null,
+      showPhotoIsLoaded: false,
       showPhotoExifInfo: {},
       showPhotoInfoVisibility: false,
       showPhotoTagList: [],
@@ -416,6 +421,9 @@ export default defineComponent({
     };
   },
   methods: {
+    onShowPhotoLoad () {
+      return this.showPhotoIsLoaded = true
+    },
     seeFullPicture() {
       var url = import.meta.env.VITE_APP_BASE_URL + "/photo/render/" + this.userToken + "?photoId=" + this.showPhotoInfo.photoId;
         window.open(url, '_blank').focus();
@@ -1019,13 +1027,14 @@ export default defineComponent({
       });
     },
     photoModalOpen(photoInfo) {
+      this.showPhotoIsLoaded = false;
       this.showPhotoInfo = photoInfo;
       this.showPhotoInfoVisibility = this.showPhotoInfo.visibility === 1 ? true : false;
       this.newNameVal = this.showPhotoInfo.photoName;
-      this.baseUVideo = import.meta.env.VITE_APP_BASE_URL + "/photo/renderV/" + this.userToken + "?photoId=" + this.showPhotoInfo.photoId
       this.getTags();
       this.getGas();
       this.getExifInfo();
+      this.baseUVideo = import.meta.env.VITE_APP_BASE_URL + "/photo/renderV/" + this.userToken + "?photoId=" + this.showPhotoInfo.photoId
       this.showPhoto = true;
       
       if (!this.nsOrNot)
@@ -1117,4 +1126,5 @@ export default defineComponent({
   min-width: 30%;
   max-width: 75%;
 }
+
 </style>
