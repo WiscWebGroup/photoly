@@ -6,6 +6,7 @@ import com.alibaba.fastjson.TypeReference;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.databind.util.JSONPObject;
 import net.glxn.qrgen.QRCode;
+import org.apache.commons.io.IOUtils;
 import org.chengbing.entity.Photo;
 import org.chengbing.service.IPhotoService;
 import org.chengbing.service.IUserService;
@@ -624,7 +625,7 @@ public class PhotoController {
      * @return an array of bytes of that video
      */
     @GetMapping(value = "/renderV/{token}", produces = "video/mp4")
-    public byte[] renderVideo(@PathVariable String token, Integer photoId, HttpServletResponse response) throws IOException {
+    public void renderVideo(@PathVariable String token, Integer photoId, HttpServletResponse response) throws IOException {
         Integer userId = verify.verifyUserByToken(token);
         Photo photo = service.getById(photoId);
         String UUID = userService.getById(userId).getUuid();
@@ -638,11 +639,9 @@ public class PhotoController {
             response.setHeader("Content-Range", "bytes 0-" + (file.length() - 1) + "/" + file.length());
 
             FileInputStream inputStream = new FileInputStream(file);
-            byte[] bytes = new byte[inputStream.available()];
-            inputStream.read(bytes, 0, inputStream.available());
-            return bytes;
+            IOUtils.copy(inputStream, response.getOutputStream());
         }
-        return null;
+
     }
 
     /**
@@ -657,7 +656,7 @@ public class PhotoController {
      * @return an array of bytes of that video
      */
     @GetMapping(value = "/renderVToken", produces = "video/mp4")
-    public byte[] renderVideoToken(String path, String token, HttpServletResponse response) throws IOException {
+    public void renderVideoToken(String path, String token, HttpServletResponse response) throws IOException {
         String photoUUID = path.split("/")[1];
         String uuid = photoUUID.substring(0, photoUUID.lastIndexOf("."));
         QueryWrapper<Photo> queryWrapper = new QueryWrapper<>();
@@ -665,9 +664,9 @@ public class PhotoController {
         Photo photo = service.getOne(queryWrapper);
 
         if (photo == null)
-            return null;
+            return ;
         if (photo.getVisibility() == 0)
-            return null;
+            return ;
         else if (photo.getVisibility() == 1) {
             if (token != null && token.equals(photo.getToken()))
             {
@@ -677,9 +676,7 @@ public class PhotoController {
                 response.setHeader("Content-Length", String.valueOf(file.length()));
                 response.setHeader("Content-Range", "bytes 0-" + (file.length() - 1) + "/" + file.length());
                 FileInputStream inputStream = new FileInputStream(file);
-                byte[] bytes = new byte[inputStream.available()];
-                inputStream.read(bytes, 0, inputStream.available());
-                return bytes;
+                IOUtils.copy(inputStream, response.getOutputStream());
             }
         } else if (photo.getVisibility() == 2) {
             File file = new File(uploadFolder + System.getProperty("file.separator") + path);
@@ -688,11 +685,8 @@ public class PhotoController {
             response.setHeader("Content-Length", String.valueOf(file.length()));
             response.setHeader("Content-Range", "bytes 0-" + (file.length() - 1) + "/" + file.length());
             FileInputStream inputStream = new FileInputStream(file);
-            byte[] bytes = new byte[inputStream.available()];
-            inputStream.read(bytes, 0, inputStream.available());
-            return bytes;
+            IOUtils.copy(inputStream, response.getOutputStream());
         }
-        return null;
     }
 
     /**
