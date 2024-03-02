@@ -620,10 +620,11 @@ public class PhotoController {
      *
      * @param token the token of the owner user of that video
      * @param photoId the video's photoId
+     * @param response the servlet response
      * @return an array of bytes of that video
      */
     @GetMapping(value = "/renderV/{token}", produces = "video/mp4")
-    public byte[] renderVideo(@PathVariable String token, Integer photoId) throws IOException {
+    public byte[] renderVideo(@PathVariable String token, Integer photoId, HttpServletResponse response) throws IOException {
         Integer userId = verify.verifyUserByToken(token);
         Photo photo = service.getById(photoId);
         String UUID = userService.getById(userId).getUuid();
@@ -633,6 +634,12 @@ public class PhotoController {
                     + "." + photo.getFormat());
             FileInputStream inputStream = new FileInputStream(file);
             byte[] bytes = new byte[inputStream.available()];
+
+            response.setContentType("application/octet-stream");
+            response.setHeader("Accept-Ranges", "bytes");
+            response.setHeader("Content-Length", String.valueOf(file.length()));
+            response.setHeader("Content-Range", "bytes 0-" + (file.length() - 1) + "/" + file.length());
+
             inputStream.read(bytes, 0, inputStream.available());
             return bytes;
         }
@@ -651,12 +658,13 @@ public class PhotoController {
      * @return an array of bytes of that video
      */
     @GetMapping(value = "/renderVToken", produces = "video/mp4")
-    public byte[] renderVideoToken(String path, String token) throws IOException {
+    public byte[] renderVideoToken(String path, String token, HttpServletResponse response) throws IOException {
         String photoUUID = path.split("/")[1];
         String uuid = photoUUID.substring(0, photoUUID.lastIndexOf("."));
         QueryWrapper<Photo> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("photo_uuid", uuid);
         Photo photo = service.getOne(queryWrapper);
+
         if (photo == null)
             return null;
         if (photo.getVisibility() == 0)
@@ -665,6 +673,10 @@ public class PhotoController {
             if (token != null && token.equals(photo.getToken()))
             {
                 File file = new File(uploadFolder + System.getProperty("file.separator") + path);
+                response.setContentType("application/octet-stream");
+                response.setHeader("Accept-Ranges", "bytes");
+                response.setHeader("Content-Length", String.valueOf(file.length()));
+                response.setHeader("Content-Range", "bytes 0-" + (file.length() - 1) + "/" + file.length());
                 FileInputStream inputStream = new FileInputStream(file);
                 byte[] bytes = new byte[inputStream.available()];
                 inputStream.read(bytes, 0, inputStream.available());
@@ -672,6 +684,10 @@ public class PhotoController {
             }
         } else if (photo.getVisibility() == 2) {
             File file = new File(uploadFolder + System.getProperty("file.separator") + path);
+            response.setContentType("application/octet-stream");
+            response.setHeader("Accept-Ranges", "bytes");
+            response.setHeader("Content-Length", String.valueOf(file.length()));
+            response.setHeader("Content-Range", "bytes 0-" + (file.length() - 1) + "/" + file.length());
             FileInputStream inputStream = new FileInputStream(file);
             byte[] bytes = new byte[inputStream.available()];
             inputStream.read(bytes, 0, inputStream.available());

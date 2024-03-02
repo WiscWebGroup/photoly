@@ -107,6 +107,7 @@ import 'leaflet/dist/leaflet.css';
                   >
               </video>
               
+              
               <div style="padding-left: 2rem;">
                 <n-h2 >Metadata</n-h2>
                 
@@ -118,7 +119,7 @@ import 'leaflet/dist/leaflet.css';
                     <p>Path: {{ nsPathStr }}</p>
                     <p>Shared: {{ showPhotoInfo.visibility === 0 ? "No" : "Yes" }}</p>
                     <n-space vertical>
-                      <n-button strong secondary type="info" @click="seeFullPicture">
+                      <n-button strong secondary type="info" @click="seeFullPicture" v-show="isphotoOrVideo(showPhotoInfo.format) === 1">
                       Full Picture
                     </n-button>
                     <n-button strong secondary type="success" @click="download">
@@ -333,6 +334,7 @@ const moveToModuleRef = ref(null);
 const moveToMultiModuleRef = ref(null);
 
 export default defineComponent({
+  name: 'videoPlayer',
   props: {
     nsOrNot: Boolean,
     detachEnabled: Boolean,
@@ -351,6 +353,7 @@ export default defineComponent({
       baseUPhoto: import.meta.env.VITE_APP_BASE_URL + "/photo/render/" ,
       baseQR: import.meta.env.VITE_APP_BASE_URL + "/photo/getQR2?",
       userToken: localStorage.getItem("HRD-Token"),
+
       showPhoto: ref(false),
       showPhotoInfo: null,
       showPhotoIsLoaded: false,
@@ -358,12 +361,15 @@ export default defineComponent({
       showPhotoInfoVisibility: false,
       showPhotoTagList: [],
       showPhotoGaList: [],
+
       tagVal: ref(null),
       gaVal: ref(null),
       tagOptions: [],
       gaOptions: [],
       newNameVal: "",
+
       baseUVideo: "" ,
+      
       showPhotoSpaceMenu: false,
       showPhotoSpaceMenuPhotoInfo: null,
       mouseX: null,
@@ -1041,7 +1047,6 @@ export default defineComponent({
       {
         this.trace(photoInfo.nsId);
       }
-      
     },
     trace(nsId) {
       axios({
@@ -1081,10 +1086,15 @@ export default defineComponent({
 
   },
   mounted () {
-    window.$message = useMessage()
+    window.$message = useMessage();
   },
   components: {
 
+  },
+  beforeDestroy() {
+    if (this.player) {
+      this.player.dispose();
+    }
   }
 })
 
