@@ -4,14 +4,21 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.apache.commons.io.FileUtils;
 import org.chengbing.entity.Gallery;
 import org.chengbing.dao.GalleryMapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.chengbing.entity.Photo;
 import org.chengbing.service.IGalleryService;
+import org.chengbing.service.IPhotoService;
 import org.chengbing.util.ResultPage;
+import org.chengbing.util.ZipUtil;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.io.File;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -29,6 +36,14 @@ public class GalleryServiceImpl extends ServiceImpl<GalleryMapper, Gallery> impl
 
     @Resource
     GalleryMapper mapper;
+
+    @Value("${file.uploadFolder}")
+    String uploadFolder;
+
+    @Resource
+    IPhotoService photoService;
+
+
     @Override
     public Integer insertGallery(String name, Integer userId, String color) {
         Gallery gallery = new Gallery();
@@ -86,5 +101,56 @@ public class GalleryServiceImpl extends ServiceImpl<GalleryMapper, Gallery> impl
             return mapper.update(null, updateWrapper);
         }
         return -1;
+    }
+
+    @Override
+    public String downloadGallery(Integer userId, Integer gaId, String userUUID) {
+        QueryWrapper<Gallery> wrapper = new QueryWrapper<>();
+        wrapper.eq("ga_id", gaId);
+        wrapper.eq("user_id", userId);
+        Gallery selectGallery = mapper.selectOne(wrapper);
+        if (selectGallery != null && Objects.equals(selectGallery.getGaId(), gaId) && Objects.equals(selectGallery.getUserId(), userId))
+        {
+            String tempFolderName = uploadFolder + File.separator + userUUID + File.separator + selectGallery.getGaName();
+            String zipLoc = uploadFolder + File.separator + userUUID + File.separator + selectGallery.getGaName() + ".zip";
+
+            File myGallery = new File(tempFolderName);
+            if (myGallery.exists()) {
+                try {
+                    FileUtils.deleteDirectory(myGallery);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            File lastZip = new File(zipLoc);
+            if (lastZip.exists())
+                lastZip.delete();
+            myGallery.mkdirs();
+            List<Photo> toTransferPhotos = photoService.queryPhotoByGallery(userId, gaId);
+            for(Photo photo : toTransferPhotos)
+            {
+                String orgUrl = uploadFolder + File.separator + userUUID + File.separator + photo.getPhotoUuid() + "." + photo.getFormat();
+                try {
+                    FileUtils.copyFile(new File(orgUrl), new File(tempFolderName + File.separator + photo.getPhotoName() + "." + photo.getFormat()));
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            try {
+                ZipUtil.compressZipFile(tempFolderName, zipLoc);
+                myGallery = new File(tempFolderName);
+                if (myGallery.exists()) {
+                    try {
+                        FileUtils.deleteDirectory(myGallery);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                return zipLoc;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return null;
     }
 }

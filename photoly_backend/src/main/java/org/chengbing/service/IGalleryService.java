@@ -20,4 +20,6 @@ public interface IGalleryService extends IService<Gallery> {
     ResultPage<List<Gallery>> queryGalleryPage(Integer userId, Integer page, Integer rowsPerPage);
     Integer deleteGallery(Integer userId, Integer gaId);
     Integer updateGallery(Integer userId, Integer gaId, Gallery gallery);
+
+    String downloadGallery(Integer userId, Integer gaId, String userUUID);
 }

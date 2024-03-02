@@ -38,4 +38,6 @@ public interface INamespaceService extends IService<Namespace> {
 
     List<LinkedHashMap<String, Object>> traceNamespaceBack(Integer userId, Integer nsId);
 
+    String downloadFolder(Integer userId, Integer nsId, String userUUID);
+
 }

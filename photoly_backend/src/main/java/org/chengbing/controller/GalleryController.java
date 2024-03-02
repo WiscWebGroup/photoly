@@ -4,16 +4,23 @@ package org.chengbing.controller;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.apache.commons.io.IOUtils;
 import org.chengbing.entity.Gallery;
+import org.chengbing.entity.User;
 import org.chengbing.service.IGalleryService;
+import org.chengbing.service.IUserService;
 import org.chengbing.util.Result;
 import org.chengbing.util.ResultPage;
 import org.chengbing.util.UserIdentity;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.*;
+import java.net.URLEncoder;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -32,6 +39,9 @@ public class GalleryController {
     IGalleryService service;
     @Resource
     UserIdentity verify;
+
+    @Resource
+    IUserService userService;
 
     /**
      * Function to create a new gallery. The object passed in must have "gaName" and "coverColor". optional "coverId"
@@ -181,6 +191,71 @@ public class GalleryController {
             return new Result<>(-1, 403);
         int res = service.updateGallery(userId, gallery.getGaId(), gallery);
         return res == 1 ? new Result<>(res, 200) : new Result<>(res, 400);
+    }
+
+    /**
+     * Function to download photos in a gallery as a zip
+     * @param token the access token of the current user
+     * @param response an HttpServletResponse to set the download
+     * @param gaId the gallery's ID to download
+     */
+    @GetMapping("/downloadGa/{token}")
+    public void downloadGallery(@PathVariable String token, HttpServletResponse response, Integer gaId)
+    {
+        Integer userId = verify.verifyUserByToken(token);
+        if (userId < 0)
+            return;
+        User currUser = userService.getById(userId);
+        if (currUser != null && currUser.getUuid() != null)
+        {
+            String zipLoc = service.downloadGallery(userId, gaId, currUser.getUuid());
+            InputStream is = null;
+            BufferedInputStream bufferedInputStream = null;
+            OutputStream outputStream = null;
+            byte[] bytes = new byte[1024];
+            try {
+                is = new FileInputStream(zipLoc);
+                bufferedInputStream = new BufferedInputStream(is);
+
+                response.setContentType(MediaType.APPLICATION_OCTET_STREAM.toString());
+                response.addHeader("Content-Disposition", "attachment;fileName=download.zip");
+                outputStream = response.getOutputStream();
+                int length;
+                while ((length = bufferedInputStream.read(bytes)) != -1) {
+                    outputStream.write(bytes, 0, length);
+                }
+                outputStream.flush();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } finally {
+                if (is != null)
+                {
+                    try {
+                        is.close();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                }
+                if (bufferedInputStream != null)
+                {
+                    try {
+                        bufferedInputStream.close();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
+                if (outputStream != null)
+                {
+                    try {
+                        outputStream.close();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -3,6 +3,7 @@ package org.chengbing.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import io.swagger.v3.oas.annotations.links.Link;
+import org.apache.commons.io.FileUtils;
 import org.chengbing.dao.NamespacePhotoMapper;
 import org.chengbing.dao.PhotoMapper;
 import org.chengbing.dao.UserMapper;
@@ -13,11 +14,15 @@ import org.chengbing.entity.Photo;
 import org.chengbing.entity.Tag;
 import org.chengbing.service.INamespaceService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.chengbing.service.IPhotoService;
+import org.chengbing.util.ZipUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import javax.naming.Name;
 import java.io.File;
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -42,6 +47,9 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
 
     @Resource
     PhotoMapper photoMapper;
+
+    @Resource
+    IPhotoService photoService;
 
     @Resource
     UserMapper userMapper;
@@ -205,5 +213,75 @@ public class NamespaceServiceImpl extends ServiceImpl<NamespaceMapper, Namespace
             return retList;
         }
         return null;
+    }
+
+    @Override
+    public String downloadFolder(Integer userId, Integer nsId, String userUUID) {
+        Namespace selected = mapper.selectById(nsId);
+        if (selected!=null && selected.getNsId() != null && selected.getUserId() != null
+                && selected.getUserId().equals(userId) && Objects.equals(selected.getNsId(), nsId))
+        {
+            String tempFolderName = folderPath + File.separator + userUUID + File.separator + selected.getNsName();
+            String zipLoc = folderPath + File.separator + userUUID + File.separator + selected.getNsName() + ".zip";
+
+            File myNamespace = new File(tempFolderName);
+            if (myNamespace.exists()) {
+                try {
+                    FileUtils.deleteDirectory(myNamespace);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            File lastZip = new File(zipLoc);
+            if (lastZip.exists())
+                lastZip.delete();
+            myNamespace.mkdirs();
+
+
+            // ------
+            constructFolderHelper(userId, userUUID, nsId, tempFolderName);
+            // ------
+            try {
+                ZipUtil.compressZipFile(tempFolderName, zipLoc);
+                myNamespace = new File(tempFolderName);
+                if (myNamespace.exists()) {
+                    try {
+                        FileUtils.deleteDirectory(myNamespace);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                return zipLoc;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return null;
+    }
+
+    private void constructFolderHelper(Integer userId, String userUUID, Integer currentNsId, String currFolderLoc) {
+        File currentFolder = new File(currFolderLoc);
+        if (!currentFolder.exists())
+            currentFolder.mkdirs();
+
+        List<Photo> photos = photoService.queryPhotoByNamespace(userId, currentNsId);
+        for(Photo photo : photos)
+        {
+            String orgUrl = folderPath + File.separator + userUUID + File.separator + photo.getPhotoUuid() + "." + photo.getFormat();
+            try {
+                FileUtils.copyFile(new File(orgUrl), new File(currFolderLoc + File.separator + photo.getPhotoName() + "." + photo.getFormat()));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        QueryWrapper<Namespace> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", userId);
+        wrapper.eq("ns_parent_id", currentNsId);
+        List<Namespace> children = mapper.selectList(wrapper);
+
+        for(Namespace child : children)
+        {
+            constructFolderHelper(userId, userUUID, child.getNsId(), currFolderLoc + File.separator + child.getNsName());
+        }
     }
 }
