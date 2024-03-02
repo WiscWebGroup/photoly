@@ -170,6 +170,15 @@ export default defineComponent({
             });
           }
         },
+        {
+          label: "Download",
+          key: "download",
+          icon() {
+            return h(NIcon, null, {
+              default: () => h(ArrowDownload20Filled)
+            });
+          }
+        },
       ],
       
       galleryChildren: [],
@@ -236,6 +245,28 @@ export default defineComponent({
     };
   },
   methods: {
+    downloadGa () {
+      axios
+          .get(import.meta.env.VITE_APP_BASE_URL + "/gallery/downloadGa/" + this.userToken + "?gaId="+ this.editGalleryInfo.gaId, {responseType: "blob"})
+          .then(async (response) => {
+            var a = document.createElement("a");
+            document.body.appendChild(a);
+            a.style = "display: none";
+
+            let url = window.URL.createObjectURL(new Blob([response.data]));
+
+            let link = document.createElement("a");
+            link.style.display = "none";
+            link.href = url;
+            link.download = this.editGalleryInfo.gaName + ".zip";
+            document.body.appendChild(link);
+            link.click();
+          })
+          .catch(function (error) { // 请求失败处理
+            // console.log(error);
+            window.$message.error(error);
+          });
+    },
     editGa() {
       if (this.editGalleryInfo.gaName === null || this.editGalleryInfo.gaName === "")
       {
@@ -357,6 +388,10 @@ export default defineComponent({
       if (key === "delete")
       {
         this.showDeleteGalleryConfirmModal = true;
+      }
+      if (key === "download")
+      {
+        this.downloadGa();
       }
     },
     onClickOutsideGallery () {

@@ -249,6 +249,36 @@ import MediaList from '@/components/MediaList.vue'
       </n-card>
     </n-modal>
     <!-- ENDOF: This part is for modal of confirming to delete multiple folders -->
+
+
+    <!-- This part is for modal of waiting downloading folder -->
+    <n-modal v-model:show="downloadFolderWaitModal" :mask-closable="false">
+      <n-card
+        style="width: 400px; border-radius: 10px;"
+        title="Download Folder"
+        :bordered="false"
+        size="huge"
+        role="dialog"
+        aria-modal="true"
+      >
+      <n-spin :show="downloadFolderWaitModal">
+        <n-result
+          status="info"
+          size="small"
+          title=""
+          description="Preparing Your Download Request..."
+        >
+        </n-result>
+      </n-spin>
+        
+        <template #footer>
+            <n-button type="error" secondary round size="large" style="margin-top: 1rem; width: 100%;" @click="abordDownloadFolder">
+              Abort Download
+            </n-button>
+          </template>
+      </n-card>
+    </n-modal>
+    <!-- ENDOF: This part is for modal of waiting downloading folder -->
     
     <!-- This part is for modal of moveTo Functions -->
     <MoveToShowFolder @moveToUpdate="moveItem" ref="moveToModuleRef" :originalNsId="moveToModalOriginalNsId" :disableOrgNsId="moveToModalDisableOrgNsId"/>
@@ -257,7 +287,7 @@ import MediaList from '@/components/MediaList.vue'
     <!-- This part is for modal of Multiple moveTo Functions -->
     <MoveToShowFolder @moveToUpdate="moveItemMulti" ref="moveToMultiModuleRef" :originalNsId="moveToModalOriginalNsId" :disableOrgNsId="moveToModalDisableOrgNsId"/>
     <!-- ENDOF: This part is for modal of Multiple moveTo Functions -->
-    
+
     <!-- ENDOF: MODAL PART -->
 
   </div>
@@ -270,6 +300,8 @@ import MediaList from '@/components/MediaList.vue'
 const moveToModuleRef = ref(null);
 const moveToMultiModuleRef = ref(null);
 const mediaListRef = ref(null);
+
+let controller = new AbortController();
 
 export default defineComponent({
   data() {
@@ -308,20 +340,20 @@ export default defineComponent({
       ],
       FolderSpaceMenuOptions: [
         {
-          label: "Delete",
-          key: "delete",
-          icon() {
-            return h(NIcon, null, {
-              default: () => h(Delete20Regular)
-            });
-          }
-        },
-        {
           label: "Rename",
           key: "rename",
           icon() {
             return h(NIcon, null, {
               default: () => h(Edit20Regular)
+            });
+          }
+        },
+        {
+          label: "Download",
+          key: "download",
+          icon() {
+            return h(NIcon, null, {
+              default: () => h(ArrowDownload20Filled)
             });
           }
         },
@@ -333,7 +365,16 @@ export default defineComponent({
               default: () => h(FolderArrowRight20Regular)
             });
           }
-        }
+        },
+        {
+          label: "Delete",
+          key: "delete",
+          icon() {
+            return h(NIcon, null, {
+              default: () => h(Delete20Regular)
+            });
+          }
+        },
       ],
       showUploadPhotoModal: false,
       uploadPhotoFiles: new FormData(),
@@ -353,6 +394,8 @@ export default defineComponent({
       
       folderMultiSelectMode: false,
       showFolderMultiDeleteModal: false,
+
+      downloadFolderWaitModal: false,
     }
   },
   setup() {
@@ -362,6 +405,38 @@ export default defineComponent({
     };
   },
   methods: {
+    abordDownloadFolder () {
+      controller.abort();
+      this.downloadFolderWaitModal = false;
+      window.$message.warning("Download Request Canceled");
+    },
+    downloadFolder () {
+      controller = new AbortController();
+      this.downloadFolderWaitModal = true;
+      axios
+      .get(import.meta.env.VITE_APP_BASE_URL + "/namespace/downloadNs/" + this.userToken + "?nsId="+ this.showOperateFolderConfirmNsId, {responseType: "blob", signal: controller.signal})
+      .then(async (response) => {
+        var a = document.createElement("a");
+        document.body.appendChild(a);
+        a.style = "display: none";
+
+        let url = window.URL.createObjectURL(new Blob([response.data]));
+
+        let link = document.createElement("a");
+        link.style.display = "none";
+        link.href = url;
+        link.download = this.editFolderInputName + ".zip";
+        document.body.appendChild(link);
+        link.click();
+
+        this.downloadFolderWaitModal = false;
+      })
+      .catch(function (error) { // 请求失败处理
+        // console.log(error);
+        // window.$message.error(error);
+      });
+      
+    },
     moveSelectedFolder() {
       // this.moveToModalOriginalNsId = this.showOperateFolderConfirmNsId;
       // this.moveToModalDisableOrgNsId = true;
@@ -460,6 +535,10 @@ export default defineComponent({
         this.moveToModalDisableOrgNsId = true;
         this.openMoveToModal();
       }
+      if (key === "download")
+      {
+        this.downloadFolder();
+      }
     },
     onClickOutsideBlank () {
       this.showBlankSpaceMenu = false;
@@ -554,30 +633,6 @@ export default defineComponent({
         });
       }else {
         // else this is a photo move
-
-        axios({
-          method: 'post',
-          baseURL: '',
-          url: import.meta.env.VITE_APP_BASE_URL + "/photo/changeNamespace?photoId=" + this.showPhotoSpaceMenuPhotoInfo.photoId + "&nsId=" + nsId,
-          headers: {
-            "HRD-Token": localStorage.getItem("HRD-Token")
-          },
-          data: {
-        }
-        }).then((response) => {
-          if (response.data.msgCode === 200)
-          {
-            this.queryPhotos();
-            window.$message.success("Media Location Updated!");
-            this.moveToModalOriginalNsId = -1;
-            this.moveToModalDisableOrgNsId = false;
-          }else {
-            window.$message.warning("Update Error!")
-          }
-        })
-        .catch(function (error) { // 请求失败处理
-          window.$message.error(error);
-        });
       }
       
     },

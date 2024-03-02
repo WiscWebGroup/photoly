@@ -66,7 +66,14 @@ import 'leaflet/dist/leaflet.css';
           </div>
           
         </n-space>
+
+        <n-space>
+          <div style="padding-top: 20vh; " v-show="photoChildren.length < 10">&nbsp;</div>
+          <div style="padding-top: 10vh; " v-show="photoChildren.length >= 10">&nbsp;</div>
+        </n-space>
+        
       </div>
+      
       <!-- ENDOF: This part is for loading photos cards into the "media" section -->
 
       <!-- This modal is for the photo detail after click on 'view' or open by left click the photo -->
