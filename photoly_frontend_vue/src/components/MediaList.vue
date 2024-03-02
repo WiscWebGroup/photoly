@@ -8,9 +8,8 @@ import { ref, defineComponent, nextTick, h } from 'vue';
 import { NTag } from "naive-ui";
 import { useMessage, NIcon } from 'naive-ui'
 import MoveToShowFolder from "./MoveToShowFolder.vue"
-import L from "leaflet";
 import 'leaflet/dist/leaflet.css';
-
+import * as L from 'leaflet';
 </script>
 
 <template>
@@ -646,6 +645,7 @@ export default defineComponent({
       {
         this.globalMap = null;
         this.globalMap = L.map('img_map', {attributionControl: false}).setView([this.showPhotoExifInfo.GPS_Latitude, this.showPhotoExifInfo.GPS_Longitude], 13);
+        L.Icon.Default.imagePath='/src/assets/icons/leaflet/'
         L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 13,
         }).addTo(this.globalMap);
