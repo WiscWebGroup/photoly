@@ -1040,7 +1040,7 @@ export default defineComponent({
       this.getTags();
       this.getGas();
       this.getExifInfo();
-      this.baseUVideo = import.meta.env.VITE_APP_BASE_URL + "/photo/renderV/" + this.userToken + "?photoId=" + this.showPhotoInfo.photoId
+      this.baseUVideo = import.meta.env.VITE_APP_BASE_VIDEO_URL + "/photo/renderV/" + this.userToken + "?photoId=" + this.showPhotoInfo.photoId
       this.showPhoto = true;
       
       if (!this.nsOrNot)
