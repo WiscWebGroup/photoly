@@ -18,6 +18,9 @@ import axios from "axios";
             <n-button class="naviBarBtn" quaternary round strong color="aliceblue" @click="changeHomeComponent('HomePart')">
                 Home
             </n-button>
+            <n-button class="naviBarBtn" quaternary round strong color="aliceblue" @click="changeHomeComponent('MapPart')">
+                Map
+            </n-button>
             <n-button class="naviBarBtn" quaternary round strong color="aliceblue" @click="changeHomeComponent('GalleryPart')">
                 Gallery
             </n-button>

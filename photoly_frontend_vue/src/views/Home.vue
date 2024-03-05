@@ -8,6 +8,7 @@ import GalleryPart from "../components/GalleryPart.vue"
 import TagPart from "../components/TagPart.vue"
 import SearchPart from "../components/SearchPart.vue"
 import ManagePart from "../components/ManagePart.vue"
+import MapPart from '@/components/MapPart.vue'
 import { shallowRef } from 'vue'
 
 
@@ -19,7 +20,7 @@ import { shallowRef } from 'vue'
           {{ errors }}
     </n-alert>
     <NavigationBar :avatarAddr="avatarAddr"/>
-    <component :is="componentParts[part]" :style="{'padding': $route.path !== '/home/ManagePart' ? '1.5rem' : '0', 'margin-left' : $route.path !== '/home/ManagePart' ? '1.5rem' : '0'}"/>
+    <component :is="componentParts[part]" :style="{'padding': ($route.path === '/home/ManagePart' || $route.path === '/home/MapPart') ? '0' : '1.5rem', 'margin-left' : ($route.path === '/home/ManagePart' || $route.path === '/home/MapPart') ? '0' : '1.5rem' }"/>
   </div>
 </template>
 
@@ -67,6 +68,7 @@ export default{
       this.componentParts["TagPart"] = shallowRef(TagPart)
       this.componentParts["SearchPart"] = shallowRef(SearchPart)
       this.componentParts["ManagePart"] = shallowRef(ManagePart)
+      this.componentParts["MapPart"] = shallowRef(MapPart)
     }
   },
   components: {
