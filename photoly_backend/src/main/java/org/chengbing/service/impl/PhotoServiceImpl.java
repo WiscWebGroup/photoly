@@ -58,6 +58,9 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
     @Resource
     NamespaceMapper namespaceMapper;
 
+    @Resource
+    PhotoExtraMapper photoExtraMapper;
+
     @Value("${file.uploadFolder}")
     String uploadFolder;
 
@@ -118,8 +121,10 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
             insertPhotoThumbnail(file, new File(folderLoc + System.getProperty("file.separator") + photoUUID + "_thumbnail" + "." + suffix),
                     suffix);
             file.transferTo(photoFile);
-
-            return mapper.insert(photo);
+            int res = 0;
+            res += mapper.insert(photo);
+            res += afterInsertionHelper(photoUUID, localPath);
+            return res - 1;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -169,6 +174,7 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
                         suffix);
                 file.transferTo(photoFile);
                 change += mapper.insert(photo);
+                afterInsertionHelper(photoUUID, localPath);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -210,7 +216,9 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
             insertPhotoThumbnail(file, new File(folderLoc + System.getProperty("file.separator") + photoUUID + "_thumbnail" + "." + suffix),
                     suffix);
             file.transferTo(photoFile);
+            afterInsertionHelper(photoUUID, localPath);
             int res = mapper.insert(photo);
+            res += afterInsertionHelper(photoUUID, localPath);
             return res >= 1 ? photoUUID : null;
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -261,6 +269,7 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
                         suffix);
                 file.transferTo(photoFile);
                 int res = mapper.insert(photo);
+                afterInsertionHelper(photoUUID, localPath);
                 if (res >= 1)
                     uidList.add(photoUUID);
             } catch (IOException e) {
@@ -470,6 +479,158 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
         return retList;
     }
 
+    private LinkedHashMap<String, String> getPhotoExifHelper(String fileAddr)
+    {
+        File file = new File(fileAddr);
+        if (file.exists())
+        {
+            try {
+                LinkedHashMap<String, String> res = new LinkedHashMap<>();
+                Metadata metadata = ImageMetadataReader.readMetadata(file);
+                for(Directory directory : metadata.getDirectories())
+                {
+                    for(Tag imageExifTag : directory.getTags())
+                    {
+                        String exifTagName = imageExifTag.getTagName();
+                        String desc = imageExifTag.getDescription();
+                        boolean put = false;
+
+                        boolean gpsLongitudeNeg = false;
+                        boolean gpsLatitudeNeg = false;
+
+                        switch (exifTagName) {
+                            case "GPS Altitude":
+                            case "GPS Altitude Ref":
+                            case "GPS Version ID":
+                            case "Artist":
+                            case "Lens Make":
+                            case "Lens Model":
+                            case "Color Space":
+                            case "Focal Length":
+                            case "Shutter Speed Value":
+                            case "ISO Speed Ratings":
+                            case "Aperture Value":
+                            case "Image Height":
+                            case "Y Resolution":
+                            case "X Resolution":
+                            case "Model":
+                            case "Make":
+                            case "Data Precision":
+                            case "Image Width":
+                                put = true;
+                                break;
+                            case "Date/Time":
+                                put = true;
+                                exifTagName = "Time";
+                                break;
+                            case "File Size":
+                                put = true;
+                                int numBytes = Integer.parseInt(desc.split(" ")[0]);
+                                double numMB = numBytes / 1024.00 / 1024.00;
+                                desc = String.format("%.2f", numMB);
+                                desc = desc + " MB";
+                                break;
+                            case "GPS Longitude Ref":
+                                if (desc.equals("W"))
+                                    gpsLongitudeNeg = true;
+                                put = true;
+                                break;
+                            case "GPS Latitude Ref":
+                                if (desc.equals("S"))
+                                    gpsLatitudeNeg = true;
+                                put = true;
+                                break;
+                            case "GPS Longitude":
+                            case "GPS Latitude":
+                                put = true;
+                                double d = Double.parseDouble(desc.split("°")[0]);
+                                double m = Double.parseDouble(desc.split(" ")[1].replace("'", ""));
+                                double s = Double.parseDouble(desc.split(" ")[2].replace("\"", ""));
+                                double dd = Math.signum(d) * (Math.abs(d) + (m / 60.0) + (s / 3600.0));
+                                desc = String.format("%.4f", dd);
+                        }
+                        if (put)
+                            res.put(exifTagName.replace(' ', '_'), desc);
+                    }
+                }
+                return res;
+            } catch (ImageProcessingException | IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return null;
+    }
+
+    private int afterInsertionHelper(String photoUUID, String photoAddr)
+    {
+        LinkedHashMap<String, String> exifInfo = getPhotoExifHelper(photoAddr);
+        PhotoExtra photoExtra = new PhotoExtra();
+        if (exifInfo != null)
+        {
+            if (exifInfo.get("GPS_Longitude") != null)
+            {
+                photoExtra.setExtraPhotoGpsLon(Double.valueOf(exifInfo.get("GPS_Longitude")));
+            }
+            if (exifInfo.get("GPS_Latitude") != null)
+            {
+                photoExtra.setExtraPhotoGpsLat(Double.valueOf(exifInfo.get("GPS_Latitude")));
+            }
+            if (exifInfo.get("Make") != null && exifInfo.get("Model") != null)
+            {
+                photoExtra.setExtraPhotoCamera(exifInfo.get("Make") + " " + exifInfo.get("Model"));
+            }
+            if (exifInfo.get("Lens_Make") != null && exifInfo.get("Lens_Model") != null)
+            {
+                photoExtra.setExtraPhotoLens(exifInfo.get("Lens_Make") + " " + exifInfo.get("Lens_Model"));
+            }else if (exifInfo.get("Lens_Make") != null)
+            {
+                photoExtra.setExtraPhotoLens(exifInfo.get("Lens_Make"));
+            }else if (exifInfo.get("Lens_Model") != null)
+            {
+                photoExtra.setExtraPhotoLens(exifInfo.get("Lens_Model"));
+            }
+            if (exifInfo.get("Focal_Length") != null)
+            {
+                double res = Double.parseDouble(exifInfo.get("Focal_Length").split("mm")[0].trim());
+                photoExtra.setExtraPhotoFocal((int) res);
+            }
+            if (exifInfo.get("Aperture_Value") != null)
+            {
+                photoExtra.setExtraPhotoAperture(Double.valueOf(exifInfo.get("Aperture_Value").split("f\\/")[1].trim()));
+            }
+            if (exifInfo.get("Shutter_Speed_Value") != null)
+            {
+                try {
+                    photoExtra.setExtraPhotoShutterSec(Integer.valueOf(exifInfo.get("Shutter_Speed_Value").split("sec")[0].trim().split("\\/")[1]));
+                }catch (Exception e)
+                {
+                    e.printStackTrace();
+                }
+            }
+            if (exifInfo.get("ISO_Speed_Ratings") != null)
+            {
+                photoExtra.setExtraPhotoIso(Integer.valueOf(exifInfo.get("ISO_Speed_Ratings")));
+            }
+            if (exifInfo.get("Time") != null)
+            {
+                String exifTime = exifInfo.get("Time");
+                String date = exifTime.split(" ")[0];
+                date = date.replace(":", "-");
+                String sec = exifTime.split(" ")[1];
+                photoExtra.setExtraPhotoTakenDate(LocalDateTime.parse(date + "T" + sec));
+            }
+        }
+
+        QueryWrapper<Photo> wrapper = new QueryWrapper<>();
+        wrapper.eq("photo_uuid", photoUUID);
+        Photo selected = mapper.selectOne(wrapper);
+
+        Integer photoId = selected.getPhotoId();
+        photoExtra.setFPhotoId(photoId);
+
+        return photoExtraMapper.insert(photoExtra);
+    }
+
     @Override
     public LinkedHashMap<String, String> getPhotoExif(Integer userId, Integer photoId, String userUUID)
     {
@@ -480,87 +641,10 @@ public class PhotoServiceImpl extends ServiceImpl<PhotoMapper, Photo> implements
         if (selected!=null)
         {
             // Get MetaInfo of this image
-            File file = new File(uploadFolder + System.getProperty("file.separator") + userUUID + System.getProperty("file.separator") + selected.getPhotoUuid()
-                    + "." + selected.getFormat());
-            if (file.exists())
-            {
-                try {
-                    LinkedHashMap<String, String> res = new LinkedHashMap<>();
-                    Metadata metadata = ImageMetadataReader.readMetadata(file);
-                    for(Directory directory : metadata.getDirectories())
-                    {
-                        for(Tag imageExifTag : directory.getTags())
-                        {
-                            String exifTagName = imageExifTag.getTagName();
-                            String desc = imageExifTag.getDescription();
-                            boolean put = false;
-
-                            boolean gpsLongitudeNeg = false;
-                            boolean gpsLatitudeNeg = false;
-
-                            switch (exifTagName) {
-                                case "GPS Altitude":
-                                case "GPS Altitude Ref":
-                                case "GPS Version ID":
-                                case "Artist":
-                                case "Lens Make":
-                                case "Lens Model":
-                                case "Color Space":
-                                case "Focal Length":
-                                case "Shutter Speed Value":
-                                case "ISO Speed Ratings":
-                                case "Aperture Value":
-                                case "Image Height":
-                                case "Y Resolution":
-                                case "X Resolution":
-                                case "Model":
-                                case "Make":
-                                case "Data Precision":
-                                case "Image Width":
-                                    put = true;
-                                    break;
-                                case "Date/Time":
-                                    put = true;
-                                    exifTagName = "Time";
-                                    break;
-                                case "File Size":
-                                    put = true;
-                                    int numBytes = Integer.parseInt(desc.split(" ")[0]);
-                                    double numMB = numBytes / 1024.00 / 1024.00;
-                                    desc = String.format("%.2f", numMB);
-                                    desc = desc + " MB";
-                                    break;
-                                case "GPS Longitude Ref":
-                                    if (desc.equals("W"))
-                                        gpsLongitudeNeg = true;
-                                    put = true;
-                                    break;
-                                case "GPS Latitude Ref":
-                                    if (desc.equals("S"))
-                                        gpsLatitudeNeg = true;
-                                    put = true;
-                                    break;
-                                case "GPS Longitude":
-                                case "GPS Latitude":
-                                    put = true;
-                                    double d = Double.parseDouble(desc.split("°")[0]);
-                                    double m = Double.parseDouble(desc.split(" ")[1].replace("'", ""));
-                                    double s = Double.parseDouble(desc.split(" ")[2].replace("\"", ""));
-                                    double dd = Math.signum(d) * (Math.abs(d) + (m / 60.0) + (s / 3600.0));
-                                    desc = String.format("%.4f", dd);
-                            }
-                            if (put)
-                                res.put(exifTagName.replace(' ', '_'), desc);
-                        }
-                    }
-                    return res;
-                } catch (ImageProcessingException | IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-
+            String addr = uploadFolder + System.getProperty("file.separator") + userUUID + System.getProperty("file.separator") + selected.getPhotoUuid()
+                    + "." + selected.getFormat();
+            return getPhotoExifHelper(addr);
         }
-
         return null;
     }
 }

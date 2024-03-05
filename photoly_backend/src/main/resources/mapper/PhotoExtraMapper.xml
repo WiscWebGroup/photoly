@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chengbing.dao.PhotoExtraMapper">
+    <select id="queryGlobalPhoto" resultType="map">
+        select photo_id, photo_name, upload_date, format, ns_id, token, photo_uuid, extra_photo_gps_lat, extra_photo_gps_lon, extra_photo_taken_date
+        from photo as ph, photo_extra as pe
+        where ph.user_id = #{userId} and pe.f_photo_id = ph.photo_id
+    </select>
+
+    <select id="queryGalleryPhoto" resultType="map">
+        select photo_id, photo_name, upload_date, format, ns_id, token, photo_uuid, extra_photo_gps_lat, extra_photo_gps_lon, extra_photo_taken_date
+        from photo as ph, photo_extra as pe
+        where ph.user_id = #{userId} and pe.f_photo_id = ph.photo_id and ph.photo_id IN (
+            select photo_id from gallery_photo as gap where gap.ga_id = #{gaId}
+        )
+    </select>
+</mapper>
