@@ -8,6 +8,14 @@ This is a picture host application. There are demands for the self-host and reli
 
 Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自助图片托管应用需求增加，Photoly应运而生。使用 Photoly，您可以轻松管理图片和视频，并使用标签、图库和文件夹对图片和视频进行分类；利用搜索功能，充分探索您的媒体库。此外，Photoly 还提供 API，方便您将我们的功能嵌入到其他应用程序中。
 
+## Functionalities
+- Upload Photo / Video, and store them in folders
+- Attach a Photo / Video with a Gallery or a Tag
+- Automatic record photo's Exif information, including GPS location, Camera Model, Lens Model, ISO, Shutter, Aperture, etc.
+- Display a Photo Location Map
+- Search Photos based on various conditions
+- Create API to operate your photo using REST API
+
 ## Screenshots
 <img src="https://github.com/WiscWebGroup/photoly/assets/68500948/3304e591-7b8a-49d2-a483-61e04206e8dd" style="width: 800px;" />
 
@@ -16,6 +24,8 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 <img src="https://github.com/WiscWebGroup/photoly/assets/68500948/1518dfcc-eee2-4c5e-b686-aa1c5cdb57ae" style="width: 800px;" />
 
 <img src="https://github.com/WiscWebGroup/photoly/assets/68500948/4219d76f-5e9b-4587-ae4b-11379107fb35" style="width: 800px;" />
+
+<img src="https://github.com/WiscWebGroup/photoly/assets/68500948/44d94933-d7e7-4617-9fa5-4b2cc972da9c" style="width: 800px;" />
 
 <img src="https://github.com/WiscWebGroup/photoly/assets/68500948/23ae3e12-e465-4c3b-b642-c9b2de01c5a5" style="width: 800px;" />
 
