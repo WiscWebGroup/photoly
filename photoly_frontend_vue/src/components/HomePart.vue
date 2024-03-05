@@ -65,7 +65,7 @@ import MediaList from '@/components/MediaList.vue'
           </n-button>
         </n-space>
         <n-space>
-          <n-empty v-show="nsChildren.length <= 0" style="padding-left: 30vw;">
+          <n-empty v-if="nsChildren.length <= 0" style="padding-left: 30vw;">
           </n-empty>
           <n-button secondary strong size="large" v-for="folder in nsChildren" @click.left.native="handleFolderMulti(folder.nsId, $event)"
            @click.right.native="folderSpaceMenu(folder.nsId, folder.nsName, $event)">
