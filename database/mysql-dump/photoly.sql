@@ -1,326 +1,184 @@
--- phpMyAdmin SQL Dump
--- version 5.0.4
--- https://www.phpmyadmin.net/
---
--- 主机： localhost
--- 生成日期： 2023-07-10 12:02:28
--- 服务器版本： 5.7.37-log
--- PHP 版本： 7.4.27
+/*
+ Navicat Premium Data Transfer
 
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-START TRANSACTION;
-SET time_zone = "+00:00";
+ Source Server         : CBR3
+ Source Server Type    : MySQL
+ Source Server Version : 80032
+ Source Host           : localhost:3306
+ Source Schema         : photoly
 
+ Target Server Type    : MySQL
+ Target Server Version : 80032
+ File Encoding         : 65001
 
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8mb4 */;
+ Date: 04/03/2024 21:16:37
+*/
 
---
--- 数据库： `picbed`
---
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
 
--- --------------------------------------------------------
+-- ----------------------------
+-- Table structure for cred
+-- ----------------------------
+DROP TABLE IF EXISTS `cred`;
+CREATE TABLE `cred`  (
+  `cred_id` int(0) NOT NULL AUTO_INCREMENT,
+  `user_id` int(0) NULL DEFAULT NULL,
+  `token` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `authorization` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  PRIMARY KEY (`cred_id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 39 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
---
--- 表的结构 `cred`
---
+-- ----------------------------
+-- Table structure for gallery
+-- ----------------------------
+DROP TABLE IF EXISTS `gallery`;
+CREATE TABLE `gallery`  (
+  `ga_id` int(0) NOT NULL AUTO_INCREMENT,
+  `ga_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `user_id` int(0) NULL DEFAULT NULL,
+  `create_date` datetime(0) NULL DEFAULT NULL,
+  `cover_id` int(0) NULL DEFAULT NULL,
+  `cover_color` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  PRIMARY KEY (`ga_id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 73 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
-CREATE TABLE `cred` (
-  `cred_id` int(11) NOT NULL,
-  `user_id` int(11) DEFAULT NULL,
-  `token` varchar(255) DEFAULT NULL,
-  `authorization` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+-- ----------------------------
+-- Table structure for gallery_photo
+-- ----------------------------
+DROP TABLE IF EXISTS `gallery_photo`;
+CREATE TABLE `gallery_photo`  (
+  `gp_id` int(0) NOT NULL AUTO_INCREMENT,
+  `ga_id` int(0) NULL DEFAULT NULL,
+  `photo_id` int(0) NULL DEFAULT NULL,
+  PRIMARY KEY (`gp_id`) USING BTREE,
+  INDEX `c2`(`photo_id`) USING BTREE,
+  INDEX `c1`(`ga_id`) USING BTREE,
+  CONSTRAINT `c1` FOREIGN KEY (`ga_id`) REFERENCES `gallery` (`ga_id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `c2` FOREIGN KEY (`photo_id`) REFERENCES `photo` (`photo_id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 35 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
--- --------------------------------------------------------
+-- ----------------------------
+-- Table structure for namespace
+-- ----------------------------
+DROP TABLE IF EXISTS `namespace`;
+CREATE TABLE `namespace`  (
+  `ns_id` int(0) NOT NULL AUTO_INCREMENT,
+  `ns_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `ns_parent_id` int(0) NULL DEFAULT NULL,
+  `user_id` int(0) NULL DEFAULT NULL,
+  PRIMARY KEY (`ns_id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 75 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
---
--- 表的结构 `gallery`
---
+-- ----------------------------
+-- Table structure for namespace_photo
+-- ----------------------------
+DROP TABLE IF EXISTS `namespace_photo`;
+CREATE TABLE `namespace_photo`  (
+  `np_id` int(0) NOT NULL AUTO_INCREMENT,
+  `ns_id` int(0) NULL DEFAULT NULL,
+  `photo_id` int(0) NULL DEFAULT NULL,
+  PRIMARY KEY (`np_id`) USING BTREE,
+  INDEX `f3`(`ns_id`) USING BTREE,
+  INDEX `f4`(`photo_id`) USING BTREE,
+  CONSTRAINT `f3` FOREIGN KEY (`ns_id`) REFERENCES `namespace` (`ns_id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `f4` FOREIGN KEY (`photo_id`) REFERENCES `photo` (`photo_id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
-CREATE TABLE `gallery` (
-  `ga_id` int(11) NOT NULL,
-  `ga_name` varchar(255) DEFAULT NULL,
-  `user_id` int(11) DEFAULT NULL,
-  `create_date` datetime DEFAULT NULL,
-  `cover_id` int(11) DEFAULT NULL,
-  `cover_color` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+-- ----------------------------
+-- Table structure for photo
+-- ----------------------------
+DROP TABLE IF EXISTS `photo`;
+CREATE TABLE `photo`  (
+  `photo_id` int(0) NOT NULL AUTO_INCREMENT,
+  `photo_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `upload_date` datetime(0) NULL DEFAULT NULL,
+  `format` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `ns_id` int(0) NULL DEFAULT NULL,
+  `visibility` int(0) NULL DEFAULT NULL,
+  `token` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `photo_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `user_id` int(0) NULL DEFAULT NULL,
+  PRIMARY KEY (`photo_id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 151 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
--- --------------------------------------------------------
+-- ----------------------------
+-- Table structure for photo_extra
+-- ----------------------------
+DROP TABLE IF EXISTS `photo_extra`;
+CREATE TABLE `photo_extra`  (
+  `extra_photo_id` int(0) NOT NULL AUTO_INCREMENT,
+  `f_photo_id` int(0) NOT NULL,
+  `extra_photo_gps_lat` double NULL DEFAULT NULL,
+  `extra_photo_gps_lon` double NULL DEFAULT NULL,
+  `extra_photo_camera` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `extra_photo_lens` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `extra_photo_aperture` double NULL DEFAULT NULL,
+  `extra_photo_focal` int(0) NULL DEFAULT NULL,
+  `extra_photo_iso` int(0) NULL DEFAULT NULL,
+  `extra_photo_shutter_sec` int(0) NULL DEFAULT NULL COMMENT 'this is the int for 1/<num>',
+  `extra_photo_taken_date` datetime(0) NULL DEFAULT NULL,
+  `extra_photo_note` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT 'a simple note for the photo',
+  PRIMARY KEY (`extra_photo_id`) USING BTREE,
+  INDEX `f_photo_id`(`f_photo_id`) USING BTREE,
+  CONSTRAINT `f_photo_id` FOREIGN KEY (`f_photo_id`) REFERENCES `photo` (`photo_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
---
--- 表的结构 `gallery_photo`
---
+-- ----------------------------
+-- Table structure for setting
+-- ----------------------------
+DROP TABLE IF EXISTS `setting`;
+CREATE TABLE `setting`  (
+  `setting_id` int(0) NOT NULL AUTO_INCREMENT,
+  `setting_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `setting_value` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `note` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  PRIMARY KEY (`setting_id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 5 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
-CREATE TABLE `gallery_photo` (
-  `gp_id` int(11) NOT NULL,
-  `ga_id` int(11) DEFAULT NULL,
-  `photo_id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+-- ----------------------------
+-- Table structure for tag
+-- ----------------------------
+DROP TABLE IF EXISTS `tag`;
+CREATE TABLE `tag`  (
+  `tag_id` int(0) NOT NULL AUTO_INCREMENT,
+  `user_id` int(0) NOT NULL,
+  `tag_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  PRIMARY KEY (`tag_id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 65 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
--- --------------------------------------------------------
+-- ----------------------------
+-- Table structure for tag_photo
+-- ----------------------------
+DROP TABLE IF EXISTS `tag_photo`;
+CREATE TABLE `tag_photo`  (
+  `tp_id` int(0) NOT NULL AUTO_INCREMENT,
+  `user_id` int(0) NULL DEFAULT NULL,
+  `tag_id` int(0) NULL DEFAULT NULL,
+  `photo_id` int(0) NULL DEFAULT NULL,
+  PRIMARY KEY (`tp_id`) USING BTREE,
+  INDEX `f1`(`tag_id`) USING BTREE,
+  INDEX `f2`(`photo_id`) USING BTREE,
+  CONSTRAINT `f1` FOREIGN KEY (`tag_id`) REFERENCES `tag` (`tag_id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `f2` FOREIGN KEY (`photo_id`) REFERENCES `photo` (`photo_id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 30 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
---
--- 表的结构 `namespace`
---
+-- ----------------------------
+-- Table structure for user
+-- ----------------------------
+DROP TABLE IF EXISTS `user`;
+CREATE TABLE `user`  (
+  `user_id` int(0) NOT NULL AUTO_INCREMENT,
+  `user_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `create_date` datetime(0) NULL DEFAULT NULL,
+  `role` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  PRIMARY KEY (`user_id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 42 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
-CREATE TABLE `namespace` (
-  `ns_id` int(11) NOT NULL,
-  `ns_name` varchar(255) DEFAULT NULL,
-  `ns_parent_id` int(11) DEFAULT NULL,
-  `user_id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
-
--- --------------------------------------------------------
-
---
--- 表的结构 `namespace_photo`
---
-
-CREATE TABLE `namespace_photo` (
-  `np_id` int(11) NOT NULL,
-  `ns_id` int(11) DEFAULT NULL,
-  `photo_id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
-
--- --------------------------------------------------------
-
---
--- 表的结构 `photo`
---
-
-CREATE TABLE `photo` (
-  `photo_id` int(11) NOT NULL,
-  `photo_name` varchar(255) DEFAULT NULL,
-  `upload_date` datetime DEFAULT NULL,
-  `format` varchar(255) DEFAULT NULL,
-  `ns_id` int(11) DEFAULT NULL,
-  `visibility` int(11) DEFAULT NULL,
-  `token` varchar(255) DEFAULT NULL,
-  `photo_uuid` varchar(255) DEFAULT NULL,
-  `user_id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
-
--- --------------------------------------------------------
-
---
--- 表的结构 `setting`
---
-
-CREATE TABLE `setting` (
-  `setting_id` int(11) NOT NULL,
-  `setting_name` varchar(255) DEFAULT NULL,
-  `setting_value` varchar(255) DEFAULT NULL,
-  `note` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
-
---
--- 表的结构 `tag`
---
-
-CREATE TABLE `tag` (
-  `tag_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `tag_name` varchar(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
-
--- --------------------------------------------------------
-
---
--- 表的结构 `tag_photo`
---
-
-CREATE TABLE `tag_photo` (
-  `tp_id` int(11) NOT NULL,
-  `user_id` int(11) DEFAULT NULL,
-  `tag_id` int(11) DEFAULT NULL,
-  `photo_id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
-
--- --------------------------------------------------------
-
---
--- 表的结构 `user`
---
-
-CREATE TABLE `user` (
-  `user_id` int(11) NOT NULL,
-  `user_name` varchar(255) DEFAULT NULL,
-  `email` varchar(255) DEFAULT NULL,
-  `create_date` datetime DEFAULT NULL,
-  `role` varchar(255) DEFAULT NULL,
-  `password` varchar(255) DEFAULT NULL,
-  `uuid` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
-
---
--- 转储表的索引
---
-
---
--- 表的索引 `cred`
---
-ALTER TABLE `cred`
-  ADD PRIMARY KEY (`cred_id`) USING BTREE;
-
---
--- 表的索引 `gallery`
---
-ALTER TABLE `gallery`
-  ADD PRIMARY KEY (`ga_id`) USING BTREE;
-
---
--- 表的索引 `gallery_photo`
---
-ALTER TABLE `gallery_photo`
-  ADD PRIMARY KEY (`gp_id`) USING BTREE,
-  ADD KEY `c2` (`photo_id`) USING BTREE,
-  ADD KEY `c1` (`ga_id`) USING BTREE;
-
---
--- 表的索引 `namespace`
---
-ALTER TABLE `namespace`
-  ADD PRIMARY KEY (`ns_id`) USING BTREE;
-
---
--- 表的索引 `namespace_photo`
---
-ALTER TABLE `namespace_photo`
-  ADD PRIMARY KEY (`np_id`) USING BTREE,
-  ADD KEY `f3` (`ns_id`) USING BTREE,
-  ADD KEY `f4` (`photo_id`) USING BTREE;
-
---
--- 表的索引 `photo`
---
-ALTER TABLE `photo`
-  ADD PRIMARY KEY (`photo_id`) USING BTREE;
-
---
--- 表的索引 `setting`
---
-ALTER TABLE `setting`
-  ADD PRIMARY KEY (`setting_id`);
-
---
--- 表的索引 `tag`
---
-ALTER TABLE `tag`
-  ADD PRIMARY KEY (`tag_id`) USING BTREE;
-
---
--- 表的索引 `tag_photo`
---
-ALTER TABLE `tag_photo`
-  ADD PRIMARY KEY (`tp_id`) USING BTREE,
-  ADD KEY `f1` (`tag_id`) USING BTREE,
-  ADD KEY `f2` (`photo_id`) USING BTREE;
-
---
--- 表的索引 `user`
---
-ALTER TABLE `user`
-  ADD PRIMARY KEY (`user_id`) USING BTREE;
-
---
--- 在导出的表使用AUTO_INCREMENT
---
-
---
--- 使用表AUTO_INCREMENT `cred`
---
-ALTER TABLE `cred`
-  MODIFY `cred_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- 使用表AUTO_INCREMENT `gallery`
---
-ALTER TABLE `gallery`
-  MODIFY `ga_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- 使用表AUTO_INCREMENT `gallery_photo`
---
-ALTER TABLE `gallery_photo`
-  MODIFY `gp_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- 使用表AUTO_INCREMENT `namespace`
---
-ALTER TABLE `namespace`
-  MODIFY `ns_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- 使用表AUTO_INCREMENT `namespace_photo`
---
-ALTER TABLE `namespace_photo`
-  MODIFY `np_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- 使用表AUTO_INCREMENT `photo`
---
-ALTER TABLE `photo`
-  MODIFY `photo_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- 使用表AUTO_INCREMENT `setting`
---
-ALTER TABLE `setting`
-  MODIFY `setting_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- 使用表AUTO_INCREMENT `tag`
---
-ALTER TABLE `tag`
-  MODIFY `tag_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- 使用表AUTO_INCREMENT `tag_photo`
---
-ALTER TABLE `tag_photo`
-  MODIFY `tp_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- 使用表AUTO_INCREMENT `user`
---
-ALTER TABLE `user`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- 限制导出的表
---
-
---
--- 限制表 `gallery_photo`
---
-ALTER TABLE `gallery_photo`
-  ADD CONSTRAINT `c1` FOREIGN KEY (`ga_id`) REFERENCES `gallery` (`ga_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `c2` FOREIGN KEY (`photo_id`) REFERENCES `photo` (`photo_id`) ON DELETE CASCADE;
-
---
--- 限制表 `namespace_photo`
---
-ALTER TABLE `namespace_photo`
-  ADD CONSTRAINT `f3` FOREIGN KEY (`ns_id`) REFERENCES `namespace` (`ns_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `f4` FOREIGN KEY (`photo_id`) REFERENCES `photo` (`photo_id`) ON DELETE CASCADE;
-
---
--- 限制表 `tag_photo`
---
-ALTER TABLE `tag_photo`
-  ADD CONSTRAINT `f1` FOREIGN KEY (`tag_id`) REFERENCES `tag` (`tag_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `f2` FOREIGN KEY (`photo_id`) REFERENCES `photo` (`photo_id`) ON DELETE CASCADE;
-COMMIT;
-
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+SET FOREIGN_KEY_CHECKS = 1;
 
 INSERT INTO setting (setting_name, setting_value, note) values ('ping', 'pong', 'use for testing connection');
 INSERT INTO setting (setting_name, setting_value, note) values ('SignUp', '1', 'use for determine if new user could sign up');
