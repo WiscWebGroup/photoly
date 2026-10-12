@@ -38,48 +38,45 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 
 DB: MySQL + Redis
 
-Backend: Spring Boot
+Backend: Python 3.12 + Flask (application factory, Controller / Service / Entity)
 
 Frontend: Vue3 (new version of frontend) + Naive UI
 
 ## How to Run?
 
-### Docker Version
+The backend has been migrated from Spring Boot to Flask. This version supports **fresh deployments**; it does not migrate legacy AES passwords or Redis sessions. The original Java implementation is available in Git at `e6619ab`.
 
-1. Make sure that you have docker and docker-compose installed in your VM / Host
-2. Create a folder named "mysql-data" in the photoly/database folder (make sure photoly/database/mysql-data exist and is empty first time you start it)
-3. cd photoly and execute this command
+### Docker
+
+1. Copy `.env.example` to `.env` and set database, Redis and administrator passwords. Use URL-safe alphanumeric database/Redis passwords because they are embedded in connection URLs.
+2. Run `docker compose up -d --build` from this directory.
+3. Open `http://localhost:5200`. The API is available at `http://localhost:8384`.
+4. Sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env`.
+
+The backend waits for MySQL and Redis, initializes missing tables/settings/admin once, then serves Flask with Gunicorn. Repeated startup preserves existing records and does not reset passwords. MySQL uses the Compose `mysql_data` named volume; media stays in `./upload_data`. This Compose does not mount or reset the old `database/mysql-data` directory. The frontend API calls are unchanged.
+
+For access from another machine, set `PUBLIC_BASE_URL` to the externally reachable API URL and update the frontend `VITE_APP_BASE_URL` build setting before rebuilding. `localhost` is only appropriate for local access.
+
+### Development and tests
+
+See [backend setup and architecture](photoly_backend/README.md) and [API compatibility notes](photoly_backend/COMPATIBILITY.md).
+
+```sh
+cd photoly_backend
+uv sync --python 3.12
+uv run pytest -q --cov=app
 ```
-root@cbr-gov-frostland1-dev:/test/photoly$ > docker-compose up
+
+The local suite uses SQLite and fakeredis. Install ExifTool first (`brew install exiftool` on macOS, `apt install libimage-exiftool-perl` on Debian). For real MySQL/Redis and HTTP/Gunicorn acceptance tests, run from the repository root:
+
+```sh
+docker compose -p photoly-test -f compose.test.yml build tests backend smoke
+docker compose -p photoly-test -f compose.test.yml run --rm tests
+docker compose -p photoly-test -f compose.test.yml run --rm smoke
+docker compose -p photoly-test -f compose.test.yml down -v --remove-orphans
 ```
-4. Access localhost:5200
 
-*Note: the initial MySQL will take longer to execute the initialization ("photoly\database\mysql-dump"), and the data will persist to ("photoly\database\mysql-data"). Redis data (login tokens) do not persist because we don't have to. In the docker-compose.yml file and two Dockerfiles inside photoly_backend and photoly_frontend_vue, we have defined (hardcoded) the ports, names, etc. so if you just want to conveniently run the photoly, try not to change these settings. 
-
-
-
-However, if you decide to change some settings, make sure to go over photoly_backend\src\main\resources\application.properties, photoly_frontend_vue\.env, photoly_backend\Dockerfile, photoly_frontend_vue\Dockerfile, photoly_frontend_vue\nginx_conf, and .\docker-compose.yml.
-
-### Normal VM/Host Version
-
-1. Edit application.properties in the backend to load your MySQL and Redis addresses, as well as your upload addresses
-2. Edit .env in the frontend folder to fit in your backend address
-3. In the backend folder, do
-   ```
-   mvn clean package -Dmaven.test.skip=true
-   java -jar <path>/photoly.war
-   ```
-4. In the frontend folder, do
-   ```
-   pnpm install
-   pnpm run build
-   ```
-   and then, use nginx to serve the frontend_vue/dist folder
-5. Please refer to the Jenkinsfile for more examples
-
-
-
-
+Run integration and smoke tests sequentially: integration tests reset the isolated test database, and the final smoke test intentionally stops its disposable backend. These commands never mount production database or upload directories.
 
 ## License
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWiscWebGroup%2Fphotoly.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FWiscWebGroup%2Fphotoly?ref=badge_large)
