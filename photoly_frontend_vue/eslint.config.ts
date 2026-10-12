@@ -17,12 +17,10 @@ export default defineConfigWithVueTs(
     'src/components/MapPart.vue',
     'src/components/MediaList.vue',
     'src/components/MoveToShowFolder.vue',
-    'src/components/NavigationBar.vue',
     'src/components/SearchPart.vue',
     'src/components/TagPart.vue',
     'src/views/AdminDashboard.vue',
     'src/views/AdminUserManagement.vue',
-    'src/views/Home.vue',
     'src/views/Login.vue',
     'src/views/Signup.vue',
     'src/views/Template.vue',
@@ -30,5 +28,7 @@ export default defineConfigWithVueTs(
   ]),
   pluginVue.configs['flat/essential'],
   vueTsConfigs.recommended,
+  // shadcn-vue's generated primitives use single-word names (Label, Sheet, ...).
+  { name: 'app/shadcn-ui', files: ['src/components/ui/**'], rules: { 'vue/multi-word-component-names': 'off' } },
   skipFormatting,
 )

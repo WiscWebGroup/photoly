@@ -1,8 +1,10 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
-import router from "../router/index.js";
+import router from '@/router';
 import axios from "axios";
 import { ref, defineComponent } from 'vue';
+import 'leaflet'; // sets the global L that RepeatMarker.js needs (parts load lazily now)
+import 'leaflet/dist/leaflet.css';
 import '@/resources/RepeatMarker.js';
 </script>
 <template>

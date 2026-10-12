@@ -12,6 +12,9 @@ function fillForm(username: string, email: string, password: string) {
   type(input('Password'), password)
 }
 
+// Navigation tests only need the route to change; skip loading the whole app behind it.
+vi.mock('@/views/HomeView.vue', () => ({ default: { render: () => null } }))
+
 describe('Signup', () => {
   beforeEach(async () => {
     await router.push('/signup')
@@ -73,8 +76,6 @@ describe('Signup', () => {
   it('links back to login', async () => {
     mountWithApp(Signup)
     button('Already have an account?').click()
-    await flushPromises()
-
-    expect(router.currentRoute.value.path).toBe('/login')
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/login'))
   })
 })

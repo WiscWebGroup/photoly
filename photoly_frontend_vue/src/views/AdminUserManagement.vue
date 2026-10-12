@@ -1,6 +1,6 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
-import router from "../router/index.js";
+import router from '@/router';
 import axios from "axios";
 import { ref, defineComponent, h, reactive } from 'vue';
 import { useMessage, NIcon, NButton, NInput, NSelect } from "naive-ui";
