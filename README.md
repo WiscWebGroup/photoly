@@ -1,5 +1,4 @@
 ![example workflow](https://github.com/WiscWebGroup/photoly/actions/workflows/codeql-analysis.yml/badge.svg)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWiscWebGroup%2Fphotoly.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FWiscWebGroup%2Fphotoly?ref=badge_shield)
 # Photoly
 <img src="https://raw.githubusercontent.com/Harold-y/photoly/main/Logo.png" height="160px" width="160px" />
 <br>
@@ -79,4 +78,4 @@ docker compose -p photoly-test -f compose.test.yml down -v --remove-orphans
 Run integration and smoke tests sequentially: integration tests reset the isolated test database, and the final smoke test intentionally stops its disposable backend. These commands never mount production database or upload directories.
 
 ## License
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWiscWebGroup%2Fphotoly.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FWiscWebGroup%2Fphotoly?ref=badge_large)
+See [LICENSE](LICENSE).
