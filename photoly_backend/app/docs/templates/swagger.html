@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Photoly API — Swagger UI</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="{{ url_for('docs.static', filename='vendor/swagger-ui.css') }}">
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="{{ url_for('docs.static', filename='vendor/swagger-ui-bundle.js') }}"></script>
+  <script src="{{ url_for('docs.static', filename='swagger-init.js') }}" data-spec-url="{{ url_for('docs.openapi') }}"></script>
+</body>
+</html>
