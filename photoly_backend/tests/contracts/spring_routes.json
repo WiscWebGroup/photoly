@@ -1,0 +1,725 @@
+{
+  "baseline": "e6619ab",
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/admin/isAdmin",
+      "java_method": "isAdmin",
+      "java_return_type": "Result<Boolean>",
+      "java_parameters": "HttpServletRequest request",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/pingMySQL",
+      "java_method": "pingMySQL",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/pingRedis",
+      "java_method": "pingRedis",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/getAddress",
+      "java_method": "getAddress",
+      "java_return_type": "Result<LinkedHashMap<String, String>>",
+      "java_parameters": "HttpServletRequest request",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/getSettings",
+      "java_method": "getSettings",
+      "java_return_type": "Result<LinkedHashMap<String, String>>",
+      "java_parameters": "HttpServletRequest request",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/stop",
+      "java_method": "stopServer",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/setSignUpPermission",
+      "java_method": "setSignUpPermission",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, Integer permission",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/setSSafeUUIDMode",
+      "java_method": "setSSafeUUIDMode",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, Integer mode",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/setTokenDuration",
+      "java_method": "setTokenDuration",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, Integer days",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/getUserPage",
+      "java_method": "getUserPage",
+      "java_return_type": "ResultPage<List<User>>",
+      "java_parameters": "HttpServletRequest request, Integer page, Integer rowsPerPage",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/searchUserPage",
+      "java_method": "searchUserPage",
+      "java_return_type": "ResultPage<List<User>>",
+      "java_parameters": "HttpServletRequest request, String search, Integer page, Integer rowsPerPage",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/addUser",
+      "java_method": "addUser",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, @RequestBody User user",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/deleteUser",
+      "java_method": "deleteUser",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, Integer userId",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/resetUserPassword",
+      "java_method": "resetUserPassword",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, @RequestBody User user",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/resetUserEmail",
+      "java_method": "resetUserEmail",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, @RequestBody User user",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/resetUserRole",
+      "java_method": "resetUserRole",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, @RequestBody User user",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/resetUsername",
+      "java_method": "resetUsername",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, @RequestBody User user",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/getGeneralSetting",
+      "java_method": "getGeneral",
+      "java_return_type": "Result<String>",
+      "java_parameters": "HttpServletRequest request, String name",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/setGeneralSetting",
+      "java_method": "setGeneral",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, String name, String val",
+      "source": "AdminController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/cred/create",
+      "java_method": "createNewAPI",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, @RequestBody Cred cred",
+      "source": "CredController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/cred/query",
+      "java_method": "queryAPI",
+      "java_return_type": "Result<List<Cred>>",
+      "java_parameters": "HttpServletRequest request",
+      "source": "CredController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/cred/update",
+      "java_method": "updateAPI",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, @RequestBody Cred cred",
+      "source": "CredController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/cred/delete",
+      "java_method": "deleteAPI",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, Integer credId",
+      "source": "CredController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/cred/uploadPhoto/{token}",
+      "java_method": "uploadPhoto",
+      "java_return_type": "String",
+      "java_parameters": "@PathVariable String token, MultipartFile file, @RequestParam String photo",
+      "source": "CredController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/cred/uploadPhotos/{token}",
+      "java_method": "uploadPhotos",
+      "java_return_type": "List<String>",
+      "java_parameters": "@PathVariable String token, MultipartFile[] files, @RequestParam String photosStr",
+      "source": "CredController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/cred/render/{token}",
+      "java_method": "renderImage",
+      "java_return_type": "byte[]",
+      "java_parameters": "@PathVariable String token, String uuid",
+      "source": "CredController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/cred/deletePhoto/{token}",
+      "java_method": "deletePhoto",
+      "java_return_type": "Integer",
+      "java_parameters": "@PathVariable String token, String uuid",
+      "source": "CredController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/cred/queryRootNamespace/{token}",
+      "java_method": "queryRootNamespace",
+      "java_return_type": "Namespace",
+      "java_parameters": "@PathVariable String token",
+      "source": "CredController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/cred/queryNamespaces/{token}",
+      "java_method": "queryNamespaces",
+      "java_return_type": "List<Namespace>",
+      "java_parameters": "@PathVariable String token, Integer parentId",
+      "source": "CredController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/cred/queryPhotoList/{token}",
+      "java_method": "queryPhotoList",
+      "java_return_type": "List<Photo>",
+      "java_parameters": "@PathVariable String token, Integer nsId",
+      "source": "CredController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/gallery/insert",
+      "java_method": "insertGallery",
+      "java_return_type": "Result<Boolean>",
+      "java_parameters": "HttpServletRequest request, @RequestBody Gallery gallery",
+      "source": "GalleryController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/gallery/getAll",
+      "java_method": "queryGallery",
+      "java_return_type": "Result<List<Gallery>>",
+      "java_parameters": "HttpServletRequest request",
+      "source": "GalleryController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/gallery/getPage",
+      "java_method": "queryGalleryPage",
+      "java_return_type": "ResultPage<List<Gallery>>",
+      "java_parameters": "HttpServletRequest request, Integer page, Integer rowsPerPage",
+      "source": "GalleryController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/gallery/delete",
+      "java_method": "deleteGallery",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, Integer gaId",
+      "source": "GalleryController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/gallery/update",
+      "java_method": "updateGallery",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request,@RequestBody Gallery gallery",
+      "source": "GalleryController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/gallery/downloadGa/{token}",
+      "java_method": "downloadGallery",
+      "java_return_type": "void",
+      "java_parameters": "@PathVariable String token, HttpServletResponse response, Integer gaId",
+      "source": "GalleryController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/namespace/getRoot",
+      "java_method": "queryRootNamespace",
+      "java_return_type": "Result<Namespace>",
+      "java_parameters": "HttpServletRequest request",
+      "source": "NamespaceController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/namespace/getChildren",
+      "java_method": "queryNamespace",
+      "java_return_type": "Result<List<Namespace>>",
+      "java_parameters": "HttpServletRequest request, Integer parentId",
+      "source": "NamespaceController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/namespace/getNameById",
+      "java_method": "queryNameById",
+      "java_return_type": "Result<String>",
+      "java_parameters": "HttpServletRequest request, Integer nsId",
+      "source": "NamespaceController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/namespace/updateName",
+      "java_method": "updateNamespaceName",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, @RequestBody Namespace namespace",
+      "source": "NamespaceController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/namespace/updateParent",
+      "java_method": "updateNamespaceParent",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, @RequestBody Namespace namespace",
+      "source": "NamespaceController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/namespace/insert",
+      "java_method": "insertNamespace",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, @RequestBody Namespace namespace",
+      "source": "NamespaceController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/namespace/delete",
+      "java_method": "deleteNamespace",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, Integer nsId",
+      "source": "NamespaceController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/namespace/trace",
+      "java_method": "traceNamespaceBack",
+      "java_return_type": "Result<List<LinkedHashMap<String, Object>>>",
+      "java_parameters": "HttpServletRequest request, Integer nsId",
+      "source": "NamespaceController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/namespace/downloadNs/{token}",
+      "java_method": "downloadNs",
+      "java_return_type": "void",
+      "java_parameters": "@PathVariable String token, HttpServletResponse response, Integer nsId",
+      "source": "NamespaceController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/photo/insert",
+      "java_method": "insertPhoto",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, MultipartFile file, @RequestParam String photo",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/photo/inserts",
+      "java_method": "insertPhotos",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, MultipartFile[] files, @RequestParam String photosStr",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/photo/delete",
+      "java_method": "deletePhoto",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, Integer photoId",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/photo/update",
+      "java_method": "updatePhotoNameAndVisibility",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, @RequestBody Photo photo",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/getByNamespace",
+      "java_method": "queryPhotoByNamespace",
+      "java_return_type": "Result<List<Photo>>",
+      "java_parameters": "HttpServletRequest request, Integer nsId",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/getByTags",
+      "java_method": "queryPhotoByTags",
+      "java_return_type": "Result<List<Photo>>",
+      "java_parameters": "HttpServletRequest request, @RequestParam List<Integer> tagIds",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/getByGallery",
+      "java_method": "queryPhotoByGallery",
+      "java_return_type": "Result<List<Photo>>",
+      "java_parameters": "HttpServletRequest request, Integer gaId",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/photo/changeNamespace",
+      "java_method": "changeNamespace",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, Integer photoId, Integer nsId",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/photo/addTags",
+      "java_method": "addTags",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, Integer photoId, @RequestParam List<Integer> tagIds",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/photo/deleteTag",
+      "java_method": "deleteTag",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, Integer photoId, Integer tagId",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/photo/deleteTags",
+      "java_method": "deleteTags",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, Integer photoId, @RequestParam List<Integer> tagIds",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/photo/addToGallery",
+      "java_method": "addToGallery",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, Integer photoId, Integer gaId",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/photo/deleteFromGallery",
+      "java_method": "deleteFromGallery",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, Integer photoId, Integer gaId",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/getTagByPhoto",
+      "java_method": "selectTagByPhoto",
+      "java_return_type": "Result<List<LinkedHashMap<String, Object>>>",
+      "java_parameters": "HttpServletRequest request, Integer photoId",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/getGalleryByPhoto",
+      "java_method": "selectGalleryByPhoto",
+      "java_return_type": "Result<List<LinkedHashMap<String, Object>>>",
+      "java_parameters": "HttpServletRequest request, Integer photoId",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/render/{token}",
+      "java_method": "renderImage",
+      "java_return_type": "ResponseEntity<Object>",
+      "java_parameters": "@PathVariable String token, Integer photoId",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/renderThumbnail/{token}",
+      "java_method": "renderThumbnailImage",
+      "java_return_type": "ResponseEntity<Object>",
+      "java_parameters": "@PathVariable String token, Integer photoId",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/renderToken",
+      "java_method": "renderImageToken",
+      "java_return_type": "ResponseEntity<Object>",
+      "java_parameters": "String path, String token",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/renderToken/Thumbnail",
+      "java_method": "renderImageTokenThumbnail",
+      "java_return_type": "ResponseEntity<Object>",
+      "java_parameters": "String path, String token",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/renderV/{token}",
+      "java_method": "renderVideo",
+      "java_return_type": "byte[]",
+      "java_parameters": "@PathVariable String token, Integer photoId, HttpServletResponse response",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/renderVToken",
+      "java_method": "renderVideoToken",
+      "java_return_type": "byte[]",
+      "java_parameters": "String path, String token, HttpServletResponse response",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/download/{token}",
+      "java_method": "download",
+      "java_return_type": "void",
+      "java_parameters": "@PathVariable String token, Integer photoId, HttpServletResponse response",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/getPath",
+      "java_method": "getImagePath",
+      "java_return_type": "Result<String>",
+      "java_parameters": "HttpServletRequest request, Integer photoId",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/getQR",
+      "java_method": "getImageQR",
+      "java_return_type": "byte[]",
+      "java_parameters": "HttpServletRequest request, Integer photoId",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/getQR2",
+      "java_method": "getImageQR2",
+      "java_return_type": "byte[]",
+      "java_parameters": "String token, Integer photoId",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/searchPhoto",
+      "java_method": "searchPhoto",
+      "java_return_type": "Result<List<Photo>>",
+      "java_parameters": "HttpServletRequest request, String option, String query",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo/getPhotoExif",
+      "java_method": "getPhotoExif",
+      "java_return_type": "Result<LinkedHashMap<String, String>>",
+      "java_parameters": "HttpServletRequest request, Integer photoId",
+      "source": "PhotoController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo-extra/getGlobalMapPhoto",
+      "java_method": "queryGlobalPhoto",
+      "java_return_type": "Result<List<LinkedHashMap<String, Object>>>",
+      "java_parameters": "HttpServletRequest request",
+      "source": "PhotoExtraController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/photo-extra/getGlobalMapPhotoByGallery",
+      "java_method": "getGlobalMapPhotoByGallery",
+      "java_return_type": "Result<List<LinkedHashMap<String, Object>>>",
+      "java_parameters": "HttpServletRequest request, Integer gaId",
+      "source": "PhotoExtraController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/tag/getAll",
+      "java_method": "queryTag",
+      "java_return_type": "Result<List<Tag>>",
+      "java_parameters": "HttpServletRequest request",
+      "source": "TagController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/tag/getPage",
+      "java_method": "queryTagPage",
+      "java_return_type": "ResultPage<List<Tag>>",
+      "java_parameters": "HttpServletRequest request, Integer page, Integer rowsPerPage",
+      "source": "TagController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/tag/delete",
+      "java_method": "deleteTag",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, Integer tagId",
+      "source": "TagController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/tag/update",
+      "java_method": "updateTag",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request,@RequestBody Tag tag",
+      "source": "TagController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/tag/insert",
+      "java_method": "insertTag",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, @RequestBody Tag tag",
+      "source": "TagController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/user/signUp",
+      "java_method": "signUp",
+      "java_return_type": "ResultToken<String>",
+      "java_parameters": "@RequestBody User user",
+      "source": "UserController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/user/signIn",
+      "java_method": "signIn",
+      "java_return_type": "ResultToken<String>",
+      "java_parameters": "@RequestBody User user",
+      "source": "UserController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/user/signOut",
+      "java_method": "signOut",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request",
+      "source": "UserController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/user/getInfo",
+      "java_method": "getInfo",
+      "java_return_type": "Result<User>",
+      "java_parameters": "HttpServletRequest request",
+      "source": "UserController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/user/updateUsername",
+      "java_method": "updateUsername",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, String username",
+      "source": "UserController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/user/updateEmail",
+      "java_method": "updateEmail",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, String email",
+      "source": "UserController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/user/updatePassword",
+      "java_method": "updatePassword",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, String oldPass, String newPass",
+      "source": "UserController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/user/updateAvatar",
+      "java_method": "updateAvatar",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request, MultipartFile file",
+      "source": "UserController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/user/getAvatar/{token}",
+      "java_method": "getAvatar",
+      "java_return_type": "byte[]",
+      "java_parameters": "@PathVariable String token",
+      "source": "UserController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/user/deleteUser",
+      "java_method": "deleteUser",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request",
+      "source": "UserController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/user/pingToken",
+      "java_method": "pingToken",
+      "java_return_type": "Result<Integer>",
+      "java_parameters": "HttpServletRequest request",
+      "source": "UserController.java"
+    }
+  ]
+}
