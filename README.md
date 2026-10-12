@@ -50,7 +50,7 @@ The backend has been migrated from Spring Boot to Flask. This version supports *
 
 1. Copy `.env.example` to `.env` and set database, Redis and administrator passwords. Use URL-safe alphanumeric database/Redis passwords because they are embedded in connection URLs.
 2. Run `docker compose up -d --build` from this directory.
-3. Open `http://localhost:5200`. The API is available at `http://localhost:8384`.
+3. Open `http://localhost:5200`. The API is available at `http://localhost:8384`, with interactive [Swagger UI](http://localhost:8384/docs/) and an [OpenAPI 3.2 document](http://localhost:8384/openapi.json).
 4. Sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env`.
 
 The backend waits for MySQL and Redis, initializes missing tables/settings/admin once, then serves Flask with Gunicorn. Repeated startup preserves existing records and does not reset passwords. MySQL uses the Compose `mysql_data` named volume; media stays in `./upload_data`. This Compose does not mount or reset the old `database/mysql-data` directory. The frontend API calls are unchanged.

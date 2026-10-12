@@ -12,6 +12,7 @@ from werkzeug.datastructures import MultiDict
 from sqlalchemy.dialects import mysql
 from app.extensions import db
 from tests.contract_cases import CASES
+from tests.openapi_assertions import assert_documented_response
 
 CONTRACTS = Path(__file__).parent / "contracts"
 ENTITY_FIELDS = json.loads((CONTRACTS / "spring_entities.json").read_text())
@@ -55,7 +56,8 @@ def test_route_inventory_is_exact(app):
     source = json.loads((CONTRACTS / "spring_routes.json").read_text())
     expected = {(row["method"], row["path"]) for row in source["routes"]}
     actual = {(method, re.sub(r"<(\w+)>", r"{\1}", rule.rule)) for rule in app.url_map.iter_rules()
-              for method in rule.methods if method in ("GET", "POST") and rule.rule != "/healthz"}
+              for method in rule.methods if method in ("GET", "POST") and rule.rule != "/healthz"
+              and not rule.endpoint.startswith("docs.")}
     assert len(expected) == len(actual) == len(CASES) == 90
     assert actual == expected
     assert {(method, normalized(path)) for method, path, _, _ in CASES} == expected
@@ -78,6 +80,7 @@ def test_spring_success_contract(world, method, path, options, expected):
     response = world.client.open(path, method=method, headers=headers, **request_options(options, world.jpeg))
     assert response.status_code == 200, response.get_data(as_text=True)
     try:
+        assert_documented_response(method, path, response)
         if expected in ("image", "thumbnail", "qr"):
             assert response.mimetype == "image/jpeg"
             image = Image.open(io.BytesIO(response.data))
@@ -189,6 +192,7 @@ def test_unauthenticated_contract(world, method, path, options, expected):
     if "token" in opts.get("query_string", {}):
         opts["query_string"]["token"] = "invalid"
     response = world.client.open(bad_path, method=method, **opts)
+    assert_documented_response(method, path, response)
     if "api-alice" in path:
         assert response.status_code == 200
         if "/uploadPhoto/" in path:

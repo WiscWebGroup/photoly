@@ -84,6 +84,26 @@ def test_http_concurrent_moves_cannot_create_cycle(http):
     assert http("GET", "/user/deleteUser", headers=headers).json()["msgCode"] == 200
 
 
+def test_http_openapi_and_upload_contract(http, jpeg):
+    from openapi_spec_validator import validate
+    for path in ("/docs", "/docs/"):
+        page = http("GET", path, allow_redirects=False)
+        assert page.status_code == 200 and 'swagger-ui-bundle.js' in page.text
+    spec = http("GET", "/openapi.json").json()
+    validate(spec)
+    assert spec["openapi"] == "3.2.0" and len(spec["paths"]) == 91
+    for asset in ("vendor/swagger-ui-bundle.js", "vendor/swagger-ui.css", "swagger-init.js"):
+        assert http("GET", "/docs/assets/" + asset).status_code == 200
+    headers, _ = register(http)
+    root = http("GET", "/namespace/getRoot", headers=headers).json()["t"]["nsId"]
+    response = http("POST", "/photo/inserts", headers=headers,
+                    files=[("files", ("first.jpg", jpeg)), ("files", ("second.jpg", jpeg))],
+                    data={"photosStr": json.dumps([{"nsId": root}, {"nsId": root}])})
+    assert response.json() == {"t": 2, "msgCode": 200}
+    assert len(http("GET", "/photo/getByNamespace", headers=headers, params={"nsId": root}).json()["t"]) == 2
+    assert http("GET", "/user/deleteUser", headers=headers).json()["msgCode"] == 200
+
+
 def test_http_z_admin_stop_terminates_all_workers(http):
     response = http("POST", "/user/signIn", json={"email": "admin@test.local", "password": "test-password-only"})
     assert response.json()["msgCode"] == 200
