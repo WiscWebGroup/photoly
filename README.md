@@ -71,8 +71,8 @@ However, if you decide to change some settings, make sure to go over photoly_bac
    ```
 4. In the frontend folder, do
    ```
-   npm install
-   npm run build
+   pnpm install
+   pnpm run build
    ```
    and then, use nginx to serve the frontend_vue/dist folder
 5. Please refer to the Jenkinsfile for more examples

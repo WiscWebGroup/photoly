@@ -37,9 +37,8 @@ mvn clean package -Dmaven.test.skip=true'''
         stage('Build Frontend and Deploy') {
             steps {
                 dir('/home/ubuntu/photoly_f/photoly_frontend_vue') {
-                    sh 'npm install'
-                    sh 'npm i --save leaflet'
-                    sh 'npm run build'
+                    sh 'npx -y pnpm@10.30.1 install --frozen-lockfile'
+                    sh 'npx -y pnpm@10.30.1 run build'
                 }
             }
         }
