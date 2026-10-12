@@ -1,0 +1,6 @@
+/* Tailwind without preflight: the reset would restyle the current Naive UI pages.
+   Switch to `@import "tailwindcss";` in Phase 2 once the design tokens land. */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+@import 'tw-animate-css';
