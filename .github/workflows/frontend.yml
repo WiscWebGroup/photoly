@@ -1,0 +1,55 @@
+name: Frontend
+
+on:
+  push:
+    branches: [main]
+    paths: ['photoly_frontend_vue/**', '.github/workflows/frontend.yml']
+  pull_request:
+    paths: ['photoly_frontend_vue/**', '.github/workflows/frontend.yml']
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: photoly_frontend_vue
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: photoly_frontend_vue/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: photoly_frontend_vue/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test:coverage
+      - run: pnpm build
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: photoly_frontend_vue/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: photoly_frontend_vue/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: photoly_frontend_vue/playwright-report
