@@ -15,7 +15,7 @@
     "naive-ui": "^2.37.3",
     "vfonts": "^0.0.3",
     "vue": "^3.4.15",
-    "vue-router": "^4.2.5"
+    "vue-router": "^4.5.1"
   },
   "devDependencies": {
     "@vicons/fluent": "^0.12.0",
