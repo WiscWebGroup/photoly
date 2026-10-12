@@ -1,0 +1,67 @@
+# Isolated dependencies: no production mounts, fixed container names or host ports.
+services:
+  mysql:
+    image: mysql:8.3.0
+    environment:
+      MYSQL_ROOT_PASSWORD: test-root-only
+      MYSQL_DATABASE: photoly_test
+      MYSQL_USER: photoly
+      MYSQL_PASSWORD: test-only
+    tmpfs:
+      - /var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=test-only mysql -h 127.0.0.1 -u photoly photoly_test -e 'SELECT 1'"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+  redis:
+    image: redis:7.2.4
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  tests:
+    build:
+      context: ./photoly_backend
+      target: test
+    entrypoint: []
+    command: ["pytest", "-q", "--cov=app", "--cov-report=term-missing"]
+    environment:
+      TEST_DATABASE_URL: mysql+pymysql://photoly:test-only@mysql:3306/photoly_test?charset=utf8mb4
+      TEST_REDIS_URL: redis://redis:6379/15
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  backend:
+    build:
+      context: ./photoly_backend
+      target: production
+    environment:
+      DATABASE_URL: mysql+pymysql://photoly:test-only@mysql:3306/photoly_test?charset=utf8mb4
+      REDIS_URL: redis://redis:6379/14
+      UPLOAD_FOLDER: /photoly
+      ADMIN_EMAIL: admin@test.local
+      ADMIN_PASSWORD: test-password-only
+      PUBLIC_BASE_URL: http://backend:8084
+    tmpfs:
+      - /photoly
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  smoke:
+    build:
+      context: ./photoly_backend
+      target: test
+    entrypoint: []
+    command: ["pytest", "-q", "tests/test_http.py", "-m", "http"]
+    environment:
+      PHOTOLY_TEST_HTTP_URL: http://backend:8084
+    depends_on:
+      backend:
+        condition: service_healthy

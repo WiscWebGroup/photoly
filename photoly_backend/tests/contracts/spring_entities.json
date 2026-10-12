@@ -1,0 +1,83 @@
+{
+  "Photo": [
+    "photoId",
+    "photoName",
+    "uploadDate",
+    "format",
+    "nsId",
+    "visibility",
+    "token",
+    "photoUuid",
+    "userId"
+  ],
+  "Tag": [
+    "tagId",
+    "userId",
+    "tagName"
+  ],
+  "Namespace": [
+    "nsId",
+    "nsName",
+    "nsParentId",
+    "userId"
+  ],
+  "Cred": [
+    "credId",
+    "userId",
+    "token",
+    "authorization"
+  ],
+  "User": [
+    "userId",
+    "userName",
+    "email",
+    "createDate",
+    "role",
+    "password",
+    "uuid"
+  ],
+  "NamespacePhoto": [
+    "npId",
+    "nsId",
+    "photoId"
+  ],
+  "Gallery": [
+    "gaId",
+    "gaName",
+    "userId",
+    "createDate",
+    "coverId",
+    "coverColor"
+  ],
+  "TagPhoto": [
+    "tpId",
+    "userId",
+    "tagId",
+    "photoId"
+  ],
+  "PhotoExtra": [
+    "extraPhotoId",
+    "fPhotoId",
+    "extraPhotoGpsLat",
+    "extraPhotoGpsLon",
+    "extraPhotoCamera",
+    "extraPhotoLens",
+    "extraPhotoAperture",
+    "extraPhotoFocal",
+    "extraPhotoIso",
+    "extraPhotoShutterSec",
+    "extraPhotoTakenDate",
+    "extraPhotoNote"
+  ],
+  "Setting": [
+    "settingId",
+    "settingName",
+    "settingValue",
+    "note"
+  ],
+  "GalleryPhoto": [
+    "gpId",
+    "gaId",
+    "photoId"
+  ]
+}

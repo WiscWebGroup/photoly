@@ -1,0 +1,83 @@
+{
+  "Photo": {
+    "photoId": "Integer",
+    "photoName": "String",
+    "uploadDate": "LocalDateTime",
+    "format": "String",
+    "nsId": "Integer",
+    "visibility": "Integer",
+    "token": "String",
+    "photoUuid": "String",
+    "userId": "Integer"
+  },
+  "Tag": {
+    "tagId": "Integer",
+    "userId": "Integer",
+    "tagName": "String"
+  },
+  "Namespace": {
+    "nsId": "Integer",
+    "nsName": "String",
+    "nsParentId": "Integer",
+    "userId": "Integer"
+  },
+  "Cred": {
+    "credId": "Integer",
+    "userId": "Integer",
+    "token": "String",
+    "authorization": "String"
+  },
+  "User": {
+    "userId": "Integer",
+    "userName": "String",
+    "email": "String",
+    "createDate": "LocalDateTime",
+    "role": "String",
+    "password": "String",
+    "uuid": "String"
+  },
+  "NamespacePhoto": {
+    "npId": "Integer",
+    "nsId": "Integer",
+    "photoId": "Integer"
+  },
+  "Gallery": {
+    "gaId": "Integer",
+    "gaName": "String",
+    "userId": "Integer",
+    "createDate": "LocalDateTime",
+    "coverId": "Integer",
+    "coverColor": "String"
+  },
+  "TagPhoto": {
+    "tpId": "Integer",
+    "userId": "Integer",
+    "tagId": "Integer",
+    "photoId": "Integer"
+  },
+  "PhotoExtra": {
+    "extraPhotoId": "Integer",
+    "fPhotoId": "Integer",
+    "extraPhotoGpsLat": "Double",
+    "extraPhotoGpsLon": "Double",
+    "extraPhotoCamera": "String",
+    "extraPhotoLens": "String",
+    "extraPhotoAperture": "Double",
+    "extraPhotoFocal": "Integer",
+    "extraPhotoIso": "Integer",
+    "extraPhotoShutterSec": "Integer",
+    "extraPhotoTakenDate": "LocalDateTime",
+    "extraPhotoNote": "String"
+  },
+  "Setting": {
+    "settingId": "Integer",
+    "settingName": "String",
+    "settingValue": "String",
+    "note": "String"
+  },
+  "GalleryPhoto": {
+    "gpId": "Integer",
+    "gaId": "Integer",
+    "photoId": "Integer"
+  }
+}

@@ -1,41 +1,58 @@
-version: "1.1"
 services:
   web:
     depends_on:
-     - backend
+      backend:
+        condition: service_healthy
     build: ./photoly_frontend_vue
-    container_name: photoly_vue
     ports:
       - "5200:80"
   backend:
+    build:
+      context: ./photoly_backend
+      target: production
     depends_on:
-     - db_mysql
-     - db_redis
-    build: ./photoly_backend
-    container_name: photoly_back
+      db_mysql:
+        condition: service_healthy
+      db_redis:
+        condition: service_healthy
     ports:
       - "8384:8084"
+    environment:
+      DATABASE_URL: mysql+pymysql://photoly:${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}@db_mysql:3306/photoly?charset=utf8mb4
+      REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@db_redis:6379/14
+      UPLOAD_FOLDER: /photoly
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8384}
+      TIMEZONE: ${TIMEZONE:-America/New_York}
+      MAX_CONTENT_LENGTH: ${MAX_CONTENT_LENGTH:-629145600}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@a.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
     volumes:
-     - ./upload_data:/photoly
+      - ./upload_data:/photoly
   db_mysql:
     image: mysql:8.3.0
-    container_name: photoly_mysql
-    ports:
-      - "3308:3306"
-    restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: G8aAYw24FGVw3i2311Hasvd241
-      MYSQL_PASSWORD: G8aAYw24FGVw3i2311Hasvd241
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
       MYSQL_DATABASE: photoly
+      MYSQL_USER: photoly
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
     volumes:
-      - ./database/mysql-dump:/docker-entrypoint-initdb.d
-      - ./database/mysql-data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql -h 127.0.0.1 -u photoly photoly -e 'SELECT 1'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
   db_redis:
     image: redis:7.2.4
-    container_name: photoly_redis
-    command: redis-server --requirepass haroldci --save 600 1000
-    ports:
-      - "6390:6379"
-    restart: always
-    volumes:
-      - ./database/redis-conf/redis.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save '' --appendonly no"]
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+volumes:
+  mysql_data:
