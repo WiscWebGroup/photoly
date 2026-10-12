@@ -3,9 +3,8 @@ FROM node:21-alpine3.19 AS builder
 COPY . /app/
 WORKDIR /app
 
-RUN npm install
-RUN npm install --save leaflet
-RUN npm run build
+RUN corepack enable && pnpm install --frozen-lockfile
+RUN pnpm run build
 
 FROM nginx:alpine
 
