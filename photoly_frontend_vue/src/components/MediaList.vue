@@ -174,6 +174,7 @@ defineExpose({
           <ContextMenuTrigger as-child>
             <div
               class="bg-card relative overflow-hidden rounded-xl border shadow-xs transition-shadow hover:shadow-md"
+              @contextmenu.stop
             >
               <button type="button" class="block w-full text-left" @click="open(photo)">
                 <img
