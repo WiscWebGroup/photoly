@@ -32,7 +32,7 @@ test('admin sees the paginated user list', async ({ page }) => {
   })
   await page.goto('/thepersonincharge/usermanage')
 
-  await expect(page.getByText('User Management')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'User Management' })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'uuid-alice' })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'uuid-bob' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '2024-02-01' })).toBeVisible()
