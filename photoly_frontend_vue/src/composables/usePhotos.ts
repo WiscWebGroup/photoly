@@ -7,6 +7,12 @@ export interface Photo {
   format?: string
 }
 
+/** What parents may call on a `MediaList` ref; replaced by `InstanceType<typeof MediaList>` once it is typed. */
+export interface MediaListApi {
+  updatePhotoList(photos: Photo[]): void
+  updateNsId(nsId: number): void
+}
+
 /** A list of photos from one source (a folder or a gallery), plus the actions shared by every view. */
 export function usePhotos() {
   const photos = ref<Photo[]>([])

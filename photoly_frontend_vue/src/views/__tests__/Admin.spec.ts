@@ -49,6 +49,15 @@ describe('AdminDashboard', () => {
       'Redis Status: 0%',
       'Backend Status: 100%',
     ])
+    const arcs = [...document.querySelectorAll('svg[role=img] circle:nth-child(2)')].map((c) =>
+      c.getAttribute('class'),
+    )
+    expect(arcs).toEqual([
+      'stroke-primary',
+      'stroke-primary',
+      'stroke-destructive',
+      'stroke-primary',
+    ])
     expect(document.querySelector('[aria-label=Registry]')?.getAttribute('data-state')).toBe(
       'checked',
     )

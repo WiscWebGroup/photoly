@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-const props = defineProps<{ value: number; label: string; ok?: boolean }>()
+const props = withDefaults(defineProps<{ value: number; label: string; ok?: boolean }>(), {
+  ok: true,
+})
 
 const R = 40
 const C = 2 * Math.PI * R
@@ -27,7 +29,7 @@ const offset = computed(() => C * (1 - props.value / 100))
         transform="rotate(-90 50 50)"
         :stroke-dasharray="C"
         :stroke-dashoffset="offset"
-        :class="ok === false ? 'stroke-destructive' : 'stroke-primary'"
+        :class="ok ? 'stroke-primary' : 'stroke-destructive'"
       />
       <text x="50" y="55" text-anchor="middle" class="fill-foreground text-[18px] font-medium">
         {{ Math.round(value) }}%
