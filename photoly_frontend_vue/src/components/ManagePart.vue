@@ -121,7 +121,7 @@ async function goToAdminPanel() {
     if (!(await call<boolean>({ url: '/admin/isAdmin' })))
       return toast.error('You are not an admin!')
     toast.success('Admin Identity Verified, Now Teleporting!')
-    window.open(router.resolve('/thepersonincharge/dashboard').href, '_blank')
+    router.push('/thepersonincharge/dashboard')
   } catch {
     toast.error('You are not an admin!')
   }
