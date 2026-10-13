@@ -1,595 +1,329 @@
-<script setup>
-import axios from "axios";
-import {Archive16Regular as ArchiveIcon, FolderAdd20Regular, FolderArrowRight20Regular, ArrowUpload20Filled,
-  ArrowDownload20Filled, Eye20Regular, Delete20Regular, Edit20Regular } from "@vicons/fluent"
-import {Star20Regular as Star, Airplane20Regular as Airplane, Flag20Regular as Flag, ImageMultiple20Regular as Album, Heart20Regular as Heart,
-  Luggage20Regular as Luggage,  AnimalDog20Regular as Animal, Archive20Regular as Archive, Beach20Regular as Beach, Globe20Regular as Global, Album20Regular as AlbumDefault } from "@vicons/fluent"
-  
-import { ref, defineComponent, nextTick, h } from 'vue';
-import { NTag } from "naive-ui";
-import { useMessage, NIcon } from 'naive-ui'
-import MoveToShowFolder from "./MoveToShowFolder.vue"
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { toast } from 'vue-sonner'
+import {
+  Album,
+  Archive,
+  Dog,
+  Download,
+  Flag,
+  Globe,
+  Heart,
+  Images,
+  Luggage,
+  Palmtree,
+  Pencil,
+  Plane,
+  Star,
+  Trash2,
+} from '@lucide/vue'
 import MediaList from '@/components/MediaList.vue'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import type { MediaListApi, Photo } from '@/composables/usePhotos'
+import { download } from '@/lib/download'
+import { call } from '@/lib/http'
+import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth'
+
+interface Gallery {
+  gaId: number
+  gaName: string
+  userId?: number
+  createDate: string
+  coverId: number | null
+  coverColor: string
+}
+
+/** Indexed by `coverId`. */
+const covers = [
+  { label: 'Default', icon: Album },
+  { label: 'Heart', icon: Heart },
+  { label: 'Star', icon: Star },
+  { label: 'Airplane', icon: Plane },
+  { label: 'Flag', icon: Flag },
+  { label: 'Album', icon: Images },
+  { label: 'Luggage', icon: Luggage },
+  { label: 'Animal', icon: Dog },
+  { label: 'Archive', icon: Archive },
+  { label: 'Beach', icon: Palmtree },
+  { label: 'Globe', icon: Globe },
+]
+
+const auth = useAuthStore()
+const mediaList = ref<MediaListApi>()
+const galleries = ref<Gallery[]>([])
+const selectedGaId = ref(-1)
+
+const newName = ref('')
+const newCover = ref('0')
+const newColor = ref('#000000')
+
+const editing = ref<Gallery | null>(null)
+const deleting = ref<Gallery | null>(null)
+
+const loadGalleries = async () =>
+  (galleries.value = await call<Gallery[]>({ url: '/gallery/getAll' }))
+
+async function queryPhotos() {
+  try {
+    mediaList.value?.updatePhotoList(
+      await call<Photo[]>({ url: '/photo/getByGallery', params: { gaId: selectedGaId.value } }),
+    )
+  } catch {
+    toast.error('query photo Response Error!')
+  }
+}
+
+function selectGallery(gallery: Gallery) {
+  if (selectedGaId.value === gallery.gaId) {
+    selectedGaId.value = -1
+    mediaList.value?.updatePhotoList([])
+  } else {
+    selectedGaId.value = gallery.gaId
+    queryPhotos()
+  }
+}
+
+async function createGallery() {
+  if (!newName.value) return toast.warning('Please Input a Valid Gallery Name!')
+  try {
+    await call({
+      method: 'post',
+      url: '/gallery/insert',
+      data: { gaName: newName.value, coverId: Number(newCover.value), coverColor: newColor.value },
+    })
+    toast.success('Created a New Gallery!')
+    newName.value = ''
+    newCover.value = '0'
+    newColor.value = '#000000'
+    await loadGalleries()
+  } catch {
+    toast.error('createGa Response Error!')
+  }
+}
+
+async function saveEdit() {
+  const g = editing.value
+  if (!g) return
+  if (!g.gaName) return toast.warning('Please Input a Valid Gallery Name!')
+  try {
+    const { gaId, gaName, userId, coverId, coverColor } = g
+    await call({
+      method: 'post',
+      url: '/gallery/update',
+      data: { gaId, gaName, userId, coverId, coverColor },
+    })
+    toast.success('Information Updated!')
+    editing.value = null
+    await loadGalleries()
+  } catch {
+    toast.error('Update Response Error!')
+  }
+}
+
+async function deleteGallery() {
+  const g = deleting.value
+  if (!g) return
+  try {
+    await call({ method: 'post', url: '/gallery/delete', params: { gaId: g.gaId } })
+    toast.success('Gallery Deleted!')
+    deleting.value = null
+    if (selectedGaId.value === g.gaId) {
+      selectedGaId.value = -1
+      mediaList.value?.updatePhotoList([])
+    }
+    await loadGalleries()
+  } catch {
+    toast.warning('Update Error!')
+  }
+}
+
+async function downloadGallery(g: Gallery) {
+  try {
+    await download(`/gallery/downloadGa/${auth.token}`, `${g.gaName}.zip`, {
+      params: { gaId: g.gaId },
+    })
+  } catch {
+    toast.error('Download failed')
+  }
+}
+
+async function detach(photos: (Photo & { checked?: boolean })[]) {
+  try {
+    await Promise.all(
+      photos
+        .filter((p) => p.checked)
+        .map((p) =>
+          call({
+            method: 'post',
+            url: '/photo/deleteFromGallery',
+            params: { photoId: p.photoId, gaId: selectedGaId.value },
+          }),
+        ),
+    )
+    toast.success('Detached from gallery!')
+  } catch {
+    toast.error('removeGa Response Error!')
+  }
+  await queryPhotos()
+}
+
+onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')))
 </script>
 
 <template>
-  <div>
+  <div class="flex flex-col gap-6 md:flex-row md:items-start" @contextmenu.prevent.stop>
+    <aside class="w-full shrink-0 space-y-3 md:w-64">
+      <h2 class="text-2xl font-semibold">Galleries</h2>
 
-    <!-- This part is for medias -->
-
-    <div @contextmenu="blankSpaceMenu" >
-
-      <!-- This part is for loading photos cards into the "media" section -->
-
-      <div style="margin-top: 1rem;">
-        <div style="display: flex; align-items: flex-start; flex-direction: row;">
-
-          <div style="width: 15vw;">
-            <n-h2>Galleries</n-h2>
-            <n-collapse :default-expanded-names="['show']">
-
-              <n-collapse-item title="Add New Gallery" name="add">
-                <n-card title="" size="small" >
-                      Add a New Gallery
-                      <template #footer>
-                        <n-space vertical>
-                          <n-input v-model:value="addNewGalleryInput" type="text" placeholder="Gallery Name" @keyup.enter="createGa" />
-                          <n-select v-model:value="addNewGalleryIconSelectVal" :options="addNewGalleryIconSelectOptions" />
-                          <n-color-picker v-model:value="addNewGalleryIconColorVal" :show-alpha="false" :modes="['hex']" />
-                          <n-button strong secondary style="width: 100%; " @click="createGa">
-                            Add
-                          </n-button>
-                        </n-space>
-                      </template>
-                </n-card>
-              </n-collapse-item>
-
-              <n-collapse-item title="Galleries" name="show">
-                <n-flex vertical>
-                  <n-card class="galleryCard" title="" size="small" v-for="gallery in galleryChildren" :style="{'background-color' : renderPhotoGaId === gallery.gaId ? '#8fd2ce' : '#EDF2F7', 'border-radius': '7px'}"
-                    @click.left.native="selectGallery(gallery)" @click.right.native="GalleryMenu(gallery, $event)">
-                    <n-flex>
-                      <n-p>{{ gallery.gaName.length > 15 ? gallery.gaName.substring(0, 15) + "..." : gallery.gaName }}</n-p>
-                      <n-icon size="25" :color="gallery.coverColor" :component="renderGaIcon(gallery.coverId)"></n-icon>
-                    </n-flex>
-                    Created: {{ gallery.createDate.split('T')[0] }}
-                  </n-card>
-                </n-flex>
-              </n-collapse-item>
-
-            </n-collapse>
-            
-          </div>
-
-          <MediaList style="margin-left: 2rem;" @queryPhotos="queryPhotos" @doDetach="removeFromGallerySelectedPhoto" ref="mediaListRef" :nsOrNot="false" :detachEnabled="true" detachStr="Gallery"/>
-
+      <details class="rounded-lg border">
+        <summary class="cursor-pointer px-3 py-2 text-sm font-medium">Add New Gallery</summary>
+        <div class="space-y-2 border-t p-3">
+          <Input v-model="newName" placeholder="Gallery Name" @keyup.enter="createGallery" />
+          <Select v-model="newCover">
+            <SelectTrigger class="w-full" aria-label="Cover icon"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="(c, i) in covers" :key="c.label" :value="String(i)">{{
+                c.label
+              }}</SelectItem>
+            </SelectContent>
+          </Select>
+          <input
+            v-model="newColor"
+            type="color"
+            aria-label="Cover color"
+            class="h-9 w-full cursor-pointer rounded-md border"
+          />
+          <Button variant="secondary" class="w-full" @click="createGallery">Add</Button>
         </div>
-        
-      </div>
-      <!-- ENDOF: This part is for loading photos cards into the "media" section -->
+      </details>
 
-    </div>
-    <!-- ENDOF: This part is for medias -->
+      <details open class="rounded-lg border">
+        <summary class="cursor-pointer px-3 py-2 text-sm font-medium">Galleries</summary>
+        <div class="flex flex-col gap-2 border-t p-3">
+          <ContextMenu v-for="g in galleries" :key="g.gaId">
+            <ContextMenuTrigger as-child>
+              <button
+                type="button"
+                :aria-pressed="selectedGaId === g.gaId"
+                :class="
+                  cn(
+                    'hover:bg-accent flex flex-col gap-1 rounded-lg border p-3 text-left text-sm',
+                    selectedGaId === g.gaId && 'bg-accent text-accent-foreground',
+                  )
+                "
+                @click="selectGallery(g)"
+              >
+                <span class="flex items-center justify-between gap-2">
+                  <span class="truncate font-medium" :title="g.gaName">{{ g.gaName }}</span>
+                  <component
+                    :is="covers[g.coverId ?? 0]?.icon ?? Album"
+                    class="size-5 shrink-0"
+                    :style="{ color: g.coverColor }"
+                  />
+                </span>
+                <span class="text-muted-foreground text-xs"
+                  >Created: {{ g.createDate.split('T')[0] }}</span
+                >
+              </button>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+              <ContextMenuItem @select="editing = { ...g }"><Pencil /> Edit</ContextMenuItem>
+              <ContextMenuItem variant="destructive" @select="deleting = g"
+                ><Trash2 /> Delete</ContextMenuItem
+              >
+              <ContextMenuItem @select="downloadGallery(g)"><Download /> Download</ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
+        </div>
+      </details>
+    </aside>
 
-    <!-- MENU PART -->
-    <!-- This part is for redesign of right click menu for gallery part -->
-    <n-dropdown
-        placement="bottom-start"
-        trigger="manual"
-        :x="mouseX"
-        :y="mouseY"
-        :options="GalleryMenuOptions"
-        :show="showGalleryMenu"
-        :on-clickoutside="onClickOutsideGallery"
-        @select="handleSelectGallery"
-      />
-    <!-- ENDOF: This part is for redesign of right click menu for gallery part -->
-    <!-- ENDOF: MENU PART -->
+    <MediaList
+      ref="mediaList"
+      class="min-w-0 flex-1"
+      :ns-or-not="false"
+      :detach-enabled="true"
+      detach-str="Gallery"
+      @query-photos="queryPhotos"
+      @do-detach="detach"
+    />
 
-    <!-- MODAL PART -->
-    <!-- This part is for modal of confirming to delete a gallery -->
-    <n-modal v-model:show="showDeleteGalleryConfirmModal">
-      <n-card
-        style="width: 400px; border-radius: 10px;"
-        title="Confirm to Delete"
-        :bordered="false"
-        size="huge"
-        role="dialog"
-        aria-modal="true"
-      >
-        Do you really want to DELETE this gallery?
-        <p>*All photos associated with this gallery will be detached (photos will not been deleted).</p>
+    <AlertDialog :open="!!deleting" @update:open="deleting = null">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirm to Delete</AlertDialogTitle>
+          <AlertDialogDescription>
+            Do you really want to DELETE this gallery? *All photos associated with this gallery will
+            be detached (photos will not been deleted).
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <Button variant="destructive" @click="deleteGallery">Delete</Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
-        <n-space style="margin-top: 1rem">
-          <n-button type="error" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="deleteGallery">
-            Delete
-          </n-button>
-          <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showDeleteGalleryConfirmModal = false;}">
-            Cancel
-          </n-button>
-        </n-space>
-
-      </n-card>
-    </n-modal>
-    <!-- ENDOF: This part is for modal of confirming to delete a gallery -->
-
-    <!-- This part is for modal of edit a gallery's information -->
-    <n-modal v-model:show="showEditGalleryModal">
-      <n-card title="Edit Gallery" size="huge" style="width: 400px; border-radius: 10px;" role="dialog"
-        aria-modal="true" :bordered="false">
-            <n-space vertical>
-                <n-input v-model:value="editGalleryInfo.gaName" type="text" placeholder="Gallery Name" @keyup.enter="editGa"/>
-                <n-select v-model:value="editGalleryInfo.coverId" :options="addNewGalleryIconSelectOptions" />
-                <n-color-picker v-model:value="editGalleryInfo.coverColor" :show-alpha="false" :modes="['hex']"/>
-                <n-button strong secondary style="width: 100%; " @click="editGa">
-                  Submit
-                </n-button>
-            </n-space>
-      </n-card>
-    </n-modal>
-    <!-- ENDOF: This part is for modal of edit a gallery's information -->
-    
-    
-    <!-- ENDOF: MODAL PART -->
-
-    <n-back-top :right="100" />
+    <Dialog :open="!!editing" @update:open="editing = null">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Gallery</DialogTitle>
+          <DialogDescription>Change this gallery's name, icon and color.</DialogDescription>
+        </DialogHeader>
+        <template v-if="editing">
+          <Input v-model="editing.gaName" placeholder="Gallery Name" @keyup.enter="saveEdit" />
+          <Select
+            :model-value="String(editing.coverId ?? 0)"
+            @update:model-value="editing.coverId = Number($event)"
+          >
+            <SelectTrigger class="w-full" aria-label="Cover icon"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="(c, i) in covers" :key="c.label" :value="String(i)">{{
+                c.label
+              }}</SelectItem>
+            </SelectContent>
+          </Select>
+          <input
+            v-model="editing.coverColor"
+            type="color"
+            aria-label="Cover color"
+            class="h-9 w-full cursor-pointer rounded-md border"
+          />
+        </template>
+        <DialogFooter><Button @click="saveEdit">Submit</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
-
-  
-  
 </template>
-
-<script>
-const mediaListRef = ref(null);
-export default defineComponent({
-  data() {
-    return {
-      renderPhotoGaId: -1,
-      nsPathStr: "",
-      userToken: localStorage.getItem("HRD-Token"),
-      showGalleryMenu: false,
-      showPhotoSpaceMenuPhotoInfo: null,
-      mouseX: null,
-      mouseY: null,
-      GalleryMenuOptions: [
-        {
-          label: "Edit",
-          key: "edit",
-          icon() {
-            return h(NIcon, null, {
-              default: () => h(Edit20Regular)
-            });
-          }
-        },
-        {
-          label: "Delete",
-          key: "delete",
-          icon() {
-            return h(NIcon, null, {
-              default: () => h(Delete20Regular)
-            });
-          }
-        },
-        {
-          label: "Download",
-          key: "download",
-          icon() {
-            return h(NIcon, null, {
-              default: () => h(ArrowDownload20Filled)
-            });
-          }
-        },
-      ],
-      
-      galleryChildren: [],
-      addNewGalleryInput: "",
-      addNewGalleryIconSelectVal: 0,
-      addNewGalleryIconSelectOptions: [
-        {
-            label: "Default",
-            value: 0
-        },
-        {
-            label: "Heart",
-            value: 1
-        },
-        {
-            label: "Star",
-            value: 2
-        },
-        {
-            label: "Airplane",
-            value: 3
-        },
-        {
-            label: "Flag",
-            value: 4
-        },
-        {
-            label: "Album",
-            value: 5
-        },
-        {
-            label: "Luggage",
-            value: 6
-        },
-        {
-            label: "Animal",
-            value: '7'
-        },
-        {
-            label: "Archive",
-            value: '8'
-        },
-        {
-            label: "Beach",
-            value: '9'
-        },
-        {
-            label: "Globe",
-            value: '10'
-        },
-      ],
-      addNewGalleryIconColorVal: "#000000",
-
-      editGalleryInfo: null,
-
-      showDeleteGalleryConfirmModal: false,
-      showEditGalleryModal: false,
-    }
-  },
-  setup() {
-    
-    return {
-      
-    };
-  },
-  methods: {
-    downloadGa () {
-      axios
-          .get(import.meta.env.VITE_APP_BASE_URL + "/gallery/downloadGa/" + this.userToken + "?gaId="+ this.editGalleryInfo.gaId, {responseType: "blob"})
-          .then(async (response) => {
-            var a = document.createElement("a");
-            document.body.appendChild(a);
-            a.style = "display: none";
-
-            let url = window.URL.createObjectURL(new Blob([response.data]));
-
-            let link = document.createElement("a");
-            link.style.display = "none";
-            link.href = url;
-            link.download = this.editGalleryInfo.gaName + ".zip";
-            document.body.appendChild(link);
-            link.click();
-          })
-          .catch(function (error) { // 请求失败处理
-            // console.log(error);
-            window.$message.error(error);
-          });
-    },
-    editGa() {
-      if (this.editGalleryInfo.gaName === null || this.editGalleryInfo.gaName === "")
-      {
-        window.$message.warning("Please Input a Valid Gallery Name!");
-      }else {
-        axios({
-          method: 'post',
-          baseURL: '',
-          url: import.meta.env.VITE_APP_BASE_URL + "/gallery/update",
-          headers: {
-            "HRD-Token": localStorage.getItem("HRD-Token")
-          },
-          data: this.editGalleryInfo
-        }).then((response) => {
-          if (response.data.msgCode === 200)
-          {
-            window.$message.success("Information Updated!");
-            this.getAllGas();
-            this.showEditGalleryModal = false;
-          }else {
-            window.$message.error("Update Response Error!")
-          }
-        })
-        .catch(function (error) { // 请求失败处理
-          // console.log(error);
-          window.$message.error(error);
-        });
-      }
-      
-    },
-    createGa() {
-      if (this.addNewGalleryInput === null || this.addNewGalleryInput === "")
-      {
-        window.$message.warning("Please Input a Valid Gallery Name!");
-      }else {
-        axios({
-          method: 'post',
-          baseURL: '',
-          url: import.meta.env.VITE_APP_BASE_URL + "/gallery/insert",
-          headers: {
-            "HRD-Token": localStorage.getItem("HRD-Token")
-          },
-          data: {
-            "gaName": this.addNewGalleryInput,
-            "coverId": this.addNewGalleryIconSelectVal,
-            "coverColor": this.addNewGalleryIconColorVal
-        }
-        }).then((response) => {
-          if (response.data.msgCode === 200)
-          {
-            window.$message.success("Created a New Gallery!");
-            this.getAllGas();
-            this.addNewGalleryInput = "";
-            this.addNewGalleryIconSelectVal = 0;
-            this.addNewGalleryIconColorVal = "#000000";
-          }else {
-            window.$message.error("createGa Response Error!")
-          }
-        })
-        .catch(function (error) { // 请求失败处理
-          // console.log(error);
-          window.$message.error(error);
-        });
-      }
-      
-    },
-    selectGallery(gallery) {
-      if (this.renderPhotoGaId == gallery.gaId)
-      {
-        this.renderPhotoGaId = -1;
-        mediaListRef.value.updatePhotoList([]);
-      }else {
-        this.renderPhotoGaId = gallery.gaId;
-        this.queryPhotos();
-      }
-    },
-    removeFromGallerySelectedPhoto (photoChildren) {
-      photoChildren.forEach((photo) => {
-        if(photo["checked"])
-        {
-          axios({
-            method: 'post',
-            baseURL: '',
-            url: import.meta.env.VITE_APP_BASE_URL + "/photo/deleteFromGallery?photoId=" + photo.photoId + "&gaId=" + this.renderPhotoGaId,
-            headers: {
-              "HRD-Token": localStorage.getItem("HRD-Token")
-            },
-            data: {
-          }
-          }).then((response) => {
-            if (response.data.msgCode === 200)
-            {
-              this.queryPhotos();
-              window.$message.success("Detached from gallery!");
-              
-            }else {
-              window.$message.error("removeGa Response Error!")
-            }
-          })
-          .catch(function (error) { // 请求失败处理
-            // console.log(error);
-            window.$message.error(error);
-          });
-            }
-          })
-      this.showPhotoMultiDetachModal = false;
-      this.photoMultiSelectMode = false;
-    },
-    blankSpaceMenu (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    },
-    handleSelectGallery(key) {
-      this.showGalleryMenu = false;
-      if (key === "edit")
-      {
-        this.showEditGalleryModal = true;
-      }
-      if (key === "delete")
-      {
-        this.showDeleteGalleryConfirmModal = true;
-      }
-      if (key === "download")
-      {
-        this.downloadGa();
-      }
-    },
-    onClickOutsideGallery () {
-      this.showGalleryMenu = false;
-    },
-    GalleryMenu(gallery, e) {
-      this.editGalleryInfo = {
-        "gaId": gallery.gaId,
-        "gaName": gallery.gaName,
-        "userId": gallery.userId,
-        "createDate": gallery.gallery,
-        "coverId": gallery.coverId,
-        "coverColor": gallery.coverColor
-      };
-      e.preventDefault();
-      e.stopPropagation();
-      this.mouseX = e.clientX;
-      this.mouseY = e.clientY;
-      this.showGalleryMenu = true;
-    },
-    renderGaIcon (coverId) {
-      if (coverId === null)
-      {
-        return AlbumDefault
-      }
-      switch (coverId)
-      {
-        case 0:
-          return AlbumDefault
-        case 1:
-            return Heart
-        case 2:
-          return Star
-        case 3:
-          return Airplane
-        case 4:
-          return Flag
-        case 5:
-          return Album
-        case 6:
-          return Luggage
-        case 7:
-          return Animal
-        case 8:
-          return Beach
-        case 9:
-          return Global
-      }
-    },
-    getAllGas() {
-      axios({
-        method: 'get',
-        baseURL: '',
-        url: import.meta.env.VITE_APP_BASE_URL + "/gallery/getAll",
-        headers: {
-          "HRD-Token": localStorage.getItem("HRD-Token")
-        },
-        data: {
-      }
-      }).then((response) => {
-        
-        if (response.data.msgCode === 200)
-        {
-          var infoT = response.data.t;
-          let allgas = [];
-          for(var i = 0; i < infoT.length; i ++)
-          {
-            var gas = infoT[i];
-            allgas.push({
-              "label": gas["gaName"], 
-              "value": gas["gaId"]
-            })
-          }
-          this.gaOptions = allgas;
-          this.galleryChildren = infoT;
-        }else {
-          window.$message.error("getGa Response Error!")
-        }
-      })
-      .catch(function (error) { // 请求失败处理
-        window.$message.error(error);
-      });
-    },
-    removeGa(gaId) {
-      axios({
-        method: 'post',
-        baseURL: '',
-        url: import.meta.env.VITE_APP_BASE_URL + "/photo/deleteFromGallery?photoId=" + this.showPhotoInfo.photoId + "&gaId=" + gaId,
-        headers: {
-          "HRD-Token": localStorage.getItem("HRD-Token")
-        },
-        data: {
-      }
-      }).then((response) => {
-        if (response.data.msgCode === 200)
-        {
-          this.getGas();
-          this.queryPhotos();
-          window.$message.success("Gallery detached!")
-        }else {
-          window.$message.error("removeGa Response Error!")
-        }
-      })
-      .catch(function (error) { // 请求失败处理
-        // console.log(error);
-        window.$message.error(error);
-      });
-    },
-    deleteGallery () {
-      axios({
-          method: 'post',
-          baseURL: '',
-          url: import.meta.env.VITE_APP_BASE_URL + "/gallery/delete?gaId=" + this.editGalleryInfo.gaId,
-          headers: {
-            "HRD-Token": localStorage.getItem("HRD-Token")
-          },
-          data: {
-        }
-        }).then((response) => {
-          if (response.data.msgCode === 200)
-          {
-            this.getAllGas();
-            if (this.renderPhotoGaId === this.editGalleryInfo.gaId)
-            {
-              this.photoChildren = []
-            }
-            this.showDeleteGalleryConfirmModal = false;
-            window.$message.success("Gallery Deleted!");
-          }else {
-            window.$message.warning("Update Error!")
-          }
-        })
-        .catch(function (error) { // 请求失败处理
-          window.$message.error(error);
-        });
-    },
-    queryPhotos() {
-      axios({
-        method: 'get',
-        baseURL: '',
-        url: import.meta.env.VITE_APP_BASE_URL + "/photo/getByGallery?gaId=" + this.renderPhotoGaId,
-        headers: {
-          "HRD-Token": localStorage.getItem("HRD-Token")
-        },
-        data: {
-      }
-      }).then((response) => {
-        if (response.data.msgCode === 200)
-        {
-          var infoT = response.data.t;
-          mediaListRef.value.updatePhotoList(infoT);
-        }else {
-          window.$message.error("query photo Response Error!")
-        }
-      })
-      .catch(function (error) { // 请求失败处理
-        // console.log(error);
-        window.$message.error(error);
-      });
-    },
-  },
-  computed: {
-
-  },
-  mounted () {
-    window.$message = useMessage();
-    this.getAllGas();
-  },
-  components: {
-
-  }
-})
-
-</script>
-
-<style scoped>
-.n-button {
-  border-radius: 10px;
-  width: 15rem;
-  
-}
-.cardImgDiv {
-  width: 255px;
-  height: 128px;
-}
-.cardImg {
-  object-fit: cover;
-  width: 100%;
-  max-width: 100%;
-  height: 128px;
-  overflow: hidden;
-}
-.n-card {
-  /*cursor: pointer;*/
-  padding: 0;
-}
-.galleryCard {
-  cursor: pointer;
-  user-select: none;
-}
-</style>

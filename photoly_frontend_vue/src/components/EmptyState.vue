@@ -5,7 +5,8 @@ import { Inbox } from '@lucide/vue'
 // Shared empty / error placeholder; put an action button in the default slot.
 withDefaults(defineProps<{ title: string; description?: string; icon?: Component }>(), {
   description: undefined,
-  icon: Inbox,
+  // Vue calls function defaults as factories, and icons are functional components.
+  icon: () => Inbox,
 })
 </script>
 
