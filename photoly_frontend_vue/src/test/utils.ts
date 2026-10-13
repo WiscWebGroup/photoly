@@ -6,7 +6,7 @@ import router from '@/router'
 
 /**
  * Mounts inside the app-level providers (Pinia, real router).
- * `Api` types the component's exposed methods, since legacy components are untyped JS.
+ * `Api` types the component's exposed methods, since the components' exposed methods aren't inferred from the mounted component.
  */
 export function mountWithApp<Api = object>(
   component: Component,
