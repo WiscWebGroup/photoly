@@ -53,7 +53,9 @@ const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-med
         </router-link>
       </nav>
       <div class="flex items-center gap-1 border-t pt-3">
-        <Avatar class="size-8"><AvatarImage :src="auth.avatarUrl" alt="" /></Avatar>
+        <router-link to="/home/ManagePart" aria-label="User">
+          <Avatar class="size-8"><AvatarImage :src="auth.avatarUrl" alt="" /></Avatar>
+        </router-link>
         <span class="ml-auto"><ThemeToggle /></span>
         <Button variant="ghost" size="icon" aria-label="Logout" @click="logOut">
           <LogOut class="size-4" />

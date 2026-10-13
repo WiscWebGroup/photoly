@@ -7,5 +7,5 @@ const { state } = useColorMode()
 
 <template>
   <router-view />
-  <Toaster rich-colors :theme="state" />
+  <Toaster rich-colors position="top-center" :theme="state" />
 </template>

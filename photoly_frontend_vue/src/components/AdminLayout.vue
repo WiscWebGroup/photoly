@@ -1,27 +1,81 @@
 <script setup lang="ts">
-import { Button } from '@/components/ui/button'
+import { ArrowLeft, LayoutDashboard, Users } from '@lucide/vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import { cn } from '@/lib/utils'
+
+const nav = [
+  { to: '/thepersonincharge/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/thepersonincharge/usermanage', label: 'User Management', icon: Users },
+]
+
+const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors'
+const idle = 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
 </script>
 
 <template>
-  <div class="bg-background min-h-dvh">
-    <header class="bg-primary text-primary-foreground flex h-16 items-center gap-3 px-4">
-      <router-link to="/thepersonincharge/dashboard" class="flex items-center gap-2">
-        <img src="@/assets/logo.ico" alt="" class="size-10 rounded-full" />
-        <span class="text-lg font-semibold">PHOTOLY ADMIN</span>
+  <div class="bg-background flex h-dvh flex-col md:flex-row">
+    <!-- Desktop sidebar -->
+    <aside class="bg-card hidden w-56 shrink-0 flex-col border-r p-3 md:flex">
+      <router-link to="/thepersonincharge/dashboard" class="mb-4 flex items-center gap-2 px-3 py-2">
+        <img src="@/assets/logo.ico" alt="" class="size-8 rounded-full" />
+        <span class="text-lg font-bold tracking-wide">PHOTOLY ADMIN</span>
       </router-link>
-      <nav class="ml-4 flex gap-1">
-        <Button variant="ghost" as-child class="hover:text-primary-foreground">
-          <router-link to="/thepersonincharge/dashboard">Dashboard</router-link>
-        </Button>
-        <Button variant="ghost" as-child class="hover:text-primary-foreground">
-          <router-link to="/thepersonincharge/usermanage">User Mng</router-link>
-        </Button>
+      <nav aria-label="Admin" class="flex flex-1 flex-col gap-1">
+        <router-link
+          v-for="item in nav"
+          :key="item.to"
+          :to="item.to"
+          :class="cn(linkClass, idle)"
+          active-class="!bg-accent !text-accent-foreground"
+        >
+          <component :is="item.icon" class="size-4" />
+          {{ item.label }}
+        </router-link>
       </nav>
+      <div class="flex items-center gap-1 border-t pt-3">
+        <router-link to="/home/HomePart" :class="cn(linkClass, idle)">
+          <ArrowLeft class="size-4" />
+          Back to Home
+        </router-link>
+        <span class="ml-auto"><ThemeToggle /></span>
+      </div>
+    </aside>
+
+    <!-- Mobile top bar -->
+    <header class="bg-card flex min-h-14 shrink-0 items-center gap-2 border-b px-4 pt-[env(safe-area-inset-top)] md:hidden">
+      <img src="@/assets/logo.ico" alt="" class="size-8 rounded-full" />
+      <span class="font-bold tracking-wide">PHOTOLY ADMIN</span>
       <span class="ml-auto"><ThemeToggle /></span>
     </header>
-    <main class="mx-auto flex max-w-5xl flex-col gap-4 p-4 md:p-8">
-      <slot />
+
+    <main class="min-h-0 flex-1 overflow-auto">
+      <div class="mx-auto flex max-w-5xl flex-col gap-4 p-4 md:p-8">
+        <slot />
+      </div>
     </main>
+
+    <!-- Mobile bottom tab bar -->
+    <nav
+      aria-label="Admin"
+      class="bg-card grid shrink-0 grid-cols-3 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
+    >
+      <router-link
+        v-for="item in nav"
+        :key="item.to"
+        :to="item.to"
+        class="text-muted-foreground flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px]"
+        active-class="!text-primary"
+      >
+        <component :is="item.icon" class="size-5" />
+        {{ item.label }}
+      </router-link>
+      <router-link
+        to="/home/HomePart"
+        class="text-muted-foreground flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px]"
+      >
+        <ArrowLeft class="size-5" />
+        Home
+      </router-link>
+    </nav>
   </div>
 </template>
