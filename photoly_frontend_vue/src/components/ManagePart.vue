@@ -1,793 +1,444 @@
-<script setup>
-import { RouterLink, RouterView, useRouter } from 'vue-router'
-import router from '@/router';
-import axios from "axios";
-import { ref, defineComponent, nextTick, h } from 'vue';
-import { NTag } from "naive-ui";
-import { useMessage, NIcon } from 'naive-ui'
-import { isYesterday, addDays } from "date-fns/esm";
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
+import { Copy, Pencil, Plus, Trash2, Upload } from '@lucide/vue'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Avatar, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import EmptyState from '@/components/EmptyState.vue'
+import { call } from '@/lib/http'
+import { useAuthStore } from '@/stores/auth'
 
-import { ArrowUpload20Filled, Copy20Regular, DocumentEdit20Regular, Delete20Regular, AddCircle20Regular } from "@vicons/fluent"
+interface UserInfo {
+  userId: number
+  userName: string
+  email: string
+  createDate: string
+  role: string
+}
+interface Credential {
+  credId: number
+  authorization: string
+  token: string
+}
+
+const permissions = [
+  { value: 'C', label: 'Upload' },
+  { value: 'R', label: 'Read' },
+  { value: 'D', label: 'Delete' },
+]
+
+const docs = [
+  {
+    title: 'C1 Upload Photo - POST:',
+    addr: 'cred/uploadPhoto/YOUR_TOKEN',
+    takein: 'file:MultipartFile | photo:JSONText containing nsId(num) and visibility(num)',
+    ret: "a string that is the photo's uuid",
+  },
+  {
+    title: 'C2 Upload Photos - POST:',
+    addr: 'cred/uploadPhotos/YOUR_TOKEN',
+    takein:
+      'files:MultipartFile[] | photos:JSONText containing list of photos( nsId(num) and visibility(num) )',
+    ret: 'a list of string of photo uuids',
+  },
+  {
+    title: 'D Delete Photo - POST:',
+    addr: 'cred/deletePhoto/YOUR_TOKEN',
+    takein: "uuid: str, photo's uuid",
+    ret: 'an int, 1 if successful',
+  },
+  {
+    title: 'R1 Render Photo - POST:',
+    addr: 'cred/render/YOUR_TOKEN',
+    takein: "uuid: str, photo's uuid",
+    ret: 'a byte[] that is the image (could be seen directly in browser url)',
+  },
+  {
+    title: 'R2 Get RootNS - GET:',
+    addr: 'cred/queryRootNamespace/YOUR_TOKEN',
+    takein: 'None',
+    ret: 'an JSON object that is the Root namespace',
+  },
+  {
+    title: 'R3 Get NS - GET:',
+    addr: 'cred/queryNamespaces/YOUR_TOKEN',
+    takein: 'parentId: int, the parentId of ns',
+    ret: 'an JSON object that is the list of namespaces under parentId',
+  },
+  {
+    title: 'R4 Get Photo List - GET:',
+    addr: 'cred/queryPhotoList/YOUR_TOKEN',
+    takein: 'nsId: int, the namespace Id',
+    ret: "an JSON object that is the list of photos' meta info",
+  },
+]
+
+const router = useRouter()
+const auth = useAuthStore()
+
+const user = ref<UserInfo>()
+const credentials = ref<Credential[]>([])
+const avatarSrc = ref(auth.avatarUrl)
+
+const loadUser = async () => (user.value = await call<UserInfo>({ url: '/user/getInfo/' }))
+const loadCredentials = async () =>
+  (credentials.value = await call<Credential[]>({ url: '/cred/query' }))
+const createdOn = computed(() => user.value?.createDate.split('T')[0])
+
+async function goToAdminPanel() {
+  try {
+    if (!(await call<boolean>({ url: '/admin/isAdmin' })))
+      return toast.error('You are not an admin!')
+    toast.success('Admin Identity Verified, Now Teleporting!')
+    window.open(router.resolve('/thepersonincharge/dashboard').href, '_blank')
+  } catch {
+    toast.error('You are not an admin!')
+  }
+}
+
+// --- Edit profile -------------------------------------------------------------------------------
+const editingInfo = ref(false)
+const form = ref({ userName: '', email: '', oldPassword: '', password: '', confirmPassword: '' })
+
+function startEditInfo() {
+  form.value = {
+    userName: user.value?.userName ?? '',
+    email: user.value?.email ?? '',
+    oldPassword: '',
+    password: '',
+    confirmPassword: '',
+  }
+  editingInfo.value = true
+}
+
+async function saveInfo() {
+  const f = form.value
+  if (!f.userName && !f.email && !f.password) return toast.warning('Nothing to update about!')
+  if (f.password !== f.confirmPassword) return toast.warning('Passwords are not equal!')
+  if (!/.+@.+\..+/.test(f.email)) return toast.warning('Wrong Email Format!')
+
+  const updates: [string, string, object][] = []
+  if (f.userName && f.userName !== user.value?.userName)
+    updates.push(['Username', '/user/updateUsername', { username: f.userName }])
+  if (f.email !== user.value?.email)
+    updates.push(['Email', '/user/updateEmail', { email: f.email }])
+  if (f.password)
+    updates.push([
+      'Password',
+      '/user/updatePassword',
+      { oldPass: f.oldPassword, newPass: f.password },
+    ])
+
+  editingInfo.value = false
+  await Promise.all(
+    updates.map(([name, url, params]) =>
+      call({ method: 'post', url, params }).then(
+        () => toast.success(`${name} updated!`),
+        () => toast.error(`${name} update Response Error!`),
+      ),
+    ),
+  )
+  await loadUser().catch(() => toast.error('User Info Response Error!'))
+}
+
+// --- Avatar ---------------------------------------------------------------------------------------
+const editingAvatar = ref(false)
+const avatarFile = ref<File>()
+
+async function saveAvatar() {
+  if (!avatarFile.value) return toast.warning('No Avatar Selected!')
+  const data = new FormData()
+  data.append('file', avatarFile.value)
+  try {
+    await call({ method: 'post', url: '/user/updateAvatar', data })
+    toast.success('Avatar updated!')
+    avatarSrc.value = `${auth.avatarUrl}?random=${Date.now()}`
+    editingAvatar.value = false
+    await loadUser()
+  } catch {
+    toast.error('Avatar update Response Error!')
+  }
+}
+
+// --- API credentials ----------------------------------------------------------------------------
+/** `null`: closed; `credId` -1: creating a new credential. */
+const apiDialog = ref<{ credId: number; perms: string[] } | null>(null)
+const deletingCredId = ref<number>()
+
+const openApiDialog = (credId: number, authorization = '') =>
+  (apiDialog.value = { credId, perms: authorization.split('') })
+const togglePerm = (perm: string, on: boolean | 'indeterminate') => {
+  const d = apiDialog.value!
+  d.perms = on === true ? [...d.perms, perm] : d.perms.filter((p) => p !== perm)
+}
+
+async function saveApi() {
+  const d = apiDialog.value
+  if (!d) return
+  // Canonical order, so the stored string doesn't depend on click order.
+  const authorization = permissions
+    .filter((p) => d.perms.includes(p.value))
+    .map((p) => p.value)
+    .join('')
+  const creating = d.credId === -1
+  try {
+    await call(
+      creating
+        ? { method: 'post', url: '/cred/create', data: { authorization } }
+        : { method: 'post', url: '/cred/update', data: { authorization, credId: d.credId } },
+    )
+    toast.success(creating ? 'API Created!' : 'Update Success!')
+    apiDialog.value = null
+    await loadCredentials()
+  } catch {
+    toast.error(creating ? 'Create API Error!' : 'Update API Error!')
+  }
+}
+
+async function deleteApi() {
+  try {
+    await call({ method: 'post', url: '/cred/delete', params: { credId: deletingCredId.value } })
+    toast.success('Delete Success!')
+    deletingCredId.value = undefined
+    await loadCredentials()
+  } catch {
+    toast.error('Update API Error!')
+  }
+}
+
+async function copy(token: string) {
+  await navigator.clipboard.writeText(token)
+  toast.success('Copied to the Clipboard!')
+}
+
+onMounted(() => {
+  loadUser().catch(() => toast.error('User Info Response Error!'))
+  loadCredentials().catch(() => toast.error('Get API Error!'))
+})
 </script>
 
 <template>
-  <div style="align-items: center; display: flex; align-content: center; 
-    justify-content: center; margin-top: 5vh;" >
-    <n-flex vertical size='large'>
-    <n-space v-show="userInfo.userId === -1">
-      <n-spin size="large" />
-    </n-space>
-
-      <!-- This part is for show the user's basic information -->
-      <n-card title="" size="huge" style="border-radius: 10px; background-image: linear-gradient(to right, rgb(178, 245, 234), rgb(190, 227, 248)); "
-       v-show="userInfo.userId !== -1">
-        <n-flex horizontal size='large'>
-          <div>
-            <n-badge :value="userInfo.role" >
-              <n-avatar :src="avatarAddr" :size="150" round/>
-            </n-badge>
+  <div class="mx-auto max-w-4xl space-y-6 p-4 md:p-8">
+    <Card v-if="user" class="from-primary/15 to-primary/5 bg-gradient-to-r">
+      <CardContent class="flex flex-col items-center gap-6 sm:flex-row">
+        <div class="relative">
+          <Avatar class="size-32"><AvatarImage :src="avatarSrc" alt="" /></Avatar>
+          <Badge class="absolute -top-1 -right-1">{{ user.role }}</Badge>
+        </div>
+        <div class="space-y-1 text-center sm:text-left">
+          <h2 class="text-2xl font-semibold">{{ user.userName }}</h2>
+          <p>email: {{ user.email }}</p>
+          <p>created: {{ createdOn }}</p>
+          <div class="flex flex-wrap justify-center gap-2 pt-3 sm:justify-start">
+            <Button variant="secondary" @click="startEditInfo">Edit Info</Button>
+            <Button variant="secondary" @click="editingAvatar = true">Edit Avatar</Button>
+            <Button v-if="user.role === 'admin'" @click="goToAdminPanel">Admin Panel</Button>
           </div>
-          
-          <div style="margin-left: 1rem;">
-            <n-h2>{{ userInfo.userName }}</n-h2>
-            <n-p>email: {{ userInfo.email }}</n-p>
-            <n-p>created:  {{ userInfo.createDate.split("T")[0] }}</n-p>
-          </div>
-        </n-flex>
+        </div>
+      </CardContent>
+    </Card>
 
-        <template #action>
-          <n-space style="" horizontal>
-            <n-button strong secondary type="default" style="" @click="loadEditInfo">Edit Info</n-button>
-            <n-divider vertical/>
-            <n-button strong secondary type="info" style="" @click="loadEditAvatar">Edit Avatar</n-button>
-            <n-divider vertical v-if="userInfo.role === 'admin'"/>
-            <n-button strong secondary type="primary" style="" @click="goToAdminPanel" v-if="userInfo.role === 'admin'">Admin Panel</n-button>
-          </n-space>
-        </template>
-      </n-card>
-      
-      <!-- ENDOF: This part is for show the user's basic information -->
+    <Card>
+      <CardHeader class="flex-row items-center justify-between">
+        <CardTitle class="text-2xl">API Table</CardTitle>
+        <Button size="icon" aria-label="Add API" @click="openApiDialog(-1)"><Plus /></Button>
+      </CardHeader>
+      <CardContent class="space-y-6">
+        <EmptyState v-if="!credentials.length" title="No API tokens yet" class="py-6" />
+        <Table v-else>
+          <TableHeader>
+            <TableRow>
+              <TableHead>ID</TableHead>
+              <TableHead>Authorization</TableHead>
+              <TableHead>Token</TableHead>
+              <TableHead>Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="api in credentials" :key="api.credId">
+              <TableCell>{{ api.credId }}</TableCell>
+              <TableCell>{{ api.authorization }}</TableCell>
+              <TableCell class="font-mono text-xs break-all">{{ api.token }}</TableCell>
+              <TableCell class="space-x-1 whitespace-nowrap">
+                <Button variant="ghost" size="icon" aria-label="Copy token" @click="copy(api.token)"
+                  ><Copy
+                /></Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Edit API"
+                  @click="openApiDialog(api.credId, api.authorization)"
+                  ><Pencil
+                /></Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Delete API"
+                  @click="deletingCredId = api.credId"
+                  ><Trash2
+                /></Button>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
 
-      <!-- This part is for showing the carousel -->
-      <n-carousel autoplay show-arrow style="border-radius: 10px; width: 50vw; margin-top: 1rem;">
-      <img
-        class="carousel-img"
-        src="@/assets/JH_20211030_5406.jpg"
-      >
-      <img
-        class="carousel-img"
-        src="@/assets/JH_20220601_5686.jpg"
-      >
-      <img
-        class="carousel-img"
-        src="@/assets/JH_20220710_5856.jpg"
-      >
-    </n-carousel>
-    <!-- ENDOF: This part is for showing the carousel -->
+        <div>
+          <h3 class="mb-2 text-xl font-semibold">API Documents</h3>
+          <details class="rounded-lg border">
+            <summary class="cursor-pointer px-3 py-2 font-medium">API functionalities</summary>
+            <ul class="space-y-1 border-t p-3 text-sm">
+              <li>C: Able to upload photo (Create)</li>
+              <li>R: Able to query namespace, photos in namespaces and render the photo (Read)</li>
+              <li>D: Able to delete photo (Delete)</li>
+            </ul>
+          </details>
+          <details class="mt-2 rounded-lg border">
+            <summary class="cursor-pointer px-3 py-2 font-medium">
+              How to use API in external build
+            </summary>
+            <div class="space-y-4 border-t p-3 text-sm">
+              <section v-for="d in docs" :key="d.addr">
+                <h4 class="font-semibold">{{ d.title }}</h4>
+                <ul class="border-l-4 pl-3">
+                  <li>Addr: server_path/{{ d.addr }}</li>
+                  <li>Takein: {{ d.takein }}</li>
+                  <li>Return: {{ d.ret }}</li>
+                </ul>
+              </section>
+            </div>
+          </details>
+        </div>
+      </CardContent>
+    </Card>
 
-    <n-calendar
-      v-model:value="calendarValue"
-      #="{ year, month, date }"
-      @update:value="handleUpdateCalendarValue"
-      style="margin-top: 1rem;"
-    >
-      {{ year }}-{{ month }}-{{ date }}
-    </n-calendar>
+    <Dialog v-model:open="editingInfo">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Information</DialogTitle>
+          <DialogDescription>Leave a field unchanged to keep it as is.</DialogDescription>
+        </DialogHeader>
+        <form class="space-y-3" @submit.prevent="saveInfo">
+          <Label for="edit-name">Username</Label>
+          <Input id="edit-name" v-model="form.userName" placeholder="User Name" />
+          <Label for="edit-email">Email</Label>
+          <Input id="edit-email" v-model="form.email" placeholder="Email" />
+          <Label for="edit-old">Current Password</Label>
+          <Input
+            id="edit-old"
+            v-model="form.oldPassword"
+            type="password"
+            placeholder="Current Password"
+          />
+          <Label for="edit-new">New Password</Label>
+          <Input id="edit-new" v-model="form.password" type="password" placeholder="New Password" />
+          <Label for="edit-confirm">Confirm Password</Label>
+          <Input
+            id="edit-confirm"
+            v-model="form.confirmPassword"
+            type="password"
+            placeholder="Confirm Password"
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" @click="editingInfo = false">Cancel</Button>
+            <Button type="submit">Submit</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
 
-    <n-card title="" size="medium" style="border-radius: 10px; margin-bottom: 5vh;"
-       v-show="userInfo.userId !== -1">
-       <n-space vertical>
-          <n-h2>
-            API Table
-            <n-button strong secondary circle type="success" @click="() => {showAddAPIModal = true;}">
-              <template #icon>
-                <n-icon><AddCircle20Regular /></n-icon>
-              </template>
-            </n-button>
-        </n-h2>
-          <n-empty v-show="myAPIList.length <= 0" style="padding-left: 0; padding-top: 0;">
-          </n-empty>
-          <n-table :bordered="false" :single-line="false" v-show="myAPIList.length > 0">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Authorization</th>
-                <th>Token</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody v-for="api in myAPIList">
-              <tr>
-                <td>{{ api.credId }}</td>
-                <td>{{ api.authorization }}</td>
-                <td>{{ api.token }}</td>
-                <td>
-                  <n-space>
-                    <n-button strong secondary circle type="default" @click="copyToClipboard(api.token)">
-                      <template #icon>
-                        <n-icon><Copy20Regular /></n-icon>
-                      </template>
-                    </n-button>
-                    <n-button strong secondary circle type="info" @click="prepareAPIEdit(api.credId, api.authorization)">
-                      <template #icon>
-                        <n-icon><DocumentEdit20Regular /></n-icon>
-                      </template>
-                    </n-button>
-                    <n-button strong secondary circle type="error" @click="prepareAPIDelete(api.credId)">
-                      <template #icon>
-                        <n-icon><Delete20Regular /></n-icon>
-                      </template>
-                    </n-button>
-                  </n-space>
-                </td>
-              </tr>
-            </tbody>
-          </n-table>
+    <Dialog v-model:open="editingAvatar">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Avatar</DialogTitle>
+          <DialogDescription>Choose a new profile picture.</DialogDescription>
+        </DialogHeader>
+        <Label for="avatar-file"><Upload class="size-4" /> Upload Avatar</Label>
+        <Input
+          id="avatar-file"
+          type="file"
+          accept="image/*"
+          @change="avatarFile = ($event.target as HTMLInputElement).files?.[0]"
+        />
+        <DialogFooter>
+          <Button variant="outline" @click="editingAvatar = false">Cancel</Button>
+          <Button @click="saveAvatar">Submit</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
-          <n-h2 style="margin-top: 1rem;">API Documents</n-h2>
-          <n-collapse>
-            <n-collapse-item title="API functionalities" name="1">
-              <n-blockquote>
-                <n-p>
-                  C: Able to upload photo (Create)
-                </n-p>
-                <n-p>
-                  R: Able to query namespace, photos in namespaces and render the photo (Read)
-                </n-p>
-                <n-p>
-                  D: Able to delete photo (Delete)
-                </n-p>
-              </n-blockquote>
-              
-            </n-collapse-item>
-            <n-collapse-item title="How to use API in external build" name="2">
-              <n-h4>C1 Upload Photo - POST:</n-h4>
-              <n-blockquote>
-                <n-p>
-                  Addr: server_path/cred/uploadPhoto/YOUR_TOKEN
-                </n-p>
-                <n-p>
-                  Takein: file:MultipartFile | photo:JSONText containing nsId(num) and visibility(num)
-                </n-p>
-                <n-p>
-                  Return: a string that is the photo's uuid
-                </n-p>
-              </n-blockquote>
+    <Dialog :open="!!apiDialog" @update:open="apiDialog = null">
+      <DialogContent v-if="apiDialog">
+        <DialogHeader>
+          <DialogTitle>{{ apiDialog.credId === -1 ? 'Add API' : 'Edit API' }}</DialogTitle>
+          <DialogDescription>
+            {{
+              apiDialog.credId === -1
+                ? 'Choose what the new token may do.'
+                : `ID: ${apiDialog.credId}`
+            }}
+          </DialogDescription>
+        </DialogHeader>
+        <div class="flex flex-wrap gap-4">
+          <Label v-for="p in permissions" :key="p.value">
+            <Checkbox
+              :model-value="apiDialog.perms.includes(p.value)"
+              @update:model-value="togglePerm(p.value, $event)"
+            />
+            {{ p.label }}
+          </Label>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="apiDialog = null">Cancel</Button>
+          <Button @click="saveApi">{{ apiDialog.credId === -1 ? 'Create' : 'Update' }}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
-              <n-h4>C2 Upload Photos - POST:</n-h4>
-              <n-blockquote>
-                <n-p>
-                  Addr: server_path/cred/uploadPhotos/YOUR_TOKEN
-                </n-p>
-                <n-p>
-                  Takein: files:MultipartFile[] | photos:JSONText containing list of photos( nsId(num) and visibility(num) )
-                </n-p>
-                <n-p>
-                  Return: a list of string of photo uuids
-                </n-p>
-              </n-blockquote>
-
-              <n-h4>D Delete Photo - POST:</n-h4>
-              <n-blockquote>
-                <n-p>
-                  Addr: server_path/cred/deletePhoto/YOUR_TOKEN
-                </n-p>
-                <n-p>
-                  Takein: uuid: str, photo's uuid
-                </n-p>
-                <n-p>
-                  Return: an int, 1 if successful
-                </n-p>
-              </n-blockquote>
-
-              <n-h4>R1 Render Photo - POST:</n-h4>
-              <n-blockquote>
-                <n-p>
-                  Addr: server_path/cred/render/YOUR_TOKEN
-                </n-p>
-                <n-p>
-                  Takein: uuid: str, photo's uuid
-                </n-p>
-                <n-p>
-                  Return: a byte[] that is the image (could be seen directly in browser url)
-                </n-p>
-              </n-blockquote>
-
-              <n-h4>R2 Get RootNS - GET:</n-h4>
-              <n-blockquote>
-                <n-p>
-                  Addr: server_path/cred/queryRootNamespace/YOUR_TOKEN
-                </n-p>
-                <n-p>
-                  Takein: None
-                </n-p>
-                <n-p>
-                  Return: an JSON object that is the Root namespace
-                </n-p>
-              </n-blockquote>
-
-              <n-h4>R3 Get NS - GET:</n-h4>
-              <n-blockquote>
-                <n-p>
-                  Addr: server_path/cred/queryNamespaces/YOUR_TOKEN
-                </n-p>
-                <n-p>
-                  Takein: parentId: int, the parentId of ns
-                </n-p>
-                <n-p>
-                  Return: an JSON object that is the list of namespaces under parentId
-                </n-p>
-              </n-blockquote>
-
-              <n-h4>R4 Get Photo List - GET:</n-h4>
-              <n-blockquote>
-                <n-p>
-                  Addr: server_path/cred/queryPhotoList/YOUR_TOKEN
-                </n-p>
-                <n-p>
-                  Takein: nsId: int, the namespace Id
-                </n-p>
-                <n-p>
-                  Return: an JSON object that is the list of photos' meta info
-                </n-p>
-              </n-blockquote>
-            </n-collapse-item>
-          </n-collapse>
-       </n-space>
-    
-    </n-card>
-
-    </n-flex>
-
-    <!-- MODAL PART -->
-
-    <!-- This part is for modal of edit user info -->
-    <n-modal v-model:show="showEditUserInfoModal">
-      <n-card title="Edit Information" size="huge" style="width: 400px; border-radius: 10px;" role="dialog"
-        aria-modal="true" :bordered="false">
-            <n-space vertical>
-
-                Username: <n-input v-model:value="editUserInfo.userName" type="text" placeholder="User Name" @keyup.enter="doEdit"/>
-                Email: <n-input v-model:value="editUserInfo.email" type="text" placeholder="Email" @keyup.enter="doEdit"/>
-
-                <n-divider />
-
-                Current Password: <n-input v-model:value="oldPassword" type="password" placeholder="Confirm Password" />
-                New Password: <n-input v-model:value="editUserInfo.password" type="password" placeholder="Password" />
-                Confirm Password: <n-input v-model:value="confirmPassword" type="password" placeholder="Confirm Password" @keyup.enter="doEdit"/>
-
-                <n-space style="margin-top: 1rem">
-                  <n-button type="success" round size="large" style="margin-top: 1rem; width: 100%;" @click="doEdit">
-                    Submit
-                  </n-button>
-                  <n-button round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showEditUserInfoModal = false;}">
-                    Cancel
-                  </n-button>
-                </n-space>
-            </n-space>
-      </n-card>
-    </n-modal>
-    <!-- ENDOF: This part is for modal of edit user info -->
-
-    <!-- This part is for modal of edit user avatar -->
-    <n-modal v-model:show="showEditUserAvatarModal">
-      <n-card title="Edit Information" size="huge" style="width: 400px; border-radius: 10px;" role="dialog"
-        aria-modal="true" :bordered="false">
-            <n-space vertical>
-
-              <n-upload
-                  :custom-request="addPhotoToArea"
-                >
-                  <n-button strong secondary type="info" style="">
-                    <template #icon>
-                      <n-icon>
-                        <ArrowUpload20Filled />
-                      </n-icon>
-                    </template>
-                      Upload Avatar
-                  </n-button>
-              </n-upload>
-
-                <n-space style="margin-top: 1rem">
-                  <n-button type="success" round size="large" style="margin-top: 1rem; width: 100%;" @click="doAvatarUpdate">
-                    Submit
-                  </n-button>
-                  <n-button round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showEditUserAvatarModal = false;}">
-                    Cancel
-                  </n-button>
-                </n-space>
-            </n-space>
-      </n-card>
-    </n-modal>
-    <!-- ENDOF: This part is for modal of edit user avatar -->
-
-    <!-- This part is for modal of edit API -->
-    <n-modal v-model:show="showEditAPIModal">
-      <n-card title="Edit API" size="huge" style="width: 400px; border-radius: 10px;" role="dialog"
-        aria-modal="true" :bordered="false">
-            <n-space vertical>
-                <n-space>
-                  ID: {{ APIEditID }}
-                </n-space>
-                <n-space>
-                  <n-p>Authorization: </n-p>
-                  <n-checkbox-group v-model:value="APIEditAuthorization">
-                    <n-space item-style="display: flex;">
-                      <n-checkbox value="C" label="Upload" />
-                      <n-checkbox value="R" label="Read" />
-                      <n-checkbox value="D" label="Delete" />
-                    </n-space>
-                </n-checkbox-group>
-                </n-space>
-                
-                
-
-                <n-space style="margin-top: 1rem">
-                  <n-button type="success" round size="large" style="margin-top: 1rem; width: 100%;" @click="doAPIUpdate">
-                    Update
-                  </n-button>
-                  <n-button round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showEditAPIModal = false;}">
-                    Cancel
-                  </n-button>
-                </n-space>
-            </n-space>
-      </n-card>
-    </n-modal>
-    <!-- ENDOF: This part is for modal of edit API -->
-
-     <!-- This part is for modal of confirming to delete an API -->
-     <n-modal v-model:show="showDeleteAPIModal">
-      <n-card
-        style="width: 400px; border-radius: 10px;"
-        title="Confirm to Delete"
-        :bordered="false"
-        size="huge"
-        role="dialog"
-        aria-modal="true"
-      >
-        Do you really want to DELETE this API?
-        <p>*The process cannot be reversed</p>
-
-        <n-space style="margin-top: 1rem">
-          <n-button type="error" id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="doAPIDelete">
-            Delete
-          </n-button>
-          <n-button id="bt1" round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showDeleteAPIModal = false;}">
-            Cancel
-          </n-button>
-        </n-space>
-
-      </n-card>
-    </n-modal>
-    <!-- ENDOF: This part is for modal of confirming to delete an API -->
-
-    <!-- This part is for modal of Add API -->
-    <n-modal v-model:show="showAddAPIModal">
-      <n-card title="Add API" size="huge" style="width: 400px; border-radius: 10px;" role="dialog"
-        aria-modal="true" :bordered="false">
-            <n-space vertical>
-              <n-p>Token: </n-p>
-                  <n-checkbox-group v-model:value="APIAddAuthorization">
-                    <n-space item-style="display: flex;">
-                      <n-checkbox value="C" label="Upload" />
-                      <n-checkbox value="R" label="Read" />
-                      <n-checkbox value="D" label="Delete" />
-                    </n-space>
-                </n-checkbox-group>              
-
-                <n-space style="margin-top: 1rem">
-                  <n-button type="success" round size="large" style="margin-top: 1rem; width: 100%;" @click="doAPIAdd">
-                    Create
-                  </n-button>
-                  <n-button round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showAddAPIModal = false;}">
-                    Cancel
-                  </n-button>
-                </n-space>
-            </n-space>
-      </n-card>
-    </n-modal>
-    <!-- ENDOF: This part is for modal of Add API -->
-
-    <!-- ENDOF: MODAL PART -->
-    
-  
-    <n-back-top :right="100" />
+    <AlertDialog :open="deletingCredId !== undefined" @update:open="deletingCredId = undefined">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirm to Delete</AlertDialogTitle>
+          <AlertDialogDescription
+            >Do you really want to DELETE this API? *The process cannot be
+            reversed</AlertDialogDescription
+          >
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <Button variant="destructive" @click="deleteApi">Delete</Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
-
-<script>
-
-export default defineComponent({
-  data() {
-    return {
-      userInfo: {
-        "userId": -1,
-        "userName": "",
-        "email": "",
-        "password": "",
-        "createDate": "1999-01-01T",
-        "role": "user"
-      },
-      calendarValue: ref(addDays(Date.now(), 0).valueOf()),
-      showEditUserInfoModal: false,
-      editUserInfo: {
-        "userId": -1,
-        "userName": "",
-        "email": "",
-        "password": "",
-      },
-      oldPassword: "",
-      confirmPassword: "",
-
-      showEditUserAvatarModal: false,
-      uploadPhotoFiles: new FormData(),
-      fileList: [],
-
-      avatarAddr: import.meta.env.VITE_APP_BASE_URL + "/user/getAvatar/" + localStorage.getItem("HRD-Token") + "?random=" + Math.floor(Math.random() * 1000),
-
-      myAPIList: [],
-      
-      showEditAPIModal: false,
-      APIEditID: -1,
-      APIEditAuthorization: [],
-
-      showDeleteAPIModal: false,
-      APIDeleteID: -1,
-
-      showAddAPIModal: false,
-      APIAddAuthorization: [],
-
-      commonBtnLoading: false,
-    }
-  },
-  setup () {
-    return {
-
-    }
-  },
-  methods: {
-    goToAdminPanel () {
-      axios({
-        method: 'get',
-        baseURL: '',
-        url: import.meta.env.VITE_APP_BASE_URL + "/admin/isAdmin",
-        headers: {
-          "HRD-Token": localStorage.getItem("HRD-Token")
-        },
-        data: {
-        }
-      }).then((response) => {
-        if (response.data.t)
-        {
-          window.$message.success("Admin Identity Verified, Now Teleporting!");
-          let adminAddr = this.$router.resolve({path: '/thepersonincharge/dashboard'});
-          window.open(adminAddr.href, '_blank');
-        }else {
-          window.$message.error("You are not an admin!")
-        }
-      })
-      .catch(function (error) { // 请求失败处理
-        // console.log(error);
-        window.$message.error(error);
-      });
-      
-    },
-    doAPIAdd () {
-      axios({
-        method: 'post',
-        baseURL: '',
-        url: import.meta.env.VITE_APP_BASE_URL + "/cred/create",
-        headers: {
-          "HRD-Token": localStorage.getItem("HRD-Token")
-        },
-        data: {
-          "authorization": this.APIAddAuthorization.join('')
-        }
-      }).then((response) => {
-        if (response.data.msgCode === 200)
-        {
-          window.$message.success("API Created!");
-          this.showAddAPIModal = false;
-          this.getMyAPIs();
-
-          this.APIAddAuthorization = [];
-        }else {
-          window.$message.error("Create API Error!")
-        }
-      })
-      .catch(function (error) { // 请求失败处理
-        // console.log(error);
-        window.$message.error(error);
-      });
-    },
-    doAPIDelete () {
-      axios({
-        method: 'post',
-        baseURL: '',
-        url: import.meta.env.VITE_APP_BASE_URL + "/cred/delete?credId=" + this.APIDeleteID,
-        headers: {
-          "HRD-Token": localStorage.getItem("HRD-Token")
-        },
-        data: {
-        }
-      }).then((response) => {
-        if (response.data.msgCode === 200)
-        {
-          window.$message.success("Delete Success!");
-          this.showDeleteAPIModal = false;
-          this.getMyAPIs();
-
-          this.APIDeleteID = -1;
-        }else {
-          window.$message.error("Update API Error!")
-        }
-      })
-      .catch(function (error) { // 请求失败处理
-        // console.log(error);
-        window.$message.error(error);
-      });
-    },
-    prepareAPIDelete (id) {
-      this.showDeleteAPIModal = true;
-      this.APIDeleteID = id;
-    },
-    doAPIUpdate () {
-      axios({
-        method: 'post',
-        baseURL: '',
-        url: import.meta.env.VITE_APP_BASE_URL + "/cred/update",
-        headers: {
-          "HRD-Token": localStorage.getItem("HRD-Token")
-        },
-        data: {
-          "authorization": this.APIEditAuthorization.join(''),
-          "credId": this.APIEditID
-        }
-      }).then((response) => {
-        if (response.data.msgCode === 200)
-        {
-          window.$message.success("Update Success!");
-          this.showEditAPIModal = false;
-          this.getMyAPIs();
-
-          this.APIEditID = -1;
-          this.APIEditAuthorization = [];
-
-        }else {
-          window.$message.error("Update API Error!")
-        }
-      })
-      .catch(function (error) { // 请求失败处理
-        // console.log(error);
-        window.$message.error(error);
-      });
-      
-    },
-    prepareAPIEdit (id, auth) {
-      this.showEditAPIModal = true;
-      this.APIEditAuthorization = auth.split('');
-      this.APIEditID = id;
-    },
-    copyToClipboard (token) {
-      navigator.clipboard.writeText(token);
-      window.$message.success("Copied to the Clipboard!")
-    },
-    getMyAPIs () {
-      axios({
-        method: 'get',
-        baseURL: '',
-        url: import.meta.env.VITE_APP_BASE_URL + "/cred/query",
-        headers: {
-          "HRD-Token": localStorage.getItem("HRD-Token")
-        },
-        data: {}
-      }).then((response) => {
-        if (response.data.msgCode === 200)
-        {
-
-          this.myAPIList = response.data.t;
-        }else {
-          window.$message.error("Get API Error!")
-        }
-      })
-      .catch(function (error) { // 请求失败处理
-        // console.log(error);
-        window.$message.error(error);
-      });
-    },
-    doAvatarUpdate () {
-      if (!this.uploadPhotoFiles.has("file"))
-      {
-        window.$message.warning("No Avatar Selected!");
-      }else {
-        axios({
-            method: 'post',
-            baseURL: '',
-            url: import.meta.env.VITE_APP_BASE_URL + "/user/updateAvatar",
-            headers: {
-              'Content-Type': 'multipart/form-data',
-              "HRD-Token": localStorage.getItem("HRD-Token")
-            },
-            data: this.uploadPhotoFiles
-          }).then((response) => {
-            if (response.data.msgCode === 200)
-            {
-              window.$message.success("Avatar updated!");
-              this.getUserInfo();
-              this.uploadPhotoFiles = new FormData();
-              this.fileList = [];
-              this.avatarAddr = import.meta.env.VITE_APP_BASE_URL + "/user/getAvatar/" + localStorage.getItem("HRD-Token") + "?random=" + Math.floor(Math.random() * 1000);
-              this.showEditUserAvatarModal = false;
-            }else {
-              window.$message.error("Avatar update Response Error!")
-            }
-          })
-          .catch(function (error) { // 请求失败处理
-            // console.log(error);
-            window.$message.error(error);
-          });
-      }
-    },
-    addPhotoToArea({file}) {
-      this.uploadPhotoFiles.append("file", file.file);
-    },
-    loadEditAvatar() {
-      this.showEditUserAvatarModal = true;
-      this.uploadPhotoFiles = new FormData()
-      this.fileList = []
-    },
-    doEdit () {
-      if (this.editUserInfo.userName === "" && this.editUserInfo.email === "" && this.editUserInfo.password === "")
-      {
-        window.$message.warning("Nothing to update about!")
-      }else if (this.editUserInfo.password !== this.confirmPassword){
-        window.$message.warning("Passwords are not equal!")
-      }else if (!this.checkInput()) {
-        window.$message.warning("Wrong Email Format!")
-      }else{
-        if (this.editUserInfo.userName !== "" && this.editUserInfo.userName !== null && this.editUserInfo.userName !== this.userInfo.userName)
-        {
-          axios({
-            method: 'post',
-            baseURL: '',
-            url: import.meta.env.VITE_APP_BASE_URL + "/user/updateUsername?username=" + this.editUserInfo.userName,
-            headers: {
-              "HRD-Token": localStorage.getItem("HRD-Token")
-            },
-            data: {
-          }
-          }).then((response) => {
-            if (response.data.msgCode === 200)
-            {
-              window.$message.success("Username updated!");
-              this.getUserInfo();
-            }else {
-              window.$message.error("Username update Response Error!")
-            }
-          })
-          .catch(function (error) { // 请求失败处理
-            // console.log(error);
-            window.$message.error(error);
-          });
-        }
-        if (this.editUserInfo.email !== "" && this.editUserInfo.email !== null && this.editUserInfo.email !== this.userInfo.email)
-        {
-          axios({
-            method: 'post',
-            baseURL: '',
-            url: import.meta.env.VITE_APP_BASE_URL + "/user/updateEmail?email=" + this.editUserInfo.email,
-            headers: {
-              "HRD-Token": localStorage.getItem("HRD-Token")
-            },
-            data: {
-          }
-          }).then((response) => {
-            if (response.data.msgCode === 200)
-            {
-              window.$message.success("Email updated!");
-              this.getUserInfo();
-            }else {
-              window.$message.error("Email update Response Error!")
-            }
-          })
-          .catch(function (error) { // 请求失败处理
-            // console.log(error);
-            window.$message.error(error);
-          });
-        }
-        if (this.editUserInfo.password !== "" && this.editUserInfo.password !== null && this.editUserInfo.password !== this.userInfo.password)
-        {
-          axios({
-            method: 'post',
-            baseURL: '',
-            url: import.meta.env.VITE_APP_BASE_URL + "/user/updatePassword?oldPass=" + this.oldPassword +"&newPass=" + this.editUserInfo.email,
-            headers: {
-              "HRD-Token": localStorage.getItem("HRD-Token")
-            },
-            data: {
-          }
-          }).then((response) => {
-            if (response.data.msgCode === 200)
-            {
-              window.$message.success("Password updated!");
-              this.getUserInfo();
-            }else {
-              window.$message.error("Password update Response Error!")
-            }
-          })
-          .catch(function (error) { // 请求失败处理
-            // console.log(error);
-            window.$message.error(error);
-          });
-        }
-        
-        this.showEditUserInfoModal = false;
-      }
-    },
-    checkInput() {
-      var re = new RegExp(".+@.+\..+");
-      if (this.editUserInfo.email !== "" && re.test(this.editUserInfo.email))
-      {
-        return true
-      }
-      return false
-    },
-    loadEditInfo() {
-      this.showEditUserInfoModal = true;
-      this.editUserInfo.userId = this.userInfo.userId;
-      this.editUserInfo.userName = this.userInfo.userName;
-      this.editUserInfo.email = this.userInfo.email;
-    },
-    getUserInfo () {
-      axios({
-        method: 'get',
-        baseURL: '',
-        url: import.meta.env.VITE_APP_BASE_URL + "/user/getInfo/",
-        headers: {
-          "HRD-Token": localStorage.getItem("HRD-Token")
-        },
-        data: {
-      }
-      }).then((response) => {
-        if (response.data.msgCode === 200)
-        {
-          let userT = response.data.t
-          this.userInfo = userT;
-        }else {
-          window.$message.error("User Info Response Error!")
-        }
-      })
-      .catch(function (error) { // 请求失败处理
-        // console.log(error);
-        window.$message.error(error);
-      });
-    },
-    handleUpdateCalendarValue(_, { year, month, date }) {
-        // message.success(`${year}-${month}-${date}`);
-    },
-  },
-  computed: {
-
-  },
-  mounted () {
-    window.$message = useMessage();
-    this.getUserInfo();
-    this.getMyAPIs();
-  },
-  components: {
-
-  },
-  props: {
-    
-  }
-})
-
-</script>
-
-<style scoped>
-.carousel-img {
-  width: 100%;
-  height: 240px;
-  object-fit: cover;
-}
-</style>

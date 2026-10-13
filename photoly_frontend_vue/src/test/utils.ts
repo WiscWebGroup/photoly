@@ -2,6 +2,7 @@ import { h, type Component } from 'vue'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import naive, { NMessageProvider } from 'naive-ui'
+import { Toaster } from '@/components/ui/sonner'
 import router from '@/router'
 
 /**
@@ -12,9 +13,12 @@ export function mountWithApp<Api = object>(
   component: Component,
   props: Record<string, unknown> = {},
 ) {
-  const wrapper = mount(() => h(NMessageProvider, () => h(component, props)), {
+  const wrapper = mount(() => [h(NMessageProvider, () => h(component, props)), h(Toaster)], {
     // Real transitions: Naive only shows expanded tree nodes / closes modals after they finish.
-    global: { plugins: [createPinia(), router, naive], stubs: { transition: false, 'transition-group': false } },
+    global: {
+      plugins: [createPinia(), router, naive],
+      stubs: { transition: false, 'transition-group': false },
+    },
     attachTo: document.body,
   })
   return wrapper.findComponent(component) as unknown as VueWrapper & { vm: Api }

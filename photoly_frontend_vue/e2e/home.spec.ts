@@ -1,7 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mockApi, ok, photo, PNG, signIn } from './mockApi'
 
-const dialog = (page: Page, title: string) => page.getByRole('dialog').filter({ hasText: title })
+// Confirmations are `alertdialog`s now (the correct role for "are you sure?").
+const dialog = (page: Page, title: string) =>
+  page.getByRole('dialog').or(page.getByRole('alertdialog')).filter({ hasText: title })
 const menuItem = (page: Page, name: string) => page.getByText(name, { exact: true })
 
 // Context menus (and the move modal's mask) are unusable on touch today; Phase 4 owns mobile ergonomics.

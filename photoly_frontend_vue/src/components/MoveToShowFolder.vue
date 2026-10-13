@@ -1,219 +1,130 @@
-<script setup>
-import { RouterLink, RouterView } from 'vue-router'
-import router from '@/router';
-import axios from "axios";
-import { ref, defineComponent, h } from 'vue';
-import { useMessage, NIcon } from 'naive-ui'
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { toast } from 'vue-sonner'
+import { ChevronRight, Folder, FolderOpen } from '@lucide/vue'
+import { Button } from '@/components/ui/button'
 import {
-    Folder20Regular as Folder
-} from "@vicons/fluent";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import type { Folder as FolderInfo } from '@/composables/useFolders'
+import { call } from '@/lib/http'
+import { cn } from '@/lib/utils'
 
+interface TreeNode {
+  id: number
+  name: string
+  disabled: boolean
+  expanded: boolean
+  /** `null` until the node is first expanded. */
+  children: TreeNode[] | null
+}
+
+const props = defineProps<{ originalNsId?: number; disableOrgNsId?: boolean }>()
+const emit = defineEmits<{ moveToUpdate: [nsId: number] }>()
+
+const open = ref(false)
+const root = ref<TreeNode>()
+const selectedNsId = ref(-1)
+const selectedNsName = ref('')
+
+const node = (f: FolderInfo): TreeNode => ({
+  id: f.nsId,
+  name: f.nsName,
+  disabled: !!props.disableOrgNsId && f.nsId === props.originalNsId,
+  expanded: false,
+  children: null,
+})
+
+/** The visible rows, depth first, so a recursive component isn't needed. */
+const rows = computed(() => {
+  const out: { node: TreeNode; depth: number }[] = []
+  const walk = (n: TreeNode, depth: number) => {
+    out.push({ node: n, depth })
+    if (n.expanded) n.children?.forEach((c) => walk(c, depth + 1))
+  }
+  if (root.value) walk(root.value, 0)
+  return out
+})
+
+async function toggle(n: TreeNode) {
+  if (n.disabled) return
+  selectedNsId.value = n.id
+  selectedNsName.value = n.name
+  n.expanded = !n.expanded
+  if (n.children) return
+  try {
+    n.children = (
+      await call<FolderInfo[]>({ url: '/namespace/getChildren', params: { parentId: n.id } })
+    ).map(node)
+  } catch {
+    n.expanded = false
+    toast.warning('Query Folder Error!')
+  }
+}
+
+function update() {
+  emit('moveToUpdate', selectedNsId.value)
+  open.value = false
+}
+
+onMounted(async () => {
+  try {
+    root.value = node(await call<FolderInfo>({ url: '/namespace/getRoot' }))
+    root.value.name = 'root'
+  } catch {
+    toast.warning('Load Root Error!')
+  }
+})
+
+defineExpose({ openModal: () => (open.value = true) })
 </script>
 
 <template>
-  <div>
-    <!-- This part is for modal of the move-to functionality -->
-    <n-modal v-model:show="showMoveToModal">
-      <n-card
-        style="width: 400px; border-radius: 10px;"
-        title="Move to a New Location"
-        :bordered="false"
-        size="huge"
-        role="dialog"
-        aria-modal="true"
-      >
-        <p>Currently Selected: {{ selectedNsName }}</p>
+  <Dialog v-model:open="open">
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Move to a New Location</DialogTitle>
+        <DialogDescription>Currently Selected: {{ selectedNsName }}</DialogDescription>
+      </DialogHeader>
 
-        <n-tree
-            block-line
-            expand-on-click
-            :data="selectedOptionF"
-            :on-update:selected-keys="handleUpdateSelection"
-            :on-update:expanded-keys="handleExpansion"
-            @keyup.enter="doUpdate"
-        />
+      <ul role="tree" class="max-h-72 overflow-auto">
+        <li
+          v-for="{ node: n, depth } in rows"
+          :key="n.id"
+          role="treeitem"
+          :aria-expanded="n.expanded"
+          :aria-selected="n.id === selectedNsId"
+        >
+          <button
+            type="button"
+            :disabled="n.disabled"
+            :style="{ paddingLeft: `${depth * 1.25 + 0.5}rem` }"
+            :class="
+              cn(
+                'hover:bg-accent flex w-full items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-sm disabled:opacity-50',
+                n.id === selectedNsId && 'bg-accent text-accent-foreground',
+              )
+            "
+            @click="toggle(n)"
+          >
+            <ChevronRight
+              :class="cn('size-4 shrink-0 transition-transform', n.expanded && 'rotate-90')"
+            />
+            <component :is="n.expanded ? FolderOpen : Folder" class="size-4 shrink-0" />
+            <span class="truncate">{{ n.name }}</span>
+          </button>
+        </li>
+      </ul>
 
-        <n-space>
-            <n-button type="primary" secondary round size="large" style="margin-top: 1rem; width: 100%;" @click="doUpdate">
-                Update
-            </n-button>
-            <n-button round size="large" style="margin-top: 1rem; width: 100%;" @click="() => {showMoveToModal = false;}">
-                Cancel
-            </n-button>
-        </n-space>
-
-      </n-card>
-    </n-modal>
-    <!-- ENDOF: This part is for modal of the move-to functionality -->
-  </div>
+      <DialogFooter>
+        <Button variant="outline" @click="open = false">Cancel</Button>
+        <Button @click="update">Update</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
-
-<script>
-export default defineComponent({
-  data() {
-    return {
-      rootNsId: -1,
-      selectedNsId: -1,
-      selectedNsName: "",
-      showMoveToModal: false,
-      selectedOptionF: [
-
-      ],
-    }
-  },
-  setup () {
-    return {
-
-    }
-  },
-  emits: ["moveToUpdate"],
-  expose: ["openModal"],
-  props: {
-    originalNsId: Number,
-    disableOrgNsId: Boolean,
-  },
-  methods: {
-    openModal () {
-        this.showMoveToModal = true;
-    },
-    doUpdate () {
-        this.$emit('moveToUpdate', this.selectedNsId);
-        this.showMoveToModal = false;
-    },
-    handleExpansion (_keys, _option, meta) {
-        if (meta.action !== "collapse")
-        {
-            // console.log(_keys, _option, meta)
-            var nsId = _keys[_keys.length - 1];
-            this.getChildren(nsId);
-        }
-    },
-    handleUpdateSelection (nsId, nsObj) {
-        if (nsId.length === 1)
-        {
-            this.selectedNsId = nsId[0];
-            this.selectedNsName = nsObj[0].label;
-        }        
-        //console.log(nsId, nsObj)
-    },
-    getRoot () {
-        axios({
-          method: 'get',
-          baseURL: '',
-          url: import.meta.env.VITE_APP_BASE_URL + "/namespace/getRoot",
-          headers: {
-            "HRD-Token": localStorage.getItem("HRD-Token")
-          },
-          data: {
-        }
-        }).then((response) => {
-          if (response.data.msgCode === 200)
-          {
-            var dataT = response.data.t;
-            this.rootNsId = dataT.nsId;
-            this.selectedOptionF.push({
-                "label": "root",
-                "key": dataT.nsId,
-                "prefix": () => h(NIcon, null, {
-                    default: () => h(Folder)
-                }),
-                "children": [],
-            });
-            
-          }else {
-            window.$message.warning("Load Root Error!")
-          }
-        })
-        .catch(function (error) { // 请求失败处理
-          window.$message.error(error);
-        });
-    },
-    getChildrenHelper (folderInfo, parentId) {
-        if (this.disableOrgNsId && folderInfo["key"] === this.originalNsId)
-        {
-
-        }else {
-            if (folderInfo["key"] === parentId)
-            {
-                axios({
-                    method: 'get',
-                    baseURL: '',
-                    url: import.meta.env.VITE_APP_BASE_URL + "/namespace/getChildren?parentId=" + parentId,
-                    headers: {
-                        "HRD-Token": localStorage.getItem("HRD-Token")
-                    },
-                    data: {
-                    }
-                }).then((response) => {
-                    if (response.data.msgCode === 200)
-                    {
-                        var dataT = response.data.t;
-                        folderInfo["children"] = [];
-                        dataT.forEach((folder) => {
-                            if (this.disableOrgNsId && folder.nsId === this.originalNsId)
-                            {
-                                folderInfo["children"].push({
-                                    "label": folder.nsName,
-                                    "key": folder.nsId,
-                                    "prefix": () => h(NIcon, null, {
-                                        default: () => h(Folder)
-                                    }),
-                                    "children": [],
-                                    "disabled": true
-                                });
-                            }else {
-                                folderInfo["children"].push({
-                                    "label": folder.nsName,
-                                    "key": folder.nsId,
-                                    "prefix": () => h(NIcon, null, {
-                                        default: () => h(Folder)
-                                    }),
-                                    "children": [],
-                                });
-                            }
-                            
-                        });
-                        return;
-                    }else {
-                        window.$message.warning("Query Folder Error!")
-                    }
-                })
-                .catch(function (error) { // 请求失败处理
-                    window.$message.error(error);
-                });
-            }else {
-                // BFS Search
-                if ((!"children" in folderInfo) || folderInfo["children"].length === 0)
-                {
-                    // stop
-                }else {
-                    folderInfo["children"].forEach((folder) => {
-                        this.getChildrenHelper(folder, parentId);
-                    })
-                }
-            }
-        }
-        
-    },
-    getChildren (parentId) {
-        this.selectedOptionF.forEach((folder) => {
-            this.getChildrenHelper(folder, parentId);
-        })
-    },
-  },
-  computed: {
-
-  },
-  mounted () {
-    window.$message = useMessage();
-    this.getRoot();
-  },
-  components: {
-
-  }
-})
-</script>
-
-<style scoped>
-
-</style>

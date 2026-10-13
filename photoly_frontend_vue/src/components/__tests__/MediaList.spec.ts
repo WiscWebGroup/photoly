@@ -120,7 +120,8 @@ describe('MediaList', () => {
     await vi.waitFor(() => expect(pageText()).toContain('Confirm to Delete'))
     button('Delete').click()
 
-    await vi.waitFor(() => expect(wrapper.emitted('queryPhotos')).toHaveLength(2))
+    // One reload after the whole batch, not one per photo.
+    await vi.waitFor(() => expect(wrapper.emitted('queryPhotos')).toHaveLength(1))
     expect(calls.filter((c) => c.path === '/photo/delete').map((c) => c.query.photoId)).toEqual([
       '10',
       '11',
@@ -140,7 +141,7 @@ describe('MediaList', () => {
     byText('Trips').click()
     button('Update').click()
 
-    await vi.waitFor(() => expect(wrapper.emitted('queryPhotos')).toHaveLength(2))
+    await vi.waitFor(() => expect(wrapper.emitted('queryPhotos')).toHaveLength(1))
     expect(calls.filter((c) => c.path === '/photo/changeNamespace').map((c) => c.query)).toEqual([
       { photoId: '10', nsId: '6' },
       { photoId: '11', nsId: '6' },
