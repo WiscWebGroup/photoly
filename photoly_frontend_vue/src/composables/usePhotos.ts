@@ -5,12 +5,14 @@ export interface Photo {
   photoId: number
   photoName: string
   format?: string
-}
-
-/** What parents may call on a `MediaList` ref; replaced by `InstanceType<typeof MediaList>` once it is typed. */
-export interface MediaListApi {
-  updatePhotoList(photos: Photo[]): void
-  updateNsId(nsId: number): void
+  nsId?: number
+  uploadDate?: string
+  /** 1 when shared. */
+  visibility?: number
+  token?: string
+  photoUuid?: string
+  /** Selected in `MediaList`'s select mode; parents read it from the list they receive back. */
+  checked?: boolean
 }
 
 /** A list of photos from one source (a folder or a gallery), plus the actions shared by every view. */

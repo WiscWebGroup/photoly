@@ -28,7 +28,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import type { MediaListApi, Photo } from '@/composables/usePhotos'
+import type { Photo } from '@/composables/usePhotos'
 import { call } from '@/lib/http'
 import { cn } from '@/lib/utils'
 
@@ -37,7 +37,7 @@ interface Tag {
   tagName: string
 }
 
-const mediaList = ref<MediaListApi>()
+const mediaList = ref<InstanceType<typeof MediaList>>()
 const tags = ref<Tag[]>([])
 const selectedTagIds = ref<number[]>([])
 const newTagName = ref('')

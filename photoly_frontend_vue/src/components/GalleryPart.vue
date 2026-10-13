@@ -50,7 +50,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { MediaListApi, Photo } from '@/composables/usePhotos'
+import type { Photo } from '@/composables/usePhotos'
 import { download } from '@/lib/download'
 import { call } from '@/lib/http'
 import { cn } from '@/lib/utils'
@@ -81,7 +81,7 @@ const covers = [
 ]
 
 const auth = useAuthStore()
-const mediaList = ref<MediaListApi>()
+const mediaList = ref<InstanceType<typeof MediaList>>()
 const galleries = ref<Gallery[]>([])
 const selectedGaId = ref(-1)
 

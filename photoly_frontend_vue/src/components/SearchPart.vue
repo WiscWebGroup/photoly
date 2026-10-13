@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { MediaListApi, Photo } from '@/composables/usePhotos'
+import type { Photo } from '@/composables/usePhotos'
 import { ApiError, call } from '@/lib/http'
 
 const searchTypes = [
@@ -22,7 +22,7 @@ const searchTypes = [
   { value: 'namespace', label: 'Namespace' },
 ]
 
-const mediaList = ref<MediaListApi>()
+const mediaList = ref<InstanceType<typeof MediaList>>()
 const searchType = ref('photoName')
 const query = ref('')
 

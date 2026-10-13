@@ -36,7 +36,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
 
 /** Built from DOM nodes, not an HTML string, so photo names can't inject markup. */
 function popupFor(photo: MapPhoto) {
-  const thumb = el('img', { src: photoUrl(photo.photo_id, true) })
+  const thumb = el('img', { src: photoUrl(photo.photo_id, 'renderThumbnail') })
   thumb.style.width = '100px'
   thumb.onerror = () => {
     thumb.onerror = null
@@ -75,7 +75,6 @@ onMounted(async () => {
           .bindPopup(popupFor(photo)),
       )
     }
-    setTimeout(() => map.value?.invalidateSize(), 100)
   } catch {
     toast.warning('No Info')
   } finally {
