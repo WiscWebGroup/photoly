@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
 import naive from 'naive-ui'
 import router from '@/router'
 import Welcome from '../Welcome.vue'
@@ -10,7 +10,6 @@ describe('Welcome', () => {
     expect(wrapper.text()).toContain('PHOTOLY')
 
     await wrapper.findAll('button').find((b) => b.text() === 'Sign In')!.trigger('click')
-    await flushPromises()
-    expect(router.currentRoute.value.path).toBe('/login')
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/login'))
   })
 })

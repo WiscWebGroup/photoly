@@ -6,6 +6,9 @@ import { API, json, ok, recordRequests, server } from '@/test/server'
 import { button, input, mountWithApp, pageText, type } from '@/test/utils'
 import Login from '../Login.vue'
 
+// Navigation tests only need the route to change; skip loading the whole app behind it.
+vi.mock('@/views/HomeView.vue', () => ({ default: { render: () => null } }))
+
 describe('Login', () => {
   beforeEach(async () => {
     await router.push('/login')
@@ -81,8 +84,6 @@ describe('Login', () => {
   it('links to signup', async () => {
     mountWithApp(Login)
     button('Signup').click()
-    await flushPromises()
-
-    expect(router.currentRoute.value.path).toBe('/signup')
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/signup'))
   })
 })

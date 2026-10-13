@@ -1,6 +1,6 @@
 <script setup>
 import { RouterLink, RouterView, useRouter } from 'vue-router'
-import router from "../router/index.js";
+import router from '@/router';
 import axios from "axios";
 import { ref, defineComponent, nextTick, h } from 'vue';
 import { NTag } from "naive-ui";

@@ -1,10 +1,11 @@
 import { h, type Component } from 'vue'
 import { mount, type VueWrapper } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import naive, { NMessageProvider } from 'naive-ui'
 import router from '@/router'
 
 /**
- * Mounts inside the app-level providers (Naive message provider + real router).
+ * Mounts inside the app-level providers (Pinia, Naive message provider, real router).
  * `Api` types the component's exposed methods, since legacy components are untyped JS.
  */
 export function mountWithApp<Api = object>(
@@ -13,7 +14,7 @@ export function mountWithApp<Api = object>(
 ) {
   const wrapper = mount(() => h(NMessageProvider, () => h(component, props)), {
     // Real transitions: Naive only shows expanded tree nodes / closes modals after they finish.
-    global: { plugins: [router, naive], stubs: { transition: false, 'transition-group': false } },
+    global: { plugins: [createPinia(), router, naive], stubs: { transition: false, 'transition-group': false } },
     attachTo: document.body,
   })
   return wrapper.findComponent(component) as unknown as VueWrapper & { vm: Api }
