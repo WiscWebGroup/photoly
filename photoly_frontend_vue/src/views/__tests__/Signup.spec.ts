@@ -39,12 +39,11 @@ describe('Signup', () => {
     button('Signup').click()
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/home/HomePart'))
 
-    // Note: the username is currently not sent (component reads `this.userName`).
     expect(calls).toMatchObject([
       {
         method: 'POST',
         path: '/user/signUp/',
-        body: { email: 'alice@example.com', password: 'secret' },
+        body: { userName: 'alice', email: 'alice@example.com', password: 'secret' },
       },
     ])
     expect(localStorage.getItem('HRD-Token')).toBe('tok-new')

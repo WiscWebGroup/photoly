@@ -4,7 +4,7 @@ import { API, ok, recordRequests, server } from '@/test/server'
 import { useAuthStore } from '../auth'
 
 describe('auth store', () => {
-  it('reads the raw token the legacy views store', () => {
+  it('reads the raw token stored in localStorage', () => {
     localStorage.setItem('HRD-Token', 'abc')
     const auth = useAuthStore()
     expect(auth.isLoggedIn).toBe(true)

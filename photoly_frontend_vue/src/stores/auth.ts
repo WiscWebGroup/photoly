@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { http } from '@/lib/http'
 
-// Same key and raw-string format the legacy views read/write directly.
+// Raw-string token under the key the backend/API client expects.
 const KEY = 'HRD-Token'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -10,7 +10,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoggedIn = computed(() => token.value !== null)
   const avatarUrl = computed(() => `${import.meta.env.VITE_APP_BASE_URL}/user/getAvatar/${token.value}`)
 
-  /** Re-reads storage; legacy views (Login, Signup) still set the token without the store. */
+  /** Re-reads storage, picking up a token changed elsewhere (e.g. another tab). */
   function refresh() {
     token.value = localStorage.getItem(KEY)
   }
