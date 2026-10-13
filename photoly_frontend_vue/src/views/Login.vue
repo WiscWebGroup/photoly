@@ -1,185 +1,73 @@
-<script setup>
-import { RouterLink, RouterView } from 'vue-router'
-import router from '@/router';
-import axios from "axios";
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import AuthLayout from '@/components/AuthLayout.vue'
+import { useWarning } from '@/composables/useWarning'
+import { http } from '@/lib/http'
+import { useAuthStore } from '@/stores/auth'
 
-</script>
+const router = useRouter()
+const auth = useAuthStore()
+const { warning, show } = useWarning()
 
-<template>
-  
-  <div class="centralContainer">
-    
-    <div class="register">
-      <n-card title="Login">
-        <n-alert title="Warning" type="error" style="border-radius: 15px; margin-bottom: 1rem" v-show="warningShow">
-          {{ errors }}
-        </n-alert>
-        <n-space vertical size="large">
-        
-          <n-auto-complete
-            v-model:value="emailInput"
-            placeholder="Email"
-            clearable
-            @keydown.enter="login"
-          />
-          <n-input
-            type="password"
-            show-password-on="mousedown"
-            placeholder="Password"
-            v-model:value="password"
-            @keydown.enter="login"
-            id="passwordTextbox"
-          />
+const email = ref('')
+const password = ref('')
+const loading = ref(false)
 
-          <n-button strong secondary round style="width: 100%;" type="primary" :loading="loading" @click="login" >
-            Login
-          </n-button>
+const goHome = () => router.push('/home/HomePart')
 
-          <n-button strong secondary round style="width: 100%;" @click="toSignup" >
-            Signup
-          </n-button>
-        </n-space>      
-      
-      </n-card>
-      
-    </div>
-    
-  </div>
-</template>
-
-<script>
-
-export default{
-  data() {
-    return {
-      emailInput: "",
-      password: "",
-      loading: false,
-      warningShow: false,
-      errors: "",
+async function login() {
+  if (!/.+@.+\..+/.test(email.value) || !password.value) {
+    show('Please input correct email and password format!')
+    return
+  }
+  loading.value = true
+  try {
+    const { data } = await http.post('/user/signIn/', {
+      email: email.value,
+      password: password.value,
+    })
+    if (data.msgCode === 200) {
+      auth.setToken(data.token)
+      await goHome()
+    } else {
+      show('Wrong Email or Password!')
     }
-  },
-  setup () {
-    return {
-      
-    }
-  },
-  methods: {
-    toLogin: function() {
-      router.push('/login');
-    },
-    toSignup: function () {
-      router.push('/signup');
-    },
-    checkInput() {
-      var re = new RegExp(".+@.+\..+");
-      if (this.emailInput !== "" && re.test(this.emailInput) && this.password !== "")
-      {
-        return true
-      }
-      return false
-    },
-    showWarning(error) {
-      this.warningShow = true
-      this.errors = error
-      setTimeout(() => {this.warningShow = false}, 5000);
-    },
-    async login() {
-      this.loading = true;
-      if (this.checkInput())
-      {
-        await axios({
-          method: 'post',
-          baseURL: '',
-          url: import.meta.env.VITE_APP_BASE_URL + "/user/signIn/",
-          headers: {},
-          data: {
-            "email": this.emailInput,
-            "password": this.password,
-        }
-        }).then((response) => {
-          if (response.data.msgCode === 200)
-          {
-            // success
-            localStorage.setItem("HRD-Token", response.data.token);
-            router.push('/home/HomePart');
-          }else {
-            this.showWarning("Wrong Email or Password!");
-            this.loading = false;
-          }
-
-        })
-        .catch(function (error) { // 请求失败处理
-          // console.log(error);
-          this.showWarning(error);
-          this.loading = false;
-        });
-      }else {
-        this.loading = false;
-        this.showWarning("Please input correct email and password format!")
-      }
-      
-    }
-},
-  computed: {
-
-  },
-  mounted () {
-    if (localStorage.getItem("HRD-Token") !== null)
-    {
-      axios({
-          method: 'post',
-          baseURL: '',
-          url: import.meta.env.VITE_APP_BASE_URL + "/user/pingToken/",
-          headers: {
-            "HRD-Token": localStorage.getItem("HRD-Token")
-          },
-          data: {
-        }
-        }).then((response) => {
-          if (response.data.msgCode === 200)
-          {
-            router.push('/home/HomePart');
-          }
-        })
-        .catch(function (error) { // 请求失败处理
-          // console.log(error);
-          this.showWarning(error);
-        });
-    }
-  },
-  components: {
-
+  } catch {
+    show('Could not reach the server.')
+  } finally {
+    loading.value = false
   }
 }
 
+// A still-valid stored token skips the form.
+onMounted(async () => {
+  if (!auth.isLoggedIn) return
+  try {
+    const { data } = await http.post('/user/pingToken/', {})
+    if (data.msgCode === 200) await goHome()
+  } catch {
+    // stay on the form
+  }
+})
 </script>
 
-<style scoped>
-  .centralContainer {
-    padding: 0;
-    margin: 0;
-    display: block;
-    height: 100vh;
-    background-size: cover;
-    background-attachment: fixed;
-    background-position: center 0;
-    background-repeat: no-repeat;
-    background-image: url("@/assets/JH_20211030_5406.jpg");
-  }
-  .register {
-    display:flex;
-    align-items: center;
-    -webkit-box-pack: center;
-    justify-content: center;
-    padding: 2rem;
-  }
-  .n-card {
-    max-width: 30vw;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    -webkit-transform: translateX(-50%) translateY(-70%);
-    background-color: rgba(255, 255, 255, 0.92);
-  }
-</style>
+<template>
+  <AuthLayout title="Login" :warning="warning">
+    <div class="space-y-4" @keydown.enter="login">
+      <Input v-model="email" type="email" placeholder="Email" autocomplete="email" />
+      <Input
+        v-model="password"
+        type="password"
+        placeholder="Password"
+        autocomplete="current-password"
+      />
+      <Button class="w-full" :disabled="loading" @click="login">Login</Button>
+      <Button type="button" variant="secondary" class="w-full" @click="router.push('/signup')"
+        >Signup</Button
+      >
+    </div>
+  </AuthLayout>
+</template>
