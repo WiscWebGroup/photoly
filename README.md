@@ -39,7 +39,7 @@ DB: MySQL + Redis
 
 Backend: Python 3.12 + Flask (application factory, Controller / Service / Entity)
 
-Frontend: Vue3 (new version of frontend) + Naive UI
+Frontend: Vue 3 + TypeScript + Tailwind CSS + shadcn-vue (installable PWA)
 
 ## How to Run?
 

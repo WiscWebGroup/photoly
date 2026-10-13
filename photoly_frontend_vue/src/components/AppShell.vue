@@ -62,7 +62,7 @@ const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-med
     </aside>
 
     <!-- Mobile top bar -->
-    <header class="bg-card flex h-14 shrink-0 items-center gap-2 border-b px-4 md:hidden">
+    <header class="bg-card flex min-h-14 shrink-0 items-center gap-2 border-b px-4 pt-[env(safe-area-inset-top)] md:hidden">
       <img src="@/assets/logo.ico" alt="" class="size-8 rounded-full" />
       <span class="font-bold tracking-wide">PHOTOLY</span>
       <span class="ml-auto"><ThemeToggle /></span>
