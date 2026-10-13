@@ -1,22 +1,21 @@
 import { h, type Component } from 'vue'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia } from 'pinia'
-import naive, { NMessageProvider } from 'naive-ui'
 import { Toaster } from '@/components/ui/sonner'
 import router from '@/router'
 
 /**
- * Mounts inside the app-level providers (Pinia, Naive message provider, real router).
+ * Mounts inside the app-level providers (Pinia, real router).
  * `Api` types the component's exposed methods, since legacy components are untyped JS.
  */
 export function mountWithApp<Api = object>(
   component: Component,
   props: Record<string, unknown> = {},
 ) {
-  const wrapper = mount(() => [h(NMessageProvider, () => h(component, props)), h(Toaster)], {
-    // Real transitions: Naive only shows expanded tree nodes / closes modals after they finish.
+  const wrapper = mount(() => [h(component, props), h(Toaster)], {
+    // Real transitions: Reka only shows expanded tree nodes / closes modals after they finish.
     global: {
-      plugins: [createPinia(), router, naive],
+      plugins: [createPinia(), router],
       stubs: { transition: false, 'transition-group': false },
     },
     attachTo: document.body,
