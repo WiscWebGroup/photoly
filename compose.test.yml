@@ -1,7 +1,7 @@
 # Isolated dependencies: no production mounts, fixed container names or host ports.
 services:
   mysql:
-    image: mysql:8.3.0
+    image: mysql:9.7.1
     environment:
       MYSQL_ROOT_PASSWORD: test-root-only
       MYSQL_DATABASE: photoly_test
