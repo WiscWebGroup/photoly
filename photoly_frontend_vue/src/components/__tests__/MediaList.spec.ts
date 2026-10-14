@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { http } from 'msw'
 import { API, ok, recordRequests, server } from '@/test/server'
 import { button, byText, mountWithApp, pageText } from '@/test/utils'
+import { viewMode } from '@/composables/useViewMode'
 import MediaList from '../MediaList.vue'
 
 type MediaListApi = { updatePhotoList(list: object[]): void; updateNsId(nsId: number): void }
@@ -53,6 +54,7 @@ async function enterSelectMode() {
 
 describe('MediaList', () => {
   beforeEach(() => {
+    viewMode.value = 'grid'
     server.use(
       http.get(`${API}/namespace/getRoot`, () => ok({ nsId: 1, nsName: 'root' })),
       http.get(`${API}/namespace/getChildren`, () => ok([{ nsId: 6, nsName: 'Trips' }])),
@@ -179,5 +181,20 @@ describe('MediaList', () => {
     expect(calls.filter((c) => c.path === '/photo/delete').map((c) => c.query)).toEqual([
       { photoId: '11' },
     ])
+  })
+
+  it('lays photos out as a list when list view is chosen, and hides the toggle with hideBar', async () => {
+    await mountWithPhotos()
+    const photoList = () => byText('beach.jpg').closest('ul')!
+    expect(photoList().className).toContain('grid')
+
+    document.querySelector<HTMLButtonElement>('button[aria-label="List view"]')!.click()
+    await vi.waitFor(() => expect(photoList().className).toContain('flex-col'))
+    expect(photoList().className).not.toContain('grid')
+  })
+
+  it('has no layout toggle when the parent renders the bar', async () => {
+    await mountWithPhotos({ hideBar: true })
+    expect(document.querySelector('button[aria-label="List view"]')).toBeNull()
   })
 })
