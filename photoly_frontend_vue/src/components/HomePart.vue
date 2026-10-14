@@ -44,6 +44,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Progress } from '@/components/ui/progress'
 import { isValidFolderName, useFolders, type Folder as FolderInfo } from '@/composables/useFolders'
 import { usePhotos } from '@/composables/usePhotos'
 import { download } from '@/lib/download'
@@ -311,9 +312,12 @@ function abortDownload() {
 const uploadOpen = ref(false)
 const files = ref<File[]>([])
 const sending = ref(false)
+/** Share of the request body sent so far, 0-100. */
+const progress = ref(0)
 
 function startUpload() {
   files.value = []
+  progress.value = 0
   uploadOpen.value = true
 }
 
@@ -327,9 +331,14 @@ async function upload() {
   const body = new FormData()
   files.value.forEach((f) => body.append('files', f))
   body.append('photosStr', JSON.stringify(files.value.map(() => ({ nsId: nsId.value }))))
+  progress.value = 0
   sending.value = true
   try {
-    const { data } = await http.post('/photo/inserts', body)
+    const { data } = await http.post('/photo/inserts', body, {
+      onUploadProgress: (e) => {
+        if (e.progress !== undefined) progress.value = Math.round(e.progress * 100)
+      },
+    })
     if (data.msgCode !== 200) throw new Error()
     toast.success('Upload successful!')
     uploadOpen.value = false
@@ -521,6 +530,12 @@ async function upload() {
             </button>
           </li>
         </ul>
+        <div v-if="sending" class="space-y-1">
+          <Progress :model-value="progress" aria-label="Upload progress" />
+          <p class="text-muted-foreground text-right text-xs">
+            {{ progress < 100 ? `Uploading… ${progress}%` : 'Processing…' }}
+          </p>
+        </div>
         <DialogFooter>
           <Button class="w-full" :disabled="sending" @click="upload">Upload</Button>
         </DialogFooter>
