@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import {
   ChevronRight,
@@ -9,12 +9,14 @@ import {
   FolderPlus,
   Loader2,
   Pencil,
+  SquareCheck,
   Trash2,
   Upload,
   X,
 } from '@lucide/vue'
 import EmptyState from '@/components/EmptyState.vue'
 import MediaList from '@/components/MediaList.vue'
+import { DRAG_TYPE, dragging, startDrag, type DragPayload } from '@/composables/dragDrop'
 import MoveToShowFolder from '@/components/MoveToShowFolder.vue'
 import {
   AlertDialog,
@@ -42,7 +44,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
 import { isValidFolderName, useFolders, type Folder as FolderInfo } from '@/composables/useFolders'
 import { usePhotos } from '@/composables/usePhotos'
 import { download } from '@/lib/download'
@@ -107,6 +108,7 @@ async function mutate(action: () => Promise<unknown>, success: string, failure: 
 // --- Folder selection ---------------------------------------------------------------------------
 const selectMode = ref(false)
 const selected = ref<number[]>([])
+watch(selectMode, (on) => on || (selected.value = []))
 const confirmDeleteSelected = ref(false)
 
 const toggleSelected = (id: number) =>
@@ -119,12 +121,33 @@ function openFolder(folder: FolderInfo) {
   else go(folder.nsId, folder.nsName)
 }
 
+function selectFolder(folder: FolderInfo) {
+  toggleSelected(folder.nsId)
+  selectMode.value = true
+}
+
+const selectedCount = computed(() => selected.value.length + (mediaList.value?.checkedCount ?? 0))
+
+function clearSelection() {
+  selected.value = []
+  mediaList.value?.setChecked(false)
+}
+
+function selectAll() {
+  selected.value = folders.children.value.map((f) => f.nsId)
+  mediaList.value?.setChecked(true)
+}
+
 async function deleteSelected() {
   confirmDeleteSelected.value = false
-  selectMode.value = false
   const ids = selected.value
-  selected.value = []
-  await mutate(() => Promise.all(ids.map(folders.remove)), 'Folder deleted!', 'Delete Error!')
+  // Photos first: leaving select mode clears their checkmarks.
+  const photosDeleted = mediaList.value?.checkedCount ? mediaList.value.deleteChecked() : undefined
+  selectMode.value = false
+  await Promise.all([
+    photosDeleted,
+    ids.length && mutate(() => Promise.all(ids.map(folders.remove)), 'Folder deleted!', 'Delete Error!'),
+  ])
 }
 
 // --- Create / rename / delete / move one folder ---------------------------------------------------
@@ -179,14 +202,84 @@ function startMove(folder: FolderInfo) {
   movePicker.value?.openModal()
 }
 
+/** Move every selected folder and photo; `movingFolder` is null for this. */
+function startMoveSelected() {
+  movingFolder.value = null
+  movePicker.value?.openModal()
+}
+
 async function moveFolder(parentId: number) {
   const folder = movingFolder.value
   if (folder)
-    await mutate(
+    return mutate(
       () => folders.move(folder.nsId, parentId),
       'Folder Location Updated!',
       'Update Error!',
     )
+  const ids = selected.value.filter((id) => id !== parentId)
+  const photosMoved =
+    mediaList.value?.checkedCount && parentId !== nsId.value
+      ? mediaList.value.moveChecked(parentId)
+      : undefined
+  selectMode.value = false
+  await Promise.all([
+    photosMoved,
+    ids.length &&
+      mutate(
+        () => Promise.all(ids.map((id) => folders.move(id, parentId))),
+        'Folder Location Updated!',
+        'Update Error!',
+      ),
+  ])
+}
+
+// --- Drag a folder or photo onto a folder (or breadcrumb) to move it ------------------------------
+const dragOver = ref<number | null>(null)
+
+function dragFolder(e: DragEvent, folder: FolderInfo) {
+  const multi = selectMode.value && selected.value.includes(folder.nsId)
+  startDrag(
+    e,
+    {
+      folders: multi ? selected.value : [folder.nsId],
+      photos: multi ? (mediaList.value?.checkedIds() ?? []) : [],
+    },
+    folder.nsName,
+  )
+}
+
+function dropOn(target: number) {
+  return {
+    onDragover(e: DragEvent) {
+      if (!e.dataTransfer?.types.includes(DRAG_TYPE)) return
+      e.preventDefault()
+      dragOver.value = target
+    },
+    onDragleave() {
+      if (dragOver.value === target) dragOver.value = null
+    },
+    async onDrop(e: DragEvent) {
+      dragOver.value = null
+      const raw = e.dataTransfer?.getData(DRAG_TYPE)
+      if (!raw) return
+      e.preventDefault()
+      const { folders: dragged, photos }: DragPayload = JSON.parse(raw)
+      const folderIds = dragged.filter((id) => id !== target)
+      const photoIds = target === nsId.value ? [] : photos
+      if (!folderIds.length && !photoIds.length) return
+      selectMode.value = false
+      const moved = await mutate(
+        () =>
+          Promise.all([
+            ...folderIds.map((id) => folders.move(id, target)),
+            ...photoIds.map((id) => library.moveTo(id, target)),
+          ]),
+        'Location Updated!',
+        'Update Error!',
+      )
+      if (moved && photoIds.length) await queryPhotos()
+    },
+  }
 }
 
 // --- Download a folder ----------------------------------------------------------------------------
@@ -250,20 +343,27 @@ async function upload() {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="flex min-h-full flex-col gap-4">
     <nav aria-label="Folder path" class="flex flex-wrap items-center gap-1 text-sm">
       <template v-for="(item, i) in folders.path.value" :key="item.nsId">
         <ChevronRight v-if="i" class="text-muted-foreground size-4" aria-hidden="true" />
         <span
           v-if="i === folders.path.value.length - 1"
           aria-current="page"
-          class="px-2 py-1 font-medium"
+          class="px-3 py-1.5 font-medium"
           >{{ item.nsName }}</span
         >
         <button
           v-else
           type="button"
-          class="hover:bg-accent rounded-md px-2 py-1"
+          :class="
+            cn(
+              'hover:bg-accent min-h-9 rounded-md border border-transparent px-3 py-1.5 transition-colors',
+              dragging && 'border-muted-foreground/40 border-dashed',
+              dragOver === item.nsId && 'bg-primary/15 border-primary border-solid',
+            )
+          "
+          v-bind="dropOn(item.nsId)"
           @click="go(item.nsId, item.nsName)"
         >
           {{ item.nsName }}
@@ -279,26 +379,29 @@ async function upload() {
     <!-- Right-clicking (or long-pressing) empty space offers upload / new folder. -->
     <ContextMenu>
       <ContextMenuTrigger as-child>
-        <div v-show="nsId !== -1" class="space-y-6">
+        <div v-show="nsId !== -1" class="flex-1 space-y-6">
+          <div
+            v-if="selectMode"
+            class="bg-background/95 sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b py-2 backdrop-blur"
+          >
+            <span class="text-muted-foreground mr-2 text-sm">{{ selectedCount }} selected</span>
+            <Button variant="outline" size="sm" @click="selectMode = false">Done</Button>
+            <Button variant="outline" size="sm" @click="clearSelection">Clear</Button>
+            <Button variant="outline" size="sm" @click="selectAll">Select All</Button>
+            <Button variant="secondary" size="sm" :disabled="!selectedCount" @click="startMoveSelected"
+              >Move</Button
+            >
+            <Button
+              variant="destructive"
+              size="sm"
+              :disabled="!selectedCount"
+              @click="confirmDeleteSelected = true"
+              >Delete Selected</Button
+            >
+          </div>
           <section>
             <div class="mb-3 flex flex-wrap items-center gap-3">
               <h2 class="text-2xl font-semibold">Folders</h2>
-              <label class="flex items-center gap-2 text-sm">
-                <Switch v-model="selectMode" />
-                {{ selectMode ? 'Folder Select Mode' : 'Select Mode Off' }}
-              </label>
-              <template v-if="selectMode">
-                <Button variant="outline" size="sm" @click="selected = []">Clear</Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  @click="selected = folders.children.value.map((f) => f.nsId)"
-                  >Select All</Button
-                >
-                <Button variant="destructive" size="sm" @click="confirmDeleteSelected = true"
-                  >Delete Selected</Button
-                >
-              </template>
               <span class="ml-auto flex gap-2">
                 <Button variant="outline" size="sm" @click="startUpload"><Upload /> Upload</Button>
                 <Button variant="outline" size="sm" @click="startCreate"
@@ -322,9 +425,13 @@ async function upload() {
                       :class="
                         cn(
                           'h-11 w-full justify-start',
-                          selected.includes(folder.nsId) && 'ring-primary ring-2',
+                          (selected.includes(folder.nsId) || dragOver === folder.nsId) &&
+                            'ring-primary ring-2',
                         )
                       "
+                      draggable="true"
+                      v-bind="dropOn(folder.nsId)"
+                      @dragstart="dragFolder($event, folder)"
                       @click="openFolder(folder)"
                       @contextmenu.stop
                     >
@@ -341,6 +448,9 @@ async function upload() {
                     </Button>
                   </ContextMenuTrigger>
                   <ContextMenuContent>
+                    <ContextMenuItem @select="selectFolder(folder)">
+                      <SquareCheck /> {{ selected.includes(folder.nsId) ? 'Deselect' : 'Select' }}
+                    </ContextMenuItem>
                     <ContextMenuItem @select="startRename(folder)"
                       ><Pencil /> Rename</ContextMenuItem
                     >
@@ -363,6 +473,9 @@ async function upload() {
             ref="mediaList"
             :ns-or-not="true"
             :detach-enabled="false"
+            v-model:select-mode="selectMode"
+            hide-bar
+            :drag-folders="selected"
             @query-photos="queryPhotos"
           />
         </div>
@@ -457,8 +570,8 @@ async function upload() {
         <AlertDialogHeader>
           <AlertDialogTitle>Confirm to Delete</AlertDialogTitle>
           <AlertDialogDescription>
-            Do you really want to DELETE these folders? *All photos and folders within this folder
-            will be destroied.
+            Do you really want to DELETE the selected items? *All photos and folders within selected
+            folders will be destroied.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

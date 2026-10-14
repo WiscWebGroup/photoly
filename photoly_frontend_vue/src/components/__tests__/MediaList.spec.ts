@@ -45,7 +45,9 @@ async function mountWithPhotos(props: Record<string, unknown> = {}) {
 }
 
 async function enterSelectMode() {
-  document.querySelector<HTMLElement>('[role="switch"]')!.click()
+  rightClick(byText('dog.png'))
+  await vi.waitFor(() => byText('Select'))
+  byText('Select').click()
   await vi.waitFor(() => button('Select All'))
 }
 

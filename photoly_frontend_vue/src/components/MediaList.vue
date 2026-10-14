@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
-import { Download, Eye, FolderInput, Trash2 } from '@lucide/vue'
+import { Download, Eye, FolderInput, SquareCheck, Trash2 } from '@lucide/vue'
 import EmptyState from '@/components/EmptyState.vue'
+import { startDrag } from '@/composables/dragDrop'
 import MoveToShowFolder from '@/components/MoveToShowFolder.vue'
 import PhotoViewer from '@/components/PhotoViewer.vue'
 import {
@@ -22,7 +23,6 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
-import { Switch } from '@/components/ui/switch'
 import { usePhotos, type Photo } from '@/composables/usePhotos'
 import { download } from '@/lib/download'
 import { call } from '@/lib/http'
@@ -32,14 +32,24 @@ import { useAuthStore } from '@/stores/auth'
 import videoIcon from '@/assets/icons/Video.png'
 import logo from '@/assets/logo.ico'
 
-const props = defineProps<{ nsOrNot: boolean; detachEnabled?: boolean; detachStr?: string }>()
+/** `dragFolders`: selected folders that travel along when a selected photo is dragged. */
+const props = defineProps<{
+  nsOrNot: boolean
+  detachEnabled?: boolean
+  detachStr?: string
+  dragFolders?: number[]
+  /** The parent renders one shared selection bar instead (see HomePart). */
+  hideBar?: boolean
+}>()
 /** `queryPhotos`: the list changed on the server, reload it. `doDetach`: remove the checked photos from the parent's tag/gallery. */
 const emit = defineEmits<{ queryPhotos: []; doDetach: [photos: Photo[]] }>()
 
 const auth = useAuthStore()
 const { photos, moveTo, remove } = usePhotos()
 
-const selectMode = ref(false)
+/** Shared with the parent so one select mode covers folders and photos. Entered via the right-click menu. */
+const selectMode = defineModel<boolean>('selectMode', { default: false })
+watch(selectMode, (on) => on || setChecked(false))
 const viewing = ref<Photo | null>(null)
 const nsPath = ref('')
 const confirmDelete = ref(false)
@@ -131,12 +141,38 @@ function moveChosen(targetNsId: number) {
   )
 }
 
+function selectPhoto(photo: Photo) {
+  photo.checked = !photo.checked
+  selectMode.value = true
+}
+
+function dragPhoto(e: DragEvent, photo: Photo) {
+  const multi = selectMode.value && photo.checked
+  startDrag(
+    e,
+    {
+      folders: multi ? (props.dragFolders ?? []) : [],
+      photos: multi ? checked.value.map((p) => p.photoId) : [photo.photoId],
+    },
+    `${photo.photoName}.${photo.format}`,
+  )
+}
+
 const downloadPhoto = (p: Photo) =>
   download(`/photo/download/${auth.token}`, `${p.photoName}.${p.format}`, {
     params: { photoId: p.photoId },
   }).catch(() => toast.error('Download failed'))
 
 defineExpose({
+  checkedCount: computed(() => checked.value.length),
+  setChecked,
+  deleteChecked,
+  moveChecked(targetNsId: number) {
+    moving.value = [...checked.value]
+    return moveChosen(targetNsId)
+  },
+  /** Photos checked in select mode (empty when it's off). */
+  checkedIds: () => (selectMode.value ? checked.value.map((p) => p.photoId) : []),
   updateNsId(id: number) {
     if (props.nsOrNot) trace(id)
   },
@@ -150,11 +186,8 @@ defineExpose({
   <div class="space-y-4">
     <div class="flex flex-wrap items-center gap-3">
       <h2 class="text-2xl font-semibold">Medias</h2>
-      <label class="flex items-center gap-2 text-sm">
-        <Switch v-model="selectMode" />
-        {{ selectMode ? 'Photo Select Mode' : 'Select Mode Off' }}
-      </label>
-      <template v-if="selectMode">
+      <template v-if="selectMode && !hideBar">
+        <Button variant="outline" size="sm" @click="selectMode = false">Done</Button>
         <Button variant="outline" size="sm" @click="setChecked(false)">Clear</Button>
         <Button variant="outline" size="sm" @click="setChecked(true)">Select All</Button>
         <Button variant="secondary" size="sm" @click="askMove([...checked])">Move</Button>
@@ -174,6 +207,8 @@ defineExpose({
           <ContextMenuTrigger as-child>
             <div
               class="bg-card relative overflow-hidden rounded-xl border shadow-xs transition-shadow hover:shadow-md"
+              draggable="true"
+              @dragstart="dragPhoto($event, photo)"
               @contextmenu.stop
             >
               <button type="button" class="block w-full text-left" @click="open(photo)">
@@ -188,6 +223,7 @@ defineExpose({
                   alt=""
                   loading="lazy"
                   decoding="async"
+                  draggable="false"
                   class="aspect-[2/1] w-full object-cover"
                 />
                 <p class="truncate px-3 py-2 text-sm" :title="`${photo.photoName}.${photo.format}`">
@@ -204,6 +240,9 @@ defineExpose({
             </div>
           </ContextMenuTrigger>
           <ContextMenuContent>
+            <ContextMenuItem @select="selectPhoto(photo)">
+              <SquareCheck /> {{ photo.checked ? 'Deselect' : 'Select' }}
+            </ContextMenuItem>
             <ContextMenuItem @select="open(photo)"><Eye /> View</ContextMenuItem>
             <ContextMenuItem @select="downloadPhoto(photo)"><Download /> Download</ContextMenuItem>
             <ContextMenuItem
