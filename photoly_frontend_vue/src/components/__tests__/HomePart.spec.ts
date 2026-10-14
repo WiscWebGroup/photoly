@@ -51,12 +51,16 @@ describe('HomePart', () => {
   it('deletes every selected folder after confirmation', async () => {
     const calls = recordRequests()
     await mountHome()
-    document.querySelector<HTMLElement>('[role="switch"]')!.click()
+    byText('Trips').dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, button: 2, clientX: 10, clientY: 10 }),
+    )
+    await vi.waitFor(() => byText('Select'))
+    byText('Select').click()
     await vi.waitFor(() => button('Select All'))
     button('Select All').click()
     button('Delete Selected').click()
     await vi.waitFor(() =>
-      expect(pageText()).toContain('Do you really want to DELETE these folders?'),
+      expect(pageText()).toContain('Do you really want to DELETE the selected items?'),
     )
     button('Delete').click()
 
