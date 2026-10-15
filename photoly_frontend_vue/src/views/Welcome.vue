@@ -63,25 +63,28 @@ const bg = (url: string) => ({ backgroundImage: `url(${url})` })
     <section
       class="relative flex min-h-dvh flex-col items-center justify-center gap-4 overflow-hidden bg-[#031417] px-4 text-center text-white"
     >
-      <ShapeWaves
-        class="absolute inset-0"
-        shapes="mixed"
-        :cell-size="14"
-        :dot-size="0.7"
-        color="#1f7f86"
-        hover-color="#99f6e4"
-        background-color="#031417"
-        :speed="0.8"
-        :scale="1.2"
-        :contrast="1.2"
-        :brightness="0.45"
-        :fade="0.35"
-        :glow="0.5"
-        :splash-radius="60"
-      />
+      <!-- ShapeWaves sets its own `relative`, so position it via a wrapper. -->
+      <div class="absolute inset-0">
+        <ShapeWaves
+          shapes="mixed"
+          :cell-size="16"
+          :dot-size="0.7"
+          color="#2dd4bf"
+          hover-color="#99f6e4"
+          background-color="#031417"
+          :speed="0.8"
+          :scale="1.2"
+          :contrast="1.6"
+          :brightness="0.9"
+          :fade="0.35"
+          :glow="0.5"
+          :splash-radius="60"
+          @error="(e: Error) => console.warn('ShapeWaves unavailable:', e.message)"
+        />
+      </div>
       <!-- Keep the copy legible over the busiest part of the field, and melt into the next section. -->
       <div
-        class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,#031417b3_0%,#03141780_30%,transparent_70%)]"
+        class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,#031417cc_0%,#03141740_35%,transparent_65%)]"
       />
       <div
         class="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/60 to-transparent"
