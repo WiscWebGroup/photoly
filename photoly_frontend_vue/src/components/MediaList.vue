@@ -199,7 +199,7 @@ defineExpose({
 <template>
   <div class="space-y-4">
     <div class="flex flex-wrap items-center gap-3">
-      <h2 class="text-2xl font-semibold">Medias</h2>
+      <h2 class="text-2xl font-semibold">Media</h2>
       <template v-if="selectMode && !hideBar">
         <Button variant="outline" size="sm" @click="selectMode = false">Done</Button>
         <Button variant="outline" size="sm" @click="setChecked(false)">Clear</Button>
