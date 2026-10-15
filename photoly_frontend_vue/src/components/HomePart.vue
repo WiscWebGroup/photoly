@@ -18,6 +18,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import MediaList from '@/components/MediaList.vue'
 import { DRAG_TYPE, dragging, startDrag, type DragPayload } from '@/composables/dragDrop'
 import MoveToShowFolder from '@/components/MoveToShowFolder.vue'
+import ViewToggle from '@/components/ViewToggle.vue'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -46,6 +47,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { isValidFolderName, useFolders, type Folder as FolderInfo } from '@/composables/useFolders'
 import { usePhotos } from '@/composables/usePhotos'
+import { viewMode } from '@/composables/useViewMode'
 import { download } from '@/lib/download'
 import { call, http } from '@/lib/http'
 import { cn } from '@/lib/utils'
@@ -146,7 +148,8 @@ async function deleteSelected() {
   selectMode.value = false
   await Promise.all([
     photosDeleted,
-    ids.length && mutate(() => Promise.all(ids.map(folders.remove)), 'Folder deleted!', 'Delete Error!'),
+    ids.length &&
+      mutate(() => Promise.all(ids.map(folders.remove)), 'Folder deleted!', 'Delete Error!'),
   ])
 }
 
@@ -388,7 +391,11 @@ async function upload() {
             <Button variant="outline" size="sm" @click="selectMode = false">Done</Button>
             <Button variant="outline" size="sm" @click="clearSelection">Clear</Button>
             <Button variant="outline" size="sm" @click="selectAll">Select All</Button>
-            <Button variant="secondary" size="sm" :disabled="!selectedCount" @click="startMoveSelected"
+            <Button
+              variant="secondary"
+              size="sm"
+              :disabled="!selectedCount"
+              @click="startMoveSelected"
               >Move</Button
             >
             <Button
@@ -402,7 +409,8 @@ async function upload() {
           <section>
             <div class="mb-3 flex flex-wrap items-center gap-3">
               <h2 class="text-2xl font-semibold">Folders</h2>
-              <span class="ml-auto flex gap-2">
+              <span class="ml-auto flex items-center gap-2">
+                <ViewToggle />
                 <Button variant="outline" size="sm" @click="startUpload"><Upload /> Upload</Button>
                 <Button variant="outline" size="sm" @click="startCreate"
                   ><FolderPlus /> New Folder</Button
@@ -416,7 +424,14 @@ async function upload() {
               :icon="Folder"
               class="py-8"
             />
-            <ul v-else class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+            <ul
+              v-else
+              :class="
+                viewMode === 'list'
+                  ? 'flex flex-col gap-1'
+                  : 'grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
+              "
+            >
               <li v-for="folder in folders.children.value" :key="folder.nsId">
                 <ContextMenu>
                   <ContextMenuTrigger as-child>

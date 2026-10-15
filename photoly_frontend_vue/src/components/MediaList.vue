@@ -6,6 +6,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import { startDrag } from '@/composables/dragDrop'
 import MoveToShowFolder from '@/components/MoveToShowFolder.vue'
 import PhotoViewer from '@/components/PhotoViewer.vue'
+import ViewToggle from '@/components/ViewToggle.vue'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -24,9 +25,11 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import { usePhotos, type Photo } from '@/composables/usePhotos'
+import { viewMode } from '@/composables/useViewMode'
 import { download } from '@/lib/download'
 import { call } from '@/lib/http'
 import { mediaKind } from '@/lib/media'
+import { cn } from '@/lib/utils'
 import { photoUrl } from '@/lib/photoUrl'
 import { useAuthStore } from '@/stores/auth'
 import videoIcon from '@/assets/icons/Video.png'
@@ -57,6 +60,17 @@ const confirmDetach = ref(false)
 const movePicker = ref<InstanceType<typeof MoveToShowFolder>>()
 /** The photos the next folder pick applies to. */
 const moving = ref<Photo[]>([])
+
+/** `uploadDate` arrives as an ISO timestamp ("2024-06-01T10:20:30"); show just the day, in the local format. */
+function formatDate(iso?: string) {
+  const [y, m, d] = (iso ?? '').slice(0, 10).split('-').map(Number)
+  if (!y || !m || !d) return ''
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
 
 const checked = computed(() => photos.value.filter((p) => p.checked))
 
@@ -185,7 +199,7 @@ defineExpose({
 <template>
   <div class="space-y-4">
     <div class="flex flex-wrap items-center gap-3">
-      <h2 class="text-2xl font-semibold">Medias</h2>
+      <h2 class="text-2xl font-semibold">Media</h2>
       <template v-if="selectMode && !hideBar">
         <Button variant="outline" size="sm" @click="selectMode = false">Done</Button>
         <Button variant="outline" size="sm" @click="setChecked(false)">Clear</Button>
@@ -198,20 +212,55 @@ defineExpose({
           >Delete Selected</Button
         >
       </template>
+      <ViewToggle v-if="!hideBar" class="ml-auto" />
     </div>
 
     <EmptyState v-if="!photos.length" title="No photos here" />
-    <ul v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+    <ul
+      :class="
+        viewMode === 'list'
+          ? 'flex flex-col gap-1'
+          : 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
+      "
+    >
       <li v-for="photo in photos" :key="photo.photoId" class="[content-visibility:auto]">
         <ContextMenu>
           <ContextMenuTrigger as-child>
             <div
-              class="bg-card relative overflow-hidden rounded-xl border shadow-xs transition-shadow hover:shadow-md"
+              :class="
+                cn(
+                  'bg-card relative overflow-hidden border transition-[box-shadow,background-color]',
+                  viewMode === 'list'
+                    ? 'flex items-center rounded-lg hover:bg-accent hover:shadow-sm'
+                    : 'rounded-xl shadow-xs hover:shadow-md',
+                )
+              "
               draggable="true"
               @dragstart="dragPhoto($event, photo)"
               @contextmenu.stop
             >
-              <button type="button" class="block w-full text-left" @click="open(photo)">
+              <Checkbox
+                v-if="selectMode"
+                :class="
+                  cn(
+                    'bg-background size-5',
+                    viewMode === 'list' ? 'mx-3 shrink-0' : 'absolute top-2 left-2',
+                  )
+                "
+                :aria-label="`Select ${photo.photoName}`"
+                :model-value="!!photo.checked"
+                @update:model-value="photo.checked = $event === true"
+              />
+              <button
+                type="button"
+                :class="
+                  cn(
+                    'w-full min-w-0 text-left',
+                    viewMode === 'list' ? 'flex items-center gap-3 p-2' : 'block',
+                  )
+                "
+                @click="open(photo)"
+              >
                 <img
                   :src="
                     {
@@ -224,19 +273,26 @@ defineExpose({
                   loading="lazy"
                   decoding="async"
                   draggable="false"
-                  class="aspect-[2/1] w-full object-cover"
+                  :class="
+                    viewMode === 'list'
+                      ? 'size-10 shrink-0 rounded object-cover'
+                      : 'aspect-[2/1] w-full object-cover'
+                  "
                 />
-                <p class="truncate px-3 py-2 text-sm" :title="`${photo.photoName}.${photo.format}`">
+                <p
+                  :class="
+                    cn('truncate text-sm', viewMode === 'list' ? 'min-w-0 flex-1' : 'px-3 py-2')
+                  "
+                  :title="`${photo.photoName}.${photo.format}`"
+                >
                   {{ photo.photoName }}.{{ photo.format }}
                 </p>
+                <span
+                  v-if="viewMode === 'list'"
+                  class="text-muted-foreground hidden shrink-0 text-xs sm:block"
+                  >Created on {{ formatDate(photo.uploadDate) }}</span
+                >
               </button>
-              <Checkbox
-                v-if="selectMode"
-                class="bg-background absolute top-2 left-2 size-5"
-                :aria-label="`Select ${photo.photoName}`"
-                :model-value="!!photo.checked"
-                @update:model-value="photo.checked = $event === true"
-              />
             </div>
           </ContextMenuTrigger>
           <ContextMenuContent>
