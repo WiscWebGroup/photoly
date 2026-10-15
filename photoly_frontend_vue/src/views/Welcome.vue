@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { defineAsyncComponent } from 'vue'
 import { ExternalLink } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import hero from '@/assets/JH_20211030_5406.jpg'
 import summary from '@/assets/JH_20220710_5856.jpg'
 import about from '@/assets/JH_20220601_5686.jpg'
+
+// Loaded lazily so the WebGPU runtime never blocks first paint of the landing page.
+const ShapeWaves = defineAsyncComponent(() => import('@/components/ShapeWaves.vue'))
 
 const team = [
   {
@@ -57,27 +61,62 @@ const bg = (url: string) => ({ backgroundImage: `url(${url})` })
     </header>
 
     <section
-      class="flex min-h-dvh flex-col items-center justify-center gap-3 bg-cover bg-fixed bg-center px-4 text-center text-white"
-      :style="bg(hero)"
+      class="relative flex min-h-dvh flex-col items-center justify-center gap-4 overflow-hidden bg-[#031417] px-4 text-center text-white"
     >
-      <h1 class="text-4xl font-normal md:text-5xl">See the Value of Photo Inside</h1>
-      <p class="text-4xl md:text-5xl">The Beauty Shines Here</p>
-      <p class="text-xl text-teal-200">Photoly - Share Your Inspiration</p>
-      <div class="mt-6 flex gap-4">
-        <Button
-          variant="outline"
-          size="lg"
-          class="bg-white/20 text-white"
-          @click="$router.push('/signup')"
-          >Sign Up</Button
+      <ShapeWaves
+        class="absolute inset-0"
+        shapes="mixed"
+        :cell-size="14"
+        :dot-size="0.7"
+        color="#1f7f86"
+        hover-color="#99f6e4"
+        background-color="#031417"
+        :speed="0.8"
+        :scale="1.2"
+        :contrast="1.2"
+        :brightness="0.45"
+        :fade="0.35"
+        :glow="0.5"
+        :splash-radius="60"
+      />
+      <!-- Keep the copy legible over the busiest part of the field, and melt into the next section. -->
+      <div
+        class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,#031417b3_0%,#03141780_30%,transparent_70%)]"
+      />
+      <div
+        class="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/60 to-transparent"
+      />
+
+      <div class="relative flex flex-col items-center gap-4">
+        <span
+          class="rounded-full border border-teal-300/30 bg-teal-300/10 px-4 py-1 text-sm tracking-wide text-teal-200 backdrop-blur"
         >
-        <Button
-          variant="outline"
-          size="lg"
-          class="bg-white/20 text-white"
-          @click="$router.push('/login')"
-          >Sign In</Button
+          Self-hosted photo management
+        </span>
+        <h1 class="max-w-3xl text-5xl leading-tight font-semibold tracking-tight md:text-7xl">
+          See the Value of Photo Inside
+        </h1>
+        <p
+          class="bg-gradient-to-r from-teal-200 via-white to-teal-200 bg-clip-text text-3xl text-transparent md:text-4xl"
         >
+          The Beauty Shines Here
+        </p>
+        <p class="text-lg text-teal-100/70 md:text-xl">Photoly - Share Your Inspiration</p>
+        <div class="mt-6 flex gap-4">
+          <Button
+            size="lg"
+            class="bg-teal-400 text-teal-950 shadow-[0_0_32px_-4px] shadow-teal-400/60 hover:bg-teal-300"
+            @click="$router.push('/signup')"
+            >Get Started</Button
+          >
+          <Button
+            variant="outline"
+            size="lg"
+            class="border-white/25 bg-white/5 text-white backdrop-blur hover:bg-white/15 hover:text-white"
+            @click="$router.push('/login')"
+            >Sign In</Button
+          >
+        </div>
       </div>
     </section>
 
