@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { delay, http } from 'msw'
 import { API, ok, recordRequests, server } from '@/test/server'
 import { button, byText, input, mountWithApp, pageText, type } from '@/test/utils'
+import { viewMode } from '@/composables/useViewMode'
 import HomePart from '../HomePart.vue'
 
 async function mountHome() {
@@ -10,8 +11,12 @@ async function mountHome() {
   return wrapper
 }
 
+const ariaButton = (label: string) =>
+  document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!
+
 describe('HomePart', () => {
   beforeEach(() => {
+    viewMode.value = 'grid'
     server.use(
       http.get(`${API}/namespace/getRoot`, () => ok({ nsId: 1, nsName: 'root' })),
       http.get(`${API}/namespace/getChildren`, () =>
@@ -97,5 +102,21 @@ describe('HomePart', () => {
         .map((c) => c.query.nsId)
         .sort(),
     ).toEqual(['5', '6'])
+  })
+
+  it('switches the folders between grid and list layouts and remembers the choice', async () => {
+    await mountHome()
+    const folders = () => byText('Trips').closest('ul')!
+    expect(folders().className).toContain('grid')
+    expect(ariaButton('Grid view').getAttribute('aria-pressed')).toBe('true')
+
+    ariaButton('List view').click()
+    await vi.waitFor(() => expect(folders().className).toContain('flex-col'))
+    expect(folders().className).not.toContain('grid')
+    expect(ariaButton('List view').getAttribute('aria-pressed')).toBe('true')
+    expect(localStorage.getItem('photoly-view-mode')).toBe('list')
+
+    ariaButton('Grid view').click()
+    await vi.waitFor(() => expect(folders().className).toContain('grid'))
   })
 })
