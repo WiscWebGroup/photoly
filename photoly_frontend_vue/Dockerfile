@@ -3,7 +3,8 @@ FROM node:26-alpine AS builder
 COPY . /app/
 WORKDIR /app
 
-RUN corepack enable && pnpm install --frozen-lockfile
+RUN npm install -g pnpm@10.30.1 \
+    && pnpm install --frozen-lockfile
 RUN pnpm run build
 
 FROM nginx:alpine
