@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { http } from 'msw'
+import { delay, http } from 'msw'
 import { API, ok, recordRequests, server } from '@/test/server'
 import { button, byText, input, mountWithApp, pageText, type } from '@/test/utils'
 import { viewMode } from '@/composables/useViewMode'
@@ -39,6 +39,30 @@ describe('HomePart', () => {
     expect(calls).toContainEqual(
       expect.objectContaining({ path: '/photo/getByNamespace', query: { nsId: '1' } }),
     )
+  })
+
+  it('shows a progress bar while photos upload, then closes the dialog', async () => {
+    server.use(
+      http.post(`${API}/photo/inserts`, async () => {
+        await delay(100)
+        return ok()
+      }),
+    )
+    await mountHome()
+    button('Upload').click()
+    await vi.waitFor(() => expect(document.querySelector('input[type=file]')).not.toBeNull())
+    const picker = document.querySelector<HTMLInputElement>('input[type=file]')!
+    Object.defineProperty(picker, 'files', {
+      value: [new File(['x'], 'beach.jpg', { type: 'image/jpeg' })],
+    })
+    picker.dispatchEvent(new Event('change', { bubbles: true }))
+    await vi.waitFor(() => byText('beach.jpg'))
+    expect(document.querySelector('[role=progressbar]')).toBeNull()
+
+    document.querySelector<HTMLButtonElement>('[role=dialog] button.w-full')!.click()
+    await vi.waitFor(() => expect(document.querySelector('[role=progressbar]')).not.toBeNull())
+    await vi.waitFor(() => expect(pageText()).toContain('Upload successful!'))
+    expect(document.querySelector('[role=progressbar]')).toBeNull()
   })
 
   it('rejects reserved folder names without calling the API', async () => {
