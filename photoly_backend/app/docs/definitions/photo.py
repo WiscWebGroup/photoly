@@ -12,6 +12,11 @@ OPERATIONS = [
        description='Repeat the files part and provide one JSON metadata object per file in photosStr. Upload is atomic: invalid input rolls back the entire batch. t is the number uploaded.'),
     op('Photo', 'delete', 'POST', '/photo/delete', 'Permanently delete media', params=[p('photoId')], form=True,
        description='DESTRUCTIVE: deletes the original, thumbnail, metadata and gallery/tag associations.'),
+    op('Photo', 'replace', 'POST', '/photo/replace', 'Replace an image file in place (extension to the legacy API)',
+       params=[p('photoId')],
+       body={"required": True, "content": {"multipart/form-data": {"schema": {"type": "object", "required": ["file"], "properties": {
+           "file": {"type": "string", "format": "binary", "description": "Edited jpg, jpeg, png or webp image. The extension picks the stored format."}}}}}},
+       description='Swaps the content of an owned jpg/jpeg/png/webp image and regenerates its thumbnail. The photo keeps its ID, UUID, share token, tags, galleries and folder. Embedded EXIF comes only from the new file. t is 1 on success.'),
     op('Photo', 'update', 'POST', '/photo/update', 'Update a media name or visibility',
        body=json_body(ref('PhotoUpdate'), {'photoId': 1, 'photoName': 'landscape', 'visibility': 1})),
     op('Photo', 'by_namespace', 'GET', '/photo/getByNamespace', 'List media in a logical folder', PHOTO_LIST, [EXAMPLES['Photo']], params=[p('nsId')],

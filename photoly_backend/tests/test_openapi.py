@@ -21,9 +21,9 @@ def test_openapi_32_is_valid_and_covers_exact_legacy_routes():
     expected = {(row['method'].lower(), row['path']) for row in json.loads((CONTRACTS / 'spring_routes.json').read_text())['routes']}
     actual = {(method, path) for path, methods in spec['paths'].items() for method in methods}
     assert len(expected) == 90
-    assert actual == expected | {('get', '/healthz')}
+    assert actual == expected | {('get', '/healthz'), ('post', '/photo/replace')}
     ids = [op['operationId'] for methods in spec['paths'].values() for op in methods.values()]
-    assert len(ids) == len(set(ids)) == 91
+    assert len(ids) == len(set(ids)) == 92
     for path, methods in spec['paths'].items():
         for op in methods.values():
             assert op['summary'] and op['description'] and op['tags']

@@ -162,6 +162,59 @@ def test_upload_database_failure_removes_files(world, monkeypatch):
     assert list((Path(world.app.config["UPLOAD_FOLDER"]) / ".staging").iterdir()) == []
 
 
+def png_bytes(size=(40, 30)):
+    stream = io.BytesIO()
+    Image.new("RGB", size, "navy").save(stream, "PNG")
+    return stream.getvalue()
+
+
+def test_replace_keeps_identity_and_swaps_content(world):
+    root = Path(world.app.config["UPLOAD_FOLDER"]) / "user-alice"
+    response = post(world, "/photo/replace", data={"photoId": 1, "file": (io.BytesIO(png_bytes()), "edited.png")})
+    assert response.json == {"t": 1, "msgCode": 200}
+    with world.app.app_context():
+        photo = db.session.get(Photo, 1)
+        assert (photo.format, photo.token, photo.photo_uuid, photo.photo_name, photo.ns_id) == ("png", "share-photo", "photo-one", "sunset", 3)
+        assert db.session.scalar(select(func.count()).select_from(TagPhoto).where(TagPhoto.photo_id == 1)) == 1
+        assert db.session.scalar(select(func.count()).select_from(GalleryPhoto).where(GalleryPhoto.photo_id == 1)) == 1
+    assert not (root / "photo-one.jpg").exists() and not (root / "photo-one_thumbnail.jpg").exists()
+    with Image.open(root / "photo-one.png") as image:
+        assert image.size == (40, 30)
+    assert (root / "photo-one_thumbnail.png").is_file()
+    assert world.client.get("/photo/render/token-alice", query_string={"photoId": 1}).data == (root / "photo-one.png").read_bytes()
+
+
+def test_replace_rejects_bad_input_and_other_users(world):
+    root = Path(world.app.config["UPLOAD_FOLDER"]) / "user-alice"
+    before = (root / "photo-one.jpg").read_bytes()
+    for data in ({"photoId": 1, "file": (io.BytesIO(b"not an image"), "x.jpg")},
+                 {"photoId": 1, "file": (io.BytesIO(png_bytes()), "x.exe")},
+                 {"photoId": 2, "file": (io.BytesIO(png_bytes()), "x.png")},
+                 {"photoId": 1}):
+        assert post(world, "/photo/replace", data=data).json["msgCode"] == 400
+    stranger = world.client.post("/photo/replace", headers=world.other, data={"photoId": 1, "file": (io.BytesIO(png_bytes()), "x.png")})
+    assert stranger.json["msgCode"] == 400
+    assert (root / "photo-one.jpg").read_bytes() == before
+    with world.app.app_context():
+        assert db.session.get(Photo, 1).format == "jpg"
+    assert list((Path(world.app.config["UPLOAD_FOLDER"]) / ".staging").iterdir()) == []
+
+
+def test_replace_database_failure_restores_files(world, monkeypatch):
+    root = Path(world.app.config["UPLOAD_FOLDER"]) / "user-alice"
+    before = (root / "photo-one.jpg").read_bytes()
+    with world.app.app_context():
+        session = db.session()
+        def fail():
+            raise RuntimeError("injected commit failure")
+        monkeypatch.setattr(session, "commit", fail)
+        upload = type("Upload", (), {"filename": "x.png", "stream": io.BytesIO(png_bytes())})()
+        with pytest.raises(RuntimeError, match="injected"):
+            PhotoService(session, world.app.extensions["photoly"]).replace(2, 1, upload)
+    assert (root / "photo-one.jpg").read_bytes() == before
+    assert (root / "photo-one_thumbnail.jpg").is_file() and not (root / "photo-one.png").exists()
+
+
 def test_delete_database_failure_restores_files(world, monkeypatch):
     original = Path(world.app.config["UPLOAD_FOLDER"]) / "user-alice/photo-one.jpg"
     with world.app.app_context():

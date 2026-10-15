@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { X } from '@lucide/vue'
+import ImageEditor from '@/components/ImageEditor.vue'
 import LocationMap from '@/components/LocationMap.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import type { Photo } from '@/composables/usePhotos'
 import { download } from '@/lib/download'
+import { isEditable } from '@/lib/imageEdit'
 import { call } from '@/lib/http'
 import { mediaKind } from '@/lib/media'
 import { photoUrl } from '@/lib/photoUrl'
@@ -49,8 +51,15 @@ const tagChoice = ref('')
 const galleryChoice = ref('')
 const newName = ref('')
 const loaded = ref(false)
+const editing = ref(false)
+/** Bumped after an overwrite so the browser refetches the image under the same URL. */
+const version = ref(0)
 
 const kind = computed(() => mediaKind(info.value?.format))
+const canEdit = computed(() => kind.value === 'photo' && isEditable(info.value?.format))
+const imageUrl = computed(
+  () => photoUrl(info.value!.photoId) + (version.value ? `&v=${version.value}` : ''),
+)
 const params = computed(() => ({ photoId: info.value?.photoId }))
 const hasGps = computed(() => !!exif.value.GPS_Latitude && !!exif.value.GPS_Longitude)
 const qrUrl = computed(
@@ -80,6 +89,12 @@ const loadGalleryOptions = () =>
     quiet('get galleries Response Error!'),
   )
 
+const loadExif = () =>
+  call<typeof exif.value>({ url: '/photo/getPhotoExif', params: params.value }).then(
+    (e) => (exif.value = e),
+    () => toast.warning('Exif Info Response Error!'),
+  )
+
 watch(
   () => props.photo,
   (photo) => {
@@ -87,17 +102,29 @@ watch(
     info.value = { ...photo }
     newName.value = photo.photoName
     loaded.value = false
+    editing.value = false
+    version.value = 0
     exif.value = {}
     tagChoice.value = galleryChoice.value = ''
     loadTags().catch(quiet('get tags Response Error!'))
     loadGalleries().catch(quiet('get galleries Response Error!'))
-    call<typeof exif.value>({ url: '/photo/getPhotoExif', params: params.value }).then(
-      (e) => (exif.value = e),
-      () => toast.warning('Exif Info Response Error!'),
-    )
+    loadExif()
   },
   { immediate: true },
 )
+
+function edited(mode: 'new' | 'overwrite', format: string) {
+  editing.value = false
+  if (mode === 'overwrite') {
+    // The file (and maybe its format) changed under the same ID: refetch the picture and EXIF.
+    info.value!.format = format
+    version.value++
+    loaded.value = false
+    exif.value = {}
+    loadExif()
+  }
+  emit('changed')
+}
 
 async function run(
   request: Promise<unknown>,
@@ -205,13 +232,14 @@ const body = 'space-y-2 border-t p-3 text-sm'
     <DialogContent v-if="info" class="max-h-[95dvh] w-full overflow-y-auto sm:max-w-6xl">
       <DialogTitle class="sr-only">{{ info.photoName }}.{{ info.format }}</DialogTitle>
       <DialogDescription class="sr-only">Photo details</DialogDescription>
-      <div class="grid gap-4 md:grid-cols-[1fr_22rem]">
+      <ImageEditor v-if="editing" :photo="info" @cancel="editing = false" @saved="edited" />
+      <div v-else class="grid gap-4 md:grid-cols-[1fr_22rem]">
         <div class="flex min-h-64 items-start justify-center">
           <template v-if="kind === 'photo'">
             <Skeleton v-show="!loaded" class="h-[60vh] w-full" />
             <img
               v-show="loaded"
-              :src="photoUrl(info.photoId)"
+              :src="imageUrl"
               :alt="info.photoName"
               class="max-h-[85vh] max-w-full cursor-zoom-out rounded-md object-contain"
               @load="loaded = true"
@@ -241,8 +269,11 @@ const body = 'space-y-2 border-t p-3 text-sm'
               <p>Shared: {{ info.visibility === 0 ? 'No' : 'Yes' }}</p>
               <div class="flex flex-wrap gap-2">
                 <Button v-if="kind === 'photo'" variant="secondary" size="sm" as-child>
-                  <a :href="photoUrl(info.photoId)" target="_blank" rel="noopener">Full Picture</a>
+                  <a :href="imageUrl" target="_blank" rel="noopener">Full Picture</a>
                 </Button>
+                <Button v-if="canEdit" variant="secondary" size="sm" @click="editing = true"
+                  >Edit Image</Button
+                >
                 <Button variant="secondary" size="sm" @click="downloadPhoto">Download</Button>
               </div>
             </div>

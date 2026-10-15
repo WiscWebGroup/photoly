@@ -1,7 +1,8 @@
-from flask import Blueprint
+from flask import Blueprint, request
 from app.controllers.common import legacy, service, arg, ids, body, changed, binary, multipart_photos
 from app.services.photo import PhotoService
 from app.serialization import result
+from app.services.base import BusinessError
 
 bp = Blueprint("photo", __name__, url_prefix="/photo")
 
@@ -22,6 +23,14 @@ def inserts(uid):
 @legacy()
 def delete(uid):
     return changed(service(PhotoService).delete(uid, arg("photoId", integer=True)))
+
+
+@bp.post("/replace")
+@legacy()
+def replace(uid):
+    if "file" not in request.files:
+        raise BusinessError(-1)
+    return changed(service(PhotoService).replace(uid, arg("photoId", integer=True, required=True), request.files["file"]))
 
 
 @bp.post("/update")

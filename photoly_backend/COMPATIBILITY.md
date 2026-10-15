@@ -1,6 +1,6 @@
 # API compatibility with Spring e6619ab
 
-The migration targets all **90 annotated business endpoints**: user 11, admin 19, photo 27, namespace 9, gallery 6, tag 5, cred 11, photo-extra 2. The four empty relationship/setting Controllers exposed no methods and introduce no extra routes. `/healthz` is the sole new operational route. Framework-generated Spring/Swagger pages are not business APIs and are not reproduced.
+The migration targets all **90 annotated business endpoints**: user 11, admin 19, photo 27, namespace 9, gallery 6, tag 5, cred 11, photo-extra 2. The four empty relationship/setting Controllers exposed no methods and introduce no extra routes. `/healthz` is a new operational route, and `POST /photo/replace` is a deliberate extension (in-place image replacement for the editor's overwrite option). Framework-generated Spring/Swagger pages are not business APIs and are not reproduced.
 
 `tests/contracts/spring_routes.json` preserves the original Java signatures; `spring_entities.json` preserves entity response fields. Both were extracted from Java before removing it. `tests/contract_cases.py` independently enumerates requests and expected response families; tests require its inventory to equal the frozen Spring inventory and the Flask route map. These are source-derived compatibility tests, not a claim that the Java server was run for differential testing.
 
