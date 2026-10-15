@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { http } from 'msw'
 import router from '@/router'
 import { API, ok, recordRequests, server } from '@/test/server'
-import { mountWithApp, pageText } from '@/test/utils'
+import { mountWithApp } from '@/test/utils'
 import AppShell from '../AppShell.vue'
 
 describe('AppShell', () => {

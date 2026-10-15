@@ -2,7 +2,6 @@
 import { defineAsyncComponent } from 'vue'
 import { ExternalLink, FolderTree, Tags, Code2 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
-import hero from '@/assets/JH_20211030_5406.jpg'
 
 // Loaded lazily so the WebGPU runtime never blocks first paint of the landing page.
 const ShapeWaves = defineAsyncComponent(() => import('@/components/ShapeWaves/ShapeWaves.vue'))
