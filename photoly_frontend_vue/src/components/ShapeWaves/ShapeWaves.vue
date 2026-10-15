@@ -1,4 +1,3 @@
-<!-- Vendored from Vue Bits (https://vue-bits.dev, ShapeWaves). See the Vue Bits license. -->
 <script lang="ts">
 import type { Gpu, StorageBuffer, Texture } from 'vgpu'
 import { effect, frame, init, sampler, storage, surface, target, uniforms } from 'vgpu'
@@ -443,12 +442,6 @@ onMounted(() => {
   const root = rootRef.value
   const canvas = canvasRef.value
   if (!root || !canvas) return
-  // Local change: bail out quietly where WebGPU is missing (older browsers, jsdom); the
-  // background colour on the root element is the graceful fallback.
-  if (!('gpu' in navigator)) {
-    emit('error', new Error('WebGPU is not supported in this browser'))
-    return
-  }
 
   let disposed = false
   let failed = false
@@ -549,6 +542,9 @@ onMounted(() => {
 
   const measureSurface = (): [number, number] => {
     dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR)
+    // Stay under the guaranteed WebGPU default maxTextureDimension2D (8192).
+    const limit = 8192
+    dpr = Math.min(dpr, limit / Math.max(canvas.clientWidth, canvas.clientHeight, 1))
     return [
       Math.max(1, Math.round(canvas.clientWidth * dpr)),
       Math.max(1, Math.round(canvas.clientHeight * dpr)),

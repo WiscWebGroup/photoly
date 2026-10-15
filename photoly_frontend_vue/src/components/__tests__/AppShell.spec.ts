@@ -16,7 +16,7 @@ describe('AppShell', () => {
     for (const part of ['HomePart', 'MapPart', 'GalleryPart', 'TagPart', 'SearchPart', 'ManagePart']) {
       expect(document.querySelectorAll(`a[href="/home/${part}"]`).length).toBeGreaterThanOrEqual(2)
     }
-    expect(pageText()).toContain('PHOTOLY')
+    expect(document.querySelector('img[alt="Photoly"]')).not.toBeNull()
   })
 
   it('logout signs out on the server, forgets the token and goes to the welcome page', async () => {
