@@ -37,8 +37,7 @@ const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-med
     <!-- Desktop sidebar -->
     <aside class="bg-card hidden w-56 shrink-0 flex-col border-r p-3 md:flex">
       <router-link to="/home/HomePart" class="mb-4 flex items-center gap-2 px-3 py-2">
-        <img src="@/assets/logo.ico" alt="" class="size-8 rounded-full" />
-        <span class="text-lg font-bold tracking-wide">PHOTOLY</span>
+        <img src="@/assets/photoly-wordmark.svg" alt="Photoly" class="h-7 invert dark:invert-0" />
       </router-link>
       <nav aria-label="Main" class="flex flex-1 flex-col gap-1">
         <router-link
@@ -65,8 +64,7 @@ const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-med
 
     <!-- Mobile top bar -->
     <header class="bg-card flex min-h-14 shrink-0 items-center gap-2 border-b px-4 pt-[env(safe-area-inset-top)] md:hidden">
-      <img src="@/assets/logo.ico" alt="" class="size-8 rounded-full" />
-      <span class="font-bold tracking-wide">PHOTOLY</span>
+      <img src="@/assets/photoly-wordmark.svg" alt="Photoly" class="h-7 invert dark:invert-0" />
       <span class="ml-auto"><ThemeToggle /></span>
       <Button variant="ghost" size="icon" aria-label="Logout" @click="logOut">
         <LogOut class="size-4" />

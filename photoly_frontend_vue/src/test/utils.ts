@@ -16,7 +16,7 @@ export function mountWithApp<Api = object>(
     // Real transitions: Reka only shows expanded tree nodes / closes modals after they finish.
     global: {
       plugins: [createPinia(), router],
-      stubs: { transition: false, 'transition-group': false },
+      stubs: { transition: false, 'transition-group': false, ShapeWaves: true },
     },
     attachTo: document.body,
   })

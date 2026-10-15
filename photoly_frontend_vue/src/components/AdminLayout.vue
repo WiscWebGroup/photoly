@@ -17,8 +17,8 @@ const idle = 'text-muted-foreground hover:bg-accent hover:text-accent-foreground
     <!-- Desktop sidebar -->
     <aside class="bg-card hidden w-56 shrink-0 flex-col border-r p-3 md:flex">
       <router-link to="/thepersonincharge/dashboard" class="mb-4 flex items-center gap-2 px-3 py-2">
-        <img src="@/assets/logo.ico" alt="" class="size-8 rounded-full" />
-        <span class="text-lg font-bold tracking-wide">PHOTOLY ADMIN</span>
+        <img src="@/assets/photoly-wordmark.svg" alt="Photoly" class="h-7 invert dark:invert-0" />
+        <span class="text-muted-foreground text-xs font-semibold tracking-wide">ADMIN</span>
       </router-link>
       <nav aria-label="Admin" class="flex flex-1 flex-col gap-1">
         <router-link
@@ -43,8 +43,8 @@ const idle = 'text-muted-foreground hover:bg-accent hover:text-accent-foreground
 
     <!-- Mobile top bar -->
     <header class="bg-card flex min-h-14 shrink-0 items-center gap-2 border-b px-4 pt-[env(safe-area-inset-top)] md:hidden">
-      <img src="@/assets/logo.ico" alt="" class="size-8 rounded-full" />
-      <span class="font-bold tracking-wide">PHOTOLY ADMIN</span>
+      <img src="@/assets/photoly-wordmark.svg" alt="Photoly" class="h-7 invert dark:invert-0" />
+        <span class="text-muted-foreground text-xs font-semibold tracking-wide">ADMIN</span>
       <span class="ml-auto"><ThemeToggle /></span>
     </header>
 
