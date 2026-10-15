@@ -229,9 +229,9 @@ defineExpose({
             <div
               :class="
                 cn(
-                  'bg-card relative overflow-hidden border transition-shadow',
+                  'bg-card relative overflow-hidden border transition-[box-shadow,background-color]',
                   viewMode === 'list'
-                    ? 'flex items-center rounded-lg hover:shadow-sm'
+                    ? 'flex items-center rounded-lg hover:bg-accent hover:shadow-sm'
                     : 'rounded-xl shadow-xs hover:shadow-md',
                 )
               "
