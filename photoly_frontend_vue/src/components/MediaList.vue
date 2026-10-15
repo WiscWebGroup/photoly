@@ -216,122 +216,109 @@ defineExpose({
     </div>
 
     <EmptyState v-if="!photos.length" title="No photos here" />
-    <template v-else>
-      <div
-        v-if="viewMode === 'list'"
-        class="text-muted-foreground hidden items-center gap-3 px-2 text-xs sm:flex"
-        aria-hidden="true"
-      >
-        <span :class="selectMode ? 'w-[4.75rem]' : 'w-10'" class="shrink-0"></span>
-        <span class="flex-1">Name</span>
-        <span class="w-28 text-right">Created</span>
-      </div>
-      <ul
-        :class="
-          viewMode === 'list'
-            ? 'flex flex-col gap-1'
-            : 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
-        "
-      >
-        <li v-for="photo in photos" :key="photo.photoId" class="[content-visibility:auto]">
-          <ContextMenu>
-            <ContextMenuTrigger as-child>
-              <div
+    <ul
+      :class="
+        viewMode === 'list'
+          ? 'flex flex-col gap-1'
+          : 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
+      "
+    >
+      <li v-for="photo in photos" :key="photo.photoId" class="[content-visibility:auto]">
+        <ContextMenu>
+          <ContextMenuTrigger as-child>
+            <div
+              :class="
+                cn(
+                  'bg-card relative overflow-hidden border transition-shadow',
+                  viewMode === 'list'
+                    ? 'flex items-center rounded-lg hover:shadow-sm'
+                    : 'rounded-xl shadow-xs hover:shadow-md',
+                )
+              "
+              draggable="true"
+              @dragstart="dragPhoto($event, photo)"
+              @contextmenu.stop
+            >
+              <Checkbox
+                v-if="selectMode"
                 :class="
                   cn(
-                    'bg-card relative overflow-hidden border transition-shadow',
+                    'bg-background size-5',
+                    viewMode === 'list' ? 'mx-3 shrink-0' : 'absolute top-2 left-2',
+                  )
+                "
+                :aria-label="`Select ${photo.photoName}`"
+                :model-value="!!photo.checked"
+                @update:model-value="photo.checked = $event === true"
+              />
+              <button
+                type="button"
+                :class="
+                  cn(
+                    'w-full min-w-0 text-left',
+                    viewMode === 'list' ? 'flex items-center gap-3 p-2' : 'block',
+                  )
+                "
+                @click="open(photo)"
+              >
+                <img
+                  :src="
+                    {
+                      photo: photoUrl(photo.photoId, 'renderThumbnail'),
+                      video: videoIcon,
+                      other: logo,
+                    }[mediaKind(photo.format)]
+                  "
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  draggable="false"
+                  :class="
                     viewMode === 'list'
-                      ? 'flex items-center rounded-lg hover:shadow-sm'
-                      : 'rounded-xl shadow-xs hover:shadow-md',
-                  )
-                "
-                draggable="true"
-                @dragstart="dragPhoto($event, photo)"
-                @contextmenu.stop
-              >
-                <Checkbox
-                  v-if="selectMode"
-                  :class="
-                    cn(
-                      'bg-background size-5',
-                      viewMode === 'list' ? 'mx-3 shrink-0' : 'absolute top-2 left-2',
-                    )
+                      ? 'size-10 shrink-0 rounded object-cover'
+                      : 'aspect-[2/1] w-full object-cover'
                   "
-                  :aria-label="`Select ${photo.photoName}`"
-                  :model-value="!!photo.checked"
-                  @update:model-value="photo.checked = $event === true"
                 />
-                <button
-                  type="button"
+                <p
                   :class="
-                    cn(
-                      'w-full min-w-0 text-left',
-                      viewMode === 'list' ? 'flex items-center gap-3 p-2' : 'block',
-                    )
+                    cn('truncate text-sm', viewMode === 'list' ? 'min-w-0 flex-1' : 'px-3 py-2')
                   "
-                  @click="open(photo)"
+                  :title="`${photo.photoName}.${photo.format}`"
                 >
-                  <img
-                    :src="
-                      {
-                        photo: photoUrl(photo.photoId, 'renderThumbnail'),
-                        video: videoIcon,
-                        other: logo,
-                      }[mediaKind(photo.format)]
-                    "
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    draggable="false"
-                    :class="
-                      viewMode === 'list'
-                        ? 'size-10 shrink-0 rounded object-cover'
-                        : 'aspect-[2/1] w-full object-cover'
-                    "
-                  />
-                  <p
-                    :class="
-                      cn('truncate text-sm', viewMode === 'list' ? 'min-w-0 flex-1' : 'px-3 py-2')
-                    "
-                    :title="`${photo.photoName}.${photo.format}`"
-                  >
-                    {{ photo.photoName }}.{{ photo.format }}
-                  </p>
-                  <span
-                    v-if="viewMode === 'list'"
-                    class="text-muted-foreground hidden w-28 shrink-0 text-right text-xs sm:block"
-                    >{{ formatDate(photo.uploadDate) }}</span
-                  >
-                </button>
-              </div>
-            </ContextMenuTrigger>
-            <ContextMenuContent>
-              <ContextMenuItem @select="selectPhoto(photo)">
-                <SquareCheck /> {{ photo.checked ? 'Deselect' : 'Select' }}
-              </ContextMenuItem>
-              <ContextMenuItem @select="open(photo)"><Eye /> View</ContextMenuItem>
-              <ContextMenuItem @select="downloadPhoto(photo)"
-                ><Download /> Download</ContextMenuItem
-              >
-              <ContextMenuItem
-                variant="destructive"
-                @select="
-                  applyToAll(
-                    [photo],
-                    (p) => remove(p.photoId),
-                    'Photo deleted!',
-                    'delete photo Response Error!',
-                  )
-                "
-              >
-                <Trash2 /> Delete
-              </ContextMenuItem>
-              <ContextMenuItem @select="askMove([photo])"><FolderInput /> Move To</ContextMenuItem>
-            </ContextMenuContent>
-          </ContextMenu>
-        </li>
-      </ul>
-    </template>
+                  {{ photo.photoName }}.{{ photo.format }}
+                </p>
+                <span
+                  v-if="viewMode === 'list'"
+                  class="text-muted-foreground hidden shrink-0 text-xs sm:block"
+                  >Created on {{ formatDate(photo.uploadDate) }}</span
+                >
+              </button>
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuItem @select="selectPhoto(photo)">
+              <SquareCheck /> {{ photo.checked ? 'Deselect' : 'Select' }}
+            </ContextMenuItem>
+            <ContextMenuItem @select="open(photo)"><Eye /> View</ContextMenuItem>
+            <ContextMenuItem @select="downloadPhoto(photo)"><Download /> Download</ContextMenuItem>
+            <ContextMenuItem
+              variant="destructive"
+              @select="
+                applyToAll(
+                  [photo],
+                  (p) => remove(p.photoId),
+                  'Photo deleted!',
+                  'delete photo Response Error!',
+                )
+              "
+            >
+              <Trash2 /> Delete
+            </ContextMenuItem>
+            <ContextMenuItem @select="askMove([photo])"><FolderInput /> Move To</ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+      </li>
+    </ul>
 
     <PhotoViewer
       :photo="viewing"

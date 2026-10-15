@@ -191,7 +191,7 @@ describe('MediaList', () => {
     document.querySelector<HTMLButtonElement>('button[aria-label="List view"]')!.click()
     await vi.waitFor(() => expect(photoList().className).toContain('flex-col'))
     expect(photoList().className).not.toContain('grid')
-    expect(pageText()).toContain('Created')
+    expect(pageText()).toContain('Created on')
     expect(pageText()).toContain(
       new Date(2024, 5, 1).toLocaleDateString(undefined, {
         year: 'numeric',
