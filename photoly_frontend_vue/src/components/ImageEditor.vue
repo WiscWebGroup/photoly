@@ -202,16 +202,36 @@ function resetCrop() {
 }
 
 type Handle = 'move' | 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+// Corners are drawn as L-shaped brackets; edges are invisible grab strips between them (they only
+// change the cursor). All sit inside the box so the stage's overflow-hidden never clips them.
+const BRACKET = 'size-7 border-white drop-shadow-[0_0_2px_rgba(0,0,0,0.7)]'
 const HANDLES: { handle: Handle; class: string }[] = [
-  // Inside the box edge so the stage's overflow-hidden never clips them.
-  { handle: 'nw', class: 'left-0 top-0 cursor-nwse-resize' },
-  { handle: 'n', class: 'left-1/2 top-0 -translate-x-1/2 cursor-ns-resize' },
-  { handle: 'ne', class: 'right-0 top-0 cursor-nesw-resize' },
-  { handle: 'e', class: 'right-0 top-1/2 -translate-y-1/2 cursor-ew-resize' },
-  { handle: 'se', class: 'bottom-0 right-0 cursor-nwse-resize' },
-  { handle: 's', class: 'bottom-0 left-1/2 -translate-x-1/2 cursor-ns-resize' },
-  { handle: 'sw', class: 'bottom-0 left-0 cursor-nesw-resize' },
-  { handle: 'w', class: 'left-0 top-1/2 -translate-y-1/2 cursor-ew-resize' },
+  { handle: 'n', class: 'inset-x-7 top-0 h-3 cursor-ns-resize' },
+  { handle: 's', class: 'inset-x-7 bottom-0 h-3 cursor-ns-resize' },
+  { handle: 'w', class: 'inset-y-7 left-0 w-3 cursor-ew-resize' },
+  { handle: 'e', class: 'inset-y-7 right-0 w-3 cursor-ew-resize' },
+  {
+    handle: 'nw',
+    class: `${BRACKET} left-0 top-0 border-l-[3px] border-t-[3px] cursor-nwse-resize`,
+  },
+  {
+    handle: 'ne',
+    class: `${BRACKET} right-0 top-0 border-r-[3px] border-t-[3px] cursor-nesw-resize`,
+  },
+  {
+    handle: 'sw',
+    class: `${BRACKET} bottom-0 left-0 border-b-[3px] border-l-[3px] cursor-nesw-resize`,
+  },
+  {
+    handle: 'se',
+    class: `${BRACKET} bottom-0 right-0 border-b-[3px] border-r-[3px] cursor-nwse-resize`,
+  },
+]
+const GRID = [
+  'inset-y-0 left-1/3 w-px',
+  'inset-y-0 left-2/3 w-px',
+  'inset-x-0 top-1/3 h-px',
+  'inset-x-0 top-2/3 h-px',
 ]
 
 let stopDrag: (() => void) | undefined
@@ -304,15 +324,21 @@ const label = 'text-sm font-medium'
         <template v-if="rotated">
           <div
             data-testid="crop-box"
-            class="absolute cursor-move border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]"
+            class="absolute cursor-move outline outline-1 outline-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]"
             :style="boxStyle"
             @pointerdown="startDrag('move', $event)"
           >
+            <!-- Rule-of-thirds guides. -->
+            <span
+              v-for="g in GRID"
+              :key="g"
+              :class="['pointer-events-none absolute bg-white/35', g]"
+            />
             <span
               v-for="h in HANDLES"
               :key="h.handle"
               :data-handle="h.handle"
-              :class="['absolute size-4 rounded-sm border border-black/60 bg-white', h.class]"
+              :class="['absolute', h.class]"
               @pointerdown.stop="startDrag(h.handle, $event)"
             />
           </div>
