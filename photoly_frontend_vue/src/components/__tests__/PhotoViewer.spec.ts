@@ -136,6 +136,34 @@ describe('PhotoViewer', () => {
       await vi.waitFor(() => expect(pageText()).toContain('Name: beach.jpg'))
     })
 
+    it('saves the new image under a name the user picks', async () => {
+      const calls = recordRequests()
+      await openEditor()
+      expect((input('New image name') as HTMLInputElement).value).toBe('beach_edited')
+      button('Right').click()
+      type(input('New image name'), '  beach at dusk ')
+      await vi.waitFor(() => expect(button('Save as new image').disabled).toBe(false))
+      button('Save as new image').click()
+
+      await vi.waitFor(() =>
+        expect(bodyOf(calls, '/photo/insert')).toContain('filename="beach at dusk.jpg"'),
+      )
+    })
+
+    it('does not accept an empty or path-like new name', async () => {
+      await openEditor()
+      button('Right').click()
+      for (const bad of ['', '   ', 'a/b', 'a\\b']) {
+        type(input('New image name'), bad)
+        await vi.waitFor(() => expect(pageText()).toContain('Enter a name without slashes'))
+        expect(button('Save as new image').disabled).toBe(true)
+        // Renaming only affects "save as new": overwriting keeps the original name.
+        expect(button('Overwrite original').disabled).toBe(false)
+      }
+      type(input('New image name'), 'ok')
+      await vi.waitFor(() => expect(button('Save as new image').disabled).toBe(false))
+    })
+
     it('asks before overwriting, then replaces the original in place', async () => {
       const calls = recordRequests()
       const wrapper = await openEditor()

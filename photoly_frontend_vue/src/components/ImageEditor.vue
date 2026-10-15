@@ -68,6 +68,7 @@ const limitUnit = ref<'KB' | 'MB'>('KB')
 const loadFailed = ref(false)
 const saving = ref(false)
 const confirmOverwrite = ref(false)
+const newName = ref(`${props.photo.photoName}_edited`)
 const estimate = ref<Encoded>()
 const estimating = ref(false)
 
@@ -80,6 +81,10 @@ const maxBytes = computed(() => {
     ? Math.round(n * (limitUnit.value === 'MB' ? 1024 * 1024 : 1024))
     : undefined
 })
+/** Same rule as the backend: no path separators or control characters. */
+const nameInvalid = computed(
+  () => !newName.value.trim() || /[/\\\0\r\n]/.test(newName.value) || newName.value.length > 250,
+)
 const limitInvalid = computed(() => limitOn.value && maxBytes.value === undefined)
 const encoding = computed(() => chooseEncoding(props.photo.format, limitOn.value))
 const unchanged = computed(
@@ -259,14 +264,14 @@ const boxStyle = computed(() => ({
 
 async function save(mode: 'new' | 'overwrite') {
   confirmOverwrite.value = false
-  if (!canSave.value) return
+  if (!canSave.value || (mode === 'new' && nameInvalid.value)) return
   saving.value = true
   try {
     const { blob } = await build()
     const { ext } = encoding.value
     const form = new FormData()
     if (mode === 'new') {
-      form.append('file', blob, `${props.photo.photoName}_edited.${ext}`)
+      form.append('file', blob, `${newName.value.trim()}.${ext}`)
       form.append('photo', JSON.stringify({ nsId: props.photo.nsId, visibility: 0 }))
       await call({ method: 'post', url: '/photo/insert', data: form })
       toast.success('Saved as a new image (private)')
@@ -399,8 +404,16 @@ const label = 'text-sm font-medium'
         Couldn't get under the limit; this is the smallest result possible.
       </p>
 
+      <label class="block space-y-1" :class="label">
+        Name for a new image
+        <Input v-model="newName" placeholder="New image name" aria-label="New image name" />
+      </label>
+      <p v-if="nameInvalid" class="text-destructive text-xs">
+        Enter a name without slashes or line breaks.
+      </p>
+
       <div class="flex flex-wrap gap-2">
-        <Button :disabled="!canSave" @click="save('new')">Save as new image</Button>
+        <Button :disabled="!canSave || nameInvalid" @click="save('new')">Save as new image</Button>
         <Button variant="destructive" :disabled="!canSave" @click="confirmOverwrite = true"
           >Overwrite original</Button
         >
