@@ -52,14 +52,18 @@ def request_options(options, jpeg):
     return opts
 
 
+# Documented additions to the frozen Spring inventory (see COMPATIBILITY.md).
+EXTENSIONS = {("POST", "/photo/replace")}
+
+
 def test_route_inventory_is_exact(app):
     source = json.loads((CONTRACTS / "spring_routes.json").read_text())
     expected = {(row["method"], row["path"]) for row in source["routes"]}
     actual = {(method, re.sub(r"<(\w+)>", r"{\1}", rule.rule)) for rule in app.url_map.iter_rules()
               for method in rule.methods if method in ("GET", "POST") and rule.rule != "/healthz"
               and not rule.endpoint.startswith("docs.")}
-    assert len(expected) == len(actual) == len(CASES) == 90
-    assert actual == expected
+    assert len(expected) == len(CASES) == 90
+    assert actual == expected | EXTENSIONS
     assert {(method, normalized(path)) for method, path, _, _ in CASES} == expected
 
 

@@ -6,6 +6,7 @@ from app.entities import Photo, PhotoExtra, Namespace, Gallery, GalleryPhoto, Ta
 from app.services.base import BaseService, BusinessError, valid_name
 
 IMAGE_FORMATS = {"jpg", "jpeg", "gif", "png", "webp", "ico", "bmp", "tif", "tiff", "svg", "psd", "raw", "arw", "pcd", "jfif"}
+EDITABLE_FORMATS = {"jpg", "jpeg", "png", "webp"}
 VIDEO_FORMATS = {"mp4", "avi", "wmv", "mpeg", "m4v", "mov", "flv", "asf", "f4v", "rmvb", "vob", "rm"}
 
 
@@ -43,6 +44,25 @@ class PhotoService(BaseService):
                 self.session.add(self.infra.metadata.extra(photo.photo_id, metadata))
                 objects.append(photo)
         return objects
+
+    def replace(self, user_id, photo_id, upload):
+        """Swap an owned image's content in place; id, UUID, share token, tags and galleries are kept."""
+        filename = upload.filename or ""
+        suffix = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        if suffix not in EDITABLE_FORMATS:
+            raise BusinessError(-1)
+        with self.atomic(user_id) as files:
+            photo = self.owned(Photo, photo_id, user_id)
+            if photo.format.lower() not in EDITABLE_FORMATS:
+                raise BusinessError(-1)
+            user = self.session.get(User, user_id)
+            files.remove(self.storage.media(user.uuid, photo, True))
+            files.remove(self.storage.media(user.uuid, photo))
+            photo.format = suffix
+            path = self.storage.media(user.uuid, photo)
+            files.install(upload.stream, path)
+            self.storage.thumbnail(path, self.storage.media(user.uuid, photo, True), files)
+        return 1
 
     def all_for_user(self, user_id):
         return self.session.scalars(select(Photo).where(Photo.user_id == user_id).order_by(Photo.photo_id)).all()
