@@ -5,7 +5,7 @@ import Welcome from '../Welcome.vue'
 
 describe('Welcome', () => {
   it('navigates to login from the hero button', async () => {
-    const wrapper = mount(Welcome, { global: { plugins: [router] } })
+    const wrapper = mount(Welcome, { global: { plugins: [router], stubs: { ShapeWaves: true } } })
     expect(wrapper.find('img[alt="Photoly"]').exists()).toBe(true)
 
     await wrapper.findAll('button').find((b) => b.text() === 'Sign In')!.trigger('click')
