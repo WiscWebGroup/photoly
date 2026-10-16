@@ -3,3 +3,5 @@
 database/mysql-data/
 upload_data/*
 !upload_data/1.txt
+
+backup_data/

@@ -1,108 +1,102 @@
 # Photoly Flask backend
 
-Python 3.12 / Flask 3.1 / SQLAlchemy 2. The 90 legacy business routes are preserved. AI features are outside this version.
+Python 3.12 / Flask 3.1 / SQLAlchemy 2 / PostgreSQL 17 / pgvector 0.8.7. The 90 legacy business routes and image replacement are preserved. Phase 2 adds isolated AI services and search/admin APIs; the UI is scheduled for phase 3.
 
-## Structure
+## Architecture
 
-```text
-app/
-  __init__.py       create_app(config): configuration, extensions, blueprints, errors
-  controllers/     HTTP parsing, legacy response families, file responses
-  services/        Business rules, ownership, transactions; no Flask request dependency
-  entities/        Explicit ORM mappings of the eleven existing tables
-  docs/            Public Swagger UI, local vendor assets and eight API definition modules
-  infrastructure/  Redis sessions, filesystem compensation, EXIF, QR, process lifecycle
-  serialization.py Entity camelCase and legacy result envelopes
-  cli.py           Idempotent initialization and dependency readiness
-tests/
-  contracts/       Frozen Spring route signatures, entity fields and Java types
-  contract_cases.py Independent request/response expectations for all 90 routes
-  test_contract.py Contract and unauthenticated-response checks
-  test_business.py Business, permissions, media, rollback and metadata tests
-  test_http.py     Disposable Gunicorn HTTP and shutdown acceptance tests
-  test_openapi.py  OpenAPI 3.2 validation, coverage, examples and offline documentation
-```
+`create_app()` registers configuration, infrastructure and blueprints without connecting to dependencies or initializing data. Controllers parse HTTP; services enforce ownership and transactions; entities describe eleven business tables. PostgreSQL READ COMMITTED and per-user row locks serialize directory mutations. The storage layer compensates ordinary database failures; it is not an atomic transaction across PostgreSQL and the filesystem. After a process/host crash, reconcile `.staging` with the database instead of blindly deleting it. Back up PostgreSQL and media together.
 
-`create_app()` has no database, Redis or filesystem initialization side effects. `Infrastructure` is injected into services; tests replace the Redis client and lifecycle implementation. ORM sessions are request scoped and cleaned up by Flask-SQLAlchemy. Mutations commit in the Service layer. MySQL uses READ COMMITTED plus per-user row locks to serialize concurrent tree mutations after authentication.
+Redis stores expiring login sessions; API credentials and share tokens live in PostgreSQL. Redis loss signs users out without changing share/API tokens.
 
-## Local setup
+## Bootstrap, schema and roles
 
-Install `uv`, Python 3.12 (uv can download it), ExifTool, MySQL and Redis. Configure:
+Root Compose pins the database image by digest and publishes no PostgreSQL port. On an empty volume, `database/postgres-init/01-photoly.sh` installs `vector` and creates:
+
+- `postgres`: bootstrap superuser, only in the database service.
+- `photoly_migrator`: owns business tables/indexes and performs Alembic DDL.
+- `photoly`: application DML and sequence usage; cannot create schemas/tables/temporary tables, assume the migration role or modify Alembic revision metadata.
+
+The one-shot `migrate` service runs Alembic using the schema owner and then seeds defaults using app credentials. Separate advisory locks serialize migrations and seeds. Web startup only waits for dependencies and checks schema/extension compatibility. It receives neither migration nor initial administrator passwords.
+
+`seed-db` and its compatibility alias `init-db` require an already migrated database. Repeated seed/startup preserves passwords/settings. Bootstrap passwords apply to new volumes; editing `.env` does not rotate roles in an existing database. No MySQL data import tool is provided. The old MySQL SQL file is historical reference only; Alembic is authoritative.
+
+## Running
+
+Prefer the root Compose instructions. For separately provisioned PostgreSQL with the same bootstrap roles/grants, install Python 3.12, uv and ExifTool, then:
 
 ```sh
-export DATABASE_URL='mysql+pymysql://photoly:password@localhost:3306/photoly?charset=utf8mb4'
+export POSTGRES_HOST=localhost
+export POSTGRES_DB=photoly
+export POSTGRES_APP_PASSWORD='your-application-password'
+export POSTGRES_MIGRATION_PASSWORD='your-migration-password'
 export REDIS_URL='redis://localhost:6379/14'
 export UPLOAD_FOLDER="$PWD/uploads"
-export PUBLIC_BASE_URL='http://localhost:8084'
 export ADMIN_EMAIL='admin@example.com'
 export ADMIN_PASSWORD='your-initial-admin-password'
-uv sync --python 3.12
-uv run flask --app app:create_app wait-ready
-uv run flask --app app:create_app init-db
+uv sync --frozen --python 3.12
+uv run alembic upgrade head
+uv run flask --app app:create_app seed-db
+uv run flask --app app:create_app check-schema
 uv run flask --app app:create_app run --port 8084
 ```
 
-The Flask development server is for development only. Docker starts Gunicorn (2 workers, 4 threads each by default). Runtime configuration is read from environment variables; the standalone Flask process does not implicitly load the repository `.env`. Compose does.
+Standalone commands read exported environment variables; Compose reads the root `.env`. The Flask server is for development. Docker runs Gunicorn with two workers/four threads by default.
 
-`init-db` creates missing tables and defaults without dropping data, creates the configured administrator if absent, and ensures its root directory and default gallery exist. Running it again does not change existing passwords or settings. New user passwords use Werkzeug scrypt. The database SQL file is a fresh-schema reference, not an upgrade script; the CLI is the authoritative initializer.
-
-## Interactive API documentation
-
-Open `/docs/` (or `/docs`) on the backend, for example <http://localhost:8384/docs/> in Docker or <http://localhost:8084/docs/> with the development server. `/openapi.json` serves OpenAPI **3.2.0** for all **90 business operations plus `/healthz`**. Reading the documentation requires no login, database connection or Redis connection. Actual API calls retain their existing authentication and business behavior.
-
-1. Expand **User → POST /user/signIn**, select **Try it out**, replace the fictitious example with your account credentials, and execute.
-2. Copy the returned `token` into **Authorize → SessionToken**, without a `Bearer` prefix. The UI sends `HRD-Token` to header-authenticated operations and keeps it in memory only.
-3. Execute **Namespace → GET /namespace/getRoot** to obtain your folder's `nsId`.
-4. For **Photo → POST /photo/insert**, select a local file and set `photo` to a JSON string such as `{"nsId":123,"visibility":0}` using your actual folder ID. For `/photo/inserts`, use **Add string item** to add file selectors, choose one file per item, and set `photosStr` to an array with one metadata object per file, in matching order.
-
-Requests go to the current backend origin. Login tokens in paths/queries, photo share tokens, and C/R/D API credentials must be entered in their separate parameter fields; they are not interchangeable with Authorize. The docs preserve legacy HTTP 200 business errors, response envelopes, raw Cred responses, nullable fields, offset-free timestamps, total-page semantics, binary downloads and video ranges. Read `msgCode` as well as HTTP status. Destructive actions, including deleting accounts/files and stopping the entire backend, are labeled explicitly.
-
-Swagger UI **5.32.0** JS/CSS, Apache license and NOTICE are bundled under `app/docs/static/vendor`; there are no runtime CDN or online validator requests. `SOURCE.json` records the official npm tarball, its verified SHA-512 integrity and per-file SHA-256 checksums. The version's [official compatibility table](https://github.com/swagger-api/swagger-ui/blob/v5.32.0/README.md) includes OpenAPI 3.2.
-
-Definitions in `app/docs/definitions/` are documentation only; shared schemas live in `app/docs/schemas.py`. They do not inspect test fixtures or add request validation/serialization. When changing an API, update its module and run the suite: the independent Spring inventory, real success/authentication responses, schema examples and `openapi-spec-validator==0.9.0` all check for drift. Development validators are excluded from the production image.
-
-To update an existing local Docker installation while preserving database and upload volumes:
+For subsequent application upgrades with existing PostgreSQL/media volumes:
 
 ```sh
-docker compose up -d --build backend web
+docker compose build backend migrate web
+docker compose run --rm migrate
+docker compose up -d backend web
 ```
+
+A failed migration must be resolved before starting the new Web image; the schema check rejects mismatched revisions. Do not use `down -v` on the application project to upgrade it.
 
 ## Configuration
 
-| Variable | Default / meaning |
-|---|---|
-| `DATABASE_URL` | SQLAlchemy MySQL/PyMySQL URL; deployment supplies credentials |
-| `REDIS_URL` | Redis connection URL, including database number |
-| `UPLOAD_FOLDER` | `/photoly`; writable by the service user |
-| `PUBLIC_BASE_URL` | `http://localhost:8384`; externally reachable URL for sharing |
-| `TIMEZONE` | `America/New_York`; dates remain offset-free ISO strings on entity APIs |
-| `ADMIN_EMAIL` | `admin@a.com` |
-| `ADMIN_PASSWORD` | Required for initialization; never logged or stored in plaintext |
-| `MAX_CONTENT_LENGTH` | `629145600` bytes (600 MiB per HTTP request) |
-| `EXIFTOOL_PATH` | `exiftool` |
-| `CORS_ORIGINS` | `*`, or a comma-separated allowlist |
-| `GUNICORN_WORKERS` / `GUNICORN_THREADS` | `2` / `4` |
-| `GUNICORN_TIMEOUT` | `120` seconds |
-| `GUNICORN_PID_FILE` | Set by Docker to the master PID file used by `/admin/stop` |
+| Variable | Meaning |
+| --- | --- |
+| DATABASE_URL | Optional postgresql+psycopg application URL override |
+| MIGRATION_DATABASE_URL | Optional schema-owner URL override, Alembic only |
+| POSTGRES_HOST / POSTGRES_PORT / POSTGRES_DB | localhost / 5432 / photoly outside Compose |
+| POSTGRES_APP_PASSWORD | Restricted app role password |
+| POSTGRES_MIGRATION_PASSWORD | Schema-owner password, migration service only |
+| POSTGRES_ADMIN_PASSWORD | Bootstrap password, database only |
+| REDIS_URL | Redis URL and database number |
+| UPLOAD_FOLDER | Writable media directory, default /photoly |
+| PUBLIC_BASE_URL | External sharing URL, default http://localhost:8384 |
+| TIMEZONE | America/New_York; entity dates remain offset-free |
+| ADMIN_EMAIL / ADMIN_PASSWORD | Initial admin seed; password required for seed only |
+| MAX_CONTENT_LENGTH | 629145600 bytes by default |
+| EXIFTOOL_PATH | exiftool |
+| CORS_ORIGINS | * or comma-separated allowlist |
+| GUNICORN_WORKERS / GUNICORN_THREADS | 2 / 4 |
+| GUNICORN_TIMEOUT | 120 seconds |
+| GUNICORN_PID_FILE | Docker-managed master PID used by admin stop |
 
-Redis contains expiring login sessions. API credentials and photo sharing tokens stay in MySQL. Losing Redis sessions requires users to sign in again and does not invalidate media shares or API credentials.
+PostgreSQL password values use SQLAlchemy URL objects, so reserved characters need no manual escaping with the separate variables. Explicit URL overrides must be correctly encoded. Redis credentials still enter a URL.
 
-## Storage and transactions
+## API documentation and compatibility
 
-Originals: `<UPLOAD_FOLDER>/<userUUID>/<photoUUID>.<format>`; thumbnails add `_thumbnail`; avatars use `<userUUID>.jpg`. Folder moves only update database links. ZIP downloads stream from independent temporary archives, preserving logical folder structure; duplicate names receive deterministic suffixes instead of overwriting files.
+`/docs/` provides local Swagger UI, `/openapi.json` serves OpenAPI 3.2 for legacy photo operations, image replacement, PostgreSQL health, AI search and AI administration. Reading docs needs no dependency connection. Actual requests retain authentication and ownership checks.
 
-Uploads and deletions enlist filesystem changes in the database transaction: new files are removed on rollback, and deletions are quarantined and restored if commit fails. User-level database locks coordinate concurrent requests. This compensates ordinary failures, but is not a distributed transaction across a database and filesystem: an abrupt host/process crash may leave files in `.staging`. Do not purge that directory blindly after a crash; reconcile it with the database first. Back up both MySQL and the media volume.
+Sign in with POST /user/signIn, then put its token into SessionToken without a Bearer prefix. Tokens remain in memory, not localStorage. Share/API/path tokens are separate. Upload multipart metadata uses JSON strings. Read msgCode as well as HTTP status; legacy business failures commonly return HTTP 200. Destructive operations are explicitly labeled.
+
+Swagger UI 5.32.0 assets and licenses are bundled. SOURCE.json retains official integrity checksums; Git attributes preserve their LF bytes on Windows. No runtime CDN or validator request is needed.
+
+GET /admin/pingDatabase tests PostgreSQL. GET /admin/databaseInfo reports type, server version, address, pgvector version and schema revision. /admin/pingMySQL is a legacy alias; /admin/getAddress keeps its mysql key containing the PostgreSQL address. The administrator dashboard displays PostgreSQL, pgvector and schema revision.
 
 ## Validation
 
-```sh
-uv run pytest -q --cov=app --cov-report=term-missing
-```
+Run root compose.test.yml. There is no SQLite database fallback. Alembic initializes photoly_test; fixture cleanup uses the owner, while business requests use the app role. Explicit fixture IDs are followed by identity sequence resets.
 
-Local tests use isolated SQLite (with foreign keys enabled), fakeredis and temporary media directories. The suite uses real Pillow/ExifTool/QR decoding, not mocked media processing. `test_http.py` is excluded by default.
+TEST_DATABASE_URL and TEST_MIGRATION_DATABASE_URL must point to the same PostgreSQL database ending in _test; Redis integration uses DB 15. HTTP tests use separate photoly_http_test and Redis DB 14, no production mounts and no host ports. Their final test intentionally stops the disposable server.
 
-Use the repository's `compose.test.yml` for the same suite against MySQL 8.3 / Redis 7.2 and for HTTP tests against the production Gunicorn image. Integration fixtures refuse to reset databases without a `_test` suffix or Redis databases other than DB 15. HTTP tests only target `http://backend:8084` inside the disposable Compose network, and their final test stops that backend.
+Tests retain frozen Spring response contracts and independently inspect PostgreSQL schema, constraints, identity behavior, grants, concurrent email uniqueness, schema readiness, halfvec(2048) cosine error, HNSW use, zero-vector exclusion and rollback. Default CI uses a deterministic AI adapter; real model verification runs separately.
 
-The root Jenkinsfile builds images, runs integration and HTTP tests, cleans up the test stack, and supports opt-in deployment using a supplied production environment file.
+See [compatibility notes](COMPATIBILITY.md) and the test commands above. Historical verification notes remain in VERIFICATION.md.
 
-See [the recorded migration acceptance results](VERIFICATION.md) and [the compatibility differences](COMPATIBILITY.md).
+
+## AI backend
+
+See [deployment and API operations](../docs/ai-backend-operations.md) for CPU/CUDA images, model lifecycle, user eligibility, search contracts, capacity and recovery. AI starts disabled. The AI Management page controls eligibility, models, scheduling and resource limits; the photo viewer provides paginated similar-image recommendations with an optional administrator-configured similarity threshold.

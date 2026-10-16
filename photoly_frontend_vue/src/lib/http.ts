@@ -12,9 +12,9 @@ http.interceptors.request.use((config) => {
 })
 
 // The backend reports bad tokens as HTTP 200 + `msgCode: 403`, but uses the same code for
-// "not your photo" / "not an admin", so only a real HTTP 401/403 ends the session here.
+// "not your photo" / "not an admin". Only HTTP 401 proves the session has expired.
 http.interceptors.response.use(undefined, (error) => {
-  if ([401, 403].includes(error.response?.status)) {
+  if (error.response?.status === 401) {
     useAuthStore().clear()
     router.push('/login')
   }

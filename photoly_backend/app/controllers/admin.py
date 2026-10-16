@@ -18,6 +18,18 @@ def ping_mysql(uid):
     return changed(service(AdminService).ping_mysql(uid))
 
 
+@bp.get("/pingDatabase")
+@legacy(missing=-2)
+def ping_database(uid):
+    return changed(service(AdminService).ping_database(uid))
+
+
+@bp.get("/databaseInfo")
+@legacy()
+def database_info(uid):
+    return result(service(AdminService).database_info(uid))
+
+
 @bp.get("/pingRedis")
 @legacy(missing=-2)
 def ping_redis(uid):

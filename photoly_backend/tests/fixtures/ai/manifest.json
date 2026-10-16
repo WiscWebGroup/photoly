@@ -1,0 +1,45 @@
+{
+  "license_source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/skimage/data/_fetchers.py",
+  "samples": [
+    {
+      "file": "astronaut.png",
+      "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/skimage/data/astronaut.png",
+      "sha256": "88431cd9653ccd539741b555fb0a46b61558b301d4110412b5bc28b5e3ea6cb5",
+      "credit": "NASA, public domain",
+      "queries": [
+        "a portrait of an astronaut",
+        "宇航员肖像"
+      ]
+    },
+    {
+      "file": "chelsea.png",
+      "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/skimage/data/chelsea.png",
+      "sha256": "596aa1e7cb875eb79f437e310381d26b338a81c2da23439704a73c4651e8c4bb",
+      "credit": "Stefan van der Walt, CC0",
+      "queries": [
+        "a close up photograph of a cat",
+        "一只猫的特写"
+      ]
+    },
+    {
+      "file": "coffee.png",
+      "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/skimage/data/coffee.png",
+      "sha256": "cc02f8ca188b167c775a7101b5d767d1e71792cf762c33d6fa15a4599b5a8de7",
+      "credit": "Rachel Michetti, CC0; courtesy of Pikolo Espresso Bar",
+      "queries": [
+        "a cup of coffee on a table",
+        "桌上的一杯咖啡"
+      ]
+    },
+    {
+      "file": "rocket.jpg",
+      "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/skimage/data/rocket.jpg",
+      "sha256": "c2dd0de7c538df8d111e479619b129464d0269d0ae5fd18ca91d33a7fdfea95c",
+      "credit": "SpaceX, public domain",
+      "queries": [
+        "a rocket on the launch pad",
+        "发射台上的火箭"
+      ]
+    }
+  ]
+}

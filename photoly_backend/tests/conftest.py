@@ -8,6 +8,9 @@ import fakeredis
 from PIL import Image
 from redis import Redis
 from sqlalchemy.engine import make_url
+from sqlalchemy import create_engine, text
+from alembic import command
+from app.infrastructure.schema import migration_config
 from werkzeug.security import generate_password_hash
 from app import create_app
 from app.extensions import db
@@ -42,11 +45,27 @@ def video_bytes():
     return b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom" + b"\x00\x00\x00\x10mdat" + bytes(range(8))
 
 
+@pytest.fixture(scope="session")
+def migration_engine():
+    url = os.getenv("TEST_MIGRATION_DATABASE_URL")
+    if not url:
+        raise pytest.UsageError("Run database tests through compose.test.yml (PostgreSQL is required)")
+    parsed = make_url(url)
+    assert parsed.drivername == "postgresql+psycopg" and (parsed.database or "").endswith("_test")
+    assert parsed.database == make_url(os.environ["TEST_DATABASE_URL"]).database
+    engine = create_engine(url)
+    with engine.begin() as connection:
+        config = migration_config()
+        config.attributes["connection"] = connection
+        command.upgrade(config, "head")
+    yield engine
+    engine.dispose()
+
+
 @pytest.fixture
-def app(tmp_path):
-    database = os.getenv("TEST_DATABASE_URL", "sqlite://")
-    if os.getenv("TEST_DATABASE_URL"):
-        assert (make_url(database).database or "").endswith("_test"), "Refusing to reset a non-test database"
+def app(tmp_path, migration_engine):
+    database = os.environ["TEST_DATABASE_URL"]
+    assert (make_url(database).database or "").endswith("_test"), "Refusing to reset a non-test database"
     redis_url = os.getenv("TEST_REDIS_URL")
     if redis_url:
         assert redis_url.endswith("/15"), "Integration tests use Redis DB 15 only"
@@ -55,16 +74,16 @@ def app(tmp_path):
               "UPLOAD_FOLDER": str(tmp_path / "uploads"), "ADMIN_EMAIL": "admin@test.local", "ADMIN_PASSWORD": "password123",
               "PUBLIC_BASE_URL": "http://localhost:8384", "LIFECYCLE": FakeLifecycle()}
     app = create_app(config)
-    with app.app_context():
-        db.drop_all()
-        db.create_all()
+    # Reset data with the schema owner, but run every business operation as the restricted app role.
+    names = ", ".join('"' + table.name + '"' for table in db.metadata.sorted_tables)
+    with migration_engine.begin() as connection:
+        connection.execute(text("TRUNCATE TABLE " + names + " RESTART IDENTITY CASCADE"))
     # Only touch session keys within the dedicated test database.
     for key in redis.scan_iter(match="photoly:session:*"):
         redis.delete(key)
     yield app
     with app.app_context():
         db.session.remove()
-        db.drop_all()
         db.engine.dispose()
     redis.close()
 
@@ -75,7 +94,7 @@ def client(app):
 
 
 @pytest.fixture
-def world(app, client, password_hash, jpeg, video_bytes):
+def world(app, client, password_hash, jpeg, video_bytes, migration_engine):
     stamp = datetime(2024, 3, 4, 12, 30, 0)
     with app.app_context():
         for identifier, name in ((1, "admin"), (2, "alice"), (3, "bob")):
@@ -103,6 +122,17 @@ def world(app, client, password_hash, jpeg, video_bytes):
                             PhotoExtra(f_photo_id=1, extra_photo_gps_lat=40.7128, extra_photo_gps_lon=-74.006,
                                        extra_photo_taken_date=stamp), PhotoExtra(f_photo_id=2)])
         db.session.commit()
+        # PostgreSQL sequences do not advance on explicitly inserted fixture IDs.
+        with migration_engine.begin() as connection:
+            for table in db.metadata.sorted_tables:
+                column = list(table.primary_key)[0]
+                if column.identity is None:
+                    continue
+                pk = column.name
+                connection.execute(text(
+                    f'SELECT setval(pg_get_serial_sequence(:table, :pk), '
+                    f'COALESCE((SELECT max("{pk}") FROM "{table.name}"), 0) + 1, false)'
+                ), {"table": '"' + table.name + '"', "pk": pk})
         infra = app.extensions["photoly"]
         with infra.storage.mutation() as files:
             path = infra.storage.media("user-alice", photo)

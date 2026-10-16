@@ -4,6 +4,7 @@ from sqlalchemy import select, text
 from app.extensions import db
 from app.entities import Setting, User, Namespace, Gallery
 from app.services.user import UserService
+from app.infrastructure.schema import require_schema
 
 DEFAULT_SETTINGS = {
     "ping": ("pong", "use for testing connection"),
@@ -17,9 +18,10 @@ def initialize(app):
     password = app.config["ADMIN_PASSWORD"]
     if not password:
         raise click.ClickException("Set ADMIN_PASSWORD before initializing a fresh deployment.")
-    db.create_all()
+    require_schema(db.session)
     users = UserService(db.session, app.extensions["photoly"])
     with users.atomic():
+        db.session.execute(text("SELECT pg_advisory_xact_lock(74831002)"))
         for name, (value, note) in DEFAULT_SETTINGS.items():
             if db.session.scalar(select(Setting).where(Setting.setting_name == name)) is None:
                 db.session.add(Setting(setting_name=name, setting_value=value, note=note))
@@ -34,16 +36,28 @@ def initialize(app):
 
 
 def register_cli(app):
-    @app.cli.command("init-db")
-    def init_db():
-        """Create missing tables, defaults and administrator without dropping or overwriting data."""
+    @app.cli.command("seed-db")
+    def seed_db():
+        """Seed defaults and administrator into an already migrated database."""
         initialize(app)
         click.echo("Photoly database initialized.")
+
+    @app.cli.command("check-schema")
+    def check_schema():
+        """Refuse to serve an uninitialized or incompatible schema."""
+        require_schema(db.session)
+        click.echo("Photoly schema and pgvector verified.")
+
+    @app.cli.command("init-db")
+    def init_db_compat():
+        """Compatibility alias for seed-db; never performs DDL."""
+        initialize(app)
+        click.echo("Photoly defaults initialized.")
 
     @app.cli.command("wait-ready")
     @click.option("--timeout", default=90, type=int)
     def wait_ready(timeout):
-        """Wait for MySQL and Redis before the single initialization process starts."""
+        """Wait for PostgreSQL and Redis before the single initialization process starts."""
         deadline = time.monotonic() + timeout
         while True:
             try:
@@ -54,5 +68,5 @@ def register_cli(app):
             except Exception as error:
                 db.session.rollback()
                 if time.monotonic() >= deadline:
-                    raise click.ClickException("MySQL or Redis was not ready before timeout") from error
+                    raise click.ClickException("PostgreSQL or Redis was not ready before timeout") from error
                 time.sleep(1)

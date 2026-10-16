@@ -91,7 +91,12 @@ def test_http_openapi_and_upload_contract(http, jpeg):
         assert page.status_code == 200 and 'swagger-ui-bundle.js' in page.text
     spec = http("GET", "/openapi.json").json()
     validate(spec)
-    assert spec["openapi"] == "3.2.0" and len(spec["paths"]) == 91
+    from pathlib import Path
+    legacy = json.loads((Path(__file__).parent / "contracts/spring_routes.json").read_text())
+    expected = {r["path"] for r in legacy["routes"]} | {"/healthz", "/photo/replace", "/admin/pingDatabase", "/admin/databaseInfo"}
+    from app.docs.definitions.ai import OPERATIONS as AI_OPERATIONS
+    expected |= {path for path, _, _ in AI_OPERATIONS}
+    assert spec["openapi"] == "3.2.0" and set(spec["paths"]) == expected
     for asset in ("vendor/swagger-ui-bundle.js", "vendor/swagger-ui.css", "swagger-init.js"):
         assert http("GET", "/docs/assets/" + asset).status_code == 200
     headers, _ = register(http)

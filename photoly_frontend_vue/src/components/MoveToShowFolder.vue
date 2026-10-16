@@ -24,7 +24,7 @@ interface TreeNode {
   children: TreeNode[] | null
 }
 
-const props = defineProps<{ originalNsId?: number; disableOrgNsId?: boolean }>()
+const props = defineProps<{ title?: string; originalNsId?: number; disableOrgNsId?: boolean }>()
 const emit = defineEmits<{ moveToUpdate: [nsId: number] }>()
 
 const open = ref(false)
@@ -88,7 +88,7 @@ defineExpose({ openModal: () => (open.value = true) })
   <Dialog v-model:open="open">
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>Move to a New Location</DialogTitle>
+        <DialogTitle>{{ title ?? 'Move to a New Location' }}</DialogTitle>
         <DialogDescription>Currently Selected: {{ selectedNsName }}</DialogDescription>
       </DialogHeader>
 

@@ -36,12 +36,15 @@ class PhotoService(BaseService):
                 photo = Photo(photo_name=stem, format=suffix, upload_date=self.now(), ns_id=data["nsId"],
                               visibility=visibility, token=str(uuid4()), photo_uuid=str(uuid4()), user_id=user_id)
                 path = self.storage.media(user.uuid, photo)
-                files.install(upload.stream, path)
+                photo.content_sha256 = files.install(upload.stream, path)
+                photo.content_version = 1
                 self.storage.thumbnail(path, self.storage.media(user.uuid, photo, True), files)
                 self.session.add(photo)
                 self.session.flush()
                 metadata = self.infra.metadata.read(path)
                 self.session.add(self.infra.metadata.extra(photo.photo_id, metadata))
+                from app.ai.hooks import photo_changed
+                photo_changed(self.session, photo)
                 objects.append(photo)
         return objects
 
@@ -60,7 +63,11 @@ class PhotoService(BaseService):
             files.remove(self.storage.media(user.uuid, photo))
             photo.format = suffix
             path = self.storage.media(user.uuid, photo)
-            files.install(upload.stream, path)
+            photo.content_sha256 = files.install(upload.stream, path)
+            photo.content_version += 1
+            self.session.flush()
+            from app.ai.hooks import photo_changed
+            photo_changed(self.session, photo)
             self.storage.thumbnail(path, self.storage.media(user.uuid, photo, True), files)
         return 1
 

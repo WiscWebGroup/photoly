@@ -35,7 +35,7 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 
 ## Specifications
 
-DB: MySQL + Redis
+DB: PostgreSQL 17 + pgvector 0.8.7 + Redis
 
 Backend: Python 3.12 + Flask (application factory, Controller / Service / Entity)
 
@@ -47,12 +47,14 @@ The backend has been migrated from Spring Boot to Flask. This version supports *
 
 ### Docker
 
-1. Copy `.env.example` to `.env` and set database, Redis and administrator passwords. Use URL-safe alphanumeric database/Redis passwords because they are embedded in connection URLs.
+1. Copy `.env.example` to `.env` and set database, Redis and administrator passwords. Use separate PostgreSQL administrator, migration and application passwords. The Redis password must be URL-safe because it enters a connection URL.
 2. Run `docker compose up -d --build` from this directory.
 3. Open `http://localhost:5200`. The API is available at `http://localhost:8384`, with interactive [Swagger UI](http://localhost:8384/docs/) and an [OpenAPI 3.2 document](http://localhost:8384/openapi.json).
 4. Sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env`.
 
-The backend waits for MySQL and Redis, initializes missing tables/settings/admin once, then serves Flask with Gunicorn. Repeated startup preserves existing records and does not reset passwords. MySQL uses the Compose `mysql_data` named volume; media stays in `./upload_data`. This Compose does not mount or reset the old `database/mysql-data` directory. The frontend API calls are unchanged.
+PostgreSQL bootstrap installs pgvector and creates separate schema-owner and application roles. The one-shot `migrate` service runs Alembic and seeds settings/admin before Gunicorn starts. The Web process only checks the schema and cannot execute DDL. Repeated startup preserves records, passwords and settings. PostgreSQL uses `postgres_data`; media remains in `./upload_data`. This is a fresh deployment, with no MySQL data import tool.
+
+The administrator dashboard displays PostgreSQL, pgvector and the schema revision using `/admin/pingDatabase` and `/admin/databaseInfo`.
 
 For access from another machine, set `PUBLIC_BASE_URL` to the externally reachable API URL and update the frontend `VITE_APP_BASE_URL` build setting before rebuilding. `localhost` is only appropriate for local access.
 
@@ -60,22 +62,21 @@ For access from another machine, set `PUBLIC_BASE_URL` to the externally reachab
 
 See [backend setup and architecture](photoly_backend/README.md) and [API compatibility notes](photoly_backend/COMPATIBILITY.md).
 
-```sh
-cd photoly_backend
-uv sync --python 3.12
-uv run pytest -q --cov=app
-```
-
-The local suite uses SQLite and fakeredis. Install ExifTool first (`brew install exiftool` on macOS, `apt install libimage-exiftool-perl` on Debian). For real MySQL/Redis and HTTP/Gunicorn acceptance tests, run from the repository root:
+Database tests require real PostgreSQL and an Alembic-created schema. Run from the repository root:
 
 ```sh
-docker compose -p photoly-test -f compose.test.yml build tests backend smoke
+docker compose -p photoly-test -f compose.test.yml build tests backend migrate smoke ai-runtime ai-scheduler ai-maintenance
 docker compose -p photoly-test -f compose.test.yml run --rm tests
 docker compose -p photoly-test -f compose.test.yml run --rm smoke
 docker compose -p photoly-test -f compose.test.yml down -v --remove-orphans
 ```
 
-Run integration and smoke tests sequentially: integration tests reset the isolated test database, and the final smoke test intentionally stops its disposable backend. These commands never mount production database or upload directories.
+The integration database is `photoly_test`; the HTTP server uses `photoly_http_test`. Both are temporary and isolated from production. The final HTTP test deliberately stops its own Gunicorn server. Only run cleanup with the explicit test project and Compose file above.
 
 ## License
 See [LICENSE](LICENSE).
+
+
+## AI search and administration
+
+See [deployment and API operations](docs/ai-backend-operations.md) for CPU/CUDA images, model lifecycle, user eligibility, search contracts, capacity and recovery. AI starts disabled. Open **AI Management** in the administrator navigation to configure CUDA/CPU inference, user access, profiles and background resource limits. Search supports natural-language queries. Scroll below a photo in the viewer to discover similar images, with paginated recommendations and same-viewer navigation. Administrators can set an optional similarity threshold; it is disabled by default. The image-upload search API remains available.

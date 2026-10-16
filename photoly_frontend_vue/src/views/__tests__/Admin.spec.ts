@@ -19,6 +19,17 @@ const user = (userId: number, userName: string) => ({
 
 beforeEach(async () => {
   localStorage.setItem('HRD-Token', 'tok')
+  server.use(
+    get('/admin/isAdmin', { msgCode: 200, t: true }),
+    http.get(`${API}/admin/ai/users`, ({ request }) =>
+      ok(
+        new URL(request.url).searchParams
+          .get('ids')!
+          .split(',')
+          .map((id) => ({ userId: Number(id), enabled: false })),
+      ),
+    ),
+  )
   await router.push('/thepersonincharge/dashboard')
 })
 
@@ -26,11 +37,21 @@ describe('AdminDashboard', () => {
   it('shows service status, addresses and settings', async () => {
     server.use(
       get('/admin/isAdmin', { msgCode: 200, t: true }),
-      get('/admin/pingMySQL', { msgCode: 200 }),
+      get('/admin/pingDatabase', { msgCode: 200, t: 1 }),
+      get('/admin/databaseInfo', {
+        msgCode: 200,
+        t: {
+          type: 'postgresql',
+          address: 'db:5432',
+          version: '17.11',
+          pgvectorVersion: '0.8.7',
+          schemaRevision: '0002_ai_backend',
+        },
+      }),
       get('/admin/pingRedis', { msgCode: 500 }),
       get('/admin/getAddress', {
         msgCode: 200,
-        t: { mysql: 'db:3306', redis: 'cache:6379', upload: '/up', config: '/cfg' },
+        t: { mysql: 'db:5432', redis: 'cache:6379', upload: '/up', config: '/cfg' },
       }),
       get('/admin/getSettings', {
         msgCode: 200,
@@ -39,13 +60,13 @@ describe('AdminDashboard', () => {
     )
     mountWithApp(AdminDashboard)
 
-    await vi.waitFor(() => expect(pageText()).toContain('db:3306'))
+    await vi.waitFor(() => expect(pageText()).toContain('db:5432'))
     const rings = [...document.querySelectorAll('svg[role=img]')].map((s) =>
       s.getAttribute('aria-label'),
     )
     expect(rings).toEqual([
       'Total Status: 67%',
-      'MySQL Status: 100%',
+      'PostgreSQL Status: 100%',
       'Redis Status: 0%',
       'Backend Status: 100%',
     ])
@@ -66,16 +87,17 @@ describe('AdminDashboard', () => {
     )
   })
 
-  it('sends non-admins to the login page', async () => {
+  it('sends non-admins home without clearing their session', async () => {
     server.use(
       get('/admin/isAdmin', { msgCode: 200, t: false }),
-      get('/admin/pingMySQL', { msgCode: 403 }),
+      get('/admin/pingDatabase', { msgCode: 403 }),
       get('/admin/pingRedis', { msgCode: 403 }),
       get('/admin/getAddress', { msgCode: 403 }),
+      get('/admin/databaseInfo', { msgCode: 403 }),
       get('/admin/getSettings', { msgCode: 403 }),
     )
     mountWithApp(AdminDashboard)
-    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/login'))
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/home/HomePart'))
   })
 })
 
@@ -93,7 +115,7 @@ describe('AdminUserManagement', () => {
 
     button('Next').click()
     await vi.waitFor(() => expect(pageText()).toContain('Page 2 of 2'))
-    expect(calls.at(-1)).toMatchObject({
+    expect(calls.filter((c) => c.path === '/admin/getUserPage').at(-1)).toMatchObject({
       path: '/admin/getUserPage',
       query: { page: '2', rowsPerPage: '10' },
     })
@@ -103,7 +125,7 @@ describe('AdminUserManagement', () => {
     box.dispatchEvent(new Event('input', { bubbles: true }))
     button('Search').click()
     await vi.waitFor(() => expect(pageText()).toContain('uuid-bob'))
-    expect(calls.at(-1)).toMatchObject({
+    expect(calls.filter((c) => c.path === '/admin/searchUserPage').at(-1)).toMatchObject({
       path: '/admin/searchUserPage',
       query: { page: '1', search: 'bob' },
     })

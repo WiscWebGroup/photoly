@@ -19,6 +19,8 @@ class UserService(BaseService):
             raise BusinessError(-1)
         user = User(email=email, password=generate_password_hash(password), user_name=data.get("userName"),
                     role=role, uuid=str(uuid4()), create_date=self.now())
+        from app.ai.state import settings
+        user.ai_search_enabled = settings(self.session)["new_user_default"]
         self.session.add(user)
         self.session.flush()
         self.session.add(Namespace(ns_name="/", ns_parent_id=-1, user_id=user.user_id))

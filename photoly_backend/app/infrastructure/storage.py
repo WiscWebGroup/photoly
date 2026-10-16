@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import os
 import shutil
@@ -27,12 +28,16 @@ class FileMutation:
 
     def install(self, stream, destination):
         temporary = self.work / str(uuid4())
+        digest = hashlib.sha256()
         with temporary.open("wb") as output:
-            shutil.copyfileobj(stream, output, 1024 * 1024)
+            while chunk := stream.read(1024 * 1024):
+                digest.update(chunk)
+                output.write(chunk)
         destination.parent.mkdir(parents=True, exist_ok=True)
         self.remove(destination)
         os.replace(temporary, destination)
         self.created.append(destination)
+        return digest.hexdigest()
 
     def remove(self, path):
         if path.exists():

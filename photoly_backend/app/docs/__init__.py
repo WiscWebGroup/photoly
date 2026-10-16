@@ -16,7 +16,7 @@ def build_spec():
             paths[path][method] = deepcopy(operation)
     paths['/healthz'] = {'get': {
         'tags': ['Health'], 'operationId': 'health_check', 'summary': 'Check database and Redis readiness',
-        'description': 'Public readiness probe. Unlike reading this document, this endpoint contacts MySQL and Redis.',
+        'description': 'Public readiness probe. Unlike reading this document, this endpoint contacts PostgreSQL and Redis.',
         'security': [], 'responses': {
             '200': {'description': 'Both dependencies are ready.', 'content': {'application/json': {
                 'schema': {'type': 'object', 'properties': {'status': {'const': 'ok'}}, 'required': ['status']}, 'example': {'status': 'ok'}}}},
@@ -42,7 +42,7 @@ def build_spec():
             ('Photo', 'Uploads, media, associations, sharing and downloads.'), ('Namespace', 'Logical folders and ZIP export.'),
             ('Gallery', 'Galleries and ZIP export.'), ('Tag', 'Media classification tags.'),
             ('Cred', 'API credentials and third-party C/R/D operations.'), ('PhotoExtra', 'Map projections.'),
-            ('Health', 'Dependency readiness.')]],
+            ('Health', 'Dependency readiness.'), ('AI Search', 'Private semantic image retrieval.'), ('AI Admin', 'Asynchronous model, scheduler and profile controls.')]],
         'paths': paths,
         'components': {'securitySchemes': {'SessionToken': {'type': 'apiKey', 'in': 'header', 'name': 'HRD-Token',
             'description': 'Login session token from signIn/signUp. Paste the token alone; do not add Bearer.'}}, 'schemas': deepcopy(SCHEMAS)},

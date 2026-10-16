@@ -6,5 +6,5 @@ if [ "$(id -u)" = "0" ]; then
     exec gosu photoly "$0" "$@"
 fi
 flask --app app:create_app wait-ready
-flask --app app:create_app init-db
+flask --app app:create_app check-schema
 exec "$@"

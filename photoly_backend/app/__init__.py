@@ -1,11 +1,9 @@
-import sqlite3
 from dataclasses import dataclass
 from importlib import import_module
 from flask import Flask, jsonify, request
 from redis import Redis
 from redis.exceptions import RedisError
-from sqlalchemy import event, text
-from sqlalchemy.engine import Engine
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from werkzeug.exceptions import HTTPException
 from app.config import environment_config
@@ -16,12 +14,6 @@ from app.infrastructure.metadata import MetadataReader
 from app.infrastructure.lifecycle import ServerLifecycle
 from app.infrastructure.qr import QRCodeEncoder
 from app.serialization import result
-
-
-@event.listens_for(Engine, "connect")
-def sqlite_foreign_keys(connection, record):
-    if isinstance(connection, sqlite3.Connection):
-        connection.execute("PRAGMA foreign_keys=ON")
 
 
 @dataclass
@@ -39,7 +31,7 @@ def create_app(config=None):
     app.config.from_mapping(environment_config())
     if config:
         app.config.update(config)
-    if app.config["SQLALCHEMY_DATABASE_URI"].startswith("mysql"):
+    if str(app.config["SQLALCHEMY_DATABASE_URI"]).startswith("postgresql"):
         # Authentication reads occur before a mutation takes the user's row lock.
         # READ COMMITTED prevents an older repeatable-read snapshot surviving that wait.
         app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
@@ -55,7 +47,7 @@ def create_app(config=None):
         app.config.get("LIFECYCLE") or ServerLifecycle(app.config["GUNICORN_PID_FILE"]),
         app.config.get("QR_ENCODER") or QRCodeEncoder(),
     )
-    for name in ("user", "admin", "photo", "namespace", "gallery", "tag", "cred", "photo_extra"):
+    for name in ("user", "admin", "photo", "namespace", "gallery", "tag", "cred", "photo_extra", "ai"):
         app.register_blueprint(import_module("app.controllers." + name).bp)
     from app.docs import bp as docs_bp
     app.register_blueprint(docs_bp)
@@ -69,8 +61,8 @@ def create_app(config=None):
         elif origin in origins:
             response.headers["Access-Control-Allow-Origin"] = origin
             response.vary.add("Origin")
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, HRD-Token, Range"
-        response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS, DELETE, PUT"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, HRD-Token, Range, Idempotency-Key"
+        response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS, DELETE, PUT, PATCH"
         response.headers["Access-Control-Expose-Headers"] = "Content-Disposition, Content-Range, Accept-Ranges"
         response.headers["Access-Control-Max-Age"] = "3600"
         return response

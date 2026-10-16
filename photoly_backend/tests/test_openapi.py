@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 from openapi_spec_validator import validate
 from app import create_app
+from app.docs.definitions.ai import OPERATIONS as AI_OPERATIONS
 from app.docs import build_spec
 from tests.openapi_assertions import validate_value
 
@@ -21,13 +22,13 @@ def test_openapi_32_is_valid_and_covers_exact_legacy_routes():
     expected = {(row['method'].lower(), row['path']) for row in json.loads((CONTRACTS / 'spring_routes.json').read_text())['routes']}
     actual = {(method, path) for path, methods in spec['paths'].items() for method in methods}
     assert len(expected) == 90
-    assert actual == expected | {('get', '/healthz'), ('post', '/photo/replace')}
+    assert actual == expected | {(method,path) for path,method,_ in AI_OPERATIONS} | {('get', '/healthz'), ('post', '/photo/replace'), ('get', '/admin/pingDatabase'), ('get', '/admin/databaseInfo')}
     ids = [op['operationId'] for methods in spec['paths'].values() for op in methods.values()]
-    assert len(ids) == len(set(ids)) == 92
+    assert len(ids) == len(set(ids)) == 110
     for path, methods in spec['paths'].items():
         for op in methods.values():
             assert op['summary'] and op['description'] and op['tags']
-            assert '200' in op['responses']
+            assert ('202' if op['operationId'] == 'ai_operation' else '200') in op['responses']
             placeholders = set(re.findall(r'{(\w+)}', path))
             assert placeholders == {p['name'] for p in op.get('parameters', []) if p['in'] == 'path'}
 
@@ -106,11 +107,11 @@ def test_auth_uploads_lists_ranges_and_special_contracts():
     assert spec['paths']['/user/getInfo']['get']['security'] == [{'SessionToken': []}]
 
 
-def test_docs_and_local_assets_work_without_mysql_redis_or_media(tmp_path):
+def test_docs_and_local_assets_work_without_postgres_redis_or_media(tmp_path):
     # Construct a fresh factory without any fixture's database creation or fake Redis.
-    with patch('pymysql.connect', side_effect=AssertionError('Docs connected to MySQL')), \
+    with patch('psycopg.connect', side_effect=AssertionError('Docs connected to PostgreSQL')), \
          patch('redis.Redis.execute_command', side_effect=AssertionError('Docs connected to Redis')):
-        app = create_app({'TESTING': True, 'SQLALCHEMY_DATABASE_URI': 'mysql+pymysql://invalid:invalid@127.0.0.1:1/missing',
+        app = create_app({'TESTING': True, 'SQLALCHEMY_DATABASE_URI': 'postgresql+psycopg://invalid:invalid@127.0.0.1:1/missing',
                           'REDIS_URL': 'redis://127.0.0.1:1/0', 'UPLOAD_FOLDER': str(tmp_path / 'no-media')})
         client = app.test_client()
         for path in ('/docs', '/docs/'):

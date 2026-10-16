@@ -11,7 +11,7 @@ from werkzeug.datastructures import MultiDict
 from werkzeug.security import check_password_hash
 from app import create_app
 from app.cli import initialize
-from app.entities import User, Photo, PhotoExtra, Namespace, Gallery, GalleryPhoto, Tag, TagPhoto, Cred, NamespacePhoto
+from app.entities import User, Photo, PhotoExtra, Namespace, Gallery, GalleryPhoto, Tag, TagPhoto, Cred, NamespacePhoto, Setting
 from app.extensions import db
 from app.services.namespace import NamespaceService
 from app.services.photo import PhotoService
@@ -376,7 +376,11 @@ def test_bootstrap_idempotency_and_preserves_password(app):
         admin = db.session.scalar(select(User))
         password = admin.password
         app.config["ADMIN_PASSWORD"] = "different-password"
+        setting = db.session.scalar(select(Setting).where(Setting.setting_name == "SignUp"))
+        setting.setting_value = "0"
+        db.session.commit()
         initialize(app)
+        assert setting.setting_value == "0"
         assert db.session.scalar(select(func.count()).select_from(User)) == 1
         assert db.session.scalar(select(func.count()).select_from(Namespace)) == 1
         assert db.session.scalar(select(func.count()).select_from(Gallery)) == 1
@@ -385,7 +389,7 @@ def test_bootstrap_idempotency_and_preserves_password(app):
 
 def test_application_factory_has_no_database_or_filesystem_side_effects(tmp_path):
     path = tmp_path / "unused"
-    app = create_app({"SQLALCHEMY_DATABASE_URI": "mysql+pymysql://nobody:invalid@127.0.0.1:1/nonexistent",
+    app = create_app({"SQLALCHEMY_DATABASE_URI": "postgresql+psycopg://nobody:invalid@127.0.0.1:1/nonexistent",
                       "REDIS_URL": "redis://127.0.0.1:1/0", "UPLOAD_FOLDER": str(path)})
     assert app is not None and not path.exists()
 

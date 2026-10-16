@@ -1,6 +1,7 @@
 pipeline {
     agent any
     parameters {
+        choice(name: 'AI_DEVICE', choices: ['cuda', 'cpu', 'disabled'], description: 'AI runtime for an explicitly enabled deployment')
         booleanParam(name: 'DEPLOY', defaultValue: false, description: 'Deploy the tested Flask backend')
         string(name: 'PHOTOLY_ENV_FILE', defaultValue: '.env', description: 'Production environment file on the Jenkins agent')
     }
@@ -9,7 +10,7 @@ pipeline {
     }
     stages {
         stage('Build backend and test images') {
-            steps { sh 'docker compose -f compose.test.yml build tests backend smoke' }
+            steps { sh 'docker compose -f compose.test.yml build tests backend migrate smoke ai-runtime ai-scheduler ai-maintenance' }
         }
         stage('API contracts and database integration') {
             steps { sh 'docker compose -f compose.test.yml run --rm tests' }
@@ -20,7 +21,15 @@ pipeline {
         stage('Deploy') {
             when { expression { params.DEPLOY } }
             steps {
-                sh 'docker compose --env-file "$PHOTOLY_ENV_FILE" -p photoly up -d --build'
+                sh '''
+                    case "$AI_DEVICE" in
+                      cuda) set -- --profile ai ;;
+                      cpu) set -- -f docker-compose.yml -f compose.cpu.yml --profile ai ;;
+                      disabled) set -- ;;
+                    esac
+                    docker compose "$@" --env-file "$PHOTOLY_ENV_FILE" -p photoly build
+                    docker compose "$@" --env-file "$PHOTOLY_ENV_FILE" -p photoly up -d
+                '''
             }
         }
     }

@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { isAxiosError } from 'axios'
 import { toast } from 'vue-sonner'
-import { Settings, Upload } from '@lucide/vue'
+import { Settings, Upload, Database, Server } from '@lucide/vue'
 import AdminLayout from '@/components/AdminLayout.vue'
 import CircleProgress from '@/components/CircleProgress.vue'
 import {
@@ -33,14 +33,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import mysqlLogo from '@/assets/MySQL.png'
 import redisLogo from '@/assets/Redis.png'
-import springLogo from '@/assets/Spring.png'
 import { assertAdmin, useAdminGuard } from '@/composables/useAdminGuard'
 import { call } from '@/lib/http'
 
 interface Addresses {
-  mysql: string
   redis: string
   upload: string
   config: string
@@ -53,14 +50,22 @@ interface Settings {
 
 const { guarded } = useAdminGuard()
 
-const mysqlStatus = ref(0)
+const databaseStatus = ref(0)
 const redisStatus = ref(0)
 const backendStatus = ref(0)
 const totalStatus = computed(
-  () => (mysqlStatus.value + redisStatus.value + backendStatus.value) / 3,
+  () => (databaseStatus.value + redisStatus.value + backendStatus.value) / 3,
 )
 
 const addresses = ref<Partial<Addresses>>({})
+const database = ref<{
+  type: string
+  version: string
+  address: string
+  pgvectorVersion: string | null
+  schemaRevision: string
+} | null>(null)
+const loadError = ref('')
 const backendAddr = import.meta.env.VITE_APP_BASE_URL
 
 const userRegistry = ref(false)
@@ -73,7 +78,7 @@ const shutdownOpen = ref(false)
 
 const ping = (url: string) =>
   call({ url }).then(
-    () => 100,
+    (value) => (value === 1 ? 100 : 0),
     () => 0,
   )
 
@@ -119,31 +124,52 @@ async function powerDown() {
   }
 }
 
-onMounted(() =>
-  guarded(async () => {
-    const [, addrs, settings] = await Promise.all([
-      assertAdmin(),
-      call<Addresses>({ url: '/admin/getAddress' }),
-      call<Settings>({ url: '/admin/getSettings' }),
-      ping('/admin/pingMySQL').then((v) => (mysqlStatus.value = v)),
-      ping('/admin/pingRedis').then((v) => (redisStatus.value = v)),
-    ])
-    backendStatus.value = 100
-    addresses.value = addrs
-    userRegistry.value = settings.SignUp === '1'
-    ssafeUuid.value = settings.SSafeUUID === '1'
-    tokenDuration.value = String(settings.TokenDuration)
-  }),
-)
+async function loadDashboard() {
+  loadError.value = ''
+  await guarded(async () => {
+    try {
+      const [, addrs, settings, info] = await Promise.all([
+        assertAdmin(),
+        call<Addresses>({ url: '/admin/getAddress' }),
+        call<Settings>({ url: '/admin/getSettings' }),
+        call<typeof database.value>({ url: '/admin/databaseInfo' }),
+        ping('/admin/pingDatabase').then((v) => (databaseStatus.value = v)),
+        ping('/admin/pingRedis').then((v) => (redisStatus.value = v)),
+      ])
+      backendStatus.value = 100
+      addresses.value = addrs
+      database.value = info
+      userRegistry.value = settings.SignUp === '1'
+      ssafeUuid.value = settings.SSafeUUID === '1'
+      tokenDuration.value = String(settings.TokenDuration)
+    } catch (e) {
+      loadError.value = 'Could not load dashboard. Please retry.'
+      throw e
+    }
+  })
+}
+onMounted(loadDashboard)
 </script>
 
 <template>
   <AdminLayout>
+    <p v-if="loadError" role="alert">
+      {{ loadError }} <Button variant="outline" @click="loadDashboard">Retry</Button>
+    </p>
+    <router-link
+      class="rounded-lg border bg-card p-4 font-medium hover:bg-accent"
+      to="/thepersonincharge/ai"
+      >AI Management → Models, search availability and scheduling limits</router-link
+    >
     <Card>
       <CardHeader><CardTitle class="text-2xl">Server Status</CardTitle></CardHeader>
       <CardContent class="flex flex-wrap justify-around gap-6">
         <CircleProgress label="Total Status" :value="totalStatus" />
-        <CircleProgress label="MySQL Status" :value="mysqlStatus" :ok="mysqlStatus === 100" />
+        <CircleProgress
+          label="PostgreSQL Status"
+          :value="databaseStatus"
+          :ok="databaseStatus === 100"
+        />
         <CircleProgress label="Redis Status" :value="redisStatus" :ok="redisStatus === 100" />
         <CircleProgress label="Backend Status" :value="backendStatus" :ok="backendStatus === 100" />
       </CardContent>
@@ -162,11 +188,15 @@ onMounted(() =>
           </TableHeader>
           <TableBody>
             <TableRow>
+              <TableCell><Database class="size-10" aria-hidden="true" /></TableCell>
               <TableCell
-                ><img :src="mysqlLogo" alt="" class="h-12 w-16 rounded-md object-contain"
-              /></TableCell>
-              <TableCell>MySQL</TableCell>
-              <TableCell>{{ addresses.mysql }}</TableCell>
+                >PostgreSQL {{ database?.version }}
+                <p class="text-xs">
+                  pgvector {{ database?.pgvectorVersion ?? 'Unavailable' }} · Schema
+                  {{ database?.schemaRevision }}
+                </p></TableCell
+              >
+              <TableCell>{{ database?.address }}</TableCell>
             </TableRow>
             <TableRow>
               <TableCell
@@ -176,9 +206,7 @@ onMounted(() =>
               <TableCell>{{ addresses.redis }}</TableCell>
             </TableRow>
             <TableRow>
-              <TableCell
-                ><img :src="springLogo" alt="" class="size-12 rounded-md object-contain"
-              /></TableCell>
+              <TableCell><Server class="size-10" aria-hidden="true" /></TableCell>
               <TableCell>Backend</TableCell>
               <TableCell>{{ backendAddr }}</TableCell>
             </TableRow>

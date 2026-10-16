@@ -36,16 +36,23 @@ import videoIcon from '@/assets/icons/Video.png'
 import logo from '@/assets/logo.ico'
 
 /** `dragFolders`: selected folders that travel along when a selected photo is dragged. */
-const props = defineProps<{
-  nsOrNot: boolean
-  detachEnabled?: boolean
-  detachStr?: string
-  dragFolders?: number[]
-  /** The parent renders one shared selection bar instead (see HomePart). */
-  hideBar?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    nsOrNot: boolean
+    allowSimilar?: boolean
+    detachEnabled?: boolean
+    detachStr?: string
+    dragFolders?: number[]
+    /** The parent renders one shared selection bar instead (see HomePart). */
+    hideBar?: boolean
+  }>(),
+  { allowSimilar: true },
+)
 /** `queryPhotos`: the list changed on the server, reload it. `doDetach`: remove the checked photos from the parent's tag/gallery. */
-const emit = defineEmits<{ queryPhotos: []; doDetach: [photos: Photo[]] }>()
+const emit = defineEmits<{
+  queryPhotos: [change?: { type: string; photo: Photo }]
+  doDetach: [photos: Photo[]]
+}>()
 
 const auth = useAuthStore()
 const { photos, moveTo, remove } = usePhotos()
@@ -55,6 +62,14 @@ const selectMode = defineModel<boolean>('selectMode', { default: false })
 watch(selectMode, (on) => on || setChecked(false))
 const viewing = ref<Photo | null>(null)
 const nsPath = ref('')
+watch(
+  () => auth.token,
+  () => {
+    viewing.value = null
+    photos.value = []
+    nsPath.value = ''
+  },
+)
 const confirmDelete = ref(false)
 const confirmDetach = ref(false)
 const movePicker = ref<InstanceType<typeof MoveToShowFolder>>()
@@ -321,10 +336,11 @@ defineExpose({
     </ul>
 
     <PhotoViewer
+      :allow-similar="allowSimilar !== false"
       :photo="viewing"
       :ns-path="nsPath"
       @close="viewing = null"
-      @changed="emit('queryPhotos')"
+      @changed="(change) => emit('queryPhotos', change)"
     />
 
     <AlertDialog v-model:open="confirmDelete">

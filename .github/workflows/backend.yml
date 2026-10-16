@@ -1,0 +1,21 @@
+name: Backend PostgreSQL
+on:
+  push:
+    branches: [main]
+    paths: ['photoly_backend/**', 'database/postgres-init/**', 'compose.test.yml', 'compose.cpu.yml', 'compose.ai-real-test.yml', 'docker-compose.yml', '.gitattributes', '.github/workflows/backend.yml']
+  pull_request:
+    paths: ['photoly_backend/**', 'database/postgres-init/**', 'compose.test.yml', 'compose.cpu.yml', 'compose.ai-real-test.yml', 'docker-compose.yml', '.gitattributes', '.github/workflows/backend.yml']
+permissions:
+  contents: read
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROJECT_NAME: photoly-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker compose -f compose.test.yml build tests backend migrate smoke ai-runtime ai-scheduler ai-maintenance
+      - run: docker compose -f compose.test.yml run --rm tests
+      - run: docker compose -f compose.test.yml run --rm smoke
+      - if: always()
+        run: docker compose -f compose.test.yml down -v --remove-orphans

@@ -4,7 +4,7 @@ The migration targets all **90 annotated business endpoints**: user 11, admin 19
 
 `tests/contracts/spring_routes.json` preserves the original Java signatures; `spring_entities.json` preserves entity response fields. Both were extracted from Java before removing it. `tests/contract_cases.py` independently enumerates requests and expected response families; tests require its inventory to equal the frozen Spring inventory and the Flask route map. These are source-derived compatibility tests, not a claim that the Java server was run for differential testing.
 
-`spring_field_types.json` and `spring_schema.json` additionally freeze the Java field types and SQL table definitions directly from `e6619ab`. Tests compare all eleven tables' columns, SQL types, nullability and primary keys, including DOUBLE precision for GPS and aperture values.
+`spring_field_types.json` and `spring_schema.json` additionally freeze the Java field types and SQL table definitions directly from `e6619ab`. These MySQL snapshots remain historical evidence. postgresql_schema.json records target types; tests compare ORM metadata and the actual Alembic-created PostgreSQL tables.
 
 ## Preserved contract
 
@@ -31,3 +31,11 @@ The migration targets all **90 annotated business endpoints**: user 11, admin 19
 8. **Infrastructure failures.** Invalid HTTP payloads, upload limits and unavailable dependencies use explicit 4xx/503 responses rather than leaking stack traces. CORS remains compatible with header-based tokens and no longer combines wildcard origins with credentialed cookies.
 
 The Vue source was not changed. Existing unrelated frontend defects (for example the password-edit form passing its email field as `newPass`) are not silently compensated for by changing API parameter semantics.
+
+## PostgreSQL fresh deployment (phase 1)
+
+- PostgreSQL 17 / pgvector 0.8.7 replaces MySQL; no MySQL data import is provided. Eleven business tables retain names and fields, plus an Alembic revision table.
+- Keys use generated-by-default identity. Nullable/date/response semantics are preserved. A unique lower(email) index enforces case-insensitive login identity while preserving spelling. ILIKE does not emulate MySQL accent-insensitive collation.
+- GET /admin/pingDatabase and GET /admin/databaseInfo are explicit additions. /admin/pingMySQL is a SELECT 1 compatibility alias. /admin/getAddress retains its mysql field for the PostgreSQL address.
+- Only the migration service upgrades schema; init-db is now a seed-only alias requiring a migrated database.
+- Frontend code is unchanged; its old database label will be corrected in phase 3.

@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 import MediaList from '@/components/MediaList.vue'
+import AiSearchPanel from '@/components/ai/AiSearchPanel.vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -20,6 +21,7 @@ const searchTypes = [
   { value: 'tag', label: 'Tag' },
   { value: 'gallery', label: 'Gallery' },
   { value: 'namespace', label: 'Namespace' },
+  { value: 'text', label: 'Natural language' },
 ]
 
 const mediaList = ref<InstanceType<typeof MediaList>>()
@@ -48,7 +50,7 @@ async function queryPhotos() {
     <Card class="max-w-3xl">
       <CardHeader>
         <CardTitle>Query Information</CardTitle>
-        <CardDescription>The search utilizes partial or full match.</CardDescription>
+        <CardDescription>Choose a field search or search your images with AI.</CardDescription>
       </CardHeader>
       <CardContent class="flex flex-wrap gap-2">
         <Select v-model="searchType">
@@ -60,16 +62,19 @@ async function queryPhotos() {
           </SelectContent>
         </Select>
         <Input
+          v-if="searchType !== 'text'"
           v-model="query"
           class="min-w-40 flex-1"
           aria-label="Search query"
           @keyup.enter="queryPhotos"
         />
-        <Button @click="queryPhotos">Search</Button>
+        <Button v-if="searchType !== 'text'" @click="queryPhotos">Search</Button>
       </CardContent>
     </Card>
 
+    <AiSearchPanel v-if="searchType === 'text'" :mode="searchType" />
     <MediaList
+      v-else
       ref="mediaList"
       :ns-or-not="false"
       :detach-enabled="false"
