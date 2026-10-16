@@ -227,8 +227,21 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
         </p>
         <div class="grid gap-3 sm:grid-cols-3">
           <div v-for="(service, name) in status.services" :key="name" class="rounded-md border p-3">
-            <h3 class="font-medium capitalize">{{ name }}</h3>
-            <p>{{ service.online ? service.observed.state : 'Offline / unknown' }}</p>
+            <h3 class="font-medium capitalize">
+              {{ name === 'maintenance' ? 'Index maintenance service' : name }}
+            </h3>
+            <p>
+              {{
+                service.online
+                  ? name === 'maintenance' && service.observed.state === 'running'
+                    ? 'Online'
+                    : service.observed.state
+                  : 'Offline / unknown'
+              }}
+            </p>
+            <p v-if="name === 'maintenance'" class="text-xs text-muted-foreground">
+              Service availability is separate from maintenance mode, shown above.
+            </p>
             <p class="text-xs text-muted-foreground">Heartbeat: {{ time(service.heartbeatAt) }}</p>
             <p v-if="service.observed.reason" class="text-sm">
               {{

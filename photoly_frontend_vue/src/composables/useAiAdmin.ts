@@ -1,5 +1,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { newOperationKey, operationStorageKey } from '@/lib/operationIdentity'
 import {
   activeJob,
   aiCall,
@@ -140,7 +141,7 @@ export function useAiAdmin() {
   async function operate(command: string, profileId?: number) {
     if (locked.value || !status.value) return
     pending.value = {
-      key: crypto.randomUUID(),
+      key: newOperationKey(),
       body: {
         command,
         generation: status.value.settings.generation,
@@ -193,11 +194,7 @@ export function useAiAdmin() {
   onMounted(async () => {
     const token = auth.token
     if (token) {
-      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
-      if (token !== auth.token || disposed) return
-      storageKey =
-        'photoly-ai-operation-' +
-        [...new Uint8Array(digest)].map((x) => x.toString(16).padStart(2, '0')).join('')
+      storageKey = operationStorageKey(token)
       try {
         pending.value = JSON.parse(sessionStorage.getItem(storageKey) ?? 'null')
       } catch {
