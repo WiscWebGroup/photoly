@@ -29,7 +29,7 @@ services:
       timeout: 5s
       retries: 60
   redis:
-    image: redis:7.2.4
+    image: redis:8.10.2
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
