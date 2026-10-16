@@ -1,0 +1,11 @@
+# Optional CPU-only deployment; Docker Compose >= 2.24.4 (!reset).
+services:
+  ai-runtime:
+    image: photoly-ai-runtime:phase2-cpu
+    build:
+      args:
+        INFERENCE_VARIANT: cpu
+    deploy:
+      resources:
+        reservations:
+          devices: !reset []

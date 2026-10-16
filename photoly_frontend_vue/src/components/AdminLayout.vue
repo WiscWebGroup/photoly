@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { ArrowLeft, LayoutDashboard, Users } from '@lucide/vue'
+import { ArrowLeft, LayoutDashboard, Users, Sparkles } from '@lucide/vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import { cn } from '@/lib/utils'
 
 const nav = [
   { to: '/thepersonincharge/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/thepersonincharge/ai', label: 'AI Management', icon: Sparkles },
   { to: '/thepersonincharge/usermanage', label: 'User Management', icon: Users },
 ]
 
-const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors'
+const linkClass =
+  'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors'
 const idle = 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
 </script>
 
@@ -42,9 +44,11 @@ const idle = 'text-muted-foreground hover:bg-accent hover:text-accent-foreground
     </aside>
 
     <!-- Mobile top bar -->
-    <header class="bg-card flex min-h-14 shrink-0 items-center gap-2 border-b px-4 pt-[env(safe-area-inset-top)] md:hidden">
+    <header
+      class="bg-card flex min-h-14 shrink-0 items-center gap-2 border-b px-4 pt-[env(safe-area-inset-top)] md:hidden"
+    >
       <img src="@/assets/photoly-wordmark.svg" alt="Photoly" class="h-7 invert dark:invert-0" />
-        <span class="text-muted-foreground text-xs font-semibold tracking-wide">ADMIN</span>
+      <span class="text-muted-foreground text-xs font-semibold tracking-wide">ADMIN</span>
       <span class="ml-auto"><ThemeToggle /></span>
     </header>
 
@@ -57,7 +61,7 @@ const idle = 'text-muted-foreground hover:bg-accent hover:text-accent-foreground
     <!-- Mobile bottom tab bar -->
     <nav
       aria-label="Admin"
-      class="bg-card grid shrink-0 grid-cols-3 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
+      class="bg-card grid shrink-0 grid-cols-4 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <router-link
         v-for="item in nav"

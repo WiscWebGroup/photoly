@@ -7,7 +7,7 @@ export async function assertAdmin() {
   if (!(await call<boolean>({ url: '/admin/isAdmin' }))) throw new ApiError(403)
 }
 
-/** Admin pages: any failed load sends the user back to the login page with a toast. */
+/** Admin pages: permission failures return home; network failures remain retryable. */
 export function useAdminGuard() {
   const router = useRouter()
 
@@ -16,7 +16,7 @@ export function useAdminGuard() {
       return await task()
     } catch (e) {
       toast.error(e instanceof ApiError ? 'You are not an admin!' : String(e))
-      router.push('/login')
+      if (e instanceof ApiError && e.msgCode === 403) router.push('/home/HomePart')
     }
   }
 

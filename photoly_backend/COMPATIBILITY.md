@@ -4,7 +4,7 @@ The migration targets all **90 annotated business endpoints**: user 11, admin 19
 
 `tests/contracts/spring_routes.json` preserves the original Java signatures; `spring_entities.json` preserves entity response fields. Both were extracted from Java before removing it. `tests/contract_cases.py` independently enumerates requests and expected response families; tests require its inventory to equal the frozen Spring inventory and the Flask route map. These are source-derived compatibility tests, not a claim that the Java server was run for differential testing.
 
-`spring_field_types.json` and `spring_schema.json` additionally freeze the Java field types and SQL table definitions directly from `e6619ab`. Tests compare all eleven tables' columns, SQL types, nullability and primary keys, including DOUBLE precision for GPS and aperture values.
+`spring_field_types.json` and `spring_schema.json` additionally freeze the Java field types and SQL table definitions directly from `e6619ab`. These MySQL snapshots remain historical evidence. postgresql_schema.json records target types; tests compare ORM metadata and the actual Alembic-created PostgreSQL tables.
 
 ## Preserved contract
 
@@ -31,3 +31,29 @@ The migration targets all **90 annotated business endpoints**: user 11, admin 19
 8. **Infrastructure failures.** Invalid HTTP payloads, upload limits and unavailable dependencies use explicit 4xx/503 responses rather than leaking stack traces. CORS remains compatible with header-based tokens and no longer combines wildcard origins with credentialed cookies.
 
 The Vue source was not changed. Existing unrelated frontend defects (for example the password-edit form passing its email field as `newPass`) are not silently compensated for by changing API parameter semantics.
+
+## PostgreSQL fresh deployment (phase 1)
+
+- PostgreSQL 17 / pgvector 0.8.7 replaces MySQL; no MySQL data import is provided. Eleven business tables retain names and fields, plus an Alembic revision table.
+- Keys use generated-by-default identity. Nullable/date/response semantics are preserved. A unique lower(email) index enforces case-insensitive login identity while preserving spelling. ILIKE does not emulate MySQL accent-insensitive collation.
+- GET /admin/pingDatabase and GET /admin/databaseInfo are explicit additions. /admin/pingMySQL is a SELECT 1 compatibility alias. /admin/getAddress retains its mysql field for the PostgreSQL address.
+- Only the migration service upgrades schema; init-db is now a seed-only alias requiring a migrated database.
+- Frontend code is unchanged; its old database label will be corrected in phase 3.
+
+## Smart Search and avatar normalization
+
+`GET /photo/searchSmart?query=...` adds bounded, owner-scoped text candidates for Smart Search without changing `/photo/searchPhoto`. Clients combine these with `/ai/search/text` using equal-weight reciprocal rank fusion. Avatar uploads keep their existing multipart contract but are now decoded, orientation-corrected, center-cropped and stored as 512 × 512 JPEG; invalid images leave the previous avatar intact.
+
+## Video semantic indexing
+
+Revision `0003_video_vectors` adds `video_frame_embedding` and sampling/count columns to `photo_embedding_state`. Existing image vectors, model profiles and fingerprints are retained. A video is ready only when all sampled frame vectors are committed in one transaction. Enabled users' existing videos are reconciled once per sampling version; decode failures remain visible instead of continuously requeuing.
+
+Text, image, similar-media and recommendation-page endpoints now return both photos and videos. Each result retains `photo` and `score`; video results additionally include `matchedTimestampMs` (the best matching sample time). Scores are the maximum cosine similarity across all query/document frame pairs, with media IDs breaking ties. `/ai/capabilities` reports `videoFormats`, `videoSamplingVersion` and video limits. Image-upload search still accepts images only; a library video's existing ID can be used by the similar-media endpoints.
+
+## On-demand OCR
+
+Revision `0004_photo_ocr` adds owner-only editable text in `photo_ocr`. New endpoints are `GET /photo/ocr`, `POST /photo/ocr/recognize`, and `PUT /photo/ocr`, using the existing HRD-Token and result envelope. Reads do not trigger OCR. Mutations require the current image content version and OCR revision, and reject conflicts instead of overwriting newer text. Content overwrite invalidates text through a database trigger; deletion cascades. Existing Photo fields, search ranking, embeddings and shared-media routes are unchanged. Runtime dependencies, limits and measured accuracy/memory are documented in [OCR operations](../docs/ocr.md).
+
+## Smart organization
+
+Migration `0005_smart_organization` adds companion preferences, metadata, smart identities, membership overrides and lineage tables. Ordinary catalog fields remain unchanged unless `includeSmart=true` is requested on catalog lists/pages or photo associations. Existing edits/deletes/member changes also record smart overrides. Six owner-authenticated Smart Tag operations are documented under `/ai/smart/*`; admin AI settings/status add `smart_tag_enabled` and `smartTag`. Both Smart Tag switches default off. See [Smart Tag](../docs/smart-tag.md).

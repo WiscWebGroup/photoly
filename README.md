@@ -3,7 +3,7 @@
 <img src="https://raw.githubusercontent.com/Harold-y/photoly/main/Logo.png" height="160px" width="160px" />
 <br>
 
-This is a picture host application. There are demands for the self-host and reliable picture-host applications. Photoly provides a solution just right for that. Using Photoly, you can manage your pictures and photos with easy clicks, and categorize them using tags, galleries, and namespaces. We are also sure that the search functionality could make it easier to see the photos you are interested in. Moreover, Photoly provides API for you to access our functionalities for embedding in other applications.
+Photoly is a self-hosted photo and video library. Organize media with folders, tags and galleries, share selected items, and search names, metadata and visual content. A documented REST API supports integrations.
 
 Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自助图片托管应用需求增加，Photoly应运而生。使用 Photoly，您可以轻松管理图片和视频，并使用标签、图库和文件夹对图片和视频进行分类；利用搜索功能，充分探索您的媒体库。此外，Photoly 还提供 API，方便您将我们的功能嵌入到其他应用程序中。
 
@@ -13,7 +13,11 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 - Share a Photo / Video using a share link, or a QR code
 - Automatic record photo's Exif information, including GPS location, Camera Model, Lens Model, ISO, Shutter, Aperture, etc.
 - Display a Photo Location Map
-- Search Photos based on various conditions
+- Smart Search combines photo/video names, tags and galleries with optional semantic search; existing search modes remain available
+- Similar photos and videos, including five-frame video indexing and per-media recommendation state
+- On-demand multilingual text recognition with editable, saved results and copy support (Tesseract CPU)
+- Optional Smart Tag camera/lens labels and time/location-based trip galleries
+- Circular avatar crop preview with square 512 × 512 JPEG output
 - Create API to operate your photo using REST API
 
 ## Screenshots
@@ -35,7 +39,7 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 
 ## Specifications
 
-DB: MySQL + Redis
+DB: PostgreSQL 17 + pgvector 0.8.7 + Redis
 
 Backend: Python 3.12 + Flask (application factory, Controller / Service / Entity)
 
@@ -47,35 +51,80 @@ The backend has been migrated from Spring Boot to Flask. This version supports *
 
 ### Docker
 
-1. Copy `.env.example` to `.env` and set database, Redis and administrator passwords. Use URL-safe alphanumeric database/Redis passwords because they are embedded in connection URLs.
+1. Copy `.env.example` to `.env` and set database, Redis, administrator and both internal AI token values. Use separate PostgreSQL administrator, migration and application passwords. The Redis password must be URL-safe because it enters a connection URL.
 2. Run `docker compose up -d --build` from this directory.
 3. Open `http://localhost:5200`. The API is available at `http://localhost:8384`, with interactive [Swagger UI](http://localhost:8384/docs/) and an [OpenAPI 3.2 document](http://localhost:8384/openapi.json).
 4. Sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env`.
 
-The backend waits for MySQL and Redis, initializes missing tables/settings/admin once, then serves Flask with Gunicorn. Repeated startup preserves existing records and does not reset passwords. MySQL uses the Compose `mysql_data` named volume; media stays in `./upload_data`. This Compose does not mount or reset the old `database/mysql-data` directory. The frontend API calls are unchanged.
+PostgreSQL bootstrap installs pgvector and creates separate schema-owner and application roles. The one-shot `migrate` service runs Alembic and seeds settings/admin before Gunicorn starts. The Web process only checks the schema and cannot execute DDL. Repeated startup preserves records, passwords and settings. PostgreSQL uses `postgres_data`; media remains in `./upload_data`. This is a fresh deployment, with no MySQL data import tool.
+
+The administrator dashboard displays PostgreSQL, pgvector and the schema revision using `/admin/pingDatabase` and `/admin/databaseInfo`.
 
 For access from another machine, set `PUBLIC_BASE_URL` to the externally reachable API URL and update the frontend `VITE_APP_BASE_URL` build setting before rebuilding. `localhost` is only appropriate for local access.
 
-### Development and tests
+### Optional AI runtimes
 
-See [backend setup and architecture](photoly_backend/README.md) and [API compatibility notes](photoly_backend/COMPATIBILITY.md).
+Docker Compose **2.24.4+** is required for the CPU and MPS overrides. Set separate `AI_INFERENCE_TOKEN` and `AI_CONTROL_TOKEN` in the root `.env`, including for configurations where Compose validates inactive AI services. Run commands from the repository root:
+
+| Deployment | Start command | Requirements |
+| --- | --- | --- |
+| Base library + OCR | `docker compose up -d --build` | No model runtime required |
+| NVIDIA CUDA | `docker compose --profile ai up -d --build` | NVIDIA GPU and container runtime |
+| CPU | `docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai up -d --build` | CPU-only inference image |
+| Apple Silicon MPS | `docker compose -f docker-compose.yml -f compose.mps.yml --profile ai-mps up -d --build` | Start the native runtime first, as below |
+
+For MPS, use a native ARM64 macOS 14+ shell with `uv` installed:
 
 ```sh
-cd photoly_backend
-uv sync --python 3.12
-uv run pytest -q --cov=app
+sh photoly_backend/scripts/mps-runtime.sh install
+sh photoly_backend/scripts/mps-runtime.sh check
+sh photoly_backend/scripts/mps-runtime.sh start
 ```
 
-The local suite uses SQLite and fakeredis. Install ExifTool first (`brew install exiftool` on macOS, `apt install libimage-exiftool-perl` on Debian). For real MySQL/Redis and HTTP/Gunicorn acceptance tests, run from the repository root:
+Keep `start` running in its terminal and run the MPS Compose command in another. Docker connects to `host.docker.internal:8090`; the native runtime defaults to `0.0.0.0:8090`, authenticated with the same two tokens. Do not enable the `ai` profile with the MPS override. See [runtime setup and troubleshooting](docs/ai-backend-operations.md).
+
+AI starts disabled. In **AI Management**, configure the device (`cpu/float32`, `cuda/bfloat16`, or `mps/float32`), explicitly load a model, grant user access and activate a search profile. Startup alone does not download weights. SigLIP2 is recommended for 16 GB Macs; Qwen video queries can exceed the 60-second deadline under memory pressure.
+
+### Upgrading an existing PostgreSQL deployment
+
+Back up the database and media together. Use the **same Compose files and profile as your deployment** for every command. For example, for CPU AI:
 
 ```sh
-docker compose -p photoly-test -f compose.test.yml build tests backend smoke
+docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai stop backend ai-scheduler ai-maintenance
+docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai build
+docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai run --rm migrate
+docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai up -d
+```
+
+For base deployments, omit the override/profile and stop only `backend`. For CUDA, omit the CPU override. For MPS, substitute `compose.mps.yml` / `ai-mps`; stop the native runtime, rerun its `install` command after dependency changes, and restart it before the final Compose command. If migration fails, resolve it before starting the new application services.
+
+Alembic `upgrade head` includes video frame vectors (`0003_video_vectors`), OCR (`0004_photo_ocr`) and Smart Tag (`0005_smart_organization`). Existing image vectors are retained. Rebuild the application images to include FFmpeg, Tesseract language data and the offline city index. Never use `down -v` to upgrade a production deployment.
+
+### Development and tests
+
+See [backend setup and architecture](photoly_backend/README.md), [frontend development](photoly_frontend_vue/README.md) and [API compatibility notes](photoly_backend/COMPATIBILITY.md).
+
+Database tests require real PostgreSQL and an Alembic-created schema. Run from the repository root:
+
+```sh
+docker compose -p photoly-test -f compose.test.yml build tests backend migrate smoke ai-runtime ai-scheduler ai-maintenance
 docker compose -p photoly-test -f compose.test.yml run --rm tests
 docker compose -p photoly-test -f compose.test.yml run --rm smoke
 docker compose -p photoly-test -f compose.test.yml down -v --remove-orphans
 ```
 
-Run integration and smoke tests sequentially: integration tests reset the isolated test database, and the final smoke test intentionally stops its disposable backend. These commands never mount production database or upload directories.
+The integration database is `photoly_test`; the HTTP server uses `photoly_http_test`. Both are temporary and isolated from production. The final HTTP test deliberately stops its own Gunicorn server. Only run cleanup with the explicit test project and Compose file above.
 
 ## License
 See [LICENSE](LICENSE).
+
+
+## Search, recognition and smart organization
+
+**Smart Search** is the default search mode: one text box, up to 100 results, with name/tag/gallery matches shown first and semantic results fused when available. Semantic failure preserves text results. See [AI operations](docs/ai-backend-operations.md) for indexing, quotas, model lifecycle and mixed photo/video search.
+
+Scroll down in the viewer to load **Similar photos and videos**. Each item has independent results and scroll state. Returning within 30 seconds of leaving restores it; after that it starts collapsed. Viewing an item continuously does not expire it. **Back to top** collapses recommendations and clears that item's cache.
+
+**Extract Text** runs only when requested. Tesseract recognizes simplified/traditional Chinese, English and Japanese on CPU, independently of AI permissions or the model runtime. Results are saved and can be edited or copied. See [OCR limits and operation](docs/ocr.md).
+
+**Smart Tag** requires global AI, administrator Smart Tag, user AI permission and personal Smart Tag to be enabled. Both Smart Tag switches default off. It runs inside the existing scheduler process, with no extra container or model inference. Turning it off retains editable results. See [rules, controls and offline city attribution](docs/smart-tag.md).

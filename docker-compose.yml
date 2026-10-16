@@ -1,3 +1,16 @@
+x-app-environment: &app-environment
+  POSTGRES_HOST: db_postgres
+  POSTGRES_DB: photoly
+  POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?Set POSTGRES_APP_PASSWORD in .env}
+  REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@db_redis:6379/14
+  UPLOAD_FOLDER: /photoly
+  PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8384}
+  TIMEZONE: ${TIMEZONE:-America/New_York}
+  MAX_CONTENT_LENGTH: ${MAX_CONTENT_LENGTH:-629145600}
+  ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@a.com}
+  AI_RUNTIME_URL: http://ai-runtime:8090
+  AI_INFERENCE_TOKEN: ${AI_INFERENCE_TOKEN:-}
+
 services:
   web:
     depends_on:
@@ -11,34 +24,47 @@ services:
       context: ./photoly_backend
       target: production
     depends_on:
-      db_mysql:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       db_redis:
         condition: service_healthy
     ports:
       - "8384:8084"
+    environment: *app-environment
+    volumes:
+      - ./upload_data:/photoly
+  migrate:
+    build:
+      context: ./photoly_backend
+      target: production
+    entrypoint: ["/app/migrate.sh"]
+    healthcheck:
+      disable: true
+    depends_on:
+      db_postgres:
+        condition: service_healthy
+      db_redis:
+        condition: service_healthy
     environment:
-      DATABASE_URL: mysql+pymysql://photoly:${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}@db_mysql:3306/photoly?charset=utf8mb4
-      REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@db_redis:6379/14
-      UPLOAD_FOLDER: /photoly
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8384}
-      TIMEZONE: ${TIMEZONE:-America/New_York}
-      MAX_CONTENT_LENGTH: ${MAX_CONTENT_LENGTH:-629145600}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@a.com}
+      <<: *app-environment
+      POSTGRES_MIGRATION_PASSWORD: ${POSTGRES_MIGRATION_PASSWORD:?Set POSTGRES_MIGRATION_PASSWORD in .env}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
     volumes:
       - ./upload_data:/photoly
-  db_mysql:
-    image: mysql:8.3.0
+    restart: "no"
+  db_postgres:
+    image: pgvector/pgvector:0.8.7-pg17-bookworm@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
-      MYSQL_DATABASE: photoly
-      MYSQL_USER: photoly
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      POSTGRES_USER: postgres
+      POSTGRES_DB: photoly
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_ADMIN_PASSWORD in .env}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?Set POSTGRES_APP_PASSWORD in .env}
+      POSTGRES_MIGRATION_PASSWORD: ${POSTGRES_MIGRATION_PASSWORD:?Set POSTGRES_MIGRATION_PASSWORD in .env}
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql -h 127.0.0.1 -u photoly photoly -e 'SELECT 1'"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d photoly"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -54,5 +80,61 @@ services:
       timeout: 5s
       retries: 20
     restart: unless-stopped
+  ai-runtime:
+    profiles: [ai]
+    image: photoly-ai-runtime:phase2
+    build:
+      context: ./photoly_backend
+      target: inference
+    environment:
+      AI_INFERENCE_TOKEN: ${AI_INFERENCE_TOKEN:?Set AI_INFERENCE_TOKEN}
+      AI_CONTROL_TOKEN: ${AI_CONTROL_TOKEN:?Set AI_CONTROL_TOKEN}
+    volumes:
+      - ai_models:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+  ai-scheduler:
+    profiles: [ai]
+    build:
+      context: ./photoly_backend
+      target: production
+    user: "10001:10001"
+    entrypoint: ["sh", "-c", "flask --app app:create_app wait-ready && flask --app app:create_app check-schema && exec python -m app.scheduler.photo_embedding_scheduler"]
+    environment:
+      <<: *app-environment
+      AI_CONTROL_TOKEN: ${AI_CONTROL_TOKEN:?Set AI_CONTROL_TOKEN}
+    volumes:
+      - ./upload_data:/photoly:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      ai-runtime:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+  ai-maintenance:
+    profiles: [ai]
+    build:
+      context: ./photoly_backend
+      target: production
+    user: "10001:10001"
+    entrypoint: ["sh", "-c", "flask --app app:create_app wait-ready && flask --app app:create_app check-schema && exec python -m app.scheduler.maintenance"]
+    environment:
+      <<: *app-environment
+      POSTGRES_MIGRATION_PASSWORD: ${POSTGRES_MIGRATION_PASSWORD:?Set POSTGRES_MIGRATION_PASSWORD}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      disable: true
+    restart: unless-stopped
 volumes:
-  mysql_data:
+  ai_models:
+  postgres_data:

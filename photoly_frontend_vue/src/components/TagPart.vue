@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SmartBadge from '@/components/SmartBadge.vue'
+import type { SmartSource } from '@/lib/smartOrganization'
 import { onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { Pencil, Trash2 } from '@lucide/vue'
@@ -33,6 +35,7 @@ import { call } from '@/lib/http'
 import { cn } from '@/lib/utils'
 
 interface Tag {
+  smart?: SmartSource | null
   tagId: number
   tagName: string
 }
@@ -47,7 +50,8 @@ const deleting = ref<Tag | null>(null)
 
 const fail = (message: string) => () => toast.error(message)
 
-const loadTags = async () => (tags.value = await call<Tag[]>({ url: '/tag/getAll' }))
+const loadTags = async () =>
+  (tags.value = await call<Tag[]>({ url: '/tag/getAll', params: { includeSmart: true } }))
 
 async function queryPhotos() {
   if (!selectedTagIds.value.length) return mediaList.value?.updatePhotoList([])
@@ -172,11 +176,12 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
                     selectedTagIds.includes(tag.tagId)
                       ? 'bg-primary text-primary-foreground border-transparent'
                       : 'hover:bg-accent',
+                    tag.smart && 'border-violet-500',
                   )
                 "
                 @click="selectTag(tag)"
               >
-                {{ tag.tagName }}
+                {{ tag.tagName }} <SmartBadge :smart="tag.smart" />
               </button>
             </ContextMenuTrigger>
             <ContextMenuContent>

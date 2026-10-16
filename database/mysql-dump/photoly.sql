@@ -1,4 +1,4 @@
--- Photoly Flask fresh-deployment schema. Authoritative bootstrap: flask --app app:create_app init-db.
+-- Historical MySQL schema reference only. PostgreSQL bootstrap now uses Alembic migrations.
 -- No DROP statements, passwords, or legacy encrypted administrator seed.
 SET NAMES utf8mb4;
 

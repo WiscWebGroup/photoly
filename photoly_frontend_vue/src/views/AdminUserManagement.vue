@@ -38,6 +38,8 @@ import {
 } from '@/components/ui/table'
 import { assertAdmin, useAdminGuard } from '@/composables/useAdminGuard'
 import { ApiError, call, http, type Envelope } from '@/lib/http'
+import { aiCall, aiMessage } from '@/lib/ai'
+import { Switch } from '@/components/ui/switch'
 
 interface User {
   userId: number
@@ -51,6 +53,27 @@ interface User {
 const { guarded } = useAdminGuard()
 
 const users = ref<User[]>([])
+const aiStates = ref<Record<number, boolean>>({})
+const aiSaving = ref<Record<number, boolean>>({})
+const aiError = ref('')
+let loadSequence = 0
+async function changeAi(userId: number, enabled: boolean) {
+  if (aiSaving.value[userId]) return
+  aiSaving.value[userId] = true
+  aiError.value = ''
+  try {
+    const result = await aiCall<{ userId: number; enabled: boolean }>({
+      method: 'patch',
+      url: `/admin/users/${userId}/ai`,
+      data: { enabled },
+    })
+    aiStates.value[userId] = result.enabled
+  } catch (e) {
+    aiError.value = aiMessage(e)
+  } finally {
+    aiSaving.value[userId] = false
+  }
+}
 const page = ref(1)
 const pageSize = ref(10)
 const pageCount = ref(1)
@@ -63,6 +86,7 @@ const newPassword = ref('')
 const deleteUser = ref<User | null>(null)
 
 async function load() {
+  const sequence = ++loadSequence
   const search = activeSearch.value
   const { data } = await http.get<Envelope<User[]> & { pageNum: number }>(
     search === null ? '/admin/getUserPage' : '/admin/searchUserPage',
@@ -75,8 +99,23 @@ async function load() {
     },
   )
   if (data.msgCode !== 200) throw new ApiError(data.msgCode)
+  if (sequence !== loadSequence) return
   users.value = data.t
   pageCount.value = data.pageNum
+  aiStates.value = {}
+  aiError.value = ''
+  try {
+    if (data.t.length) {
+      const states = await aiCall<{ userId: number; enabled: boolean }[]>({
+        url: '/admin/ai/users',
+        params: { ids: data.t.map((u) => u.userId).join(',') },
+      })
+      if (sequence === loadSequence)
+        aiStates.value = Object.fromEntries(states.map((u) => [u.userId, u.enabled]))
+    }
+  } catch (e) {
+    if (sequence === loadSequence) aiError.value = aiMessage(e)
+  }
 }
 
 const reload = () => load().catch(() => toast.error('Get User Information Error!'))
@@ -159,6 +198,14 @@ onMounted(() =>
           <Button variant="outline" @click="search(null)">Back to Indexing</Button>
         </div>
 
+        <p class="text-sm text-muted-foreground">
+          Enabling AI indexes existing photos in the background. Disabling stops search and new
+          computation; stored vectors are retained. New-user defaults are in
+          <router-link class="underline" to="/thepersonincharge/ai">AI Management</router-link>.
+        </p>
+        <p v-if="aiError" role="alert" class="text-sm text-destructive">
+          {{ aiError }} <Button variant="outline" size="sm" @click="reload">Retry</Button>
+        </p>
         <Table>
           <TableHeader>
             <TableRow>
@@ -167,6 +214,7 @@ onMounted(() =>
               <TableHead>Email</TableHead>
               <TableHead>Create Date</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>AI Search</TableHead>
               <TableHead>UUID</TableHead>
               <TableHead>Password</TableHead>
               <TableHead>Delete</TableHead>
@@ -191,6 +239,16 @@ onMounted(() =>
                   </SelectContent>
                 </Select>
               </TableCell>
+              <TableCell
+                ><Switch
+                  :aria-label="`AI search for user ${u.userId}`"
+                  :model-value="aiStates[u.userId] ?? false"
+                  :disabled="aiStates[u.userId] === undefined || aiSaving[u.userId]"
+                  @update:model-value="(enabled) => changeAi(u.userId, enabled)"
+                /><span v-if="aiStates[u.userId] === undefined" class="text-xs"
+                  >Unknown</span
+                ></TableCell
+              >
               <TableCell>{{ u.uuid }}</TableCell>
               <TableCell
                 ><Button variant="secondary" size="sm" @click="passwordUser = u"

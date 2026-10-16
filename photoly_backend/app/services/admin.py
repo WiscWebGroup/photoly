@@ -1,5 +1,5 @@
 from urllib.parse import urlsplit
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, text
 from sqlalchemy.engine import make_url
 from werkzeug.security import generate_password_hash
 from app.entities import User, Setting
@@ -8,9 +8,21 @@ from app.services.user import UserService
 
 
 class AdminService(BaseService):
-    def ping_mysql(self, user_id):
+    def ping_database(self, user_id):
         self.require_admin(user_id)
-        return 1 if self.setting("ping") == "pong" else -1
+        return self.session.scalar(text("SELECT 1"))
+
+    def ping_mysql(self, user_id):
+        """Legacy route alias; the active database is PostgreSQL."""
+        return self.ping_database(user_id)
+
+    def database_info(self, user_id):
+        self.require_admin(user_id)
+        url = make_url(self.infra.config["SQLALCHEMY_DATABASE_URI"])
+        return {"type": "postgresql", "version": self.session.scalar(text("SHOW server_version")),
+                "address": f"{url.host}:{url.port or 5432}",
+                "pgvectorVersion": self.session.scalar(text("SELECT extversion FROM pg_extension WHERE extname='vector'")),
+                "schemaRevision": self.session.scalar(text("SELECT version_num FROM alembic_version"))}
 
     def ping_redis(self, user_id):
         self.require_admin(user_id)
@@ -18,10 +30,10 @@ class AdminService(BaseService):
 
     def addresses(self, user_id):
         self.require_admin(user_id)
-        mysql = make_url(self.infra.config["SQLALCHEMY_DATABASE_URI"])
+        database = make_url(self.infra.config["SQLALCHEMY_DATABASE_URI"])
         redis = urlsplit(self.infra.config["REDIS_URL"])
-        return {"mysql": f"{mysql.host}:{mysql.port or 3306}", "redis": f"{redis.hostname}:{redis.port or 6379}",
-                "upload": str(self.storage.root), "config": "MySQL: <setting> table"}
+        return {"mysql": f"{database.host}:{database.port or 5432}", "redis": f"{redis.hostname}:{redis.port or 6379}",
+                "upload": str(self.storage.root), "config": "PostgreSQL: <setting> table"}
 
     def settings(self, user_id):
         self.require_admin(user_id)

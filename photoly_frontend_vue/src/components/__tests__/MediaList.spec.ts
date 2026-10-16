@@ -94,7 +94,15 @@ describe('MediaList', () => {
       expect.objectContaining({ path: '/namespace/trace', query: { nsId: '5' } }),
     )
     for (const path of ['/photo/getTagByPhoto', '/photo/getGalleryByPhoto', '/photo/getPhotoExif'])
-      expect(calls).toContainEqual(expect.objectContaining({ path, query: { photoId: '10' } }))
+      expect(calls).toContainEqual(
+        expect.objectContaining({
+          path,
+          query: {
+            photoId: '10',
+            ...(/get(Tag|Gallery)ByPhoto$/.test(path) ? { includeSmart: 'true' } : {}),
+          },
+        }),
+      )
 
     byText('Tags').click()
     await vi.waitFor(() => expect(pageText()).toContain('Sunset'))

@@ -5,7 +5,7 @@ import skipFormatting from '@vue/eslint-config-prettier/skip-formatting'
 
 export default defineConfigWithVueTs(
   { name: 'app/files-to-lint', files: ['**/*.{ts,mts,vue}'] },
-  globalIgnores(['**/dist/**', '**/coverage/**', 'playwright-report/**', 'test-results/**']),
+  globalIgnores(['**/dist/**', '**/coverage/**', 'playwright-report/**', 'test-results/**', 'test-results-real/**']),
   // Vendored Leaflet plugin, plus legacy Options-API files not yet migrated.
   // Phase 3: delete each entry as its file moves to <script setup lang="ts">.
   globalIgnores([
@@ -15,12 +15,7 @@ export default defineConfigWithVueTs(
     'src/components/HomePartTest.vue',
     'src/components/ManagePart.vue',
     'src/components/MapPart.vue',
-    'src/components/MediaList.vue',
-    'src/components/MoveToShowFolder.vue',
-    'src/components/SearchPart.vue',
     'src/components/TagPart.vue',
-    'src/views/AdminDashboard.vue',
-    'src/views/AdminUserManagement.vue',
     'src/views/Login.vue',
     'src/views/Signup.vue',
     'src/views/Template.vue',

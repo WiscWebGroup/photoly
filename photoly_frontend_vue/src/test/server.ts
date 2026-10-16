@@ -1,17 +1,42 @@
 import { http, HttpResponse, type JsonBodyType } from 'msw'
 import { setupServer } from 'msw/node'
+import { capabilitiesFixture } from './aiFixtures'
 
 export const API = import.meta.env.VITE_APP_BASE_URL
 
 // The API is cross-origin to jsdom's page, so jsdom enforces CORS (incl. preflight).
 const cors = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'HRD-Token, Content-Type',
-  'Access-Control-Allow-Methods': 'GET, POST',
+  'Access-Control-Allow-Headers': 'HRD-Token, Content-Type, Idempotency-Key',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH',
 }
 export const json = (body: JsonBodyType) => HttpResponse.json(body, { headers: cors })
 
 export const server = setupServer(
+  http.get(`${API}/ai/smart/settings`, () =>
+    json({ msgCode: 200, t: { enabled: false, available: false, reason: 'smart_tag_disabled' } }),
+  ),
+  http.get(`${API}/ai/smart/status`, () =>
+    json({
+      msgCode: 200,
+      t: { processed: 0, total: 0, failed: 0, reason: 'smart_tag_disabled', pending: false },
+    }),
+  ),
+  http.get(`${API}/ai/smart/dismissed`, () =>
+    json({ msgCode: 200, t: { items: [], nextAfter: null } }),
+  ),
+  http.get(`${API}/ai/capabilities`, () =>
+    json({
+      msgCode: 200,
+      t: {
+        ...capabilitiesFixture,
+        enabled: false,
+        globalEnabled: false,
+        ready: false,
+        reason: 'disabled',
+      },
+    }),
+  ),
   http.options('*', () => new HttpResponse(null, { status: 204, headers: cors })),
 )
 

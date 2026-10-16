@@ -93,7 +93,13 @@ test('reduce to a file size and overwrite after confirming', async ({ page }) =>
   const calls = await openEditor(page)
   await page.getByLabel('Limit file size').click()
   await page.getByLabel('Maximum file size').fill('20')
-  await expect(page.getByText(/Result: \d+\.\d KB \(400 × 300 px, quality \d+%\)/)).toBeVisible()
+  // JPEG encoders differ: WebKit may also reduce dimensions to meet the byte limit.
+  const result = page.getByText(/Result: \d+\.\d KB \(\d+ × \d+ px, quality \d+%\)/)
+  await expect(result).toBeVisible()
+  const match = (await result.textContent())!.match(/Result: ([\d.]+) KB \((\d+) × (\d+) px/)!
+  expect(Number(match[1])).toBeLessThanOrEqual(20)
+  expect(Number(match[2])).toBeLessThanOrEqual(400)
+  expect(Number(match[3])).toBeLessThanOrEqual(300)
   await expect(page.getByText('saved as JPEG')).toBeVisible()
 
   await page.getByRole('button', { name: 'Overwrite original' }).click()

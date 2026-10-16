@@ -1,0 +1,2 @@
+*.sh text eol=lf
+photoly_backend/app/docs/static/vendor/* text eol=lf

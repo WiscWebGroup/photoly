@@ -45,14 +45,14 @@ class MetadataReader:
             result["Shutter_Speed_Value"] = f"{Fraction(float(shutter)).limit_denominator(100000)} sec"
         if "ISO" in data:
             result["ISO_Speed_Ratings"] = str(data["ISO"])
-        stamp = data.get("ModifyDate", data.get("DateTimeOriginal", data.get("CreateDate")))
+        stamp = data.get("DateTimeOriginal", data.get("CreationDate", data.get("CreateDate")))
         if stamp:
             result["Time"] = str(stamp)
         result["File_Size"] = f"{path.stat().st_size / 1024 / 1024:.2f} MB"
         return result
 
     def extra(self, photo_id, data):
-        stamp = data.get("ModifyDate", data.get("DateTimeOriginal", data.get("CreateDate")))
+        stamp = data.get("DateTimeOriginal", data.get("CreationDate", data.get("CreateDate")))
         taken = None
         if stamp:
             try:

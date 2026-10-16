@@ -8,12 +8,23 @@ const KEY = 'HRD-Token'
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem(KEY))
   const isLoggedIn = computed(() => token.value !== null)
-  const avatarUrl = computed(() => `${import.meta.env.VITE_APP_BASE_URL}/user/getAvatar/${token.value}`)
+  const avatarVersion = ref(0)
+  const refreshAvatar = () => {
+    avatarVersion.value++
+  }
+  const avatarUrl = computed(
+    () =>
+      `${import.meta.env.VITE_APP_BASE_URL}/user/getAvatar/${token.value}${avatarVersion.value ? `?v=${avatarVersion.value}` : ''}`,
+  )
 
   /** Re-reads storage, picking up a token changed elsewhere (e.g. another tab). */
   function refresh() {
     token.value = localStorage.getItem(KEY)
   }
+
+  window.addEventListener('storage', (event) => {
+    if (event.key === KEY || event.key === null) refresh()
+  })
 
   function setToken(value: string) {
     localStorage.setItem(KEY, value)
@@ -34,5 +45,5 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { token, isLoggedIn, avatarUrl, refresh, setToken, clear, signOut }
+  return { token, isLoggedIn, avatarUrl, refreshAvatar, refresh, setToken, clear, signOut }
 })

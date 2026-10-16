@@ -9,8 +9,11 @@ import pytest
 import zxingcpp
 from PIL import Image
 from werkzeug.datastructures import MultiDict
-from sqlalchemy.dialects import mysql
+from sqlalchemy.dialects import postgresql
+from sqlalchemy import inspect
 from app.extensions import db
+from app.docs.definitions.ai import OPERATIONS as AI_OPERATIONS
+ADDITIONAL_TABLES = {"smart_preference", "smart_media", "smart_item", "smart_member", "smart_lineage", "photo_ocr", "video_frame_embedding", "embedding_profile", "photo_embedding_state", "ai_job", "ai_control_state"}
 from tests.contract_cases import CASES
 from tests.openapi_assertions import assert_documented_response
 
@@ -53,29 +56,38 @@ def request_options(options, jpeg):
 
 
 # Documented additions to the frozen Spring inventory (see COMPATIBILITY.md).
-EXTENSIONS = {("POST", "/photo/replace")}
+EXTENSIONS = {("GET", "/photo/ocr"), ("PUT", "/photo/ocr"), ("POST", "/photo/ocr/recognize"), ("GET", "/photo/searchSmart"), ("POST", "/photo/replace"), ("GET", "/admin/pingDatabase"), ("GET", "/admin/databaseInfo")}
 
 
 def test_route_inventory_is_exact(app):
     source = json.loads((CONTRACTS / "spring_routes.json").read_text())
     expected = {(row["method"], row["path"]) for row in source["routes"]}
-    actual = {(method, re.sub(r"<(\w+)>", r"{\1}", rule.rule)) for rule in app.url_map.iter_rules()
-              for method in rule.methods if method in ("GET", "POST") and rule.rule != "/healthz"
+    actual = {(method, re.sub(r"<(?:int:)?(\w+)>", r"{\1}", rule.rule)) for rule in app.url_map.iter_rules()
+              for method in rule.methods if method in ("GET", "POST", "PATCH", "PUT") and rule.rule != "/healthz"
               and not rule.endpoint.startswith("docs.")}
     assert len(expected) == len(CASES) == 90
-    assert actual == expected | EXTENSIONS
+    assert actual == expected | EXTENSIONS | {(method.upper(),path) for path,method,_ in AI_OPERATIONS}
     assert {(method, normalized(path)) for method, path, _, _ in CASES} == expected
 
 
-def test_table_columns_types_and_primary_keys_match_spring_sql(app):
-    source = json.loads((CONTRACTS / "spring_schema.json").read_text())
-    assert set(db.metadata.tables) == set(source)
+def test_table_columns_types_and_primary_keys_match_postgresql_schema(app):
+    source = json.loads((CONTRACTS / "postgresql_schema.json").read_text())
+    assert set(db.metadata.tables) == set(source) | ADDITIONAL_TABLES
     for name, expected in source.items():
         table = db.metadata.tables[name]
-        actual = {column.name: {"type": column.type.compile(dialect=mysql.dialect()), "nullable": column.nullable}
+        actual = {column.name: {"type": column.type.compile(dialect=postgresql.dialect()), "nullable": column.nullable}
                   for column in table.columns}
         assert actual == expected["columns"], name
         assert [column.name for column in table.primary_key] == expected["primary_key"]
+    with app.app_context():
+        inspector = inspect(db.engine)
+        assert set(inspector.get_table_names()) == set(source) | ADDITIONAL_TABLES | {"alembic_version"}
+        for name, expected in source.items():
+            actual = {c["name"]: {"type": c["type"].compile(dialect=postgresql.dialect()),
+                                   "nullable": c["nullable"]} for c in inspector.get_columns(name)}
+            assert actual == expected["columns"], name
+            assert inspector.get_pk_constraint(name)["constrained_columns"] == expected["primary_key"]
+
 
 
 @pytest.mark.parametrize("method,path,options,expected", CASES, ids=[f"{r[0]} {r[1]}" for r in CASES])

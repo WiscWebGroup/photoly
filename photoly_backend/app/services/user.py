@@ -19,6 +19,8 @@ class UserService(BaseService):
             raise BusinessError(-1)
         user = User(email=email, password=generate_password_hash(password), user_name=data.get("userName"),
                     role=role, uuid=str(uuid4()), create_date=self.now())
+        from app.ai.state import settings
+        user.ai_search_enabled = settings(self.session)["new_user_default"]
         self.session.add(user)
         self.session.flush()
         self.session.add(Namespace(ns_name="/", ns_parent_id=-1, user_id=user.user_id))
@@ -87,9 +89,11 @@ class UserService(BaseService):
     def update_avatar(self, user_id, upload):
         if upload is None:
             raise BusinessError(-1)
+        from app.services.avatar import avatar_jpeg
+        image = avatar_jpeg(upload.stream)
         with self.atomic(user_id) as files:
             user = self.info(user_id)
-            files.install(upload.stream, self.storage.path(user.uuid, user.uuid + ".jpg"))
+            files.install(image, self.storage.path(user.uuid, user.uuid + ".jpg"))
         return 1
 
     def avatar(self, user_id):

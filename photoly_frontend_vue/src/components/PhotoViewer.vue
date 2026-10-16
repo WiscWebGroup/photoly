@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import SmartBadge from '@/components/SmartBadge.vue'
+import type { SmartSource } from '@/lib/smartOrganization'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
-import { X } from '@lucide/vue'
+import { ArrowUp, X } from '@lucide/vue'
 import ImageEditor from '@/components/ImageEditor.vue'
+import PhotoText from '@/components/PhotoText.vue'
 import LocationMap from '@/components/LocationMap.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -25,26 +28,155 @@ import { call } from '@/lib/http'
 import { mediaKind } from '@/lib/media'
 import { photoUrl } from '@/lib/photoUrl'
 import { useAuthStore } from '@/stores/auth'
+import SimilarRecommendations, {
+  type RecommendationSnapshot,
+} from '@/components/ai/SimilarRecommendations.vue'
 
-const props = defineProps<{ photo: Photo | null; nsPath: string }>()
-const emit = defineEmits<{ close: []; changed: [] }>()
+const props = withDefaults(
+  defineProps<{ photo: Photo | null; nsPath: string; allowSimilar?: boolean }>(),
+  { allowSimilar: true },
+)
+const emit = defineEmits<{ close: []; changed: [change?: { type: string; photo: Photo }] }>()
 
 interface Tag {
+  smart?: SmartSource | null
   tagId: number
   tagName: string
 }
 interface Gallery {
+  smart?: SmartSource | null
   gaId: number
   gaName: string
 }
 
 const auth = useAuthStore()
+const selected = ref<Photo | null>(null)
+const acceptedPhoto = ref<Photo | null>(props.photo)
+const photoText = ref<InstanceType<typeof PhotoText>>()
+const currentPhoto = computed(() =>
+  acceptedPhoto.value ? (selected.value ?? acceptedPhoto.value) : null,
+)
+async function leaveText() {
+  return (await photoText.value?.requestLeave()) ?? true
+}
+async function closeViewer() {
+  if (await leaveText()) {
+    acceptedPhoto.value = null
+    emit('close')
+  }
+}
+async function editImage() {
+  if (await leaveText()) editing.value = true
+}
+const viewerBody = ref<HTMLElement>()
+const scrollRoot = computed(() => viewerBody.value ?? null)
+const recommendations = ref<InstanceType<typeof SimilarRecommendations>>()
+const restoredRecommendations = ref<RecommendationSnapshot>()
+const currentPath = ref(props.nsPath)
+const history = ref<{ photo: Photo; path: string }[]>([])
+const RECOMMENDATION_RETENTION_MS = 30_000
+const recommendationCache = new Map<
+  number,
+  {
+    recommendations: RecommendationSnapshot
+    scroll: number
+    leftAt: number
+    timer: ReturnType<typeof setTimeout>
+  }
+>()
+let recommendationSession = 0
+function forgetRecommendations(photoId: number) {
+  const cached = recommendationCache.get(photoId)
+  if (cached) clearTimeout(cached.timer)
+  recommendationCache.delete(photoId)
+}
+function invalidateHistory() {
+  for (const photoId of recommendationCache.keys()) forgetRecommendations(photoId)
+  restoredRecommendations.value = undefined
+  restoreScroll = null
+}
+function rememberRecommendations(photoId: number) {
+  forgetRecommendations(photoId)
+  const snapshot = recommendations.value?.capture()
+  if (!snapshot?.result || snapshot.expiresAt <= Date.now()) return
+  recommendationCache.set(photoId, {
+    recommendations: snapshot,
+    scroll: scrollRoot.value?.scrollTop ?? 0,
+    leftAt: Date.now(),
+    timer: setTimeout(() => forgetRecommendations(photoId), RECOMMENDATION_RETENTION_MS),
+  })
+}
+function resumeRecommendations(photoId: number) {
+  const cached = recommendationCache.get(photoId)
+  forgetRecommendations(photoId)
+  const valid =
+    cached &&
+    Date.now() - cached.leftAt < RECOMMENDATION_RETENTION_MS &&
+    cached.recommendations.expiresAt > Date.now()
+  restoredRecommendations.value = valid ? cached.recommendations : undefined
+  restoreScroll = valid ? cached.scroll : null
+}
+function backToTop() {
+  if (info.value) forgetRecommendations(info.value.photoId)
+  restoredRecommendations.value = undefined
+  restoreScroll = null
+  recommendations.value?.collapse()
+  scrollRoot.value?.focus({ preventScroll: true })
+  scrollRoot.value?.scrollTo({ top: 0, behavior: 'instant' })
+}
+onBeforeUnmount(invalidateHistory)
+let metadataSequence = 0
+let restoreScroll: number | null = null
+let metadataLoaded = false
+let photoChange = 0
+watch(
+  () => props.photo,
+  async (photo) => {
+    const seq = ++photoChange
+    if (!(await leaveText()) || seq !== photoChange) return
+    acceptedPhoto.value = photo
+    selected.value = null
+    history.value = []
+    restoredRecommendations.value = undefined
+  },
+)
+watch(
+  () => props.nsPath,
+  (path) => {
+    if (!selected.value) currentPath.value = path
+  },
+)
+watch(
+  () => auth.token,
+  () => {
+    photoChange++
+    photoText.value?.reset()
+    acceptedPhoto.value = null
+    recommendations.value?.collapse()
+    invalidateHistory()
+    history.value = []
+    selected.value = null
+    emit('close')
+  },
+)
+async function navigate(photo: Photo) {
+  if (!info.value || photo.photoId === info.value.photoId || !(await leaveText())) return
+  history.value.push({ photo: { ...info.value }, path: currentPath.value })
+  selected.value = { ...photo }
+}
+async function previous() {
+  if (!(await leaveText())) return
+  const item = history.value.pop()
+  if (!item) return
+  selected.value = { ...item.photo }
+  currentPath.value = item.path
+}
 
 /** A copy, so renames and visibility changes show here without mutating the parent's list. */
 const info = ref<Photo>()
 const exif = ref<Record<string, string | undefined>>({})
-const tags = ref<{ tag_id: number; tag_name: string }[]>([])
-const galleries = ref<{ ga_id: number; ga_name: string }[]>([])
+const tags = ref<{ tag_id: number; tag_name: string; smart?: SmartSource | null }[]>([])
+const galleries = ref<{ ga_id: number; ga_name: string; smart?: SmartSource | null }[]>([])
 const tagOptions = ref<Tag[]>([])
 const galleryOptions = ref<Gallery[]>([])
 const tagChoice = ref('')
@@ -69,49 +201,106 @@ const qrUrl = computed(
 
 const quiet = (message: string) => () => void toast.error(message)
 
+function currentCall<T>(url: string, apply: (value: T) => void) {
+  const seq = metadataSequence
+  return call<T>({
+    url,
+    params: {
+      photoId: info.value?.photoId,
+      ...(/get(Tag|Gallery)ByPhoto$/.test(url) ? { includeSmart: true } : {}),
+    },
+  }).then((value) => {
+    if (seq === metadataSequence) apply(value)
+  })
+}
 const loadTags = () =>
-  call<typeof tags.value>({ url: '/photo/getTagByPhoto', params: params.value }).then(
-    (t) => (tags.value = t),
-  )
+  currentCall<typeof tags.value>('/photo/getTagByPhoto', (value) => {
+    tags.value = value
+  })
 const loadGalleries = () =>
-  call<typeof galleries.value>({ url: '/photo/getGalleryByPhoto', params: params.value }).then(
-    (g) => (galleries.value = g),
-  )
+  currentCall<typeof galleries.value>('/photo/getGalleryByPhoto', (value) => {
+    galleries.value = value
+  })
 
 const loadTagOptions = () =>
-  call<Tag[]>({ url: '/tag/getAll' }).then(
+  call<Tag[]>({ url: '/tag/getAll', params: { includeSmart: true } }).then(
     (t) => (tagOptions.value = t),
     quiet('get tags Response Error!'),
   )
 const loadGalleryOptions = () =>
-  call<Gallery[]>({ url: '/gallery/getAll' }).then(
+  call<Gallery[]>({ url: '/gallery/getAll', params: { includeSmart: true } }).then(
     (g) => (galleryOptions.value = g),
     quiet('get galleries Response Error!'),
   )
 
 const loadExif = () =>
-  call<typeof exif.value>({ url: '/photo/getPhotoExif', params: params.value }).then(
-    (e) => (exif.value = e),
-    () => toast.warning('Exif Info Response Error!'),
-  )
+  currentCall<typeof exif.value>('/photo/getPhotoExif', (value) => {
+    exif.value = value
+  }).catch(quiet('Exif Info Response Error!'))
 
 watch(
-  () => props.photo,
-  (photo) => {
+  () => currentPhoto.value,
+  (photo, previousPhoto) => {
+    if (previousPhoto) rememberRecommendations(previousPhoto.photoId)
+    recommendations.value?.collapse()
+    restoredRecommendations.value = undefined
+    restoreScroll = null
+    recommendationSession++
+    metadataLoaded = false
+    const seq = ++metadataSequence
     if (!photo) return
+    resumeRecommendations(photo.photoId)
+    void nextTick(() => {
+      if (seq === metadataSequence)
+        scrollRoot.value?.scrollTo({ top: restoreScroll ?? 0, behavior: 'instant' })
+    })
     info.value = { ...photo }
     newName.value = photo.photoName
     loaded.value = false
     editing.value = false
     version.value = 0
     exif.value = {}
+    tags.value = []
+    galleries.value = []
+    currentPath.value = selected.value ? 'Loading…' : props.nsPath
+    if (selected.value)
+      void call<{ nsName: string }[]>({ url: '/namespace/trace', params: { nsId: photo.nsId } })
+        .then((path) => {
+          if (seq === metadataSequence)
+            currentPath.value =
+              '/root' +
+              path
+                .slice(1)
+                .map((n) => `/${n.nsName}`)
+                .join('')
+        })
+        .catch(() => {
+          if (seq === metadataSequence) currentPath.value = 'Unavailable'
+        })
     tagChoice.value = galleryChoice.value = ''
-    loadTags().catch(quiet('get tags Response Error!'))
-    loadGalleries().catch(quiet('get galleries Response Error!'))
-    loadExif()
+    void Promise.allSettled([loadTags(), loadGalleries(), loadExif()]).then(() => {
+      if (seq === metadataSequence) {
+        metadataLoaded = true
+        void restorePosition()
+      }
+    })
   },
   { immediate: true },
 )
+
+async function restorePosition() {
+  if (restoreScroll === null || !metadataLoaded || !loaded.value) return
+  const seq = metadataSequence
+  await nextTick()
+  if (seq !== metadataSequence || restoreScroll === null) return
+  const top = restoreScroll
+  restoreScroll = null
+  scrollRoot.value?.scrollTo({ top, behavior: 'instant' })
+}
+function imageLoaded() {
+  loaded.value = true
+  void restorePosition()
+}
 
 function edited(mode: 'new' | 'overwrite', format: string) {
   editing.value = false
@@ -119,11 +308,14 @@ function edited(mode: 'new' | 'overwrite', format: string) {
     // The file (and maybe its format) changed under the same ID: refetch the picture and EXIF.
     info.value!.format = format
     version.value++
+    invalidateHistory()
+    restoredRecommendations.value = undefined
+    recommendations.value?.invalidate()
     loaded.value = false
     exif.value = {}
     loadExif()
   }
-  emit('changed')
+  emit('changed', { type: 'content', photo: info.value! })
 }
 
 async function run(
@@ -202,7 +394,10 @@ function changeName() {
     }),
     'Photo name changed!',
     'change name Response Error!',
-    () => ((info.value!.photoName = newName.value), emit('changed')),
+    () => (
+      (info.value!.photoName = newName.value),
+      emit('changed', { type: 'metadata', photo: info.value! })
+    ),
   )
 }
 
@@ -228,207 +423,249 @@ const body = 'space-y-2 border-t p-3 text-sm'
 </script>
 
 <template>
-  <Dialog :open="!!photo" @update:open="emit('close')">
-    <DialogContent v-if="info" class="max-h-[95dvh] w-full overflow-y-auto sm:max-w-6xl">
+  <Dialog :open="!!acceptedPhoto" @update:open="closeViewer">
+    <DialogContent
+      v-if="currentPhoto && info"
+      class="max-h-[95dvh] w-full overflow-hidden p-0 sm:max-w-6xl"
+    >
       <DialogTitle class="sr-only">{{ info.photoName }}.{{ info.format }}</DialogTitle>
-      <DialogDescription class="sr-only">Photo details</DialogDescription>
-      <ImageEditor v-if="editing" :photo="info" @cancel="editing = false" @saved="edited" />
-      <div v-else class="grid gap-4 md:grid-cols-[1fr_22rem]">
-        <div class="flex min-h-64 items-start justify-center">
-          <template v-if="kind === 'photo'">
-            <Skeleton v-show="!loaded" class="h-[60vh] w-full" />
-            <img
-              v-show="loaded"
-              :src="imageUrl"
-              :alt="info.photoName"
-              class="max-h-[85vh] max-w-full cursor-zoom-out rounded-md object-contain"
-              @load="loaded = true"
-              @click="emit('close')"
-            />
-          </template>
-          <video
-            v-else-if="kind === 'video'"
-            :key="info.photoId"
-            controls
-            class="max-h-[85vh] w-full rounded-md"
-          >
-            <source :src="photoUrl(info.photoId, 'renderV')" :type="`video/${info.format}`" />
-          </video>
-        </div>
-
-        <div class="space-y-2">
-          <h2 class="text-xl font-semibold">Metadata</h2>
-
-          <details open :class="section">
-            <summary :class="summary">Common Metadata</summary>
-            <div :class="body">
-              <p class="break-all">Name: {{ info.photoName }}.{{ info.format }}</p>
-              <p>Upload Date: {{ info.uploadDate }}</p>
-              <p v-if="exif.File_Size">Size: {{ exif.File_Size }}</p>
-              <p class="break-all">Path: {{ nsPath }}</p>
-              <p>Shared: {{ info.visibility === 0 ? 'No' : 'Yes' }}</p>
-              <div class="flex flex-wrap gap-2">
-                <Button v-if="kind === 'photo'" variant="secondary" size="sm" as-child>
-                  <a :href="imageUrl" target="_blank" rel="noopener">Full Picture</a>
-                </Button>
-                <Button v-if="canEdit" variant="secondary" size="sm" @click="editing = true"
-                  >Edit Image</Button
-                >
-                <Button variant="secondary" size="sm" @click="downloadPhoto">Download</Button>
-              </div>
-            </div>
-          </details>
-
-          <details v-if="hasGps" open :class="section">
-            <summary :class="summary">Location</summary>
-            <div :class="body">
-              <LocationMap
-                :key="info.photoId"
-                :lat="exif.GPS_Latitude!"
-                :lon="exif.GPS_Longitude!"
+      <DialogDescription class="sr-only"
+        >Photo details and similar photos and videos</DialogDescription
+      >
+      <div
+        ref="viewerBody"
+        data-testid="photo-viewer-scroll"
+        tabindex="-1"
+        class="max-h-[95dvh] min-h-0 overflow-y-auto overscroll-contain p-6 pb-20 outline-none"
+      >
+        <Button v-if="history.length" variant="outline" class="mb-4" @click="previous"
+          >Back to previous photo</Button
+        >
+        <ImageEditor v-if="editing" :photo="info" @cancel="editing = false" @saved="edited" />
+        <div v-else class="grid min-h-[calc(95dvh-8rem)] gap-4 md:grid-cols-[1fr_22rem]">
+          <div class="flex min-h-64 items-start justify-center">
+            <template v-if="kind === 'photo'">
+              <Skeleton v-show="!loaded" class="h-[60vh] w-full" />
+              <img
+                v-show="loaded"
+                :src="imageUrl"
+                :alt="info.photoName"
+                class="max-h-[85vh] max-w-full cursor-zoom-out rounded-md object-contain"
+                @load="imageLoaded"
+                @click="closeViewer"
               />
-              <Button variant="secondary" size="sm" as-child>
-                <a
-                  :href="`https://maps.google.com/?q=${exif.GPS_Latitude},${exif.GPS_Longitude}`"
-                  target="_blank"
-                  rel="noopener"
-                  >Open in Map</a
-                >
-              </Button>
-            </div>
-          </details>
+            </template>
+            <video
+              v-else-if="kind === 'video'"
+              :key="info.photoId"
+              controls
+              class="max-h-[85vh] w-full rounded-md"
+            >
+              <source :src="photoUrl(info.photoId, 'renderV')" :type="`video/${info.format}`" />
+            </video>
+          </div>
 
-          <details :class="section">
-            <summary :class="summary">Exif Metadata</summary>
-            <div :class="body">
-              <p v-if="exif.Time">Time Taken: {{ exif.Time }}</p>
-              <p v-if="exif.Image_Height && exif.Image_Width">
-                H/W: {{ exif.Image_Height.split(' ')[0] }} * {{ exif.Image_Width }}
-              </p>
-              <p v-if="exif.GPS_Latitude">
-                GPS DD: {{ exif.GPS_Latitude }} {{ exif.GPS_Longitude }}
-              </p>
-              <hr />
-              <p v-if="exif.Model">Camera: {{ exif.Make }} {{ exif.Model }}</p>
-              <p v-if="exif.Lens_Make || exif.Lens_Model">
-                Lens: {{ exif.Lens_Make }} {{ exif.Lens_Model }}
-              </p>
-              <p v-if="exif.Focal_Length">Focal: {{ exif.Focal_Length }}</p>
-              <p v-if="exif.Aperture_Value">Aperture: {{ exif.Aperture_Value }}</p>
-              <p v-if="exif.Shutter_Speed_Value">Shutter: {{ exif.Shutter_Speed_Value }}</p>
-              <p v-if="exif.ISO_Speed_Ratings">ISO: {{ exif.ISO_Speed_Ratings }}</p>
-              <p v-if="exif.Data_Precision">Data Precision: {{ exif.Data_Precision }}</p>
-            </div>
-          </details>
+          <div class="space-y-2">
+            <h2 class="text-xl font-semibold">Metadata</h2>
 
-          <details :class="section">
-            <summary :class="summary">Secrets</summary>
-            <div :class="body">
-              <p class="break-all">Token: {{ info.token }}</p>
-              <p class="break-all">UUID: {{ info.photoUuid }}</p>
-            </div>
-          </details>
-
-          <details :class="section">
-            <summary :class="summary">Tags</summary>
-            <div :class="body">
-              <div class="flex flex-wrap gap-1">
-                <Badge v-for="t in tags" :key="t.tag_id" variant="secondary" class="gap-1">
-                  {{ t.tag_name }}
-                  <button
-                    type="button"
-                    :aria-label="`Remove ${t.tag_name}`"
-                    @click="removeTag(t.tag_id)"
+            <details open :class="section">
+              <summary :class="summary">Common Metadata</summary>
+              <div :class="body">
+                <p class="break-all">Name: {{ info.photoName }}.{{ info.format }}</p>
+                <p>Upload Date: {{ info.uploadDate }}</p>
+                <p v-if="exif.File_Size">Size: {{ exif.File_Size }}</p>
+                <p class="break-all">Path: {{ currentPath }}</p>
+                <p>Shared: {{ info.visibility === 0 ? 'No' : 'Yes' }}</p>
+                <div class="flex flex-wrap gap-2">
+                  <Button v-if="kind === 'photo'" variant="secondary" size="sm" as-child>
+                    <a :href="imageUrl" target="_blank" rel="noopener">Full Picture</a>
+                  </Button>
+                  <Button v-if="canEdit" variant="secondary" size="sm" @click="editImage"
+                    >Edit Image</Button
                   >
-                    <X class="size-3" />
-                  </button>
-                </Badge>
+                  <Button variant="secondary" size="sm" @click="downloadPhoto">Download</Button>
+                </div>
               </div>
-              <p>Add</p>
-              <div class="flex gap-2">
-                <!-- Options load on first open so the viewer doesn't fetch every tag up front. -->
-                <Select v-model="tagChoice" @update:open="(o) => o && loadTagOptions()">
-                  <SelectTrigger class="flex-1" aria-label="Tag"
-                    ><SelectValue placeholder="Choose a tag"
-                  /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem v-for="t in tagOptions" :key="t.tagId" :value="String(t.tagId)">{{
-                      t.tagName
-                    }}</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button size="sm" :disabled="!tagChoice" @click="addTag">Submit</Button>
-              </div>
-            </div>
-          </details>
+            </details>
 
-          <details :class="section">
-            <summary :class="summary">Gallery</summary>
-            <div :class="body">
-              <div class="flex flex-wrap gap-1">
-                <Badge v-for="g in galleries" :key="g.ga_id" variant="secondary" class="gap-1">
-                  {{ g.ga_name }}
-                  <button
-                    type="button"
-                    :aria-label="`Remove ${g.ga_name}`"
-                    @click="removeGallery(g.ga_id)"
-                  >
-                    <X class="size-3" />
-                  </button>
-                </Badge>
-              </div>
-              <p>Add</p>
-              <div class="flex gap-2">
-                <Select v-model="galleryChoice" @update:open="(o) => o && loadGalleryOptions()">
-                  <SelectTrigger class="flex-1" aria-label="Gallery"
-                    ><SelectValue placeholder="Choose a gallery"
-                  /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem v-for="g in galleryOptions" :key="g.gaId" :value="String(g.gaId)">{{
-                      g.gaName
-                    }}</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button size="sm" :disabled="!galleryChoice" @click="addGallery">Submit</Button>
-              </div>
-            </div>
-          </details>
+            <PhotoText
+              v-if="kind === 'photo'"
+              :key="`${info.photoId}:${version}`"
+              ref="photoText"
+              :photo-id="info.photoId"
+            />
 
-          <details :class="section">
-            <summary :class="summary">Share</summary>
-            <div :class="[body, 'flex flex-wrap gap-2']">
-              <Button variant="secondary" size="sm" @click="copyShareAddr">Copy Share Addr</Button>
-              <Popover>
-                <PopoverTrigger as-child
-                  ><Button variant="secondary" size="sm">Get QR Code</Button></PopoverTrigger
-                >
-                <PopoverContent class="w-auto"
-                  ><img :src="qrUrl" alt="QR code" class="w-44"
-                /></PopoverContent>
-              </Popover>
-            </div>
-          </details>
-
-          <details :class="section">
-            <summary :class="summary">Edit Info</summary>
-            <div :class="body">
-              <label class="flex items-center gap-2">
-                Visibility
-                <Switch
-                  aria-label="Visibility"
-                  :model-value="info.visibility === 1"
-                  @update:model-value="changeVisibility"
+            <details v-if="hasGps" open :class="section">
+              <summary :class="summary">Location</summary>
+              <div :class="body">
+                <LocationMap
+                  :key="info.photoId"
+                  :lat="exif.GPS_Latitude!"
+                  :lon="exif.GPS_Longitude!"
                 />
-              </label>
-              <p>Change Name</p>
-              <div class="flex gap-2">
-                <Input v-model="newName" placeholder="New Name" @keyup.enter="changeName" />
-                <Button size="sm" @click="changeName">Update</Button>
+                <Button variant="secondary" size="sm" as-child>
+                  <a
+                    :href="`https://maps.google.com/?q=${exif.GPS_Latitude},${exif.GPS_Longitude}`"
+                    target="_blank"
+                    rel="noopener"
+                    >Open in Map</a
+                  >
+                </Button>
               </div>
-            </div>
-          </details>
+            </details>
+
+            <details :class="section">
+              <summary :class="summary">Exif Metadata</summary>
+              <div :class="body">
+                <p v-if="exif.Time">Time Taken: {{ exif.Time }}</p>
+                <p v-if="exif.Image_Height && exif.Image_Width">
+                  H/W: {{ exif.Image_Height.split(' ')[0] }} * {{ exif.Image_Width }}
+                </p>
+                <p v-if="exif.GPS_Latitude">
+                  GPS DD: {{ exif.GPS_Latitude }} {{ exif.GPS_Longitude }}
+                </p>
+                <hr />
+                <p v-if="exif.Model">Camera: {{ exif.Make }} {{ exif.Model }}</p>
+                <p v-if="exif.Lens_Make || exif.Lens_Model">
+                  Lens: {{ exif.Lens_Make }} {{ exif.Lens_Model }}
+                </p>
+                <p v-if="exif.Focal_Length">Focal: {{ exif.Focal_Length }}</p>
+                <p v-if="exif.Aperture_Value">Aperture: {{ exif.Aperture_Value }}</p>
+                <p v-if="exif.Shutter_Speed_Value">Shutter: {{ exif.Shutter_Speed_Value }}</p>
+                <p v-if="exif.ISO_Speed_Ratings">ISO: {{ exif.ISO_Speed_Ratings }}</p>
+                <p v-if="exif.Data_Precision">Data Precision: {{ exif.Data_Precision }}</p>
+              </div>
+            </details>
+
+            <details :class="section">
+              <summary :class="summary">Secrets</summary>
+              <div :class="body">
+                <p class="break-all">Token: {{ info.token }}</p>
+                <p class="break-all">UUID: {{ info.photoUuid }}</p>
+              </div>
+            </details>
+
+            <details :class="section">
+              <summary :class="summary">Tags</summary>
+              <div :class="body">
+                <div class="flex flex-wrap gap-1">
+                  <Badge v-for="t in tags" :key="t.tag_id" variant="secondary" class="gap-1">
+                    {{ t.tag_name }} <SmartBadge :smart="t.smart" />
+                    <button
+                      type="button"
+                      :aria-label="`Remove ${t.tag_name}`"
+                      @click="removeTag(t.tag_id)"
+                    >
+                      <X class="size-3" />
+                    </button>
+                  </Badge>
+                </div>
+                <p>Add</p>
+                <div class="flex gap-2">
+                  <!-- Options load on first open so the viewer doesn't fetch every tag up front. -->
+                  <Select v-model="tagChoice" @update:open="(o) => o && loadTagOptions()">
+                    <SelectTrigger class="flex-1" aria-label="Tag"
+                      ><SelectValue placeholder="Choose a tag"
+                    /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="t in tagOptions" :key="t.tagId" :value="String(t.tagId)"
+                        >{{ t.tagName }} <SmartBadge :smart="t.smart"
+                      /></SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" :disabled="!tagChoice" @click="addTag">Submit</Button>
+                </div>
+              </div>
+            </details>
+
+            <details :class="section">
+              <summary :class="summary">Gallery</summary>
+              <div :class="body">
+                <div class="flex flex-wrap gap-1">
+                  <Badge v-for="g in galleries" :key="g.ga_id" variant="secondary" class="gap-1">
+                    {{ g.ga_name }} <SmartBadge :smart="g.smart" />
+                    <button
+                      type="button"
+                      :aria-label="`Remove ${g.ga_name}`"
+                      @click="removeGallery(g.ga_id)"
+                    >
+                      <X class="size-3" />
+                    </button>
+                  </Badge>
+                </div>
+                <p>Add</p>
+                <div class="flex gap-2">
+                  <Select v-model="galleryChoice" @update:open="(o) => o && loadGalleryOptions()">
+                    <SelectTrigger class="flex-1" aria-label="Gallery"
+                      ><SelectValue placeholder="Choose a gallery"
+                    /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="g in galleryOptions" :key="g.gaId" :value="String(g.gaId)"
+                        >{{ g.gaName }} <SmartBadge :smart="g.smart"
+                      /></SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" :disabled="!galleryChoice" @click="addGallery">Submit</Button>
+                </div>
+              </div>
+            </details>
+
+            <details :class="section">
+              <summary :class="summary">Share</summary>
+              <div :class="[body, 'flex flex-wrap gap-2']">
+                <Button variant="secondary" size="sm" @click="copyShareAddr"
+                  >Copy Share Addr</Button
+                >
+                <Popover>
+                  <PopoverTrigger as-child
+                    ><Button variant="secondary" size="sm">Get QR Code</Button></PopoverTrigger
+                  >
+                  <PopoverContent class="w-auto"
+                    ><img :src="qrUrl" alt="QR code" class="w-44"
+                  /></PopoverContent>
+                </Popover>
+              </div>
+            </details>
+
+            <details :class="section">
+              <summary :class="summary">Edit Info</summary>
+              <div :class="body">
+                <label class="flex items-center gap-2">
+                  Visibility
+                  <Switch
+                    aria-label="Visibility"
+                    :model-value="info.visibility === 1"
+                    @update:model-value="changeVisibility"
+                  />
+                </label>
+                <p>Change Name</p>
+                <div class="flex gap-2">
+                  <Input v-model="newName" placeholder="New Name" @keyup.enter="changeName" />
+                  <Button size="sm" @click="changeName">Update</Button>
+                </div>
+              </div>
+            </details>
+          </div>
         </div>
+        <SimilarRecommendations
+          v-if="!editing && (kind === 'photo' || kind === 'video') && allowSimilar !== false"
+          :key="`${info.photoId}:${version}:${recommendationSession}`"
+          ref="recommendations"
+          :photo="info"
+          :scroll-root="scrollRoot"
+          :resume="restoredRecommendations"
+          @navigate="navigate"
+          @invalidated="invalidateHistory"
+        />
       </div>
+      <Button
+        v-if="!editing && recommendations?.expanded"
+        class="absolute bottom-4 right-4 z-10 shadow-lg"
+        aria-label="Back to top and close similar photos and videos"
+        @click="backToTop"
+      >
+        <ArrowUp aria-hidden="true" /> Back to top
+      </Button>
     </DialogContent>
   </Dialog>
 </template>

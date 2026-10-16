@@ -1,9 +1,22 @@
 import os
+from sqlalchemy.engine import URL
+
+
+def database_url(migration=False):
+    override = os.getenv("MIGRATION_DATABASE_URL" if migration else "DATABASE_URL")
+    if override:
+        return override
+    return URL.create(
+        "postgresql+psycopg", username="photoly_migrator" if migration else "photoly",
+        password=os.getenv("POSTGRES_MIGRATION_PASSWORD" if migration else "POSTGRES_APP_PASSWORD", "photoly"),
+        host=os.getenv("POSTGRES_HOST", "localhost"), port=int(os.getenv("POSTGRES_PORT", "5432")),
+        database=os.getenv("POSTGRES_DB", "photoly"),
+    )
 
 
 def environment_config():
     return {
-        "SQLALCHEMY_DATABASE_URI": os.getenv("DATABASE_URL", "mysql+pymysql://photoly:photoly@localhost:3308/photoly?charset=utf8mb4"),
+        "SQLALCHEMY_DATABASE_URI": database_url(),
         "SQLALCHEMY_TRACK_MODIFICATIONS": False,
         "SQLALCHEMY_ENGINE_OPTIONS": {"pool_pre_ping": True},
         "REDIS_URL": os.getenv("REDIS_URL", "redis://localhost:6390/14"),

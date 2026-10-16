@@ -36,7 +36,7 @@ def json_body(schema, example):
 def upload_body(multiple=False, avatar=False):
     file = {"type": "string", "format": "binary", "description": "Choose a local file. Request limit: 600 MiB by default."}
     if avatar:
-        properties = {"file": file}
+        properties = {"file": {**file, "description": "Pillow-decodable image, maximum 20 MiB and 40 million pixels. First frame/page only; normalized to a 512 x 512 JPEG."}}
     elif multiple:
         properties = {"files": {"type": "array", "items": file, "minItems": 1},
                       "photosStr": {"type": "string", "description": "JSON-encoded array of PhotoUploadMetadata objects, in the same order and with the same count as files. This part must be text, not a nested multipart object.",

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
-import { Copy, Pencil, Plus, Trash2, Upload } from '@lucide/vue'
+import { Copy, Pencil, Plus, Trash2 } from '@lucide/vue'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -35,6 +35,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import SmartOrganizationSettings from '@/components/SmartOrganizationSettings.vue'
+import AvatarCropper from '@/components/AvatarCropper.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { call } from '@/lib/http'
 import { useAuthStore } from '@/stores/auth'
@@ -109,7 +111,7 @@ const auth = useAuthStore()
 
 const user = ref<UserInfo>()
 const credentials = ref<Credential[]>([])
-const avatarSrc = ref(auth.avatarUrl)
+const avatarSrc = computed(() => auth.avatarUrl)
 
 const loadUser = async () => (user.value = await call<UserInfo>({ url: '/user/getInfo/' }))
 const loadCredentials = async () =>
@@ -174,20 +176,27 @@ async function saveInfo() {
 
 // --- Avatar ---------------------------------------------------------------------------------------
 const editingAvatar = ref(false)
-const avatarFile = ref<File>()
+const savingAvatar = ref(false)
+const avatarError = ref('')
+watch(editingAvatar, () => {
+  avatarError.value = ''
+})
 
-async function saveAvatar() {
-  if (!avatarFile.value) return toast.warning('No Avatar Selected!')
+async function saveAvatar(file: File) {
+  if (savingAvatar.value) return
+  savingAvatar.value = true
+  avatarError.value = ''
   const data = new FormData()
-  data.append('file', avatarFile.value)
+  data.append('file', file)
   try {
     await call({ method: 'post', url: '/user/updateAvatar', data })
     toast.success('Avatar updated!')
-    avatarSrc.value = `${auth.avatarUrl}?random=${Date.now()}`
+    auth.refreshAvatar()
     editingAvatar.value = false
-    await loadUser()
   } catch {
-    toast.error('Avatar update Response Error!')
+    avatarError.value = 'Could not save the avatar. Please try again.'
+  } finally {
+    savingAvatar.value = false
   }
 }
 
@@ -268,6 +277,8 @@ onMounted(() => {
         </div>
       </CardContent>
     </Card>
+
+    <SmartOrganizationSettings />
 
     <Card>
       <CardHeader class="flex-row items-center justify-between">
@@ -377,23 +388,27 @@ onMounted(() => {
       </DialogContent>
     </Dialog>
 
-    <Dialog v-model:open="editingAvatar">
+    <Dialog
+      :open="editingAvatar"
+      @update:open="
+        (open) => {
+          if (!savingAvatar) editingAvatar = open
+        }
+      "
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Avatar</DialogTitle>
           <DialogDescription>Choose a new profile picture.</DialogDescription>
         </DialogHeader>
-        <Label for="avatar-file"><Upload class="size-4" /> Upload Avatar</Label>
-        <Input
-          id="avatar-file"
-          type="file"
-          accept="image/*"
-          @change="avatarFile = ($event.target as HTMLInputElement).files?.[0]"
+        <AvatarCropper
+          v-if="editingAvatar"
+          :src="avatarSrc"
+          :saving="savingAvatar"
+          @submit="saveAvatar"
+          @cancel="editingAvatar = false"
         />
-        <DialogFooter>
-          <Button variant="outline" @click="editingAvatar = false">Cancel</Button>
-          <Button @click="saveAvatar">Submit</Button>
-        </DialogFooter>
+        <p v-if="avatarError" role="alert" class="text-sm text-destructive">{{ avatarError }}</p>
       </DialogContent>
     </Dialog>
 

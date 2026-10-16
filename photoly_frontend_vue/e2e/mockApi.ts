@@ -1,4 +1,5 @@
 import type { Page, Request } from '@playwright/test'
+import { capabilitiesFixture } from '../src/test/aiFixtures'
 
 // Must match VITE_APP_BASE_URL in .env (the dev server Playwright starts).
 export const API = 'http://localhost:8384'
@@ -28,6 +29,22 @@ const cors = {
 
 // What a freshly signed-up user with an empty library sees.
 const defaults: Record<string, Reply> = {
+  '/ai/smart/settings': ok({ enabled: false, available: false, reason: 'smart_tag_disabled' }),
+  '/ai/smart/status': ok({
+    processed: 0,
+    total: 0,
+    failed: 0,
+    reason: 'smart_tag_disabled',
+    pending: false,
+  }),
+  '/ai/smart/dismissed': ok({ items: [], nextAfter: null }),
+  '/ai/capabilities': ok({
+    ...capabilitiesFixture,
+    enabled: false,
+    globalEnabled: false,
+    ready: false,
+    reason: 'disabled',
+  }),
   '/user/pingToken': ok(),
   '/namespace/getRoot': ok({ nsId: 1, nsName: 'root' }),
   '/namespace/trace': ok([{ nsId: 1, nsName: 'root' }]),
