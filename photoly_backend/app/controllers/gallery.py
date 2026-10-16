@@ -1,4 +1,4 @@
-from flask import Blueprint
+from flask import Blueprint, request
 from app.controllers.common import legacy, service, arg, body, changed, binary
 from app.entities import Gallery
 from app.services.catalog import CatalogService
@@ -16,13 +16,13 @@ def insert(uid):
 @bp.get("/getAll")
 @legacy()
 def all_galleries(uid):
-    return result(service(CatalogService).all(Gallery, uid))
+    return result(service(CatalogService).all(Gallery, uid, request.args.get("includeSmart") == "true"))
 
 
 @bp.get("/getPage")
 @legacy(shape="page", page_missing=-1)
 def page(uid):
-    return service(CatalogService).paged(Gallery, uid, arg("page", integer=True), arg("rowsPerPage", integer=True))
+    return service(CatalogService).paged(Gallery, uid, arg("page", integer=True), arg("rowsPerPage", integer=True), request.args.get("includeSmart") == "true")
 
 
 @bp.post("/delete")

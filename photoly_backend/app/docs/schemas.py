@@ -97,3 +97,16 @@ EXAMPLES = {
                  "token": "example-photo-share-token", "photo_uuid": "00000000-0000-4000-8000-000000000002",
                  "extra_photo_gps_lat": None, "extra_photo_gps_lon": None, "extra_photo_taken_date": None},
 }
+
+
+SCHEMAS.update({
+    'SmartSource': obj({'id': INTEGER, 'source': {'enum': ['camera', 'lens', 'trip']}, 'name': STRING, 'suppressed': BOOLEAN,
+        'basis': obj({'kind': STRING, 'method': STRING, 'startDate': STRING, 'endDate': STRING,
+            'places': {'type': 'object', 'additionalProperties': INTEGER}, 'timezoneSources': array(STRING),
+            'profileId': nullable(INTEGER), 'mediaCount': INTEGER, 'gpsCount': INTEGER, 'similarity': NUMBER, 'margin': NUMBER}, [])}),
+    'SmartSettings': obj({'enabled': BOOLEAN, 'available': BOOLEAN, 'reason': nullable(STRING), 'intervalSeconds': INTEGER}),
+    'SmartStatus': obj({'processed': INTEGER, 'total': INTEGER, 'failed': INTEGER, 'reason': nullable(STRING),
+        'phase': nullable(STRING), 'pending': BOOLEAN, 'updatedAt': nullable(STRING), 'batchSize': INTEGER, 'budgetSeconds': INTEGER}, ['processed', 'total', 'failed']),
+})
+for name in ('Tag', 'Gallery', 'PhotoTag', 'PhotoGallery'):
+    SCHEMAS['Smart' + name] = {'allOf': [ref(name), obj({'smart': {**nullable(ref('SmartSource')), 'description': 'Only included when includeSmart=true; null for ordinary items.'}}, [])]}

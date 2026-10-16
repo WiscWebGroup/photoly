@@ -77,6 +77,11 @@ def app(tmp_path, migration_engine):
     # Reset data with the schema owner, but run every business operation as the restricted app role.
     names = ", ".join('"' + table.name + '"' for table in db.metadata.sorted_tables)
     with migration_engine.begin() as connection:
+        # Profile IDs restart in each fixture; dynamic expression indexes must restart too.
+        # Otherwise a prior 768-dimensional index can reject a new 2048-dimensional profile.
+        indexes = connection.scalars(text("SELECT indexname FROM pg_indexes WHERE schemaname='public' AND indexname ~ '^ix_(embedding|video_frame)_profile_[0-9]+_hnsw$'")).all()
+        for index in indexes:
+            connection.exec_driver_sql(f'DROP INDEX "{index}"')
         connection.execute(text("TRUNCATE TABLE " + names + " RESTART IDENTITY CASCADE"))
     # Only touch session keys within the dedicated test database.
     for key in redis.scan_iter(match="photoly:session:*"):

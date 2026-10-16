@@ -1,6 +1,6 @@
 FROM python:3.12-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PATH="/app/.venv/bin:$PATH" GUNICORN_PID_FILE=/tmp/photoly-gunicorn.pid UPLOAD_FOLDER=/photoly
-RUN apt-get update && apt-get install -y --no-install-recommends libimage-exiftool-perl gosu \
+RUN apt-get update && apt-get install -y --no-install-recommends libimage-exiftool-perl ffmpeg gosu \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir uv==0.13.0 \
     && groupadd --gid 10001 photoly && useradd --uid 10001 --gid photoly --no-create-home photoly
@@ -8,6 +8,9 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 FROM base AS application
+# Debian language packages contain the compact tessdata_fast models; CPU only.
+RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng tesseract-ocr-chi-sim tesseract-ocr-chi-tra tesseract-ocr-jpn \
+    && rm -rf /var/lib/apt/lists/*
 COPY app ./app
 COPY migrations ./migrations
 COPY alembic.ini ./
@@ -21,6 +24,7 @@ CMD ["gunicorn", "--config", "gunicorn.conf.py", "wsgi:app"]
 FROM application AS test
 RUN uv sync --frozen
 COPY tests ./tests
+COPY scripts ./scripts
 CMD ["pytest", "-q"]
 
 FROM application AS production

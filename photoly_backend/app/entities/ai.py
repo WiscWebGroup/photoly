@@ -25,12 +25,32 @@ class PhotoEmbeddingState(db.Model):
     content_sha256 = db.Column(db.String(64))
     status = db.Column(db.String(16), nullable=False)
     embedding = db.Column(HALFVEC())
+    sampling_version = db.Column(db.Integer)
+    frame_count = db.Column(db.Integer, nullable=False, server_default="0")
     computed_at = db.Column(db.DateTime(timezone=True))
     duration_ms = db.Column(db.Integer)
     error_code = db.Column(db.String(80))
     __table_args__ = (db.UniqueConstraint("profile_id", "photo_id", name="uq_embedding_profile_photo"),
         db.CheckConstraint("status IN ('pending','ready','failed','unsupported')", name="ck_embedding_status"),
-        db.CheckConstraint("content_version > 0", name="ck_embedding_version"),)
+        db.CheckConstraint("content_version > 0", name="ck_embedding_version"),
+        db.UniqueConstraint("state_id", "profile_id", name="uq_embedding_state_profile"),
+        db.CheckConstraint("frame_count BETWEEN 0 AND 5", name="ck_embedding_frame_count"),)
+
+
+class VideoFrameEmbedding(db.Model):
+    __tablename__ = "video_frame_embedding"
+    frame_id = db.Column(db.BigInteger, db.Identity(), primary_key=True)
+    state_id = db.Column(db.BigInteger, nullable=False)
+    profile_id = db.Column(db.Integer, nullable=False, index=True)
+    frame_index = db.Column(db.Integer, nullable=False)
+    timestamp_ms = db.Column(db.BigInteger, nullable=False)
+    embedding = db.Column(HALFVEC(), nullable=False)
+    __table_args__ = (
+        db.ForeignKeyConstraint(["state_id", "profile_id"], ["photo_embedding_state.state_id", "photo_embedding_state.profile_id"], ondelete="CASCADE"),
+        db.UniqueConstraint("state_id", "frame_index", name="uq_video_frame_position"),
+        db.CheckConstraint("frame_index BETWEEN 0 AND 4", name="ck_video_frame_index"),
+        db.CheckConstraint("timestamp_ms >= 0", name="ck_video_frame_timestamp"),
+    )
 
 
 class AIJob(db.Model):

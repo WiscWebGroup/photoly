@@ -161,10 +161,10 @@ def test_scheduler_embedding_and_unsupported_reconciliation(ai):
         state=s.scalar(select(State).where(State.photo_id==1))
         assert state.status=="ready" and state.content_sha256
         video=s.scalar(select(State).where(State.photo_id==2))
-        assert video.status=="unsupported"
+        assert video.status=="pending"
         assert jobs.usage(s)["reserved_bytes"]==0
     scheduler.tick()
-    with ai.sessions() as s:assert s.scalar(select(func.count()).select_from(AIJob).where(AIJob.kind=="embedding"))==1
+    with ai.sessions() as s:assert s.scalar(select(func.count()).select_from(AIJob).where(AIJob.kind=="embedding"))==2
 
 
 def test_stable_snapshot_and_replaced_result_rejected(ai,monkeypatch):

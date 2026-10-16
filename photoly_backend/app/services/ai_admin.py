@@ -8,6 +8,7 @@ from app.entities.ai import AIControlState, AIJob, EmbeddingProfile, PhotoEmbedd
 from app.ai.state import settings, control, utcnow, validate_settings
 from app.ai.registry import MODELS, profile_spec
 from app.ai.types import AIError
+from app.ai.devices import DEVICE_PRECISIONS, device_status
 from app.ai.limits import validate_limit_pairs, LIMIT_DEFAULTS, LIMIT_BOUNDS
 from app.scheduler.background_limits import status as background_limit_status
 from app.scheduler.job_repository import usage
@@ -61,7 +62,7 @@ class AIAdmin:
         validate_limit_pairs(proposed)
         if current["runtime"] == "loaded" and current["cpu_threads"] != proposed["cpu_threads"]:
             raise AIError("unload_before_thread_change",409)
-        if (proposed["device"],proposed["precision"]) not in (("cpu","float32"),("cuda","bfloat16")):
+        if DEVICE_PRECISIONS.get(proposed["device"]) != proposed["precision"]:
             raise AIError("unsupported_device_precision")
         if proposed["runtime"] == "loaded" and any(k in changes for k in ("device","precision")):
             raise AIError("unload_before_device_change",409)
@@ -81,7 +82,7 @@ class AIAdmin:
                 "relation":("less" if "resume" in key else "greater") if key.endswith("_percent") else ("greater" if "resume" in key else "less") if pair else None}
         fields["quota_bytes"] = {"default":10*1024**3,"minimum":1024**2,"maximum":100*1024**4,"unit":"bytes","apply":"next_cycle","pairedWith":None,"relation":None}
         fields["similarity_threshold"] = {"default":None,"minimum":-1,"maximum":1,"unit":"cosine similarity","apply":"next_query","pairedWith":None,"relation":None}
-        devices = observed.get("devices", [{"device":d,"precision":p,"available":None,"reason":"runtime_offline" if not fresh else "unknown"} for d,p in (("cpu","float32"),("cuda","bfloat16"))])
+        devices = observed.get("devices", device_status(reason="runtime_offline" if not fresh else "unknown"))
         return {"fields":fields,"devices":devices,"verified":observed.get("verified",[]),"maxConcurrency":1,"batchSize":1}
 
     def profiles(self):
@@ -189,6 +190,7 @@ class AIAdmin:
         return job_dto(job)
 
     def status(self):
+        from app.services.smart import SmartService
         now = utcnow()
         services = {}
         for name in ("scheduler","runtime","maintenance"):
@@ -200,4 +202,5 @@ class AIAdmin:
         return {"settings":cfg,"services":services,"quota":usage(self.session),"backgroundLimits":background_limit_status(self.session,cfg),
                 "jobs":dict(self.session.execute(select(AIJob.status,func.count()).group_by(AIJob.status)).all()),
                 "coverage":coverage(self.session,cfg["search_profile_id"]),
-                "buildingCoverage":coverage(self.session,cfg["building_profile_id"]) if cfg["building_profile_id"] else None}
+                "buildingCoverage":coverage(self.session,cfg["building_profile_id"]) if cfg["building_profile_id"] else None,
+                "smartTag":SmartService(self.session).status()}

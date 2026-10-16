@@ -41,7 +41,7 @@ async function open(page: Page) {
   await expect(page.getByRole('dialog')).toBeVisible()
 }
 async function scrollDown(page: Page) {
-  const dialog = page.getByRole('dialog')
+  const dialog = page.getByTestId('photo-viewer-scroll')
   await dialog.evaluate((el) => {
     el.dispatchEvent(new Event('touchmove', { bubbles: true }))
     el.scrollTop = el.scrollHeight
@@ -65,13 +65,13 @@ test('scroll pages beyond 100 without inference on open, preserves order and end
   for (let n = 1; n <= 6; n++) {
     await scrollDown(page)
     await expect(
-      page.getByRole('list', { name: 'Similar image results' }).getByRole('listitem'),
+      page.getByRole('list', { name: 'Similar photos and videos results' }).getByRole('listitem'),
     ).toHaveCount(Math.min(24 * n, 127))
   }
-  await expect(page.getByText('No more similar images')).toBeVisible()
+  await expect(page.getByText('No more similar photos and videos')).toBeVisible()
   expect(calls.filter((c) => c.path === path)).toHaveLength(6)
   const names = await page
-    .getByRole('list', { name: 'Similar image results' })
+    .getByRole('list', { name: 'Similar photos and videos results' })
     .getByRole('button')
     .allTextContents()
   expect(names.map((x) => x.trim())).toEqual(items.map((x) => `${x.photo.photoName}.jpg`))
@@ -84,7 +84,7 @@ test('same dialog navigation updates metadata and back restores recommendations 
   await page.getByRole('button', { name: 'Load more' }).click()
   const thumb = page.getByRole('button', { name: 'View Similar 1.jpg', exact: true })
   await thumb.scrollIntoViewIfNeeded()
-  const scroll = await page.getByRole('dialog').evaluate((el) => el.scrollTop)
+  const scroll = await page.getByTestId('photo-viewer-scroll').evaluate((el) => el.scrollTop)
   await thumb.click()
   await expect(page.getByRole('dialog')).toHaveCount(1)
   await expect(page.getByText('Name: Similar 1.jpg', { exact: true })).toBeVisible()
@@ -93,10 +93,10 @@ test('same dialog navigation updates metadata and back restores recommendations 
   expect(calls.filter((c) => c.path === '/ai/photos/100/similar/page')).toHaveLength(0)
   await page.getByRole('button', { name: 'Back to previous photo' }).click()
   await expect(
-    page.getByRole('list', { name: 'Similar image results' }).getByRole('listitem'),
+    page.getByRole('list', { name: 'Similar photos and videos results' }).getByRole('listitem'),
   ).toHaveCount(24)
   await expect
-    .poll(() => page.getByRole('dialog').evaluate((el) => el.scrollTop))
+    .poll(() => page.getByTestId('photo-viewer-scroll').evaluate((el) => el.scrollTop))
     .toBeGreaterThan(scroll - 5)
   expect(calls.filter((c) => c.path === path)).toHaveLength(1)
   await page.keyboard.press('Escape')
@@ -132,16 +132,16 @@ test('failed next page preserves results and retries the same cursor', async ({ 
   await open(page)
   await page.getByRole('button', { name: 'Load more' }).click()
   await expect(
-    page.getByRole('list', { name: 'Similar image results' }).getByRole('listitem'),
+    page.getByRole('list', { name: 'Similar photos and videos results' }).getByRole('listitem'),
   ).toHaveCount(24)
   await page.getByRole('button', { name: 'Load more' }).click()
   await expect(page.getByRole('alert')).toContainText('timed out')
   await expect(
-    page.getByRole('list', { name: 'Similar image results' }).getByRole('listitem'),
+    page.getByRole('list', { name: 'Similar photos and videos results' }).getByRole('listitem'),
   ).toHaveCount(24)
   await page.getByRole('button', { name: 'Retry', exact: true }).click()
   await expect(
-    page.getByRole('list', { name: 'Similar image results' }).getByRole('listitem'),
+    page.getByRole('list', { name: 'Similar photos and videos results' }).getByRole('listitem'),
   ).toHaveCount(48)
   expect(cursors).toEqual(['24', '24'])
 })
@@ -160,13 +160,13 @@ test('expired cursor offers restart and never appends a different context', asyn
   await open(page)
   await page.getByRole('button', { name: 'Load more' }).click()
   await expect(
-    page.getByRole('list', { name: 'Similar image results' }).getByRole('listitem'),
+    page.getByRole('list', { name: 'Similar photos and videos results' }).getByRole('listitem'),
   ).toHaveCount(24)
   await page.getByRole('button', { name: 'Load more' }).click()
   await expect(page.getByRole('alert')).toContainText('expired')
   await page.getByRole('button', { name: 'Reload recommendations' }).click()
   await expect(
-    page.getByRole('list', { name: 'Similar image results' }).getByRole('listitem'),
+    page.getByRole('list', { name: 'Similar photos and videos results' }).getByRole('listitem'),
   ).toHaveCount(24)
   expect(calls.filter((c) => c.path === path).map((c) => c.body)).toEqual([
     { pageSize: 24 },
@@ -198,14 +198,14 @@ test('closing during a query discards late results and reopening starts fresh', 
   })
   await open(page)
   await page.getByRole('button', { name: 'Load more' }).click()
-  await expect(page.getByText('Loading similar images…')).toBeVisible()
+  await expect(page.getByText('Loading similar photos and videos…')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.waitForTimeout(750)
   await page.getByText('Original.jpg', { exact: true }).click()
   await expect(page.getByRole('button', { name: 'Load more' })).toBeEnabled()
   await expect(
-    page.getByRole('list', { name: 'Similar image results' }).getByRole('listitem'),
+    page.getByRole('list', { name: 'Similar photos and videos results' }).getByRole('listitem'),
   ).toHaveCount(0)
   expect(requests).toBe(1)
 })
@@ -231,7 +231,7 @@ test('keyboard loading handles empty results and unavailable indexing keeps the 
   await open(page)
   await page.getByRole('button', { name: 'Load more' }).focus()
   await page.keyboard.press('Enter')
-  await expect(page.getByText('No more similar images')).toBeVisible()
+  await expect(page.getByText('No more similar photos and videos')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.route(API + '/ai/capabilities', (route) =>
@@ -254,12 +254,14 @@ test('tall viewport still has a scrollable recommendation entry', async ({ page 
   await expect(page.getByRole('button', { name: 'Load more' })).toBeEnabled()
   expect(calls.filter((c) => c.path === path)).toHaveLength(0)
   expect(
-    await page.getByRole('dialog').evaluate((el) => el.scrollHeight - el.clientHeight),
+    await page
+      .getByTestId('photo-viewer-scroll')
+      .evaluate((el) => el.scrollHeight - el.clientHeight),
   ).toBeGreaterThan(48)
   await page.getByRole('dialog').hover()
   await page.mouse.wheel(0, 1600)
   await expect(
-    page.getByRole('list', { name: 'Similar image results' }).getByRole('listitem'),
+    page.getByRole('list', { name: 'Similar photos and videos results' }).getByRole('listitem'),
   ).toHaveCount(24)
 })
 
@@ -291,7 +293,9 @@ test('changed threshold clears old recommendations and reloads a new context', a
     })
   })
   await open(page)
-  const results = page.getByRole('list', { name: 'Similar image results' }).getByRole('listitem')
+  const results = page
+    .getByRole('list', { name: 'Similar photos and videos results' })
+    .getByRole('listitem')
   await page.getByRole('button', { name: 'Load more' }).click()
   await expect(results).toHaveCount(24)
   await page.getByRole('button', { name: 'Load more' }).click()
@@ -300,7 +304,7 @@ test('changed threshold clears old recommendations and reloads a new context', a
   await page.getByRole('button', { name: 'Reload recommendations' }).click()
   await expect(results).toHaveCount(2)
   await expect(page.getByText('Minimum similarity: 0.995')).toBeVisible()
-  await expect(page.getByText('No more similar images')).toBeVisible()
+  await expect(page.getByText('No more similar photos and videos')).toBeVisible()
 })
 
 test('capability polling removes cached results after a threshold change', async ({ page }) => {
@@ -308,7 +312,9 @@ test('capability polling removes cached results after a threshold change', async
   await page.clock.install()
   await open(page)
   await page.getByRole('button', { name: 'Load more' }).click()
-  const results = page.getByRole('list', { name: 'Similar image results' }).getByRole('listitem')
+  const results = page
+    .getByRole('list', { name: 'Similar photos and videos results' })
+    .getByRole('listitem')
   await expect(results).toHaveCount(24)
   await page.route(API + '/ai/capabilities', (route) =>
     route.fulfill({
@@ -320,4 +326,204 @@ test('capability polling removes cached results after a threshold change', async
   await expect(results).toHaveCount(0)
   await expect(page.getByRole('alert')).toContainText('threshold changed')
   await expect(page.getByRole('button', { name: 'Reload recommendations' })).toBeVisible()
+})
+
+const backToTop = (page: Page) =>
+  page.getByRole('button', { name: 'Back to top and close similar photos and videos' })
+const results = (page: Page) =>
+  page.getByRole('list', { name: 'Similar photos and videos results' }).getByRole('listitem')
+const scrollPosition = (page: Page) =>
+  page.getByTestId('photo-viewer-scroll').evaluate((el) => el.scrollTop)
+
+async function closeViewer(page: Page) {
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+}
+async function reopenOriginal(page: Page) {
+  await page.getByText('Original.jpg', { exact: true }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+}
+
+test('each photo keeps its own recommendations across closing and reopening', async ({ page }) => {
+  const calls = await setup(page)
+  await page.route(API + '/photo/getByNamespace*', (route) =>
+    route.fulfill({
+      headers: { 'access-control-allow-origin': '*' },
+      json: ok([source, { ...source, photoId: 10, photoName: 'Another' }]),
+    }),
+  )
+  await open(page)
+  await page.getByRole('button', { name: 'Load more' }).click()
+  await expect(results(page)).toHaveCount(24)
+  await closeViewer(page)
+  await page.getByText('Another.jpg', { exact: true }).click()
+  await expect(results(page)).toHaveCount(0)
+  await expect(backToTop(page)).toHaveCount(0)
+  await expect.poll(() => scrollPosition(page)).toBe(0)
+  expect(calls.filter((c) => c.path === '/ai/photos/10/similar/page')).toHaveLength(0)
+  await closeViewer(page)
+  await reopenOriginal(page)
+  await expect(results(page)).toHaveCount(24)
+  expect(calls.filter((c) => c.path === path)).toHaveLength(1)
+})
+
+test('retention starts on leaving, renews after returning, and expires after 30 seconds', async ({
+  page,
+}) => {
+  const calls = await setup(page)
+  await page.clock.install()
+  await open(page)
+  await page.getByRole('button', { name: 'Load more' }).click()
+  await expect(results(page)).toHaveCount(24)
+  await page.clock.fastForward(31000)
+  await expect(results(page)).toHaveCount(24)
+  await closeViewer(page)
+  await page.clock.fastForward(28000)
+  await reopenOriginal(page)
+  await expect(results(page)).toHaveCount(24)
+  await page.clock.fastForward(31000)
+  await expect(results(page)).toHaveCount(24)
+  await closeViewer(page)
+  await page.clock.fastForward(30000)
+  await reopenOriginal(page)
+  await expect(results(page)).toHaveCount(0)
+  await expect.poll(() => scrollPosition(page)).toBe(0)
+  expect(calls.filter((c) => c.path === path)).toHaveLength(1)
+  await scrollDown(page)
+  await expect(results(page)).toHaveCount(24)
+  expect(calls.filter((c) => c.path === path)).toHaveLength(2)
+})
+
+test('returning through history after expiry does not restore results or scroll', async ({
+  page,
+}) => {
+  const calls = await setup(page)
+  await page.clock.install()
+  await open(page)
+  await page.getByRole('button', { name: 'Load more' }).click()
+  await page.getByRole('button', { name: 'View Similar 1.jpg', exact: true }).click()
+  await expect(page.getByText('Name: Similar 1.jpg', { exact: true })).toBeVisible()
+  await page.clock.fastForward(30000)
+  await page.getByRole('button', { name: 'Back to previous photo' }).click()
+  await expect(results(page)).toHaveCount(0)
+  await expect.poll(() => scrollPosition(page)).toBe(0)
+  expect(calls.filter((c) => c.path === path)).toHaveLength(1)
+  await scrollDown(page)
+  await expect(results(page)).toHaveCount(24)
+})
+
+test('floating back-to-top stays visible, collapses results and requires fresh scroll intent', async ({
+  page,
+}) => {
+  const calls = await setup(page)
+  await open(page)
+  await scrollDown(page)
+  await expect(results(page)).toHaveCount(24)
+  // Programmatic movement must neither load another page nor hide the floating control.
+  await page.getByTestId('photo-viewer-scroll').evaluate((el) => {
+    el.scrollTop = el.scrollHeight
+  })
+  await expect(backToTop(page)).toBeInViewport()
+  const dialogBox = await page.getByRole('dialog').boundingBox()
+  const buttonBox = await backToTop(page).boundingBox()
+  expect(buttonBox!.x + buttonBox!.width).toBeLessThanOrEqual(dialogBox!.x + dialogBox!.width)
+  expect(buttonBox!.y + buttonBox!.height).toBeLessThanOrEqual(dialogBox!.y + dialogBox!.height)
+  await backToTop(page).click()
+  await expect(results(page)).toHaveCount(0)
+  await expect(backToTop(page)).toHaveCount(0)
+  await expect.poll(() => scrollPosition(page)).toBe(0)
+  await page.getByTestId('photo-viewer-scroll').evaluate((el) => {
+    el.scrollTop = el.scrollHeight
+  })
+  await expect(results(page)).toHaveCount(0)
+  await closeViewer(page)
+  await reopenOriginal(page)
+  await expect(results(page)).toHaveCount(0)
+  expect(calls.filter((c) => c.path === path)).toHaveLength(1)
+  await scrollDown(page)
+  await expect(results(page)).toHaveCount(24)
+  expect(calls.filter((c) => c.path === path)).toHaveLength(2)
+})
+
+test('back-to-top during a request discards late results and allows a new query', async ({
+  page,
+}) => {
+  await setup(page)
+  let release!: () => void
+  const pending = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let requests = 0
+  await page.route(API + path, async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback()
+    requests++
+    if (requests === 1) await pending
+    await route
+      .fulfill({
+        headers: { 'access-control-allow-origin': '*' },
+        json: ok({
+          items: items.slice(0, 24),
+          nextCursor: '24',
+          hasMore: true,
+          profileId: 1,
+          coverage: capabilitiesFixture.coverage,
+          requestId: 'delayed',
+        }),
+      })
+      .catch(() => {})
+  })
+  await open(page)
+  await page.getByRole('button', { name: 'Load more' }).click()
+  await expect(page.getByText('Loading similar photos and videos…')).toBeVisible()
+  await backToTop(page).click()
+  release()
+  await expect(results(page)).toHaveCount(0)
+  await expect.poll(() => scrollPosition(page)).toBe(0)
+  await page.getByRole('button', { name: 'Load more' }).click()
+  await expect(results(page)).toHaveCount(24)
+  expect(requests).toBe(2)
+})
+
+test('video viewer loads mixed recommendations, restores history and collapses at top', async ({
+  page,
+}) => {
+  await signIn(page)
+  const video = { ...source, format: 'mp4' }
+  const hits = [
+    items[0]!,
+    { ...items[1]!, photo: { ...items[1]!.photo, format: 'mp4' }, matchedTimestampMs: 2500 },
+  ]
+  const calls = await mockApi(page, {
+    '/ai/capabilities': ok({
+      ...capabilitiesFixture,
+      formats: [...capabilitiesFixture.formats, 'mp4'],
+    }),
+    '/photo/getByNamespace': ok([video]),
+    [path]: ok({
+      items: hits,
+      nextCursor: null,
+      hasMore: false,
+      profileId: 1,
+      coverage: capabilitiesFixture.coverage,
+      requestId: 'video',
+    }),
+  })
+  await page.goto('/home/HomePart')
+  await page.getByText('Original.mp4', { exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Similar photos and videos' })).toBeVisible()
+  await expect(page.getByRole('dialog').locator('video')).toHaveCount(1)
+  expect(calls.filter((c) => c.path === path)).toHaveLength(0)
+  await scrollDown(page)
+  await expect(results(page)).toHaveCount(2)
+  await page.getByRole('button', { name: 'View Similar 2.mp4', exact: true }).click()
+  await expect(page.getByText('Name: Similar 2.mp4', { exact: true })).toBeVisible()
+  await expect(results(page)).toHaveCount(0)
+  await page.getByRole('button', { name: 'Back to previous photo' }).click()
+  await expect(results(page)).toHaveCount(2)
+  await backToTop(page).click()
+  await expect(results(page)).toHaveCount(0)
+  await expect
+    .poll(() => page.getByTestId('photo-viewer-scroll').evaluate((el) => el.scrollTop))
+    .toBe(0)
+  expect(calls.filter((c) => c.path === path)).toHaveLength(1)
 })

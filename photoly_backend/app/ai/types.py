@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Literal, Sequence
 import numpy as np
+from .devices import DEVICE_PRECISIONS
 
 
 class AIError(Exception):
@@ -16,7 +17,7 @@ class RuntimeConfig:
     cpu_threads: int = 4
 
     def __post_init__(self):
-        if (self.device, self.precision) not in (("cpu", "float32"), ("cuda", "bfloat16")):
+        if not isinstance(self.device, str) or self.device not in DEVICE_PRECISIONS or DEVICE_PRECISIONS[self.device] != self.precision:
             raise AIError("unsupported_device_precision")
         if type(self.cpu_threads) is not int or not 1 <= self.cpu_threads <= 64:
             raise AIError("invalid_cpu_threads")
@@ -28,7 +29,7 @@ class EmbeddingCapabilities:
     dimension: int
     text_tokens: int
     modalities: tuple = ("text", "image")
-    devices: tuple = ("cpu", "cuda")
+    devices: tuple = tuple(DEVICE_PRECISIONS)
 
 
 @dataclass(frozen=True)

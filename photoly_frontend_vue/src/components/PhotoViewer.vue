@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import SmartBadge from '@/components/SmartBadge.vue'
+import type { SmartSource } from '@/lib/smartOrganization'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
-import { X } from '@lucide/vue'
+import { ArrowUp, X } from '@lucide/vue'
 import ImageEditor from '@/components/ImageEditor.vue'
+import PhotoText from '@/components/PhotoText.vue'
 import LocationMap from '@/components/LocationMap.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -36,38 +39,106 @@ const props = withDefaults(
 const emit = defineEmits<{ close: []; changed: [change?: { type: string; photo: Photo }] }>()
 
 interface Tag {
+  smart?: SmartSource | null
   tagId: number
   tagName: string
 }
 interface Gallery {
+  smart?: SmartSource | null
   gaId: number
   gaName: string
 }
 
 const auth = useAuthStore()
 const selected = ref<Photo | null>(null)
-const currentPhoto = computed(() => selected.value ?? props.photo)
-const viewerBody = ref<HTMLElement>()
-const scrollRoot = computed(
-  () => viewerBody.value?.closest<HTMLElement>('[data-slot="dialog-content"]') ?? null,
+const acceptedPhoto = ref<Photo | null>(props.photo)
+const photoText = ref<InstanceType<typeof PhotoText>>()
+const currentPhoto = computed(() =>
+  acceptedPhoto.value ? (selected.value ?? acceptedPhoto.value) : null,
 )
+async function leaveText() {
+  return (await photoText.value?.requestLeave()) ?? true
+}
+async function closeViewer() {
+  if (await leaveText()) {
+    acceptedPhoto.value = null
+    emit('close')
+  }
+}
+async function editImage() {
+  if (await leaveText()) editing.value = true
+}
+const viewerBody = ref<HTMLElement>()
+const scrollRoot = computed(() => viewerBody.value ?? null)
 const recommendations = ref<InstanceType<typeof SimilarRecommendations>>()
 const restoredRecommendations = ref<RecommendationSnapshot>()
 const currentPath = ref(props.nsPath)
-const history = ref<
-  { photo: Photo; path: string; scroll: number; recommendations?: RecommendationSnapshot }[]
->([])
+const history = ref<{ photo: Photo; path: string }[]>([])
+const RECOMMENDATION_RETENTION_MS = 30_000
+const recommendationCache = new Map<
+  number,
+  {
+    recommendations: RecommendationSnapshot
+    scroll: number
+    leftAt: number
+    timer: ReturnType<typeof setTimeout>
+  }
+>()
+let recommendationSession = 0
+function forgetRecommendations(photoId: number) {
+  const cached = recommendationCache.get(photoId)
+  if (cached) clearTimeout(cached.timer)
+  recommendationCache.delete(photoId)
+}
+function invalidateHistory() {
+  for (const photoId of recommendationCache.keys()) forgetRecommendations(photoId)
+  restoredRecommendations.value = undefined
+  restoreScroll = null
+}
+function rememberRecommendations(photoId: number) {
+  forgetRecommendations(photoId)
+  const snapshot = recommendations.value?.capture()
+  if (!snapshot?.result || snapshot.expiresAt <= Date.now()) return
+  recommendationCache.set(photoId, {
+    recommendations: snapshot,
+    scroll: scrollRoot.value?.scrollTop ?? 0,
+    leftAt: Date.now(),
+    timer: setTimeout(() => forgetRecommendations(photoId), RECOMMENDATION_RETENTION_MS),
+  })
+}
+function resumeRecommendations(photoId: number) {
+  const cached = recommendationCache.get(photoId)
+  forgetRecommendations(photoId)
+  const valid =
+    cached &&
+    Date.now() - cached.leftAt < RECOMMENDATION_RETENTION_MS &&
+    cached.recommendations.expiresAt > Date.now()
+  restoredRecommendations.value = valid ? cached.recommendations : undefined
+  restoreScroll = valid ? cached.scroll : null
+}
+function backToTop() {
+  if (info.value) forgetRecommendations(info.value.photoId)
+  restoredRecommendations.value = undefined
+  restoreScroll = null
+  recommendations.value?.collapse()
+  scrollRoot.value?.focus({ preventScroll: true })
+  scrollRoot.value?.scrollTo({ top: 0, behavior: 'instant' })
+}
+onBeforeUnmount(invalidateHistory)
 let metadataSequence = 0
 let restoreScroll: number | null = null
 let metadataLoaded = false
+let photoChange = 0
 watch(
   () => props.photo,
-  () => {
+  async (photo) => {
+    const seq = ++photoChange
+    if (!(await leaveText()) || seq !== photoChange) return
+    acceptedPhoto.value = photo
     selected.value = null
     history.value = []
     restoredRecommendations.value = undefined
   },
-  { immediate: true },
 )
 watch(
   () => props.nsPath,
@@ -78,44 +149,34 @@ watch(
 watch(
   () => auth.token,
   () => {
+    photoChange++
+    photoText.value?.reset()
+    acceptedPhoto.value = null
+    recommendations.value?.collapse()
+    invalidateHistory()
     history.value = []
     selected.value = null
     emit('close')
   },
 )
-function invalidateHistory() {
-  for (const item of history.value) item.recommendations = undefined
-}
 async function navigate(photo: Photo) {
-  if (!info.value) return
-  history.value.push({
-    photo: { ...info.value },
-    path: currentPath.value,
-    scroll: scrollRoot.value?.scrollTop ?? 0,
-    recommendations: recommendations.value?.capture(),
-  })
-  restoredRecommendations.value = undefined
-  restoreScroll = null
+  if (!info.value || photo.photoId === info.value.photoId || !(await leaveText())) return
+  history.value.push({ photo: { ...info.value }, path: currentPath.value })
   selected.value = { ...photo }
-  await nextTick()
-  scrollRoot.value?.scrollTo({ top: 0 })
 }
 async function previous() {
+  if (!(await leaveText())) return
   const item = history.value.pop()
   if (!item) return
-  restoreScroll = item.scroll
-  restoredRecommendations.value = item.recommendations
   selected.value = { ...item.photo }
   currentPath.value = item.path
-  await nextTick()
-  scrollRoot.value?.scrollTo({ top: item.scroll })
 }
 
 /** A copy, so renames and visibility changes show here without mutating the parent's list. */
 const info = ref<Photo>()
 const exif = ref<Record<string, string | undefined>>({})
-const tags = ref<{ tag_id: number; tag_name: string }[]>([])
-const galleries = ref<{ ga_id: number; ga_name: string }[]>([])
+const tags = ref<{ tag_id: number; tag_name: string; smart?: SmartSource | null }[]>([])
+const galleries = ref<{ ga_id: number; ga_name: string; smart?: SmartSource | null }[]>([])
 const tagOptions = ref<Tag[]>([])
 const galleryOptions = ref<Gallery[]>([])
 const tagChoice = ref('')
@@ -142,7 +203,13 @@ const quiet = (message: string) => () => void toast.error(message)
 
 function currentCall<T>(url: string, apply: (value: T) => void) {
   const seq = metadataSequence
-  return call<T>({ url, params: { photoId: info.value?.photoId } }).then((value) => {
+  return call<T>({
+    url,
+    params: {
+      photoId: info.value?.photoId,
+      ...(/get(Tag|Gallery)ByPhoto$/.test(url) ? { includeSmart: true } : {}),
+    },
+  }).then((value) => {
     if (seq === metadataSequence) apply(value)
   })
 }
@@ -156,12 +223,12 @@ const loadGalleries = () =>
   })
 
 const loadTagOptions = () =>
-  call<Tag[]>({ url: '/tag/getAll' }).then(
+  call<Tag[]>({ url: '/tag/getAll', params: { includeSmart: true } }).then(
     (t) => (tagOptions.value = t),
     quiet('get tags Response Error!'),
   )
 const loadGalleryOptions = () =>
-  call<Gallery[]>({ url: '/gallery/getAll' }).then(
+  call<Gallery[]>({ url: '/gallery/getAll', params: { includeSmart: true } }).then(
     (g) => (galleryOptions.value = g),
     quiet('get galleries Response Error!'),
   )
@@ -173,10 +240,20 @@ const loadExif = () =>
 
 watch(
   () => currentPhoto.value,
-  (photo) => {
+  (photo, previousPhoto) => {
+    if (previousPhoto) rememberRecommendations(previousPhoto.photoId)
+    recommendations.value?.collapse()
+    restoredRecommendations.value = undefined
+    restoreScroll = null
+    recommendationSession++
     metadataLoaded = false
     const seq = ++metadataSequence
     if (!photo) return
+    resumeRecommendations(photo.photoId)
+    void nextTick(() => {
+      if (seq === metadataSequence)
+        scrollRoot.value?.scrollTo({ top: restoreScroll ?? 0, behavior: 'instant' })
+    })
     info.value = { ...photo }
     newName.value = photo.photoName
     loaded.value = false
@@ -213,10 +290,12 @@ watch(
 
 async function restorePosition() {
   if (restoreScroll === null || !metadataLoaded || !loaded.value) return
+  const seq = metadataSequence
+  await nextTick()
+  if (seq !== metadataSequence || restoreScroll === null) return
   const top = restoreScroll
   restoreScroll = null
-  await nextTick()
-  scrollRoot.value?.scrollTo({ top })
+  scrollRoot.value?.scrollTo({ top, behavior: 'instant' })
 }
 function imageLoaded() {
   loaded.value = true
@@ -344,11 +423,21 @@ const body = 'space-y-2 border-t p-3 text-sm'
 </script>
 
 <template>
-  <Dialog :open="!!photo" @update:open="emit('close')">
-    <DialogContent v-if="info" class="max-h-[95dvh] w-full overflow-y-auto sm:max-w-6xl">
+  <Dialog :open="!!acceptedPhoto" @update:open="closeViewer">
+    <DialogContent
+      v-if="currentPhoto && info"
+      class="max-h-[95dvh] w-full overflow-hidden p-0 sm:max-w-6xl"
+    >
       <DialogTitle class="sr-only">{{ info.photoName }}.{{ info.format }}</DialogTitle>
-      <DialogDescription class="sr-only">Photo details and similar images</DialogDescription>
-      <div ref="viewerBody">
+      <DialogDescription class="sr-only"
+        >Photo details and similar photos and videos</DialogDescription
+      >
+      <div
+        ref="viewerBody"
+        data-testid="photo-viewer-scroll"
+        tabindex="-1"
+        class="max-h-[95dvh] min-h-0 overflow-y-auto overscroll-contain p-6 pb-20 outline-none"
+      >
         <Button v-if="history.length" variant="outline" class="mb-4" @click="previous"
           >Back to previous photo</Button
         >
@@ -363,7 +452,7 @@ const body = 'space-y-2 border-t p-3 text-sm'
                 :alt="info.photoName"
                 class="max-h-[85vh] max-w-full cursor-zoom-out rounded-md object-contain"
                 @load="imageLoaded"
-                @click="emit('close')"
+                @click="closeViewer"
               />
             </template>
             <video
@@ -391,13 +480,20 @@ const body = 'space-y-2 border-t p-3 text-sm'
                   <Button v-if="kind === 'photo'" variant="secondary" size="sm" as-child>
                     <a :href="imageUrl" target="_blank" rel="noopener">Full Picture</a>
                   </Button>
-                  <Button v-if="canEdit" variant="secondary" size="sm" @click="editing = true"
+                  <Button v-if="canEdit" variant="secondary" size="sm" @click="editImage"
                     >Edit Image</Button
                   >
                   <Button variant="secondary" size="sm" @click="downloadPhoto">Download</Button>
                 </div>
               </div>
             </details>
+
+            <PhotoText
+              v-if="kind === 'photo'"
+              :key="`${info.photoId}:${version}`"
+              ref="photoText"
+              :photo-id="info.photoId"
+            />
 
             <details v-if="hasGps" open :class="section">
               <summary :class="summary">Location</summary>
@@ -454,7 +550,7 @@ const body = 'space-y-2 border-t p-3 text-sm'
               <div :class="body">
                 <div class="flex flex-wrap gap-1">
                   <Badge v-for="t in tags" :key="t.tag_id" variant="secondary" class="gap-1">
-                    {{ t.tag_name }}
+                    {{ t.tag_name }} <SmartBadge :smart="t.smart" />
                     <button
                       type="button"
                       :aria-label="`Remove ${t.tag_name}`"
@@ -472,9 +568,9 @@ const body = 'space-y-2 border-t p-3 text-sm'
                       ><SelectValue placeholder="Choose a tag"
                     /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem v-for="t in tagOptions" :key="t.tagId" :value="String(t.tagId)">{{
-                        t.tagName
-                      }}</SelectItem>
+                      <SelectItem v-for="t in tagOptions" :key="t.tagId" :value="String(t.tagId)"
+                        >{{ t.tagName }} <SmartBadge :smart="t.smart"
+                      /></SelectItem>
                     </SelectContent>
                   </Select>
                   <Button size="sm" :disabled="!tagChoice" @click="addTag">Submit</Button>
@@ -487,7 +583,7 @@ const body = 'space-y-2 border-t p-3 text-sm'
               <div :class="body">
                 <div class="flex flex-wrap gap-1">
                   <Badge v-for="g in galleries" :key="g.ga_id" variant="secondary" class="gap-1">
-                    {{ g.ga_name }}
+                    {{ g.ga_name }} <SmartBadge :smart="g.smart" />
                     <button
                       type="button"
                       :aria-label="`Remove ${g.ga_name}`"
@@ -504,12 +600,9 @@ const body = 'space-y-2 border-t p-3 text-sm'
                       ><SelectValue placeholder="Choose a gallery"
                     /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem
-                        v-for="g in galleryOptions"
-                        :key="g.gaId"
-                        :value="String(g.gaId)"
-                        >{{ g.gaName }}</SelectItem
-                      >
+                      <SelectItem v-for="g in galleryOptions" :key="g.gaId" :value="String(g.gaId)"
+                        >{{ g.gaName }} <SmartBadge :smart="g.smart"
+                      /></SelectItem>
                     </SelectContent>
                   </Select>
                   <Button size="sm" :disabled="!galleryChoice" @click="addGallery">Submit</Button>
@@ -555,8 +648,8 @@ const body = 'space-y-2 border-t p-3 text-sm'
           </div>
         </div>
         <SimilarRecommendations
-          v-if="!editing && kind === 'photo' && allowSimilar !== false"
-          :key="`${info.photoId}:${version}`"
+          v-if="!editing && (kind === 'photo' || kind === 'video') && allowSimilar !== false"
+          :key="`${info.photoId}:${version}:${recommendationSession}`"
           ref="recommendations"
           :photo="info"
           :scroll-root="scrollRoot"
@@ -565,6 +658,14 @@ const body = 'space-y-2 border-t p-3 text-sm'
           @invalidated="invalidateHistory"
         />
       </div>
+      <Button
+        v-if="!editing && recommendations?.expanded"
+        class="absolute bottom-4 right-4 z-10 shadow-lg"
+        aria-label="Back to top and close similar photos and videos"
+        @click="backToTop"
+      >
+        <ArrowUp aria-hidden="true" /> Back to top
+      </Button>
     </DialogContent>
   </Dialog>
 </template>

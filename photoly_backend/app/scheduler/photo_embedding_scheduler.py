@@ -8,10 +8,11 @@ from sqlalchemy import create_engine, select, update, delete, func
 from sqlalchemy.orm import sessionmaker
 from app.config import database_url
 from app.entities import User, Photo
-from app.entities.ai import AIJob, AIControlState, EmbeddingProfile, PhotoEmbeddingState as State
+from app.entities.ai import AIJob, AIControlState, EmbeddingProfile, PhotoEmbeddingState as State, VideoFrameEmbedding
 from app.ai.state import control, settings, utcnow
 from app.ai.hooks import enqueue_photo
 from app.ai.snapshot import snapshot_photo
+from app.ai.video import VIDEO_EXTENSIONS, SAMPLING_VERSION
 from app.ai.types import AIError
 from app.ai.limits import runtime_config
 from app.ai.runtime_client import RuntimeClient
@@ -65,6 +66,8 @@ class PhotoEmbeddingScheduler(SchedulerInterface):
         self.owner, self.leader_token = str(uuid4()), None
         self.policy, self.last_user = ResourcePolicy(), None
         self.user_cursor = 0
+        from .smart_tag_scheduler import SmartTagScheduler
+        self.smart = SmartTagScheduler(self)
 
     def lead(self, session):
         row = control(session,"scheduler",lock=True)
@@ -90,6 +93,7 @@ class PhotoEmbeddingScheduler(SchedulerInterface):
                 photos=session.scalars(select(Photo).outerjoin(State,(State.photo_id==Photo.photo_id)&(State.profile_id==pid))
                     .where(Photo.user_id==uid,
                         (State.state_id.is_(None)) | (State.content_version!=Photo.content_version) |
+                        (func.lower(Photo.format).in_(VIDEO_EXTENSIONS) & (State.sampling_version.is_(None) | (State.sampling_version!=SAMPLING_VERSION))) |
                         ((State.status=="pending") & ~select(AIJob.job_id).where(AIJob.photo_id==Photo.photo_id,AIJob.profile_id==pid,
                             AIJob.content_version==Photo.content_version,AIJob.status.in_(["queued","running"])).exists()))
                     .order_by(Photo.photo_id).limit(25)).all()
@@ -180,16 +184,25 @@ class PhotoEmbeddingScheduler(SchedulerInterface):
                 session.rollback()
             self.last_user = snapshot["user_id"]
             start = time.monotonic()
-            result = self.runtime.encode(spec,image=snapshot["data"],role="document",background=True)
-            if result["fingerprint"]!=spec["fingerprint"]:
-                raise AIError("profile_mismatch",409)
+            vectors = []
+            frames = snapshot.get("frames", [{"data": snapshot.get("data")}])
+            for frame in frames:
+                if heartbeat.lost.is_set():
+                    return
+                with self.sessions.begin() as session:
+                    if not jobs.current_job(session, task):
+                        return
+                result = self.runtime.encode(spec,image=frame["data"],role="document",background=True)
+                if result["fingerprint"]!=spec["fingerprint"]:
+                    raise AIError("profile_mismatch",409)
+                vectors.append(result["vector"])
             if heartbeat.lost.is_set():
                 return
             with self.sessions.begin() as session:
                 leader = session.get(AIControlState,"scheduler")
                 if leader.lease_token!=self.leader_token or leader.lease_expires_at<=utcnow():
                     return
-                jobs.commit_embedding(session,task,snapshot,result["vector"],int((time.monotonic()-start)*1000))
+                jobs.commit_embedding(session,task,snapshot,vectors if "frames" in snapshot else vectors[0],int((time.monotonic()-start)*1000))
 
     def tick(self):
         with self.sessions.begin() as session:
@@ -205,6 +218,12 @@ class PhotoEmbeddingScheduler(SchedulerInterface):
                 with self.sessions.begin() as session:
                     jobs.finish(session,task,"failed",{"reason":error.code})
             return
+        # Admin operations were handled first. Smart work has its own local CPU/memory
+        # admission and never depends on runtime availability. One bounded batch per tick.
+        try:
+            self.smart.tick()
+        except Exception as error:
+            log.error("Smart Tag batch failed: %s", type(error).__name__)
         try:
             observed = self.runtime.status()
             expected_pid = cfg["loaded_profile_id"]
@@ -233,15 +252,16 @@ class PhotoEmbeddingScheduler(SchedulerInterface):
                 self.embed(task)
             except AIError as error:
                 with self.sessions.begin() as session:
-                    if error.code in ("unsupported_image","invalid_image","image_too_large","image_too_many_pixels"):
+                    if error.code in ("unsupported_image","invalid_image","image_too_large","image_too_many_pixels","invalid_video","video_stream_missing","video_frame_missing","video_frame_too_large","video_too_large"):
                         state = session.scalar(select(State).where(State.photo_id==task["photo_id"],State.profile_id==task["profile_id"],State.content_version==task["version"]))
                         if jobs.current_job(session,task) and state:
-                            state.status,state.embedding,state.error_code = "unsupported",None,error.code
+                            session.execute(delete(VideoFrameEmbedding).where(VideoFrameEmbedding.state_id==state.state_id))
+                            state.status,state.embedding,state.error_code,state.frame_count = "unsupported",None,error.code,0
                         jobs.finish(session,task,result={"reason":error.code})
                     elif error.code in ("stale_content","photo_not_found"):
                         jobs.finish(session,task,"cancelled",{"reason":error.code})
                     else:
-                        jobs.fail(session,task,error.code,transient=error.status in (429,503,504))
+                        jobs.fail(session,task,error.code,transient=error.status in (429,503,504) and error.code!="video_decode_timeout")
 
     def generation(self):
         with self.sessions() as session:

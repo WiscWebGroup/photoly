@@ -55,6 +55,8 @@ def system_usage(device="cpu", path="/tmp"):
     snapshot = {"sampled_at": datetime.now(timezone.utc).isoformat(), "cpu_percent":cpu, "host_cpu_percent":host_cpu,"container_cpu_percent":container_cpu,"cpu_capacity":cpu_capacity,
         "memory_available": available, "memory_total": total, "disk_free": shutil.disk_usage(path).free,
         "gpu_percent": None, "vram_available": None, "vram_total": None, "missing": missing}
+    if device == "mps":
+        missing.extend(["gpu_utilization", "dedicated_vram_not_applicable"])
     if device == "cuda":
         try:
             import pynvml

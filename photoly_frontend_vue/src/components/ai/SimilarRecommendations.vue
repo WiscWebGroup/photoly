@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { aiCall, aiMessage, AiError, type AiCapabilities, type AiSearchResponse } from '@/lib/ai'
 import { photoUrl } from '@/lib/photoUrl'
+import { mediaKind } from '@/lib/media'
+import videoIcon from '@/assets/icons/Video.png'
 import type { Photo } from '@/composables/usePhotos'
 import { useAuthStore } from '@/stores/auth'
 
@@ -42,6 +44,7 @@ let disposed = false
 let scrolled = false
 let userIntent = false
 let lastTriggeredScroll = -1
+let previousScroll = 0
 let observer: IntersectionObserver | undefined
 const supported = computed(() =>
   caps.value?.formats.includes((props.photo.format ?? '').toLowerCase()),
@@ -50,7 +53,7 @@ const allowed = computed(() => caps.value?.ready && supported.value)
 const unavailable = computed(() =>
   caps.value
     ? !supported.value
-      ? 'This image format is not supported for similar images.'
+      ? 'This media format is not supported for similar photos and videos.'
       : aiMessage(caps.value.reason ?? 'model_not_ready')
     : '',
 )
@@ -66,9 +69,26 @@ function invalidate() {
   cursor.value = null
   hasMore.value = true
   expiresAt.value = 0
-  scrolled = false
+  resetScrollIntent()
   emit('invalidated')
 }
+function resetScrollIntent() {
+  scrolled = false
+  userIntent = false
+  lastTriggeredScroll = -1
+  previousScroll = props.scrollRoot?.scrollTop ?? 0
+}
+function collapse() {
+  cancel()
+  result.value = null
+  cursor.value = null
+  hasMore.value = true
+  expiresAt.value = 0
+  error.value = ''
+  restartRequired.value = false
+  resetScrollIntent()
+}
+const expanded = computed(() => busy.value || !!result.value || !!error.value)
 function capture(): RecommendationSnapshot {
   return {
     result: result.value,
@@ -77,7 +97,7 @@ function capture(): RecommendationSnapshot {
     expiresAt: expiresAt.value,
   }
 }
-defineExpose({ capture, invalidate })
+defineExpose({ capture, invalidate, collapse, expanded })
 async function load(restart = false) {
   if (busy.value || !allowed.value || (!hasMore.value && !restart)) return
   if (restart) {
@@ -192,8 +212,11 @@ function intent() {
   userIntent = true
 }
 function onScroll() {
-  if (!userIntent) return
-  if ((props.scrollRoot?.scrollTop ?? 0) > 48) scrolled = true
+  const top = props.scrollRoot?.scrollTop ?? 0
+  const down = top > previousScroll
+  previousScroll = top
+  if (!userIntent || !down) return
+  if (top > 48) scrolled = true
   maybeLoad()
 }
 watch(
@@ -203,6 +226,7 @@ watch(
     for (const event of ['wheel', 'touchmove', 'keydown', 'pointerdown'])
       old?.removeEventListener(event, intent)
     observer?.disconnect()
+    resetScrollIntent()
     if (!root) return
     root.addEventListener('scroll', onScroll, { passive: true })
     for (const event of ['wheel', 'touchmove', 'keydown', 'pointerdown'])
@@ -275,31 +299,33 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section aria-label="Similar images" class="mt-6 border-t pt-6">
+  <section aria-label="Similar photos and videos" class="mt-6 border-t pt-6">
     <div class="flex min-h-28 flex-col items-center justify-center gap-2 text-center">
-      <h2 class="text-lg font-semibold">Similar images</h2>
-      <p class="text-muted-foreground text-sm">Scroll down to discover similar images</p>
+      <h2 class="text-lg font-semibold">Similar photos and videos</h2>
+      <p class="text-muted-foreground text-sm">Scroll down to discover similar photos and videos</p>
       <span aria-hidden="true">↓</span>
     </div>
     <p v-if="caps && !allowed" role="status" class="py-4 text-sm text-muted-foreground">
       {{ unavailable }}
     </p>
     <div v-if="result" class="mb-4 text-sm text-muted-foreground" role="status">
-      <p>{{ result.items.length }} similar image(s) · Profile #{{ result.profileId }}</p>
       <p>
-        Indexed {{ result.coverage.ready }} / {{ result.coverage.supported }} supported images.
-        Ordered by similarity.
+        {{ result.items.length }} similar photo(s) and video(s) · Profile #{{ result.profileId }}
+      </p>
+      <p>
+        Indexed {{ result.coverage.ready }} / {{ result.coverage.supported }} supported photos and
+        videos. Ordered by similarity.
       </p>
       <p v-if="result.similarityThreshold != null">
         Minimum similarity: {{ result.similarityThreshold }}
       </p>
       <p v-if="result.coverage.pending || result.coverage.failed">
-        Coverage is partial. Reload later to include newly indexed images.
+        Coverage is partial. Reload later to include newly indexed photos and videos.
       </p>
     </div>
     <ul
       class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
-      aria-label="Similar image results"
+      aria-label="Similar photos and videos results"
     >
       <li v-for="hit in result?.items ?? []" :key="hit.photo.photoId">
         <button
@@ -309,7 +335,11 @@ onBeforeUnmount(() => {
           @click="emit('navigate', hit.photo)"
         >
           <img
-            :src="photoUrl(hit.photo.photoId, 'renderThumbnail')"
+            :src="
+              mediaKind(hit.photo.format) === 'video'
+                ? videoIcon
+                : photoUrl(hit.photo.photoId, 'renderThumbnail')
+            "
             :alt="hit.photo.photoName"
             loading="lazy"
             decoding="async"
@@ -327,7 +357,7 @@ onBeforeUnmount(() => {
       class="flex min-h-24 flex-col items-center justify-center gap-3 py-4"
     >
       <div v-if="busy" role="status" class="w-full">
-        <p class="mb-3 text-sm">Loading similar images…</p>
+        <p class="mb-3 text-sm">Loading similar photos and videos…</p>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <Skeleton v-for="n in 5" :key="n" class="aspect-square" />
         </div>
@@ -340,7 +370,9 @@ onBeforeUnmount(() => {
       >
       <template v-else-if="allowed"
         ><Button v-if="hasMore" variant="outline" @click="load()">Load more</Button>
-        <p v-else class="text-muted-foreground text-sm">No more similar images</p></template
+        <p v-else class="text-muted-foreground text-sm">
+          No more similar photos and videos
+        </p></template
       >
     </div>
   </section>

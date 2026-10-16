@@ -1,0 +1,18 @@
+# macOS host runtime; use --profile ai-mps, never --profile ai with this override.
+services:
+  ai-runtime:
+    profiles: !override [container-runtime-disabled]
+  backend:
+    environment:
+      AI_RUNTIME_URL: http://host.docker.internal:${AI_RUNTIME_PORT:-8090}
+  ai-scheduler:
+    profiles: !override [ai-mps]
+    environment:
+      AI_RUNTIME_URL: http://host.docker.internal:${AI_RUNTIME_PORT:-8090}
+    depends_on: !override
+      migrate:
+        condition: service_completed_successfully
+  ai-maintenance:
+    profiles: !override [ai-mps]
+    environment:
+      AI_RUNTIME_URL: http://host.docker.internal:${AI_RUNTIME_PORT:-8090}

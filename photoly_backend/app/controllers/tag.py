@@ -1,4 +1,4 @@
-from flask import Blueprint
+from flask import Blueprint, request
 from app.controllers.common import legacy, service, arg, body, changed
 from app.entities import Tag
 from app.services.catalog import CatalogService
@@ -10,13 +10,13 @@ bp = Blueprint("tag", __name__, url_prefix="/tag")
 @bp.get("/getAll")
 @legacy()
 def all_tags(uid):
-    return result(service(CatalogService).all(Tag, uid))
+    return result(service(CatalogService).all(Tag, uid, request.args.get("includeSmart") == "true"))
 
 
 @bp.get("/getPage")
 @legacy(shape="page", page_missing=-1)
 def page(uid):
-    return service(CatalogService).paged(Tag, uid, arg("page", integer=True), arg("rowsPerPage", integer=True))
+    return service(CatalogService).paged(Tag, uid, arg("page", integer=True), arg("rowsPerPage", integer=True), request.args.get("includeSmart") == "true")
 
 
 @bp.post("/insert")

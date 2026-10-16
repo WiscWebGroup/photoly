@@ -22,9 +22,9 @@ def test_openapi_32_is_valid_and_covers_exact_legacy_routes():
     expected = {(row['method'].lower(), row['path']) for row in json.loads((CONTRACTS / 'spring_routes.json').read_text())['routes']}
     actual = {(method, path) for path, methods in spec['paths'].items() for method in methods}
     assert len(expected) == 90
-    assert actual == expected | {(method,path) for path,method,_ in AI_OPERATIONS} | {('get', '/healthz'), ('post', '/photo/replace'), ('get', '/admin/pingDatabase'), ('get', '/admin/databaseInfo')}
+    assert actual == expected | {(method,path) for path,method,_ in AI_OPERATIONS} | {('get', '/photo/ocr'), ('put', '/photo/ocr'), ('post', '/photo/ocr/recognize'), ('get', '/photo/searchSmart'), ('get', '/healthz'), ('post', '/photo/replace'), ('get', '/admin/pingDatabase'), ('get', '/admin/databaseInfo')}
     ids = [op['operationId'] for methods in spec['paths'].values() for op in methods.values()]
-    assert len(ids) == len(set(ids)) == 110
+    assert len(ids) == len(set(ids)) == 120
     for path, methods in spec['paths'].items():
         for op in methods.values():
             assert op['summary'] and op['description'] and op['tags']
@@ -163,3 +163,39 @@ def test_request_parameters_and_bodies_match_independent_contract_cases():
             properties = op['requestBody']['content']['multipart/form-data']['schema']['properties']
             expected = {'avatar': {'file'}, 'one': {'file', 'photo'}, 'many': {'files', 'photosStr'}}[options['upload']]
             assert set(properties) == expected
+
+
+def test_openapi_matches_registered_flask_routes_without_dependencies(tmp_path):
+    with patch('psycopg.connect', side_effect=AssertionError('Route audit contacted PostgreSQL')), \
+         patch('redis.Redis.execute_command', side_effect=AssertionError('Route audit contacted Redis')):
+        app = create_app({'TESTING': True,
+                          'SQLALCHEMY_DATABASE_URI': 'postgresql+psycopg://invalid:invalid@127.0.0.1:1/missing',
+                          'REDIS_URL': 'redis://127.0.0.1:1/0', 'UPLOAD_FOLDER': str(tmp_path / 'absent')})
+        actual = {
+            (method.lower(), re.sub(r'<(?:[^:>]+:)?([^>]+)>', r'{\1}', rule.rule))
+            for rule in app.url_map.iter_rules() if not rule.endpoint.startswith('docs.')
+            for method in rule.methods - {'HEAD', 'OPTIONS'}
+        }
+        documented = {(method, path) for path, methods in build_spec()['paths'].items() for method in methods}
+        assert actual == documented, {'missing': actual - documented, 'extra': documented - actual}
+
+
+def test_recent_feature_documentation_matches_behavior():
+    paths = build_spec()['paths']
+    assert 'suppresses automatic recreation' not in paths['/photo/delete']['post']['description']
+    assert 'exclusion' in paths['/photo/deleteFromGallery']['post']['description']
+    assert paths['/ai/smart/status']['get']['tags'] == ['Smart Organization']
+    assert 'coverage' not in paths['/ai/smart/status']['get']['responses']['200']['description']
+    for path, method in [('/photo/ocr', 'get'), ('/photo/ocr', 'put'), ('/photo/ocr/recognize', 'post')]:
+        assert paths[path][method]['responses']['200']['headers']['Cache-Control']['schema']['const'] == 'private, no-store'
+    settings = paths['/admin/ai/settings']['patch']['requestBody']['content']['application/json']['schema']
+    assert 'mps/float32' in settings['properties']['settings']['properties']['device']['description']
+
+
+def test_recommendation_pagination_schema_accepts_only_one_request_shape():
+    schema = build_spec()['paths']['/ai/photos/{photoId}/similar/page']['post']['requestBody']['content']['application/json']['schema']
+    for value in ({}, {'pageSize': 24}, {'cursor': 'opaque-cursor'}):
+        validate_value(value, schema)
+    for value in ({'cursor': 'opaque-cursor', 'pageSize': 24}, {'topK': 20}, {'pageSize': 61}):
+        with pytest.raises(Exception):
+            validate_value(value, schema)

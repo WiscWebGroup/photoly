@@ -115,4 +115,21 @@ class Setting(db.Model):
     note = db.Column(db.String(255))
 
 
-from .ai import EmbeddingProfile, PhotoEmbeddingState, AIJob, AIControlState
+from .ai import EmbeddingProfile, PhotoEmbeddingState, VideoFrameEmbedding, AIJob, AIControlState
+
+
+class PhotoOCR(db.Model):
+    __tablename__ = 'photo_ocr'
+    photo_id = db.Column(db.Integer, db.ForeignKey('photo.photo_id', ondelete='CASCADE'), primary_key=True, autoincrement=False)
+    content_version = db.Column(db.Integer, nullable=False)
+    text = db.Column(db.Text, nullable=False)
+    languages = db.Column(db.String(100), nullable=False)
+    engine_version = db.Column(db.String(255))
+    revision = db.Column(db.Integer, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    __table_args__ = (
+        db.CheckConstraint('content_version > 0 AND revision > 0', name='ck_ocr_versions'),
+        db.CheckConstraint('length(text) <= 100000', name='ck_ocr_text_length'),
+    )
+
+from .smart import SmartPreference, SmartMedia, SmartItem, SmartMember, SmartLineage

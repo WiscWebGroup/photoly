@@ -89,9 +89,11 @@ class UserService(BaseService):
     def update_avatar(self, user_id, upload):
         if upload is None:
             raise BusinessError(-1)
+        from app.services.avatar import avatar_jpeg
+        image = avatar_jpeg(upload.stream)
         with self.atomic(user_id) as files:
             user = self.info(user_id)
-            files.install(upload.stream, self.storage.path(user.uuid, user.uuid + ".jpg"))
+            files.install(image, self.storage.path(user.uuid, user.uuid + ".jpg"))
         return 1
 
     def avatar(self, user_id):

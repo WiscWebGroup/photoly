@@ -4,12 +4,13 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError
 from app.entities import User, Photo, Namespace, Gallery
-from app.entities.ai import AIJob, EmbeddingProfile, PhotoEmbeddingState as State
+from app.entities.ai import AIJob, EmbeddingProfile, PhotoEmbeddingState as State, VideoFrameEmbedding as Frame
 from app.ai.state import settings, control, utcnow
 from app.ai.runtime_client import RuntimeClient
 from app.ai.snapshot import snapshot_photo
 from app.ai.types import AIError
 from app.ai.preprocessing import EXTENSIONS, MAX_BYTES, MAX_PIXELS
+from app.ai.video import VIDEO_EXTENSIONS, MAX_FRAMES, EXTRACT_SECONDS, SAMPLING_VERSION, max_video_bytes
 from app.ai.vector_store_pgvector import PgVectorStore
 from app.services.ai_admin import coverage
 from app.serialization import serialize
@@ -36,8 +37,8 @@ class AISearch:
             except AIError:reason="runtime_offline"
         return {"enabled":eligible,"globalEnabled":cfg["enabled"],"ready":ready,"reason":reason,
                 "profileId":profile.profile_id if profile else None,"profile":({"provider":profile.provider,"dimension":profile.dimension,"modelId":profile.spec["model_id"]} if profile else None),"coverage":coverage(self.session,cfg["search_profile_id"],uid),
-                "modalities":["text","image","similar"],"limits":{"textCharacters":512,"imageBytes":MAX_BYTES,"imagePixels":MAX_PIXELS,"topK":100},
-                "similarityThreshold":cfg["similarity_threshold"],"formats":sorted(EXTENSIONS)}
+                "modalities":["text","image","similar"],"limits":{"textCharacters":512,"imageBytes":MAX_BYTES,"imagePixels":MAX_PIXELS,"topK":100,"videoBytes":max_video_bytes(),"videoFrames":MAX_FRAMES,"videoExtractionSeconds":EXTRACT_SECONDS},
+                "similarityThreshold":cfg["similarity_threshold"],"formats":sorted(EXTENSIONS | VIDEO_EXTENSIONS),"videoFormats":sorted(VIDEO_EXTENSIONS),"videoSamplingVersion":SAMPLING_VERSION}
 
     def page(self, uid, data, photo_id, session_token):
         from app.ai.similar_cursor import SimilarCursor
@@ -115,19 +116,26 @@ class AISearch:
                 if vector is None and spec["query_instruction"]==spec["document_instruction"]:
                     state=self.session.scalar(select(State).where(State.photo_id==photo_id,State.profile_id==pid,
                             State.content_version==photo.content_version,State.status=="ready"))
-                    if state:
+                    if state and state.embedding is not None:
                         vector=state.embedding.to_numpy()
+                    elif state and state.sampling_version == SAMPLING_VERSION:
+                        vector=[v.to_numpy() for v in self.session.scalars(select(Frame.embedding).where(
+                            Frame.state_id==state.state_id).order_by(Frame.frame_index)).all()] or None
                 if vector is None:
-                    snapshot=snapshot_photo(self.session,self.infra.storage,photo_id,uid)
-                    image=snapshot["data"]
+                    snapshot=snapshot_photo(self.session,self.infra.storage,photo_id,uid,deadline=started+60)
+                    image=snapshot.get("data")
             self.session.commit()
             if vector is None:
-                remaining=60-(time.monotonic()-started)
-                if remaining<=0:raise AIError("query_timeout",504)
-                output=self.runtime.encode(spec,text=text_query,image=image,role="query",timeout=remaining)
-                if output["fingerprint"]!=spec["fingerprint"]:
-                    raise AIError("profile_mismatch",409)
-                vector=output["vector"]
+                vectors=[]
+                frames=snapshot["frames"] if snapshot and "frames" in snapshot else [{"data":image}]
+                for frame in frames:
+                    remaining=60-(time.monotonic()-started)
+                    if remaining<=0:raise AIError("query_timeout",504)
+                    output=self.runtime.encode(spec,text=text_query,image=frame["data"],role="query",timeout=remaining)
+                    if output["fingerprint"]!=spec["fingerprint"]:
+                        raise AIError("profile_mismatch",409)
+                    vectors.append(output["vector"])
+                vector=vectors if snapshot and "frames" in snapshot else vectors[0]
             self.session.expire_all()
             current=settings(self.session)
             user=self.session.get(User,uid)

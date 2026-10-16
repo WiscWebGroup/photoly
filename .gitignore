@@ -5,3 +5,6 @@ upload_data/*
 !upload_data/1.txt
 
 backup_data/
+
+# Root-level local tooling dependencies (the app is in photoly_frontend_vue).
+/node_modules/

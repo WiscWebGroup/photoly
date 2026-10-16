@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { smartReason } from '@/lib/smartOrganization'
 import { computed, ref, watch } from 'vue'
 import AdminLayout from '@/components/AdminLayout.vue'
 import { Button } from '@/components/ui/button'
@@ -118,8 +119,11 @@ function setThreshold(event: Event) {
 }
 function chooseDevice(event: Event) {
   if (!draft.value) return
-  draft.value.device = (event.target as HTMLSelectElement).value
-  draft.value.precision = draft.value.device === 'cuda' ? 'bfloat16' : 'float32'
+  const selectedDevice = (event.target as HTMLSelectElement).value
+  draft.value.device = selectedDevice
+  draft.value.precision =
+    capabilities.value?.devices.find((device) => device.device === selectedDevice)?.precision ??
+    'float32'
 }
 async function save() {
   if (!draft.value || !original.value || !capabilities.value) return
@@ -156,6 +160,7 @@ async function save() {
   const keys = [
     'enabled',
     'new_user_default',
+    'smart_tag_enabled',
     'device',
     'precision',
     ...Object.keys(capabilities.value.fields),
@@ -250,7 +255,7 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
               >User Management</router-link
             >.
           </li>
-          <li>Start the scheduler and wait for supported images to be indexed.</li>
+          <li>Start the scheduler and wait for supported photos and videos to be indexed.</li>
           <li>
             Activate explicitly. To switch or roll back, enter maintenance first, load the target,
             complete indexing and activate.
@@ -431,8 +436,8 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
           >
         </div>
         <p class="text-sm text-muted-foreground">
-          Pause/stop prevents new background work; the current image may finish. The control loop
-          stays online and the model stays loaded.
+          Pause/stop prevents new background work; the current media item may finish. The control
+          loop stays online and the model stays loaded.
         </p>
         <p class="text-sm">
           Jobs:
@@ -459,12 +464,35 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
         aria-label="AI settings"
       >
         <h2 class="text-lg font-semibold">Settings and resource limits</h2>
+        <div
+          v-if="status.smartTag"
+          class="rounded-md border p-3 text-sm"
+          aria-label="Smart Tag progress"
+        >
+          <p>
+            Smart Tag: {{ status.smartTag.processed }} / {{ status.smartTag.total }} media inspected
+            · {{ status.smartTag.failed }} failed
+          </p>
+          <p v-if="status.smartTag.reason" role="status">
+            {{ smartReason(status.smartTag.reason) }}
+          </p>
+          <p class="text-xs text-muted-foreground">
+            Uses the existing scheduler. Users must also have AI access and opt in.
+          </p>
+        </div>
         <p v-if="original?.generation !== status.settings.generation" role="status" class="text-sm">
           The server configuration changed. Your draft is preserved; reload saved settings before
           editing again.
         </p>
         <form class="space-y-4" @submit.prevent="save">
           <div class="flex flex-wrap gap-5">
+            <label class="flex gap-2 text-sm"
+              ><input
+                v-model="draft.smart_tag_enabled"
+                type="checkbox"
+                aria-label="Enable Smart Tag"
+              />Enable Smart Tag</label
+            >
             <label class="flex gap-2 text-sm"
               ><input v-model="draft.enabled" type="checkbox" aria-label="Enable AI search" />Enable
               AI search</label
@@ -502,9 +530,10 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
               >
             </div>
             <p id="similarity-threshold-help" class="text-xs text-muted-foreground">
-              Leave blank for no threshold (default). Similar images and image queries only show
-              cosine scores at or above this value (-1 to 1). This is not a probability. Save below
-              to apply; no reindex or model restart is needed. Natural language search is unchanged.
+              Leave blank for no threshold (default). Similar photos and videos and image queries
+              only show cosine scores at or above this value (-1 to 1). This is not a probability.
+              Save below to apply; no reindex or model restart is needed. Natural language search is
+              unchanged.
             </p>
           </div>
           <div class="grid gap-3 sm:grid-cols-2">
@@ -522,7 +551,8 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                   :value="device.device"
                   :disabled="device.available !== true"
                 >
-                  {{ device.device }} / {{ device.precision
+                  {{ device.device === 'mps' ? 'Apple Silicon GPU (MPS)' : device.device }} /
+                  {{ device.precision
                   }}{{ device.available !== true ? ' — unavailable or unknown' : '' }}
                 </option>
                 <option disabled>NPU — not supported</option>
@@ -600,6 +630,13 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
             Resource sample: {{ time(resources?.sampled_at) }}
             {{ staleResources ? '(unknown or stale)' : '' }}
           </p>
+          <p
+            v-if="runtime?.observed.config?.device === 'mps'"
+            class="text-xs text-muted-foreground"
+          >
+            Apple Silicon uses unified memory. RAM limits apply; GPU utilization and dedicated VRAM
+            metrics are unavailable and do not block background work.
+          </p>
           <p v-if="resources?.missing?.length">
             Unavailable metrics: {{ resources.missing.join(', ') }}
           </p>
@@ -633,7 +670,7 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
           ><AlertDialogTitle>Confirm {{ confirmation?.command }}</AlertDialogTitle
           ><AlertDialogDescription>{{
             confirmation?.command === 'purge'
-              ? 'This deletes the selected profile, its index and stored vectors. Your photos remain in the library.'
+              ? 'This deletes the selected profile, its index and stored vectors. Your photos and videos remain in the library.'
               : confirmation?.command === 'rebuild'
                 ? 'Rebuild the selected profile. Existing results will be invalidated and computed again.'
                 : 'AI search will be unavailable during maintenance. Ordinary library features remain available.'

@@ -1,4 +1,5 @@
 """Short-lived, session-bound query vectors. No durable search history."""
+import numpy as np
 import hashlib
 import json
 import math
@@ -35,7 +36,7 @@ class SimilarCursor:
 
     def create(self, *, pid, version, vector, page_size, threshold=None):
         context = {"id":uuid4().hex,"uid":self.uid,"owner":self.owner,"photo":self.photo_id,
-                   "profile":pid,"version":version,"vector":list(map(float,vector)),
+                   "profile":pid,"version":version,"vector":np.asarray(vector,dtype=float).tolist(),
                    "size":page_size,"threshold":threshold,"expires":time.time()+TTL}
         self.redis.setex(PREFIX + "query:" + context["id"], TTL, json.dumps(context, allow_nan=False))
         return context

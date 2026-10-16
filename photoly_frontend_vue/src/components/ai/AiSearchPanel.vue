@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { SmartSource } from '@/lib/smartOrganization'
+import { mediaKind } from '@/lib/media'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import MediaList from '@/components/MediaList.vue'
 import MoveToShowFolder from '@/components/MoveToShowFolder.vue'
@@ -24,10 +26,12 @@ const text = ref(''),
 const galleryId = ref(''),
   folderId = ref<number>(),
   folderName = ref('All folders')
-const galleries = ref<{ gaId: number; gaName: string }[]>([])
+const galleries = ref<{ gaId: number; gaName: string; smart?: SmartSource | null }[]>([])
 const folderPicker = ref<InstanceType<typeof MoveToShowFolder>>()
 const list = ref<InstanceType<typeof MediaList>>()
-const formats = computed(() => capabilities.value?.formats ?? [])
+const formats = computed(() =>
+  (capabilities.value?.formats ?? []).filter((format) => mediaKind(format) !== 'video'),
+)
 const accept = computed(() => formats.value.map((f) => `.${f}`).join(','))
 const allowed = computed(
   () => capabilities.value?.ready && capabilities.value.enabled && capabilities.value.globalEnabled,
@@ -106,7 +110,10 @@ async function submit() {
 async function loadGalleries() {
   const token = auth.token
   try {
-    const rows = await call<typeof galleries.value>({ url: '/gallery/getAll' })
+    const rows = await call<typeof galleries.value>({
+      url: '/gallery/getAll',
+      params: { includeSmart: true },
+    })
     if (token === auth.token) galleries.value = rows
   } catch {
     error.value = 'Could not load albums. Please retry.'
@@ -165,7 +172,7 @@ onBeforeUnmount(removeFile)
         <h3 class="text-lg font-semibold">
           {{
             mode === 'similar'
-              ? 'Similar images'
+              ? 'Similar photos and videos'
               : mode === 'image'
                 ? 'Image search'
                 : 'Natural language search'
@@ -252,7 +259,7 @@ onBeforeUnmount(removeFile)
             >
               <option value="">All albums</option>
               <option v-for="g in galleries" :key="g.gaId" :value="String(g.gaId)">
-                {{ g.gaName }}
+                {{ g.gaName }}{{ g.smart ? ' · ✨ Smart' : '' }}
               </option>
             </select></label
           >
@@ -277,14 +284,14 @@ onBeforeUnmount(removeFile)
         }}
       </p>
       <p>
-        Indexed {{ result.coverage.ready }} / {{ result.coverage.supported }} supported images;
-        {{ result.coverage.pending }} pending, {{ result.coverage.failed }} failed,
+        Indexed {{ result.coverage.ready }} / {{ result.coverage.supported }} supported photos and
+        videos; {{ result.coverage.pending }} pending, {{ result.coverage.failed }} failed,
         {{ result.coverage.unsupported }} unsupported.
       </p>
       <p v-if="result.coverage.ready < result.coverage.supported">
         Coverage is partial. More results may become available as indexing continues.
       </p>
-      <p v-if="!result.items.length">No matching indexed images were returned.</p>
+      <p v-if="!result.items.length">No matching indexed photos and videos were returned.</p>
       <p class="text-muted-foreground">
         Ordered by cosine similarity, not a match probability. Request: {{ result.requestId }}
       </p>

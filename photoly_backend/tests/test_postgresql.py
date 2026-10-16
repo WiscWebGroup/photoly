@@ -23,7 +23,7 @@ def test_database_api_and_legacy_alias(world):
         assert world.client.get(route).json["msgCode"] == 403
     info = world.client.get("/admin/databaseInfo", headers=world.admin).json["t"]
     assert info["type"] == "postgresql" and info["version"].startswith("17.")
-    assert info["pgvectorVersion"] == "0.8.7" and info["schemaRevision"] == "0002_ai_backend"
+    assert info["pgvectorVersion"] == "0.8.7" and info["schemaRevision"] == "0005_smart_organization"
     assert set(info) == {"type", "version", "address", "pgvectorVersion", "schemaRevision"}
     address = world.client.get("/admin/getAddress", headers=world.admin).json["t"]
     assert address["mysql"].endswith(":5432")
@@ -39,7 +39,7 @@ def test_repeated_migration_preserves_data_and_schema(world, migration_engine):
         require_schema(db.session)
         assert db.session.get(User, 2).email == "alice@test.local"
         inspector = inspect(db.engine)
-        assert len(inspector.get_table_names()) == 16
+        assert len(inspector.get_table_names()) == 23
         assert inspector.get_columns("user")[0]["identity"]["always"] is False
         assert any(i["name"] == "uq_user_email_lower" and i["unique"] for i in inspector.get_indexes("user"))
         assert db.session.scalar(text("SHOW transaction_isolation")) == "read committed"
@@ -71,7 +71,7 @@ def test_schema_check_rejects_unexpected_revision(app, migration_engine):
                 require_schema(db.session)
     finally:
         with migration_engine.begin() as connection:
-            connection.execute(text("UPDATE alembic_version SET version_num='0002_ai_backend'"))
+            connection.execute(text("UPDATE alembic_version SET version_num='0005_smart_organization'"))
 
 
 def test_case_insensitive_email_unique_under_concurrent_writes(app):
@@ -157,7 +157,9 @@ def test_migrated_schema_matches_orm_including_constraints(app, migration_engine
     from alembic.autogenerate import compare_metadata
     from alembic.migration import MigrationContext
     with migration_engine.connect() as connection:
-        context = MigrationContext.configure(connection, opts={"compare_type": True})
+        context = MigrationContext.configure(connection, opts={"compare_type": True,
+            "include_object": lambda obj, name, kind, reflected, compare_to: not (kind == "index" and
+                name.startswith(("ix_embedding_profile_", "ix_video_frame_profile_")) and name.endswith("_hnsw"))})
         assert compare_metadata(context, db.metadata) == []
 
 

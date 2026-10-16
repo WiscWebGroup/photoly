@@ -32,6 +32,7 @@ class Maintenance:
             if dimension not in (768,2048) or type(pid) is not int or pid<=0:
                 raise ValueError("Invalid registered dimension")
         name = f"ix_embedding_profile_{pid}_hnsw"
+        frame_name = f"ix_video_frame_profile_{pid}_hnsw"
         stopped=threading.Event()
         def heartbeat():
             while not stopped.wait(20):
@@ -57,10 +58,14 @@ class Maintenance:
                             cfg, used = settings(session),jobs.usage(session)
                             if max(used["physical_bytes"],used["estimated_bytes"]+used["reserved_bytes"])>=cfg["quota_bytes"]:
                                 raise RuntimeError("quota_exceeded")
-                        valid = connection.scalar(text("SELECT indisvalid FROM pg_index JOIN pg_class ON indexrelid=oid WHERE relname=:name"),{"name":name})
-                        if valid is False:
-                            connection.exec_driver_sql(f'DROP INDEX CONCURRENTLY IF EXISTS "{name}"')
-                        connection.exec_driver_sql(f'CREATE INDEX CONCURRENTLY IF NOT EXISTS "{name}" ON photo_embedding_state USING hnsw ((embedding::halfvec({dimension})) halfvec_cosine_ops) WHERE profile_id={pid} AND status=\'ready\'')
+                        for index_name, table, predicate in (
+                            (name, "photo_embedding_state", f"profile_id={pid} AND status='ready'"),
+                            (frame_name, "video_frame_embedding", f"profile_id={pid}"),
+                        ):
+                            valid = connection.scalar(text("SELECT indisvalid FROM pg_index JOIN pg_class ON indexrelid=oid WHERE relname=:name"),{"name":index_name})
+                            if valid is False:
+                                connection.exec_driver_sql(f'DROP INDEX CONCURRENTLY IF EXISTS "{index_name}"')
+                            connection.exec_driver_sql(f'CREATE INDEX CONCURRENTLY IF NOT EXISTS "{index_name}" ON {table} USING hnsw ((embedding::halfvec({dimension})) halfvec_cosine_ops) WHERE {predicate}')
                         with self.sessions.begin() as session:
                             p=session.get(EmbeddingProfile,pid)
                             if p:p.index_status="ready"
@@ -76,6 +81,7 @@ class Maintenance:
                                 return
                             # Keep global lock through deletion; activation and new searches acquire it too.
                             connection.exec_driver_sql(f'DROP INDEX CONCURRENTLY IF EXISTS "{name}"')
+                            connection.exec_driver_sql(f'DROP INDEX CONCURRENTLY IF EXISTS "{frame_name}"')
                             session.execute(delete(EmbeddingProfile).where(EmbeddingProfile.profile_id==pid))
                             jobs.finish(session,task)
                             self.finish_operation(session,task,"succeeded",{})

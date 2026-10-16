@@ -22,11 +22,22 @@ export interface AiCapabilities {
   coverage: Coverage
   modalities: string[]
   formats: string[]
-  limits: { textCharacters: number; imageBytes: number; imagePixels: number; topK: number }
+  videoFormats?: string[]
+  videoSamplingVersion?: number
+  limits: {
+    textCharacters: number
+    imageBytes: number
+    imagePixels: number
+    topK: number
+    videoBytes?: number
+    videoFrames?: number
+    videoExtractionSeconds?: number
+  }
 }
 export interface AiHit {
   photo: Photo
   score: number
+  matchedTimestampMs?: number
 }
 export interface AiSearchResponse {
   similarityThreshold: number | null
@@ -45,6 +56,7 @@ export interface AiSettings {
   generation: number
   enabled: boolean
   new_user_default: boolean
+  smart_tag_enabled: boolean
   maintenance: boolean
   search_profile_id: number | null
   building_profile_id: number | null
@@ -173,6 +185,7 @@ export interface AiService {
   }
 }
 export interface AiStatus {
+  smartTag?: import('./smartOrganization').SmartStatus
   settings: AiSettings
   services: Record<string, AiService>
   quota: { estimated_bytes: number; reserved_bytes: number; physical_bytes: number }
@@ -234,6 +247,8 @@ const messages: Record<string, string> = {
   runtime_busy: 'The AI service is busy. Please try again shortly.',
   query_timeout: 'The query timed out. Please try again.',
   inference_timeout: 'Inference timed out. Please try again.',
+  device_unavailable: 'The selected inference device is unavailable.',
+  unsupported_operator: 'This model uses an operation unsupported by the selected device.',
   out_of_memory: 'The model has insufficient memory. Contact an administrator.',
   invalid_image: 'This image cannot be decoded.',
   unsupported_image: 'This image format is not supported.',
@@ -251,6 +266,13 @@ const messages: Record<string, string> = {
   filter_not_found: 'The selected folder or album is no longer available.',
   admin_required: 'Administrator access is required.',
   unauthenticated: 'Please sign in again.',
+  invalid_video: 'This video is damaged or cannot be decoded.',
+  video_stream_missing: 'This file has no video stream.',
+  video_frame_missing: 'No usable video frames could be decoded.',
+  video_decode_timeout: 'Video decoding timed out. Please retry.',
+  video_decoder_unavailable: 'Video decoding is unavailable on the server.',
+  video_too_large: 'This video exceeds the upload size limit.',
+  video_frame_too_large: 'This video exceeds the supported frame dimensions.',
   network_error: 'The service could not be reached. Please retry.',
   activation_not_ready: 'The model, index or coverage is not ready for activation.',
   maintenance_required: 'Enter maintenance before switching or rebuilding profiles.',

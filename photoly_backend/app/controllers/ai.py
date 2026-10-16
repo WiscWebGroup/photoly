@@ -155,3 +155,41 @@ def jobs(uid):
         if key in request.args:query=query.where(column==request.args[key])
     rows=db.session.scalars(query.order_by(AIJob.job_id.desc() if order=="desc" else AIJob.job_id).limit(limit)).all()
     return {"items":[job_dto(job) for job in rows],"nextAfter":rows[-1].job_id if len(rows)==limit and order=="asc" else None,"nextBefore":rows[-1].job_id if len(rows)==limit and order=="desc" else None}
+
+
+# Opt-in organization stays editable when automatic AI processing is disabled.
+from app.services.smart import SmartService
+
+
+@bp.get('/ai/smart/settings')
+@ai_route()
+def smart_settings(uid): return SmartService(db.session).get_settings(uid)
+
+
+@bp.patch('/ai/smart/settings')
+@ai_route()
+def smart_patch_settings(uid): return SmartService(db.session).patch_settings(uid, body())
+
+
+@bp.get('/ai/smart/status')
+@ai_route()
+def smart_status(uid): return SmartService(db.session).status(uid)
+
+
+@bp.post('/ai/smart/refresh')
+@ai_route()
+def smart_refresh(uid): return SmartService(db.session).refresh(uid)
+
+
+@bp.get('/ai/smart/dismissed')
+@ai_route()
+def smart_dismissed(uid):
+    try: after = int(request.args.get('after', 0))
+    except ValueError: raise AIError('invalid_pagination')
+    if after < 0: raise AIError('invalid_pagination')
+    return SmartService(db.session).dismissed(uid, after)
+
+
+@bp.post('/ai/smart/items/<int:itemId>/restore')
+@ai_route()
+def smart_restore(uid, itemId): return SmartService(db.session).restore(uid, itemId)

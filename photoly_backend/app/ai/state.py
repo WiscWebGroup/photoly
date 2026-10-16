@@ -6,7 +6,7 @@ from app.entities.ai import AIControlState
 from .types import AIError
 from .limits import LIMIT_DEFAULTS, validate_limit_values
 
-DEFAULTS = {"enabled": False, "new_user_default": False, "maintenance": False, "similarity_threshold": None,
+DEFAULTS = {"enabled": False, "new_user_default": False, "smart_tag_enabled": False, "maintenance": False, "similarity_threshold": None,
             "search_profile_id": None, "building_profile_id": None, "quota_bytes": 10 * 1024**3,
             "scheduler": "stopped", "runtime": "unloaded", "loaded_profile_id": None,
             "device": "cpu", "precision": "float32", **LIMIT_DEFAULTS}
@@ -30,14 +30,14 @@ def settings(session):
 
 
 def validate_settings(changes):
-    if not isinstance(changes, dict) or set(changes) - ({"enabled", "new_user_default", "quota_bytes", "device", "precision", "similarity_threshold"} | set(LIMIT_DEFAULTS)):
+    if not isinstance(changes, dict) or set(changes) - ({"enabled", "new_user_default", "smart_tag_enabled", "quota_bytes", "device", "precision", "similarity_threshold"} | set(LIMIT_DEFAULTS)):
         raise AIError("invalid_settings")
-    for name in ("enabled", "new_user_default"):
+    for name in ("enabled", "new_user_default", "smart_tag_enabled"):
         if name in changes and type(changes[name]) is not bool:
             raise AIError("invalid_settings")
     if "quota_bytes" in changes and (type(changes["quota_bytes"]) is not int or not 1024**2 <= changes["quota_bytes"] <= 100*1024**4):
         raise AIError("invalid_quota")
-    if "device" in changes and changes["device"] not in ("cpu", "cuda"):
+    if "device" in changes and changes["device"] not in ("cpu", "cuda", "mps"):
         raise AIError("unsupported_device")
     if "precision" in changes and changes["precision"] not in ("float32", "bfloat16"):
         raise AIError("unsupported_precision")

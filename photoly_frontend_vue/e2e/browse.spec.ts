@@ -32,6 +32,8 @@ test('create a tag and filter photos by it', async ({ page }) => {
 test('search photos by name', async ({ page }) => {
   const calls = await mockApi(page, { '/photo/searchPhoto': ok([photo(10, 'beach')]) })
   await page.goto('/home/SearchPart')
+  await page.getByRole('combobox', { name: 'Search by' }).click()
+  await page.getByRole('option', { name: 'Photo Name', exact: true }).click()
   await page.getByRole('textbox').fill('bea')
   await page.getByRole('textbox').press('Enter')
 

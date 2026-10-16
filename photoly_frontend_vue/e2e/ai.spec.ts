@@ -93,7 +93,7 @@ test('busy, timeout and empty results are distinct', async ({ page }) => {
   await page.getByRole('button', { name: 'Search images', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('timed out')
   await page.getByRole('button', { name: 'Search images', exact: true }).click()
-  await expect(page.getByText('No matching indexed images were returned.')).toBeVisible()
+  await expect(page.getByText('No matching indexed photos and videos were returned.')).toBeVisible()
 })
 test('cancelled late query does not replace newer results', async ({ page }) => {
   await searchMocks(page)
@@ -327,5 +327,42 @@ test('admin similarity threshold defaults to blank, persists decimals and can be
   expect(calls.filter((c) => c.path === '/admin/ai/settings').at(-1)?.body).toEqual({
     generation: 2,
     settings: { similarity_threshold: null },
+  })
+})
+
+test('Apple Silicon device saves MPS float32 and unavailable devices stay disabled', async ({
+  page,
+}) => {
+  const { calls, state } = await adminMocks(page)
+  state.settings.device = 'cuda'
+  state.settings.precision = 'bfloat16'
+  await page.route(`${API}/admin/ai/capabilities`, (route) =>
+    route.fulfill({
+      headers: { 'access-control-allow-origin': '*' },
+      json: ok({
+        ...adminCapabilitiesFixture,
+        devices: [
+          { device: 'cpu', precision: 'float32', available: true, reason: null },
+          { device: 'cuda', precision: 'bfloat16', available: false, reason: 'device_unavailable' },
+          { device: 'mps', precision: 'float32', available: true, reason: null },
+        ],
+      }),
+    }),
+  )
+  await page.goto('/thepersonincharge/ai')
+  await page.getByLabel('Inference device').selectOption('mps')
+  await expect(page.getByLabel('Inference device')).toHaveValue('mps')
+  await expect(
+    page.getByRole('option', { name: 'Apple Silicon GPU (MPS) / float32' }),
+  ).toBeAttached()
+  await expect(
+    page.getByLabel('Inference device').locator('option[value="cuda"]'),
+  ).toHaveJSProperty('disabled', true)
+  await page.getByRole('button', { name: 'Save AI settings', exact: true }).click()
+  await expect
+    .poll(() => calls.filter((call) => call.path === '/admin/ai/settings').length)
+    .toBeGreaterThan(0)
+  expect(calls.find((call) => call.path === '/admin/ai/settings')?.body).toMatchObject({
+    settings: { device: 'mps', precision: 'float32' },
   })
 })

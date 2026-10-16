@@ -1,3 +1,4 @@
+from app.services.smart import manual_member, decorate
 import re
 from uuid import uuid4
 from urllib.parse import urlencode
@@ -135,6 +136,7 @@ class PhotoService(BaseService):
                 self.owned(Tag, key, user_id)
             count = 0
             for key in set(tag_ids):
+                manual_member(self.session, Tag, key, photo_id, True)
                 existing = self.session.scalar(select(TagPhoto).where(TagPhoto.photo_id == photo_id, TagPhoto.tag_id == key))
                 if existing is None:
                     self.session.add(TagPhoto(photo_id=photo_id, tag_id=key, user_id=user_id))
@@ -148,6 +150,7 @@ class PhotoService(BaseService):
                 self.owned(Tag, key, user_id)
             count = 0
             for key in set(tag_ids):
+                manual_member(self.session, Tag, key, photo_id, False)
                 item = self.session.scalar(select(TagPhoto).where(TagPhoto.user_id == user_id, TagPhoto.photo_id == photo_id, TagPhoto.tag_id == key))
                 if item:
                     self.session.delete(item)
@@ -158,6 +161,7 @@ class PhotoService(BaseService):
         with self.atomic(user_id):
             self.owned(Photo, photo_id, user_id)
             self.owned(Gallery, ga_id, user_id)
+            manual_member(self.session, Gallery, ga_id, photo_id, not remove)
             item = self.session.scalar(select(GalleryPhoto).where(GalleryPhoto.photo_id == photo_id, GalleryPhoto.ga_id == ga_id))
             if remove:
                 if item is None:
@@ -169,15 +173,17 @@ class PhotoService(BaseService):
                 self.session.add(GalleryPhoto(photo_id=photo_id, ga_id=ga_id))
         return 1
 
-    def tags(self, user_id, photo_id):
+    def tags(self, user_id, photo_id, include_smart=False):
         self.owned(Photo, photo_id, user_id, None)
         query = select(Tag).join(TagPhoto, TagPhoto.tag_id == Tag.tag_id).where(TagPhoto.photo_id == photo_id, Tag.user_id == user_id).order_by(Tag.tag_id)
-        return [{"photo_id": photo_id, "tag_id": tag.tag_id, "tag_name": tag.tag_name} for tag in self.session.scalars(query)]
+        rows = [{"photo_id": photo_id, "tag_id": tag.tag_id, "tag_name": tag.tag_name} for tag in self.session.scalars(query)]
+        return decorate(self.session, Tag, rows, True) if include_smart else rows
 
-    def galleries(self, user_id, photo_id):
+    def galleries(self, user_id, photo_id, include_smart=False):
         self.owned(Photo, photo_id, user_id, None)
         query = select(Gallery).join(GalleryPhoto, GalleryPhoto.ga_id == Gallery.ga_id).where(GalleryPhoto.photo_id == photo_id, Gallery.user_id == user_id).order_by(Gallery.ga_id)
-        return [{"photo_id": photo_id, "ga_id": ga.ga_id, "ga_name": ga.ga_name} for ga in self.session.scalars(query)]
+        rows = [{"photo_id": photo_id, "ga_id": ga.ga_id, "ga_name": ga.ga_name} for ga in self.session.scalars(query)]
+        return decorate(self.session, Gallery, rows, True) if include_smart else rows
 
     def path(self, user_id, photo_id, thumbnail=False):
         photo = self.owned(Photo, photo_id, user_id, None)

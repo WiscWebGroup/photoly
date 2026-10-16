@@ -21,7 +21,7 @@ OPERATIONS = [
        params=[p('email', EMAIL, 'New unique email address.', example='reader@example.com')], form=True),
     op('User', 'update_password', 'POST', '/user/updatePassword', 'Change the password',
        params=[p('oldPass', PASSWORD, 'Current password.'), p('newPass', PASSWORD, 'New password.')], form=True),
-    op('User', 'update_avatar', 'POST', '/user/updateAvatar', 'Replace the account avatar', body=upload_body(avatar=True)),
+    op('User', 'update_avatar', 'POST', '/user/updateAvatar', 'Replace the account avatar', body=upload_body(avatar=True), description='Validates an image up to 20 MiB and 40 MP, applies orientation, center-crops and resizes to 512 x 512 JPEG. Transparent pixels become white. Invalid images are rejected without replacing the current avatar.'),
     op('User', 'get_avatar', 'GET', '/user/getAvatar/{token}', 'Read the account avatar', shape='binary', auth=None,
        params=[token_parameter()], mime='image/jpeg', description='Returns the default avatar when no custom avatar exists.'),
     op('User', 'delete_user', 'GET', '/user/deleteUser', 'Permanently delete the current account',

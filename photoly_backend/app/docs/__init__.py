@@ -42,7 +42,7 @@ def build_spec():
             ('Photo', 'Uploads, media, associations, sharing and downloads.'), ('Namespace', 'Logical folders and ZIP export.'),
             ('Gallery', 'Galleries and ZIP export.'), ('Tag', 'Media classification tags.'),
             ('Cred', 'API credentials and third-party C/R/D operations.'), ('PhotoExtra', 'Map projections.'),
-            ('Health', 'Dependency readiness.'), ('AI Search', 'Private semantic image retrieval.'), ('AI Admin', 'Asynchronous model, scheduler and profile controls.')]],
+            ('Health', 'Dependency readiness.'), ('AI Search', 'Private semantic photo and video retrieval.'), ('Smart Organization', 'Opt-in device tags, trip galleries, status and restoration.'), ('AI Admin', 'Asynchronous model, scheduler and profile controls.')]],
         'paths': paths,
         'components': {'securitySchemes': {'SessionToken': {'type': 'apiKey', 'in': 'header', 'name': 'HRD-Token',
             'description': 'Login session token from signIn/signUp. Paste the token alone; do not add Bearer.'}}, 'schemas': deepcopy(SCHEMAS)},

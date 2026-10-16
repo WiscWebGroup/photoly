@@ -13,6 +13,18 @@ const cors = {
 export const json = (body: JsonBodyType) => HttpResponse.json(body, { headers: cors })
 
 export const server = setupServer(
+  http.get(`${API}/ai/smart/settings`, () =>
+    json({ msgCode: 200, t: { enabled: false, available: false, reason: 'smart_tag_disabled' } }),
+  ),
+  http.get(`${API}/ai/smart/status`, () =>
+    json({
+      msgCode: 200,
+      t: { processed: 0, total: 0, failed: 0, reason: 'smart_tag_disabled', pending: false },
+    }),
+  ),
+  http.get(`${API}/ai/smart/dismissed`, () =>
+    json({ msgCode: 200, t: { items: [], nextAfter: null } }),
+  ),
   http.get(`${API}/ai/capabilities`, () =>
     json({
       msgCode: 200,

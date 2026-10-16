@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import SmartBasis from '@/components/SmartBasis.vue'
+import SmartBadge from '@/components/SmartBadge.vue'
+import type { SmartSource } from '@/lib/smartOrganization'
 import { onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import {
@@ -57,6 +60,7 @@ import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
 
 interface Gallery {
+  smart?: SmartSource | null
   gaId: number
   gaName: string
   userId?: number
@@ -93,7 +97,10 @@ const editing = ref<Gallery | null>(null)
 const deleting = ref<Gallery | null>(null)
 
 const loadGalleries = async () =>
-  (galleries.value = await call<Gallery[]>({ url: '/gallery/getAll' }))
+  (galleries.value = await call<Gallery[]>({
+    url: '/gallery/getAll',
+    params: { includeSmart: true },
+  }))
 
 async function queryPhotos() {
   try {
@@ -241,6 +248,7 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
                   cn(
                     'hover:bg-accent flex flex-col gap-1 rounded-lg border p-3 text-left text-sm',
                     selectedGaId === g.gaId && 'bg-accent text-accent-foreground',
+                    g.smart && 'border-teal-500',
                   )
                 "
                 @click="selectGallery(g)"
@@ -253,6 +261,8 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
                     :style="{ color: g.coverColor }"
                   />
                 </span>
+                <SmartBadge :smart="g.smart" />
+                <SmartBasis v-if="selectedGaId === g.gaId" :smart="g.smart" />
                 <span class="text-muted-foreground text-xs"
                   >Created: {{ g.createDate.split('T')[0] }}</span
                 >

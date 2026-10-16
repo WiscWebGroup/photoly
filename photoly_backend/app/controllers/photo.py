@@ -96,13 +96,13 @@ def delete_gallery(uid):
 @bp.get("/getTagByPhoto")
 @legacy()
 def tags(uid):
-    return result(service(PhotoService).tags(uid, arg("photoId", integer=True)))
+    return result(service(PhotoService).tags(uid, arg("photoId", integer=True), request.args.get("includeSmart") == "true"))
 
 
 @bp.get("/getGalleryByPhoto")
 @legacy()
 def galleries(uid):
-    return result(service(PhotoService).galleries(uid, arg("photoId", integer=True)))
+    return result(service(PhotoService).galleries(uid, arg("photoId", integer=True), request.args.get("includeSmart") == "true"))
 
 
 @bp.get("/render/<token>")
@@ -171,6 +171,14 @@ def qr2(uid):
     return qr_response(uid)
 
 
+@bp.get("/searchSmart")
+@legacy()
+def smart_search(uid):
+    from app.services.smart_search import search_smart
+    photos = service(PhotoService)
+    return result(search_smart(photos.session, uid, arg("query", required=True)))
+
+
 @bp.get("/searchPhoto")
 @legacy()
 def search(uid):
@@ -182,3 +190,32 @@ def search(uid):
 @legacy()
 def exif(uid):
     return result(service(PhotoService).exif(uid, arg("photoId", integer=True)))
+
+
+@bp.get('/ocr')
+@legacy()
+def get_ocr(uid):
+    from app.services.ocr import OCRService
+    return result(service(OCRService).get(uid, arg('photoId', integer=True, required=True)))
+
+
+@bp.post('/ocr/recognize')
+@legacy()
+def recognize_ocr(uid):
+    from app.services.ocr import OCRService
+    return result(service(OCRService).recognize(uid, body()))
+
+
+@bp.put('/ocr')
+@legacy()
+def save_ocr(uid):
+    from app.services.ocr import OCRService
+    return result(service(OCRService).save(uid, body()))
+
+
+@bp.after_request
+def private_ocr_response(response):
+    # The session is carried in a custom header, so shared caches must never store OCR text.
+    if request.path.rstrip('/') in ('/photo/ocr', '/photo/ocr/recognize'):
+        response.headers['Cache-Control'] = 'private, no-store'
+    return response

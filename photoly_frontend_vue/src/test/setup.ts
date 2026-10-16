@@ -3,6 +3,12 @@ import { createPinia, setActivePinia } from 'pinia'
 import { enableAutoUnmount } from '@vue/test-utils'
 import { server } from './server'
 
+// jsdom has no layout scrolling API; preserve offsets for viewer assertions.
+HTMLElement.prototype.scrollTo = function (options: ScrollToOptions | number = {}, y?: number) {
+  this.scrollTop = typeof options === 'number' ? (y ?? 0) : (options.top ?? this.scrollTop)
+  this.scrollLeft = typeof options === 'number' ? options : (options.left ?? this.scrollLeft)
+}
+
 // The router guard reads the auth store, even in tests that don't install Pinia.
 beforeEach(() => setActivePinia(createPinia()))
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }))

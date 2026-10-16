@@ -12,9 +12,22 @@ import time
 from flask import Flask, request, jsonify
 from werkzeug.serving import make_server
 from .types import AIError, RuntimeConfig
+from .devices import device_status
 from .registry import adapter, validate_spec
 from .preprocessing import decode_image, MAX_BYTES
 from app.util.sys_usage_util import system_usage
+
+
+def model_error(error, default):
+    if isinstance(error, AIError):
+        return {"error": error.code, "status": error.status}
+    message = str(error).lower()
+    if "out of memory" in message:
+        return {"error": "out_of_memory", "status": 503}
+    if isinstance(error, NotImplementedError) or ("mps" in message and any(
+            marker in message for marker in ("not implemented", "not supported", "does not support"))):
+        return {"error": "unsupported_operator", "status": 503}
+    return {"error": default, "status": 503 if default == "model_load_failed" else 502}
 
 
 def model_child(connection, spec, config):
@@ -44,11 +57,10 @@ def model_child(connection, spec, config):
             except AIError as error:
                 connection.send({"error": error.code, "status": error.status})
             except Exception as error:
-                code = "out_of_memory" if "out of memory" in str(error).lower() else "inference_failed"
-                connection.send({"error": code, "status": 503 if code == "out_of_memory" else 502})
-    except Exception:
+                connection.send(model_error(error, "inference_failed"))
+    except Exception as error:
         try:
-            connection.send({"error": "model_load_failed", "status": 503})
+            connection.send(model_error(error, "model_load_failed"))
         except OSError:
             pass
     finally:
@@ -67,31 +79,27 @@ class Runtime:
         self.config = asdict(RuntimeConfig())
         self.generation, self.last_operation, self.online_streak = -1, None, 0
         self.verified = []
-        self.devices = [{"device":"cpu","precision":"float32","available":None,"reason":"probing"},
-                        {"device":"cuda","precision":"bfloat16","available":None,"reason":"probing"}]
+        self.devices = device_status(reason="probing")
         threading.Thread(target=self.probe_devices, daemon=True).start()
         threading.Thread(target=self.dispatch, daemon=True).start()
 
     def probe_devices(self):
-        # Probe in a short-lived process: the control server must not retain CUDA allocations.
         try:
             if os.getenv("AI_TEST_RUNTIME") == "1":
-                cuda = False
+                self.devices = device_status(False, "device_unavailable")
+                self.devices[0].update(available=True, reason=None)
             else:
                 import sys
                 result = subprocess.run([sys.executable, "-c",
-                    "import torch,json; print(json.dumps(bool(torch.cuda.is_available() and torch.cuda.is_bf16_supported())))"],
+                    "import json; from app.ai.devices import probe_hardware; print(json.dumps(probe_hardware()))"],
                     capture_output=True, text=True, timeout=30, check=True)
-                cuda = json.loads(result.stdout.strip())
-            self.devices = [{"device":"cpu","precision":"float32","available":True,"reason":None},
-                {"device":"cuda","precision":"bfloat16","available":cuda,"reason":None if cuda else "device_unavailable"}]
+                self.devices = json.loads(result.stdout.strip())
         except Exception:
-            self.devices = [{"device":"cpu","precision":"float32","available":None,"reason":"probe_failed"},
-                {"device":"cuda","precision":"bfloat16","available":None,"reason":"probe_failed"}]
+            self.devices = device_status(reason="probe_failed")
 
     def kill(self):
         process, self.process = self.process, None
-        if process:
+        if process and process.pid is not None:
             if process.is_alive():
                 process.terminate()
             process.join(timeout=5)
@@ -158,8 +166,10 @@ class Runtime:
                     parent, child = context.Pipe()
                     self.pipe = parent
                     self.process = context.Process(target=model_child, args=(child, spec, self.config), daemon=True)
-                    self.process.start()
-                    child.close()
+                    try:
+                        self.process.start()
+                    finally:
+                        child.close()
                     deadline = time.monotonic()+840
                     while True:
                         if not parent.poll(max(0, deadline-time.monotonic())):
@@ -170,7 +180,7 @@ class Runtime:
                             continue
                         break
                     if not result.get("ready"):
-                        raise AIError("model_load_failed", 503)
+                        raise AIError(result.get("error", "model_load_failed"), result.get("status", 503))
                     self.spec, self.state = spec, "ready"
                     combination = {"fingerprint": spec["fingerprint"], **self.config}
                     if combination not in self.verified:
@@ -269,5 +279,22 @@ def create_runtime_app(runtime=None):
     return app
 
 
+def serve():
+    import signal
+    runtime = Runtime()
+    server = make_server(os.getenv("AI_RUNTIME_HOST", "0.0.0.0"), int(os.getenv("AI_RUNTIME_PORT", "8090")),
+                         create_runtime_app(runtime), threaded=True)
+    def stop(signum, frame):
+        raise SystemExit(0)
+    signal.signal(signal.SIGTERM, stop)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+        runtime.kill()
+
+
 if __name__ == "__main__":
-    make_server("0.0.0.0", 8090, create_runtime_app(), threaded=True).serve_forever()
+    serve()

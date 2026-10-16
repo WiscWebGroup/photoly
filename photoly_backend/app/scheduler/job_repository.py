@@ -1,11 +1,12 @@
 from datetime import timedelta
 from uuid import uuid4
-from sqlalchemy import select, update, func, text
+from sqlalchemy import select, update, func, text, case, delete
 from sqlalchemy.dialects.postgresql import insert
 from app.entities import Photo, User
-from app.entities.ai import AIJob, EmbeddingProfile, PhotoEmbeddingState, AIControlState
+from app.entities.ai import AIJob, EmbeddingProfile, PhotoEmbeddingState, AIControlState, VideoFrameEmbedding
 from app.ai.state import control, settings, utcnow
-from app.ai.types import normalized
+from app.ai.types import normalized, AIError
+from app.ai.video import is_video, MAX_FRAMES, SAMPLING_VERSION
 from .background_limits import admit
 
 LEASE_SECONDS = 120
@@ -17,10 +18,10 @@ def vector_charge(dimension):
 
 
 def usage(session):
-    used = session.scalar(select(func.coalesce(func.sum(2*(2*EmbeddingProfile.dimension+8)+1024), 0))
+    used = session.scalar(select(func.coalesce(func.sum((2*(2*EmbeddingProfile.dimension+8)+1024) * case((PhotoEmbeddingState.sampling_version.is_not(None), PhotoEmbeddingState.frame_count), else_=1)), 0))
         .select_from(PhotoEmbeddingState).join(EmbeddingProfile).where(PhotoEmbeddingState.status == "ready"))
     reserved = session.scalar(select(func.coalesce(func.sum(AIJob.reserved_bytes), 0)).where(AIJob.status == "running"))
-    actual = session.scalar(text("SELECT pg_total_relation_size('photo_embedding_state') + pg_total_relation_size('embedding_profile')"))
+    actual = session.scalar(text("SELECT pg_total_relation_size('photo_embedding_state') + pg_total_relation_size('embedding_profile') + pg_total_relation_size('video_frame_embedding')"))
     return {"estimated_bytes": int(used), "reserved_bytes": int(reserved), "physical_bytes": int(actual)}
 
 
@@ -41,6 +42,8 @@ def claim(session, owner, kinds=("embedding",), profile_id=None, last_user=None)
         query = query.join(Photo).join(User).where(User.ai_search_enabled.is_(True), Photo.content_version == AIJob.content_version)
         if last_user is not None:
             query = query.order_by((Photo.user_id == last_user).asc())
+    if kinds == ("smart",) and last_user is not None:
+        query = query.order_by((AIJob.payload["user_id"].as_integer() <= last_user).asc(), AIJob.payload["user_id"].as_integer())
     job = session.scalar(query.order_by(AIJob.priority.desc(), AIJob.job_id).with_for_update(of=AIJob, skip_locked=True).limit(1))
     if job is None:
         return None
@@ -50,7 +53,7 @@ def claim(session, owner, kinds=("embedding",), profile_id=None, last_user=None)
         if not config["enabled"] or config["scheduler"] != "running":
             return None
         profile = session.get(EmbeddingProfile, job.profile_id)
-        reserve = vector_charge(profile.dimension)
+        reserve = vector_charge(profile.dimension) * (MAX_FRAMES if is_video(session.get(Photo,job.photo_id).format) else 1)
         current = usage(session)
         if max(current["estimated_bytes"] + current["reserved_bytes"] + reserve, current["physical_bytes"]) > config["quota_bytes"]:
             job.result = {"reason": "quota_exceeded"}
@@ -100,7 +103,8 @@ def fail(session, task, code, transient=False):
         state = session.scalar(select(PhotoEmbeddingState).where(PhotoEmbeddingState.photo_id == job.photo_id,
             PhotoEmbeddingState.profile_id == job.profile_id, PhotoEmbeddingState.content_version == job.content_version))
         if state:
-            state.status, state.embedding, state.error_code = "failed", None, code
+            session.execute(delete(VideoFrameEmbedding).where(VideoFrameEmbedding.state_id==state.state_id))
+            state.status, state.embedding, state.error_code, state.frame_count = "failed", None, code, 0
 
 
 def commit_embedding(session, task, snapshot, vector, duration_ms):
@@ -117,11 +121,23 @@ def commit_embedding(session, task, snapshot, vector, duration_ms):
         task["profile_id"] not in (cfg["search_profile_id"], cfg["building_profile_id"])):
         return finish(session, task, "cancelled", {"reason": "stale_content_or_eligibility"})
     profile = session.get(EmbeddingProfile, task["profile_id"])
-    value = normalized([vector], profile.dimension)[0]
+    video = 'frames' in snapshot
+    vectors = normalized(vector if video else [vector], profile.dimension)
+    if video and (len(vectors) != len(snapshot['frames']) or not 1 <= len(vectors) <= MAX_FRAMES):
+        raise AIError('invalid_video_frames')
+    value = None if video else vectors[0]
+    count = len(vectors) if video else 0
+    sampling = SAMPLING_VERSION if video else None
+    session.execute(delete(VideoFrameEmbedding).where(VideoFrameEmbedding.state_id.in_(
+        select(PhotoEmbeddingState.state_id).where(PhotoEmbeddingState.photo_id==photo.photo_id, PhotoEmbeddingState.profile_id==profile.profile_id))))
     photo.content_sha256 = snapshot["hash"]
     session.execute(insert(PhotoEmbeddingState).values(photo_id=photo.photo_id, profile_id=profile.profile_id,
-        content_version=photo.content_version, content_sha256=snapshot["hash"], status="ready", embedding=value,
+        content_version=photo.content_version, content_sha256=snapshot["hash"], status="ready", embedding=value, frame_count=count, sampling_version=sampling,
         computed_at=utcnow(), duration_ms=duration_ms).on_conflict_do_update(constraint="uq_embedding_profile_photo",
-        set_={"content_version": photo.content_version, "content_sha256": snapshot["hash"], "status": "ready", "embedding": value,
+        set_={"content_version": photo.content_version, "content_sha256": snapshot["hash"], "status": "ready", "embedding": value, "frame_count": count, "sampling_version": sampling,
               "computed_at": utcnow(), "duration_ms": duration_ms, "error_code": None}))
+    if video:
+        state_id = session.scalar(select(PhotoEmbeddingState.state_id).where(PhotoEmbeddingState.photo_id==photo.photo_id, PhotoEmbeddingState.profile_id==profile.profile_id))
+        session.execute(insert(VideoFrameEmbedding), [dict(state_id=state_id,profile_id=profile.profile_id,
+            frame_index=i,timestamp_ms=frame['timestamp_ms'],embedding=vectors[i]) for i,frame in enumerate(snapshot['frames'])])
     return finish(session, task)

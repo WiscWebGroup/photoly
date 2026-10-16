@@ -29,6 +29,15 @@ const cors = {
 
 // What a freshly signed-up user with an empty library sees.
 const defaults: Record<string, Reply> = {
+  '/ai/smart/settings': ok({ enabled: false, available: false, reason: 'smart_tag_disabled' }),
+  '/ai/smart/status': ok({
+    processed: 0,
+    total: 0,
+    failed: 0,
+    reason: 'smart_tag_disabled',
+    pending: false,
+  }),
+  '/ai/smart/dismissed': ok({ items: [], nextAfter: null }),
   '/ai/capabilities': ok({
     ...capabilitiesFixture,
     enabled: false,
