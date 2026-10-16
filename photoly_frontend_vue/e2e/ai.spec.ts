@@ -366,3 +366,53 @@ test('Apple Silicon device saves MPS float32 and unavailable devices stay disabl
     settings: { device: 'mps', precision: 'float32' },
   })
 })
+
+test('LAN HTTP loads controls, polls and recovers operations without secure-context crypto', async ({
+  page,
+}) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  await page.addInitScript(() => {
+    Object.defineProperty(crypto, 'subtle', { value: undefined, configurable: true })
+    Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true })
+  })
+  const { calls, state, operations } = await adminMocks(page)
+  const keys: string[] = []
+  await page.route(`${API}/admin/ai/operations`, async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback()
+    keys.push(route.request().headers()['idempotency-key']!)
+    if (keys.length === 1) return route.abort('failed')
+    const job = {
+      operationId: 9,
+      command: 'model.load',
+      kind: 'operation',
+      status: 'queued',
+      generation: 1,
+      stage: 'queued',
+      attempts: 0,
+      result: {},
+      createdAt: new Date().toISOString(),
+      finishedAt: null,
+    }
+    operations.push(job)
+    await route.fulfill({
+      status: 202,
+      headers: { 'access-control-allow-origin': '*' },
+      json: { msgCode: 202, t: job },
+    })
+  })
+  await page.goto('/thepersonincharge/ai')
+  await expect(page.getByRole('heading', { name: 'Index maintenance service' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Load model', exact: true })).toBeEnabled()
+  state.settings.generation = 7
+  await expect(page.getByText(/Configuration generation 7/)).toBeVisible({ timeout: 12000 })
+  expect(calls.filter((c) => c.path === '/admin/ai/status').length).toBeGreaterThan(1)
+  await page.getByRole('button', { name: 'Load model', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('outcome unknown')
+  await page.reload()
+  await expect(page.getByText('1 operation(s) pending.', { exact: false })).toBeVisible()
+  expect(keys).toHaveLength(2)
+  expect(keys[0]).toMatch(/^[a-f0-9]{32}$/)
+  expect(keys[1]).toBe(keys[0])
+  expect(errors).toEqual([])
+})
