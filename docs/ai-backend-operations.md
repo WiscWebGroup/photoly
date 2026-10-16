@@ -4,14 +4,16 @@
 
 ## 部署
 
-默认全局关闭、新用户默认关闭，管理员无自动资格；启动容器不下载或加载模型。数据库增量升级至 `0002_ai_backend`。已有部署先备份 PostgreSQL，再执行：
+默认全局关闭、新用户默认关闭，管理员无自动资格；启动容器不下载或加载模型。数据库增量升级至当前 head `0005_smart_organization`（含视频帧、OCR 和智能整理迁移）。已有部署先备份 PostgreSQL 和媒体，再按实际 CPU/CUDA/MPS 组合升级；以下是 CUDA 示例：
 
 ```sh
-docker compose --profile ai build backend migrate ai-runtime ai-scheduler ai-maintenance
+docker compose --profile ai stop backend ai-scheduler ai-maintenance
+docker compose --profile ai build
+docker compose --profile ai run --rm migrate
 docker compose --profile ai up -d
 ```
 
-`.env` 增加独立随机 `AI_INFERENCE_TOKEN`、`AI_CONTROL_TOKEN`，不提交凭据。Web 只有推理密钥，scheduler 有控制密钥，只有 maintenance/migrate 获得 migration 数据库凭据。runtime 无数据库凭据、媒体挂载、主机端口或 Docker socket。
+`.env` 增加独立随机 `AI_INFERENCE_TOKEN`、`AI_CONTROL_TOKEN`，不提交凭据。Web 只有推理密钥，scheduler 有控制密钥，只有 maintenance/migrate 获得 migration 数据库凭据。容器 runtime 无数据库凭据、媒体挂载、主机端口或 Docker socket；MPS 原生运行时通过鉴权主机端口提供服务，见下文。
 
 CPU 专用部署（Compose >=2.24.4）：
 
@@ -20,7 +22,7 @@ docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai build
 docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai up -d
 ```
 
-CPU/CUDA 各自使用 `photoly_backend/inference/{cpu,cuda}/uv.lock`。CPU 镜像不含 CUDA wheel、不申请 GPU；CUDA 镜像需 NVIDIA 容器支持。管理 API 选择 cpu/float32 或 cuda/bfloat16。NPU 不开放。
+CPU/CUDA 各自使用 `photoly_backend/inference/{cpu,cuda}/uv.lock`。CPU 镜像不含 CUDA wheel、不申请 GPU；CUDA 镜像需 NVIDIA 容器支持。管理 API 选择 cpu/float32 或 cuda/bfloat16；原生 Apple Silicon 使用 mps/float32，见 MPS 部署章节。NPU 不开放。
 
 默认项目 photoly 的模型缓存卷为 `photoly_ai_models`。首次显式 model.load 下载固定 revision，文本与图像预热都通过才 ready。加载期限 840 秒；慢网络可预先缓存后重试。Web 不安装 torch。
 
@@ -63,7 +65,7 @@ WSL/Docker 必须分配足够的内存；修改 WSL 内存上限需要安排重�
 
 最多 topK=100，不支持 offset。候选<=5000精确查询；更大集合 iterative HNSW，结果不足且有剩余时间则回退精确查询。每用户最多一条在途查询，在线队列8，总查询期限60秒；在线优先，每最多8条给后台一次机会。
 
-文本<=512字符，还要通过模型token限制（SigLIP64、Qwen模板总长8192）。图片<=20MiB、40MP：JPEG/JFIF/PNG/WebP/BMP/TIFF/GIF/ICO（含 Pillow 识别为 MPO 的 JPG，读取主图/首帧）；首帧、EXIF方向、白底透明合成、RGB。查询图片只在内存使用，不保存向量。图库大图超出首版限制也标unsupported；视频/RAW/PSD/SVG不反复重试。
+文本<=512字符，还要通过模型token限制（SigLIP64、Qwen模板总长8192）。图片<=20MiB、40MP：JPEG/JFIF/PNG/WebP/BMP/TIFF/GIF/ICO（含 Pillow 识别为 MPO 的 JPG，读取主图/首帧）；首帧、EXIF方向、白底透明合成、RGB。查询图片只在内存使用，不保存向量。图库大图超出首版限制也标unsupported；RAW/PSD/SVG不反复重试。图库视频使用下文的 FFmpeg 多帧索引；直接上传视频作为查询输入不受支持。
 
 错误包括401 unauthenticated；403 ai_not_enabled/admin_required；400 invalid_*；413 image_too_large/image_too_many_pixels/text_token_limit；415 invalid_image/unsupported_image；409 generation_conflict/maintenance_required/profile_in_use/profile_changed；429 user_query_busy/runtime_busy；503 maintenance/runtime_offline/model_not_ready/out_of_memory；504 query_timeout/inference_timeout。覆盖不全是成功响应附带 coverage。
 
@@ -152,7 +154,7 @@ Settings中的间隔、速率、CPU/GPU及内存/显存/磁盘阈值在后续周
 
 Search模式选择器保留Natural language和旧字段搜索；自然语言支持目录/相册组合过滤，默认20条、最多100条，不分页。Image search上传入口已移除，原上传查询图API继续兼容。图库图片检索使用下述查看器推荐区。cosine排序不是匹配概率。
 
-照片查看器在原图和Metadata下方增加divider和Scroll down to discover similar images提示。打开图片不推理；继续下滑进入推荐区才加载首批24张，之后接近底部继续加载，无100张上限。也可用Load more键盘操作。点击缩略图在同一弹窗内切换，Back to previous photo恢复上一张的推荐和滚动位置；关闭后原图库状态不变。停止等待仅取消客户端请求，服务端可能仍在计算，立刻再次查询可能收到busy。
+媒体查看器在图片或视频和Metadata下方增加divider和Scroll down to discover similar photos and videos提示。打开媒体不推理；继续下滑进入推荐区才加载首批24张，之后接近底部继续加载，无100张上限。也可用Load more键盘操作。点击缩略图在同一弹窗内切换，Back to previous photo 在离开不足 30 秒且推荐上下文仍有效时恢复上一项的推荐和滚动位置；超过 30 秒回到顶部并收起。持续查看不自动过期。右下角 Back to top 立即回顶、收起并删除当前项缓存；关闭后原图库状态不变。停止等待仅取消客户端请求，服务端可能仍在计算，立刻再次查询可能收到busy。
 
 ### 前端与真实CUDA验收命令
 
@@ -198,6 +200,108 @@ AI Management → Settings and resource limits → **Similarity threshold (optio
 
 取消限制传 `"similarity_threshold": null`；服务端拒绝布尔、字符串、非有限值和越界值。无需 migration、重建向量或重新加载模型。修改会持久化，使用现有管理员权限及 generation 冲突检查。
 
-作用范围：图库图片 `/ai/photos/{photoId}/similar`、其 `/page` 分页接口，以及上传查询图 `/ai/search/image`；自然语言 `/ai/search/text` 保持不变。阈值由服务器读取，调用者不能通过请求参数关闭。SQL 在 limit/分页之前过滤 `score >= threshold`，用户隔离、版本检查及排序保持不变。覆盖率仍表示索引完成情况，不是达到阈值的数量。
+作用范围：图库图片和视频 `/ai/photos/{photoId}/similar`、其 `/page` 分页接口，以及上传查询图 `/ai/search/image`；自然语言 `/ai/search/text` 保持不变。阈值由服务器读取，调用者不能通过请求参数关闭。SQL 在 limit/分页之前过滤 `score >= threshold`，用户隔离、版本检查及排序保持不变。覆盖率仍表示索引完成情况，不是达到阈值的数量。
 
 用户 capabilities 与搜索响应包含 `similarityThreshold`（自然语言响应为 null）。分页上下文绑定阈值，设置改变后旧游标返回 HTTP 409 / `search_settings_changed`。查看器在翻页或 capabilities 轮询时清空旧推荐与历史缓存并提示 **Reload recommendations**，不会拼接两套阈值的结果。轮询间隔沿用可见页面 15 秒、隐藏页面 30 秒；已展示页面不会瞬间同步其他管理员会话的更新。
+
+## Apple Silicon：Mac 原生推理 + Docker 服务
+
+Apple GPU 使用 PyTorch MPS，在 macOS 主机运行模型；Docker Desktop 内继续运行 Web、Flask、PostgreSQL、Redis、scheduler 和 maintenance。需要 macOS 14+ 和原生 ARM64 Python（不使用 Rosetta）、`uv` 和 Docker Compose 2.24.4+。运行时固定 Python 3.12、PyTorch 2.8.0、Transformers 4.57.3，独立环境包含 `app` 导入所需依赖；不会替换后端 `.venv`。
+
+在仓库根目录执行：
+
+```sh
+sh photoly_backend/scripts/mps-runtime.sh install
+sh photoly_backend/scripts/mps-runtime.sh check
+sh photoly_backend/scripts/mps-runtime.sh start
+```
+
+先在 `.env` 配置现有 `AI_INFERENCE_TOKEN` 和 `AI_CONTROL_TOKEN`；主机与 Docker 必须使用同一组值。脚本只读取运行时相关键，环境变量优先，不执行 shell、不展开变量。可用 `--env-file /absolute/path/.env` 选择文件。`check` 验证设备及一次真实 MPS 运算，不下载模型。
+
+另开终端启动其余服务：
+
+```sh
+docker compose -f docker-compose.yml -f compose.mps.yml --profile ai-mps up -d --build
+```
+
+此组合不启动 Linux `ai-runtime`，也不请求 NVIDIA GPU。不要同时启用 `ai` 或 `container-runtime-disabled` profile。后端和调度器连接 `host.docker.internal:8090`；调度器在运行时离线时保持控制循环，主机运行时恢复后重新连接。
+
+原生服务默认监听 `0.0.0.0:8090`，仅供可信本机/Docker 网络使用，继续严格区分推理与控制令牌。可设置 `AI_RUNTIME_HOST` 和 `AI_RUNTIME_PORT`；混合部署必须保持 Docker 可访问的监听地址，且主机及 Compose 使用相同端口。默认模型缓存为 `~/.cache/photoly/models`，可用 `HF_HOME` 覆盖。令牌不会输出到日志。
+
+管理页选择 **Apple Silicon GPU (MPS) / float32**，保存设置后显式加载模型。已有配置保持原设备；更改设备前需卸载模型。文字和图片预热均成功后才记录验证成功。仅启动服务不会下载模型权重；首次点击加载可能需要较长下载时间。
+
+SigLIP2 和 Qwen3-VL 共用现有固定模型版本、预处理及向量指纹；切换设备无需重建索引。MPS 不自动降级 CPU，也不启用算子 CPU fallback。16 GB Mac 推荐先使用 SigLIP2；Qwen float32 权重及图片推理开销较高，是否可运行以实际加载和推理验证为准，不以设备可用代替模型可用。
+
+MPS 使用主机统一内存的 RAM pause/resume 阈值；GPU 利用率、独立 VRAM 显示 Unknown，不参与 MPS 调度阻塞。CPU 和磁盘阈值仍生效。`out_of_memory` 表示内存不足，`device_unavailable` 表示设备不可用，`unsupported_operator` 表示算子不兼容；错误不会把失败的组合标成已验证。
+
+停止前可在管理页暂停调度、卸载模型，再在原生终端按 Ctrl+C；Docker 服务可用同一 Compose 组合执行 `stop`。重新运行 `start` 即可恢复服务，模型生命周期继续由管理员配置控制。
+
+独立真机验收（按需下载权重，不在普通 CI 运行）：
+
+```sh
+cd photoly_backend
+HF_HOME="$HOME/.cache/photoly/models" PYTORCH_ENABLE_MPS_FALLBACK=0 PYTHONPATH=. \
+  inference/mps/.venv/bin/python scripts/ai_model_smoke.py siglip2 mps \
+  --samples tests/fixtures/ai --output /tmp/photoly-mps-results
+# 同样命令将 siglip2 换成 qwen3_vl 验证第二个模型。
+```
+
+报告包含图文向量维度、归一化、图片自匹配、中英文检索、推理耗时、进程峰值 RSS，以及 MPS 卸载前后的分配量；统一内存不标作独立显存。`ai_service_acceptance.py` 同时支持 `--device mps --providers siglip2`，仅对隔离测试 Compose 数据库运行。
+
+### 本次真机验证（2026-10-16）
+
+环境：Apple M3、16 GiB 统一内存、macOS 26.6.2、PyTorch 2.8.0；关闭算子 CPU fallback。以下耗时来自仓库的 4 张固定测试图片和 8 条中英文查询，是小样本验收结果，不代表所有图库的性能。
+
+SigLIP2 完成两次加载/推理/卸载。缓存命中时加载约 13.0 秒，图片推理中位数约 28 ms，文字约 8.5 ms；MPS 张量占用约 1.40 GiB，卸载后为 0。768 维向量的有限性、单位范数、图片自匹配及测试查询检索均通过。
+
+隔离 PostgreSQL/Redis + Docker 后端连接原生 MPS 的验收通过：4 张图片后台索引完整生成，文字搜索、图片搜索、相似图片和 Smart Search 文字候选正常；原生运行时停止后返回 `503 runtime_offline`，重启后自动恢复并继续使用原有索引。测试服务和数据已清理。
+
+Qwen3-VL Embedding 也完成两次图文推理及卸载。缓存命中时加载约 39.5 秒，图片推理中位数约 1.31 秒，文字约 0.11 秒；MPS 张量占用约 7.93 GiB，卸载后为 0。2048 维向量的有限性、单位范数和图片自匹配通过；8 条固定查询的 Recall@1 为 75%，Recall@3 为 100%。此结果证明本机可以运行两个模型，但不保证更大图片或更高内存压力下均可运行；16 GB 机器仍推荐 SigLIP2。
+
+回归：411 项后端测试、112 项前端单元测试、96 项 AI 管理/Smart Search/相似图片浏览器测试通过；类型检查、ESLint、前端构建、Compose 合并配置及原生启动检查通过。浏览器覆盖 Chromium、WebKit 和移动端。
+
+## Video frame indexing
+
+Rebuild the backend, scheduler and maintenance images and run the migration service before starting them. Revision `0003_video_vectors` preserves image vectors and model fingerprints. Maintenance builds a second partial HNSW index per profile for video frames; existing image search stays available during this build. No native macOS decoding dependency is needed for the MPS hybrid deployment.
+
+The backend/scheduler stream each library video into a private temporary snapshot, calculate its SHA-256, and sample 5%, 25%, 50%, 75% and 95% of its video-stream duration. Very short clips with at most five decoded frames use those frames. FFmpeg applies display rotation and scales down to a maximum edge of 1280 without upscaling; decoded images are RGB. A VFR tail with no frame after the sampling time contributes no invented duplicate. The [FFmpeg seek and rotation options](https://ffmpeg.org/ffmpeg.html) are applied during decoding. The shared probe/extraction deadline is 30 seconds; online requests retain their 60-second total deadline. Snapshot size uses `MAX_CONTENT_LENGTH` (default 600 MiB), independently of the 20 MiB image limit.
+
+Only decoded frames reach the model runtime, serially. Frame vectors and the ready state commit atomically, with database constraints preventing incomplete frame sets. Video jobs reserve five vector charges; completed jobs charge actual frame count. Physical quota accounting includes the frame table and its indexes. Overwrite, deletion and profile purge cascade or invalidate frame rows. A replaced file cannot receive an old task's vectors. Temporary files are removed on success and failure. Decode timeouts retry at most five times; invalid/no-stream/no-frame inputs become unsupported with explicit job reasons. Use the existing failed-job retry operation after correcting transient decode problems.
+
+Enabled users' old videos are picked up automatically by scheduler reconciliation, including videos previously marked unsupported by the image-only worker. Sampling version 1 is recorded before attempting decoding, so unsupported/failed videos do not enter an endless backfill loop. Rebuilding or changing the sampling version only requires new video vectors; image profiles are unchanged.
+
+Search uses the highest cosine similarity across all query and document frames. Each video appears once; thresholding and seek pagination happen after media aggregation. Ordinary searches use exact scoring up to 5,000 eligible media items, then expanded per-frame ANN candidates and exact reranking; insufficient candidates fall back to exact scoring. Recommendation pagination is exact and caches the whole query vector set. SigLIP2 reuses stored video frames; Qwen regenerates frames with its query instruction once per recommendation context. Results expose an optional `matchedTimestampMs`; playback still starts at the beginning.
+
+The viewer now offers “Similar photos and videos” for videos, with the same per-media 30-second return cache and Back to top/collapse action. Smart Search's existing semantic branch automatically includes videos. Supported extensions remain mp4, avi, wmv, mpeg, m4v, mov, flv, asf, f4v, rmvb, vob and rm; actual decoding depends on the installed FFmpeg codecs. There is no audio, subtitle or scene-cut analysis.
+
+For opt-in real-model acceptance, run `scripts/ai_service_acceptance.py --device mps --video` inside the disposable test service configured to reach the native runtime (see the MPS section). This generates two five-scene videos from the checked-in image fixtures, indexes both alongside four photos, checks the middle-frame image match, mixed results, video queries, cursor pagination and Smart Search metadata. It does not use the production database or media directory.
+
+Decoding accepts only the existing video container families and disables network protocols and playlist/image demuxers. This prevents uploaded playlists from referencing unrelated server files. A format extension alone is not treated as proof that the file contains decodable video.
+
+### Video acceptance on Apple M3 / 16 GiB (2026-10-16)
+
+The disposable PostgreSQL/Redis/backend/scheduler services called the native PyTorch 2.8 MPS runtime with two five-scene videos and four photos. Both profiles stored ten frame vectors, with half-precision stored L2 norms between 0.99986 and 1.00016. Image vectors were retained during profile/migration checks.
+
+| Profile | Five-frame document inference per video* | Image → middle video frame | Video → mixed media and pagination |
+| --- | --- | --- | --- |
+| SigLIP2 / MPS float32 | 0.251–0.271 seconds | Passed | Passed; complete query exercise 0.486 seconds |
+| Qwen3-VL-Embedding-2B / MPS float32 | 32.815–102.827 seconds | Passed with the matching letterboxed frame query | Hit the existing 60-second query deadline on this machine (HTTP 504 `query_timeout`) |
+
+\* `duration_ms` measures serial frame inference, excluding snapshot and FFmpeg extraction. These are two local samples, not throughput guarantees. The host was under substantial memory pressure (about 12.4 GiB of swap in use); Qwen's initial full-library indexing also exceeded the acceptance runner's old 180-second wait. The video acceptance runner now allows up to 600 seconds for background completion, independently of the unchanged 60-second online deadline. No model precision, instructions, fingerprint or CPU fallback was changed to hide this limitation. SigLIP2 remains the recommendation for this 16 GiB machine.
+
+An unletterboxed cat query initially ranked a coffee frame above the letterboxed cat frame in one Qwen video. Matching the query to the test video's framing recovered both middle-frame matches. Similarity reflects the chosen embedding model's ranking; it is not a guarantee of scene recognition. Deterministic database tests separately verify maximum-frame aggregation, all query-frame combinations, thresholds, stable ties, owner isolation and pagination independently of model relevance.
+
+Final regression for this change: 430 backend tests passed against isolated PostgreSQL/Redis (five opt-in HTTP tests deselected); 113 frontend unit tests and 99 Chromium/WebKit/mobile tests passed. Type checking, ESLint, production build and `git diff --check` passed. Video tests include real FFmpeg decoding, rotation, VFR/short clips, corruption/no-stream/timeout, migration rollback/upgrade, frame completeness constraints, overwrite cancellation, retry limits, quota accounting, frame HNSW planning, exact reranking and Qwen query-vector cursor reuse. The real MPS results and limitation above are separate from these deterministic tests.
+
+### Smart Tag organization
+
+[Smart Tag deployment, rules, APIs and validation](smart-tag.md) describe the optional device tags and trip galleries. Deploy migration `0005_smart_organization` and rebuild the existing application images/frontend. Enable global AI, administrator Smart Tag, account AI access, and personal Smart Tag; then start the existing scheduler. No new service/container or native MPS dependency is required. Smart Tag uses offline GeoNames and already indexed document vectors; the model may be unloaded. Both new switches default off, and disabling preserves generated catalogs.
+
+
+## Smart Search 与 OCR
+
+默认 Smart Search 仅提供搜索框。`GET /photo/searchSmart?query=...` 无需 AI 资格，返回最多 100 个名称、Tag、Gallery 文字候选（不查询 Namespace）。前端另行请求 `/ai/search/text`，按等权 RRF `1/(60+rank)` 融合，按媒体 ID 去重并显示前 100 项；AI 不可用时保留文字结果。空查询清空结果，最多 512 字符，仅提交时执行语义搜索。
+
+图片查看器的 Extract Text 使用 `/photo/ocr` GET/PUT 和 `/photo/ocr/recognize` POST。Tesseract 5 CPU 与 AI 开关及模型运行时独立；默认简繁中文、英文、日文。OCR 沿用 legacy HTTP 200 + msgCode 业务错误约定，与 `/ai/*` 的真实 HTTP 错误不同。详见 [OCR 部署与限制](ocr.md)。
+
+本文各阶段的验证数字是当时快照，不代表每次修改都重新运行真实模型。Qwen 视频查询的 60 秒超时限制仍然适用；最终提交的完整验证结果见 PR 描述。

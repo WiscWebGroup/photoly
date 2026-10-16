@@ -1,10 +1,10 @@
 # Photoly Flask backend
 
-Python 3.12 / Flask 3.1 / SQLAlchemy 2 / PostgreSQL 17 / pgvector 0.8.7. The 90 legacy business routes and image replacement are preserved. Phase 2 adds isolated AI services and search/admin APIs; the UI is scheduled for phase 3.
+Python 3.12 / Flask 3.1 / SQLAlchemy 2 / PostgreSQL 17 / pgvector 0.8.7. The 90 legacy business routes remain compatible. The current API also includes image replacement, PostgreSQL health, Smart Search, mixed image/video embedding search, AI administration, OCR and Smart Tag. Swagger is served at `/docs/` and `/openapi.json`.
 
 ## Architecture
 
-`create_app()` registers configuration, infrastructure and blueprints without connecting to dependencies or initializing data. Controllers parse HTTP; services enforce ownership and transactions; entities describe eleven business tables. PostgreSQL READ COMMITTED and per-user row locks serialize directory mutations. The storage layer compensates ordinary database failures; it is not an atomic transaction across PostgreSQL and the filesystem. After a process/host crash, reconcile `.staging` with the database instead of blindly deleting it. Back up PostgreSQL and media together.
+`create_app()` registers configuration, infrastructure and blueprints without connecting to dependencies or initializing data. Controllers parse HTTP; services enforce ownership and transactions; entities describe the legacy business tables and additional AI, video-frame, OCR and smart-organization records. PostgreSQL READ COMMITTED and per-user row locks serialize directory mutations. The storage layer compensates ordinary database failures; it is not an atomic transaction across PostgreSQL and the filesystem. After a process/host crash, reconcile `.staging` with the database instead of blindly deleting it. Back up PostgreSQL and media together.
 
 Redis stores expiring login sessions; API credentials and share tokens live in PostgreSQL. Redis loss signs users out without changing share/API tokens.
 
@@ -22,7 +22,7 @@ The one-shot `migrate` service runs Alembic using the schema owner and then seed
 
 ## Running
 
-Prefer the root Compose instructions. For separately provisioned PostgreSQL with the same bootstrap roles/grants, install Python 3.12, uv and ExifTool, then:
+Prefer the root Compose instructions. For separately provisioned PostgreSQL with the same bootstrap roles/grants, install Python 3.12, uv, ExifTool, FFmpeg/FFprobe and Tesseract 5 with the `eng`, `chi_sim`, `chi_tra` and `jpn` tessdata_fast language files. Run from `photoly_backend/`:
 
 ```sh
 export POSTGRES_HOST=localhost
@@ -42,15 +42,7 @@ uv run flask --app app:create_app run --port 8084
 
 Standalone commands read exported environment variables; Compose reads the root `.env`. The Flask server is for development. Docker runs Gunicorn with two workers/four threads by default.
 
-For subsequent application upgrades with existing PostgreSQL/media volumes:
-
-```sh
-docker compose build backend migrate web
-docker compose run --rm migrate
-docker compose up -d backend web
-```
-
-A failed migration must be resolved before starting the new Web image; the schema check rejects mismatched revisions. Do not use `down -v` on the application project to upgrade it.
+For upgrades, follow the [root upgrade procedure](../README.md#upgrading-an-existing-postgresql-deployment), including the scheduler and maintenance images when enabled. The current migration head is `0005_smart_organization`; migrate before starting new application services. Existing PostgreSQL deployments can upgrade in place; legacy MySQL/AES/session migration remains unsupported.
 
 ## Configuration
 
@@ -65,7 +57,7 @@ A failed migration must be resolved before starting the new Web image; the schem
 | REDIS_URL | Redis URL and database number |
 | UPLOAD_FOLDER | Writable media directory, default /photoly |
 | PUBLIC_BASE_URL | External sharing URL, default http://localhost:8384 |
-| TIMEZONE | America/New_York; entity dates remain offset-free |
+| TIMEZONE | America/New_York; legacy entity dates remain offset-free; Smart Tag records inferred/explicit capture timezone provenance |
 | ADMIN_EMAIL / ADMIN_PASSWORD | Initial admin seed; password required for seed only |
 | MAX_CONTENT_LENGTH | 629145600 bytes by default |
 | EXIFTOOL_PATH | exiftool |
@@ -78,7 +70,7 @@ PostgreSQL password values use SQLAlchemy URL objects, so reserved characters ne
 
 ## API documentation and compatibility
 
-`/docs/` provides local Swagger UI, `/openapi.json` serves OpenAPI 3.2 for legacy photo operations, image replacement, PostgreSQL health, AI search and AI administration. Reading docs needs no dependency connection. Actual requests retain authentication and ownership checks.
+`/docs/` provides local Swagger UI, `/openapi.json` serves OpenAPI 3.2 for legacy photo operations, image replacement, PostgreSQL health, AI search/administration, Smart Search, OCR and Smart Tag. Reading docs needs no dependency connection. Actual requests retain authentication and ownership checks.
 
 Sign in with POST /user/signIn, then put its token into SessionToken without a Bearer prefix. Tokens remain in memory, not localStorage. Share/API/path tokens are separate. Upload multipart metadata uses JSON strings. Read msgCode as well as HTTP status; legacy business failures commonly return HTTP 200. Destructive operations are explicitly labeled.
 
@@ -90,13 +82,17 @@ GET /admin/pingDatabase tests PostgreSQL. GET /admin/databaseInfo reports type, 
 
 Run root compose.test.yml. There is no SQLite database fallback. Alembic initializes photoly_test; fixture cleanup uses the owner, while business requests use the app role. Explicit fixture IDs are followed by identity sequence resets.
 
-TEST_DATABASE_URL and TEST_MIGRATION_DATABASE_URL must point to the same PostgreSQL database ending in _test; Redis integration uses DB 15. HTTP tests use separate photoly_http_test and Redis DB 14, no production mounts and no host ports. Their final test intentionally stops the disposable server.
+TEST_DATABASE_URL and TEST_MIGRATION_DATABASE_URL must point to the same PostgreSQL database ending in _test; Redis integration uses DB 15. HTTP tests use separate photoly_http_test and Redis DB 14, no production mounts and no host ports. Their final test intentionally stops the disposable server. On Docker Desktop, if PostgreSQL bootstrap fails with `/bin/sh: bad interpreter: Permission denied` despite a readable script, the bind mount is being treated as non-executable. Copy `database/postgres-init/01-photoly.sh` into the container filesystem and set mode 0644 before invoking the original PostgreSQL entrypoint, using a temporary test-only Compose override. PostgreSQL then sources the script. Do not delete production volumes to work around this host issue.
 
 Tests retain frozen Spring response contracts and independently inspect PostgreSQL schema, constraints, identity behavior, grants, concurrent email uniqueness, schema readiness, halfvec(2048) cosine error, HNSW use, zero-vector exclusion and rollback. Default CI uses a deterministic AI adapter; real model verification runs separately.
 
 See [compatibility notes](COMPATIBILITY.md) and the test commands above. Historical verification notes remain in VERIFICATION.md.
 
 
-## AI backend
+## Optional services and features
 
-See [deployment and API operations](../docs/ai-backend-operations.md) for CPU/CUDA images, model lifecycle, user eligibility, search contracts, capacity and recovery. AI starts disabled. The AI Management page controls eligibility, models, scheduling and resource limits; the photo viewer provides paginated similar-image recommendations with an optional administrator-configured similarity threshold.
+[AI operations](../docs/ai-backend-operations.md) covers separate CPU/CUDA inference images and native Apple Silicon MPS, model lifecycle, quotas, profiles and background limits. Video decoding occurs in the backend/scheduler; the runtime receives sampled image frames. AI and user eligibility start disabled.
+
+[OCR](../docs/ocr.md) uses Tesseract CPU in the application image, without AI enablement or GPU allocation. Recognition is on demand, globally limited to one task, with optimistic content/revision checks. The browser can edit and copy saved text. Avatar uploads are normalized by Pillow to square 512 × 512 JPEGs.
+
+[Smart Tag](../docs/smart-tag.md) runs inside the existing `ai-scheduler` Python process. Both administrator and user switches default off; global AI and user AI access are also required. Device tags use real metadata; trip galleries use capture time, offline GeoNames cities and existing document vectors. No additional inference request or container is introduced. The checked-in city index, manifest and attribution are required deployment assets.

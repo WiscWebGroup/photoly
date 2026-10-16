@@ -3,7 +3,7 @@
 <img src="https://raw.githubusercontent.com/Harold-y/photoly/main/Logo.png" height="160px" width="160px" />
 <br>
 
-This is a picture host application. There are demands for the self-host and reliable picture-host applications. Photoly provides a solution just right for that. Using Photoly, you can manage your pictures and photos with easy clicks, and categorize them using tags, galleries, and namespaces. We are also sure that the search functionality could make it easier to see the photos you are interested in. Moreover, Photoly provides API for you to access our functionalities for embedding in other applications.
+Photoly is a self-hosted photo and video library. Organize media with folders, tags and galleries, share selected items, and search names, metadata and visual content. A documented REST API supports integrations.
 
 Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自助图片托管应用需求增加，Photoly应运而生。使用 Photoly，您可以轻松管理图片和视频，并使用标签、图库和文件夹对图片和视频进行分类；利用搜索功能，充分探索您的媒体库。此外，Photoly 还提供 API，方便您将我们的功能嵌入到其他应用程序中。
 
@@ -13,7 +13,11 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 - Share a Photo / Video using a share link, or a QR code
 - Automatic record photo's Exif information, including GPS location, Camera Model, Lens Model, ISO, Shutter, Aperture, etc.
 - Display a Photo Location Map
-- Search Photos based on various conditions
+- Smart Search combines photo/video names, tags and galleries with optional semantic search; existing search modes remain available
+- Similar photos and videos, including five-frame video indexing and per-media recommendation state
+- On-demand multilingual text recognition with editable, saved results and copy support (Tesseract CPU)
+- Optional Smart Tag camera/lens labels and time/location-based trip galleries
+- Circular avatar crop preview with square 512 × 512 JPEG output
 - Create API to operate your photo using REST API
 
 ## Screenshots
@@ -47,7 +51,7 @@ The backend has been migrated from Spring Boot to Flask. This version supports *
 
 ### Docker
 
-1. Copy `.env.example` to `.env` and set database, Redis and administrator passwords. Use separate PostgreSQL administrator, migration and application passwords. The Redis password must be URL-safe because it enters a connection URL.
+1. Copy `.env.example` to `.env` and set database, Redis, administrator and both internal AI token values. Use separate PostgreSQL administrator, migration and application passwords. The Redis password must be URL-safe because it enters a connection URL.
 2. Run `docker compose up -d --build` from this directory.
 3. Open `http://localhost:5200`. The API is available at `http://localhost:8384`, with interactive [Swagger UI](http://localhost:8384/docs/) and an [OpenAPI 3.2 document](http://localhost:8384/openapi.json).
 4. Sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env`.
@@ -58,9 +62,47 @@ The administrator dashboard displays PostgreSQL, pgvector and the schema revisio
 
 For access from another machine, set `PUBLIC_BASE_URL` to the externally reachable API URL and update the frontend `VITE_APP_BASE_URL` build setting before rebuilding. `localhost` is only appropriate for local access.
 
+### Optional AI runtimes
+
+Docker Compose **2.24.4+** is required for the CPU and MPS overrides. Set separate `AI_INFERENCE_TOKEN` and `AI_CONTROL_TOKEN` in the root `.env`, including for configurations where Compose validates inactive AI services. Run commands from the repository root:
+
+| Deployment | Start command | Requirements |
+| --- | --- | --- |
+| Base library + OCR | `docker compose up -d --build` | No model runtime required |
+| NVIDIA CUDA | `docker compose --profile ai up -d --build` | NVIDIA GPU and container runtime |
+| CPU | `docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai up -d --build` | CPU-only inference image |
+| Apple Silicon MPS | `docker compose -f docker-compose.yml -f compose.mps.yml --profile ai-mps up -d --build` | Start the native runtime first, as below |
+
+For MPS, use a native ARM64 macOS 14+ shell with `uv` installed:
+
+```sh
+sh photoly_backend/scripts/mps-runtime.sh install
+sh photoly_backend/scripts/mps-runtime.sh check
+sh photoly_backend/scripts/mps-runtime.sh start
+```
+
+Keep `start` running in its terminal and run the MPS Compose command in another. Docker connects to `host.docker.internal:8090`; the native runtime defaults to `0.0.0.0:8090`, authenticated with the same two tokens. Do not enable the `ai` profile with the MPS override. See [runtime setup and troubleshooting](docs/ai-backend-operations.md).
+
+AI starts disabled. In **AI Management**, configure the device (`cpu/float32`, `cuda/bfloat16`, or `mps/float32`), explicitly load a model, grant user access and activate a search profile. Startup alone does not download weights. SigLIP2 is recommended for 16 GB Macs; Qwen video queries can exceed the 60-second deadline under memory pressure.
+
+### Upgrading an existing PostgreSQL deployment
+
+Back up the database and media together. Use the **same Compose files and profile as your deployment** for every command. For example, for CPU AI:
+
+```sh
+docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai stop backend ai-scheduler ai-maintenance
+docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai build
+docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai run --rm migrate
+docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai up -d
+```
+
+For base deployments, omit the override/profile and stop only `backend`. For CUDA, omit the CPU override. For MPS, substitute `compose.mps.yml` / `ai-mps`; stop the native runtime, rerun its `install` command after dependency changes, and restart it before the final Compose command. If migration fails, resolve it before starting the new application services.
+
+Alembic `upgrade head` includes video frame vectors (`0003_video_vectors`), OCR (`0004_photo_ocr`) and Smart Tag (`0005_smart_organization`). Existing image vectors are retained. Rebuild the application images to include FFmpeg, Tesseract language data and the offline city index. Never use `down -v` to upgrade a production deployment.
+
 ### Development and tests
 
-See [backend setup and architecture](photoly_backend/README.md) and [API compatibility notes](photoly_backend/COMPATIBILITY.md).
+See [backend setup and architecture](photoly_backend/README.md), [frontend development](photoly_frontend_vue/README.md) and [API compatibility notes](photoly_backend/COMPATIBILITY.md).
 
 Database tests require real PostgreSQL and an Alembic-created schema. Run from the repository root:
 
@@ -77,6 +119,12 @@ The integration database is `photoly_test`; the HTTP server uses `photoly_http_t
 See [LICENSE](LICENSE).
 
 
-## AI search and administration
+## Search, recognition and smart organization
 
-See [deployment and API operations](docs/ai-backend-operations.md) for CPU/CUDA images, model lifecycle, user eligibility, search contracts, capacity and recovery. AI starts disabled. Open **AI Management** in the administrator navigation to configure CUDA/CPU inference, user access, profiles and background resource limits. Search supports natural-language queries. Scroll below a photo in the viewer to discover similar images, with paginated recommendations and same-viewer navigation. Administrators can set an optional similarity threshold; it is disabled by default. The image-upload search API remains available.
+**Smart Search** is the default search mode: one text box, up to 100 results, with name/tag/gallery matches shown first and semantic results fused when available. Semantic failure preserves text results. See [AI operations](docs/ai-backend-operations.md) for indexing, quotas, model lifecycle and mixed photo/video search.
+
+Scroll down in the viewer to load **Similar photos and videos**. Each item has independent results and scroll state. Returning within 30 seconds of leaving restores it; after that it starts collapsed. Viewing an item continuously does not expire it. **Back to top** collapses recommendations and clears that item's cache.
+
+**Extract Text** runs only when requested. Tesseract recognizes simplified/traditional Chinese, English and Japanese on CPU, independently of AI permissions or the model runtime. Results are saved and can be edited or copied. See [OCR limits and operation](docs/ocr.md).
+
+**Smart Tag** requires global AI, administrator Smart Tag, user AI permission and personal Smart Tag to be enabled. Both Smart Tag switches default off. It runs inside the existing scheduler process, with no extra container or model inference. Turning it off retains editable results. See [rules, controls and offline city attribution](docs/smart-tag.md).
