@@ -21,7 +21,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest==8.4.2",
-    "pytest-cov==6.2.1",
+    "pytest-cov==7.1.0",
     "fakeredis==2.31.1",
     "requests==2.32.5",
     "zxing-cpp==3.1.1",
