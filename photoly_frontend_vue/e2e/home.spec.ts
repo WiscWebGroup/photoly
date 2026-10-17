@@ -154,7 +154,7 @@ test('view photo details', async ({ page }) => {
   await page.goto('/home/HomePart')
   await page.getByText('beach.jpg').click()
 
-  await expect(page.getByText('Name: beach.jpg')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'beach.jpg' })).toBeVisible()
   await expect(page.getByText('Size: 2 MB')).toBeVisible()
   await expect(page.getByText('Path: /root')).toBeVisible()
 })
