@@ -37,9 +37,9 @@ test('admin sees the paginated user list', async ({ page }) => {
   await expect(page.getByRole('cell', { name: 'uuid-bob' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '2024-02-01' })).toBeVisible()
   // Username and email are editable in place.
-  const values = await page.getByRole('textbox').evaluateAll((els) =>
-    els.map((el) => (el as HTMLInputElement).value),
-  )
+  const values = await page
+    .getByRole('textbox')
+    .evaluateAll((els) => els.map((el) => (el as HTMLInputElement).value))
   expect(values).toEqual(expect.arrayContaining(['alice', 'bob', 'alice@example.com']))
   expect(calls.find((c) => c.path === '/admin/getUserPage')?.query).toEqual({
     rowsPerPage: '10',

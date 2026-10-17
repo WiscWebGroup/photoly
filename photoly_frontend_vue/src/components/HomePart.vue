@@ -392,39 +392,41 @@ async function upload() {
     <ContextMenu>
       <ContextMenuTrigger as-child>
         <div v-show="nsId !== -1" class="flex-1 space-y-6">
-          <div
-            v-if="selectMode"
-            class="bg-background/95 sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b py-2 backdrop-blur"
+          <section
+            aria-label="Library actions"
+            class="bg-background/95 sticky top-0 z-10 -mt-2 space-y-2 border-b py-2 backdrop-blur"
           >
-            <span class="text-muted-foreground mr-2 text-sm">{{ selectedCount }} selected</span>
-            <Button variant="outline" size="sm" @click="selectMode = false">Done</Button>
-            <Button variant="outline" size="sm" @click="clearSelection">Clear</Button>
-            <Button variant="outline" size="sm" @click="selectAll">Select All</Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              :disabled="!selectedCount"
-              @click="startMoveSelected"
-              >Move</Button
-            >
-            <Button
-              variant="destructive"
-              size="sm"
-              :disabled="!selectedCount"
-              @click="confirmDeleteSelected = true"
-              >Delete Selected</Button
-            >
-          </div>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              <ViewToggle />
+              <Button variant="outline" size="sm" @click="startUpload"><Upload /> Upload</Button>
+              <Button variant="outline" size="sm" @click="startCreate"
+                ><FolderPlus /> New Folder</Button
+              >
+            </div>
+            <div v-if="selectMode" class="flex flex-wrap items-center gap-2">
+              <span class="text-muted-foreground mr-2 text-sm">{{ selectedCount }} selected</span>
+              <Button variant="outline" size="sm" @click="selectMode = false">Done</Button>
+              <Button variant="outline" size="sm" @click="clearSelection">Clear</Button>
+              <Button variant="outline" size="sm" @click="selectAll">Select All</Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                :disabled="!selectedCount"
+                @click="startMoveSelected"
+                >Move</Button
+              >
+              <Button
+                variant="destructive"
+                size="sm"
+                :disabled="!selectedCount"
+                @click="confirmDeleteSelected = true"
+                >Delete Selected</Button
+              >
+            </div>
+          </section>
           <section>
             <div class="mb-3 flex flex-wrap items-center gap-3">
               <h2 class="text-2xl font-semibold">Folders</h2>
-              <span class="ml-auto flex items-center gap-2">
-                <ViewToggle />
-                <Button variant="outline" size="sm" @click="startUpload"><Upload /> Upload</Button>
-                <Button variant="outline" size="sm" @click="startCreate"
-                  ><FolderPlus /> New Folder</Button
-                >
-              </span>
             </div>
 
             <EmptyState

@@ -85,11 +85,11 @@ describe('MediaList', () => {
     await mountWithPhotos()
     byText('beach.jpg').click()
 
-    await vi.waitFor(() => expect(pageText()).toContain('Path: /root/Holiday'))
-    expect(pageText()).toContain('Name: beach.jpg')
-    expect(pageText()).toContain('Upload Date: 2024-06-01')
-    expect(pageText()).toContain('Size: 2 MB')
-    expect(pageText()).toContain('Shared: No')
+    await vi.waitFor(() => expect(pageText()).toContain('/root/Holiday'))
+    expect(pageText()).toContain('Uploaded 2024-06-01')
+    expect(pageText()).toContain('beach.jpg')
+    expect(pageText()).toContain('2 MB')
+    expect(pageText()).toContain('Only you can see this')
     expect(calls).toContainEqual(
       expect.objectContaining({ path: '/namespace/trace', query: { nsId: '5' } }),
     )
@@ -119,7 +119,7 @@ describe('MediaList', () => {
     )
 
     byText('beach.jpg').click()
-    await vi.waitFor(() => expect(pageText()).toContain('Path: /root/Holiday'))
+    await vi.waitFor(() => expect(pageText()).toContain('/root/Holiday'))
     expect(calls.filter((c) => c.path === '/namespace/trace')).toHaveLength(1)
   })
 

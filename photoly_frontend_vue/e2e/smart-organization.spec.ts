@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { mockApi, ok, photo, signIn } from './mockApi'
+import { mockApi, ok, openDetails, photo, signIn } from './mockApi'
 import { settingsFixture, statusFixture, adminCapabilitiesFixture } from '../src/test/aiFixtures'
 
 const camera = {
@@ -105,10 +105,8 @@ test('smart tags, gallery details and viewer selectors have consistent badges', 
   await page.screenshot({ path: test.info().outputPath('smart-gallery.png') })
   await page.locator('p[title="travel.jpg"]').click()
   const dialog = page.getByRole('dialog')
-  await dialog
-    .locator('summary')
-    .filter({ hasText: /^Tags$/ })
-    .click()
+  await openDetails(page)
+  // "Tags and galleries" is open by default in the details pane.
   await expect(dialog.getByText(/Smart.*Camera/)).toBeVisible()
   await dialog.getByRole('combobox', { name: 'Tag', exact: true }).click()
   await expect(page.getByRole('option', { name: /iPhone 13.*Smart/ })).toBeVisible()
