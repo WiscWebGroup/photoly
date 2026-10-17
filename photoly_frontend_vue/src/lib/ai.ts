@@ -55,6 +55,12 @@ export interface AiSettings {
   similarity_threshold: number | null
   generation: number
   enabled: boolean
+  search_enabled: boolean
+  ai_initialized: boolean
+  managed_lifecycle: boolean
+  lifecycle_id: number
+  ram_policy: 'percent' | 'free'
+  ram_max_percent: number
   new_user_default: boolean
   smart_tag_enabled: boolean
   maintenance: boolean
@@ -84,6 +90,10 @@ export type AiChanges = Partial<
   Omit<
     AiSettings,
     | 'generation'
+    | 'ai_initialized'
+    | 'managed_lifecycle'
+    | 'lifecycle_id'
+    | 'ram_policy'
     | 'maintenance'
     | 'scheduler'
     | 'runtime'
@@ -184,7 +194,18 @@ export interface AiService {
     queued?: number
   }
 }
+export interface StartupProgress {
+  stage: string
+  lifecycleId: number
+  completed: number | null
+  total: number | null
+  unit: string | null
+  updatedAt: string | null
+  reason: string | null
+  online: boolean
+}
 export interface AiStatus {
+  startup?: StartupProgress
   smartTag?: import('./smartOrganization').SmartStatus
   settings: AiSettings
   services: Record<string, AiService>
@@ -240,6 +261,15 @@ const messages: Record<string, string> = {
   no_active_profile: 'No search index has been activated yet.',
   profile_not_ready: 'The search index is not ready.',
   model_not_ready: 'The model is not ready yet.',
+  model_load_failed:
+    'The model could not be loaded. Check the selected device and available memory, then Enable AI to retry.',
+  model_download_failed:
+    'Model download failed. Check the runtime network connection, then Enable AI to retry.',
+  model_load_timeout: 'Model startup timed out. Cached files are preserved; Enable AI to retry.',
+  index_maintenance_failed:
+    'Search index preparation failed. Check the maintenance service, then Enable AI to retry.',
+  quota_exceeded:
+    'The index storage budget is exhausted. Increase the budget in Advanced settings.',
   runtime_offline: 'The AI runtime is offline.',
   runtime_unconfigured: 'The AI runtime is not configured.',
   model_restarting: 'The model is restarting.',

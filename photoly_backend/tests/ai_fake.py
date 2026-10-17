@@ -4,7 +4,15 @@ from app.ai.types import EmbeddingBatch
 
 
 class FakeEmbedding:
-    def load(self,spec,config):self.spec=spec
+    def download(self, spec, progress):
+        import os, time
+        progress("downloading", 0, 2)
+        time.sleep(float(os.getenv("AI_TEST_DOWNLOAD_SECONDS", "0")))
+        progress("downloading", 2, 2)
+    def load(self,spec,config):
+        import os, time
+        time.sleep(float(os.getenv("AI_TEST_LOAD_SECONDS", "0")))
+        self.spec=spec
     def encode_texts(self,texts,*,role):
         if isinstance(texts[0],str) and texts[0]=="__test_oom__":raise RuntimeError("out of memory")
         if isinstance(texts[0],str) and texts[0]=="__test_timeout__":

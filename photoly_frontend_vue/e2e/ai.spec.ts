@@ -135,6 +135,8 @@ async function adminMocks(page: Page) {
     '/admin/ai/operations': (c) => {
       const data = c.body as { command: string; generation: number }
       state.settings.generation++
+      if (data.command === 'ai.enable') state.settings.enabled = true
+      if (data.command === 'ai.pause') state.settings.enabled = false
       const job = {
         operationId: 1,
         command: data.command,
@@ -153,32 +155,42 @@ async function adminMocks(page: Page) {
   })
   return { calls, state, operations }
 }
-test('admin limits validate pairs, save only changes and display read-only concurrency', async ({
+test('admin limits derive resume values and hide advanced controls by default', async ({
   page,
 }) => {
   const { calls } = await adminMocks(page)
   await page.goto('/thepersonincharge/ai')
   await expect(page.getByRole('heading', { name: 'AI Management', exact: true })).toBeVisible()
-  await page.getByLabel('CPU resume (%)', { exact: true }).fill('95')
-  await page.getByRole('button', { name: 'Save AI settings' }).click()
-  await expect(page.getByRole('alert')).toContainText('must be')
-  expect(calls.some((c) => c.path === '/admin/ai/settings')).toBe(false)
-  await page.getByLabel('CPU resume (%)', { exact: true }).fill('70')
-  await page.getByLabel('Minimum background interval (seconds)', { exact: true }).fill('12')
+  await expect(page.getByLabel('CPU compute threads')).not.toBeVisible()
+  await expect(page.getByRole('button', { name: 'Create profile', exact: true })).toHaveCount(0)
+  await page.getByLabel('CPU utilization (%)', { exact: true }).fill('80')
   await page.getByRole('button', { name: 'Save AI settings' }).click()
   await expect
     .poll(() => calls.find((c) => c.path === '/admin/ai/settings')?.body)
-    .toEqual({ generation: 0, settings: { background_interval_seconds: 12 } })
+    .toEqual({ generation: 0, settings: { cpu_pause_percent: 80 } })
+  await page.getByText('Diagnostics and operation history', { exact: true }).click()
   await expect(page.getByText('Concurrency 1 · Batch 1 (read-only)')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 test('queued operations remain pending and survive page refresh', async ({ page }) => {
   const { calls } = await adminMocks(page)
   await page.goto('/thepersonincharge/ai')
-  await page.getByRole('button', { name: 'Load model', exact: true }).click()
+  await page.getByRole('button', { name: 'Enable AI', exact: true }).click()
+  await page
+    .locator('details')
+    .filter({ has: page.getByText('Diagnostics and operation history', { exact: true }) })
+    .evaluate((el) => {
+      ;(el as HTMLDetailsElement).open = true
+    })
   await expect(page.getByText('1 operation(s) pending.', { exact: false })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Load model', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Pause AI', exact: true })).toBeEnabled()
   await page.reload()
+  await page
+    .locator('details')
+    .filter({ has: page.getByText('Diagnostics and operation history', { exact: true }) })
+    .evaluate((el) => {
+      ;(el as HTMLDetailsElement).open = true
+    })
   await expect(page.getByText('1 operation(s) pending.', { exact: false })).toBeVisible()
   expect(calls.filter((c) => c.path === '/admin/ai/operations')).toHaveLength(1)
 })
@@ -194,6 +206,7 @@ test('generation conflict preserves the draft until explicitly reloaded', async 
     })
   })
   await page.goto('/thepersonincharge/ai')
+  await page.getByText('Advanced settings', { exact: true }).click()
   await page.getByLabel('Minimum background interval (seconds)', { exact: true }).fill('12')
   await page.getByRole('button', { name: 'Save AI settings' }).click()
   await expect(page.getByRole('alert')).toContainText('another session')
@@ -259,9 +272,15 @@ test('unknown operation outcome is recovered after reload with the same idempote
     })
   })
   await page.goto('/thepersonincharge/ai')
-  await page.getByRole('button', { name: 'Load model', exact: true }).click()
+  await page.getByRole('button', { name: 'Enable AI', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('outcome unknown')
   await page.reload()
+  await page
+    .locator('details')
+    .filter({ has: page.getByText('Diagnostics and operation history', { exact: true }) })
+    .evaluate((el) => {
+      ;(el as HTMLDetailsElement).open = true
+    })
   await expect(page.getByText('1 operation(s) pending.', { exact: false })).toBeVisible()
   expect(keys).toHaveLength(2)
   expect(keys[0]).toBeTruthy()
@@ -294,8 +313,10 @@ test('disabled AI and offline services remain distinct from a broken library', a
   const { state } = await adminMocks(page)
   state.services.runtime.online = false
   await page.goto('/thepersonincharge/ai')
-  await expect(page.getByText('Offline / unknown', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Load model', exact: true })).toBeDisabled()
+  await expect(
+    page.getByText('Offline / unknown — startup will continue', { exact: false }),
+  ).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Enable AI', exact: true })).toBeEnabled()
 })
 
 test('admin similarity threshold defaults to blank, persists decimals and can be cleared', async ({
@@ -303,6 +324,7 @@ test('admin similarity threshold defaults to blank, persists decimals and can be
 }) => {
   const { calls, state } = await adminMocks(page)
   await page.goto('/thepersonincharge/ai')
+  await page.getByText('Advanced settings', { exact: true }).click()
   const field = page.getByLabel('Similarity threshold (optional)')
   await expect(field).toHaveValue('')
   await field.fill('1.01')
@@ -316,6 +338,7 @@ test('admin similarity threshold defaults to blank, persists decimals and can be
     settings: { similarity_threshold: 0.825 },
   })
   await page.reload()
+  await page.getByText('Advanced settings', { exact: true }).click()
   await expect(field).toHaveValue('0.825')
   await field.fill('-0.2')
   await page.getByRole('button', { name: 'Save AI settings' }).click()
@@ -352,9 +375,7 @@ test('Apple Silicon device saves MPS float32 and unavailable devices stay disabl
   await page.goto('/thepersonincharge/ai')
   await page.getByLabel('Inference device').selectOption('mps')
   await expect(page.getByLabel('Inference device')).toHaveValue('mps')
-  await expect(
-    page.getByRole('option', { name: 'Apple Silicon GPU (MPS) / float32' }),
-  ).toBeAttached()
+  await expect(page.getByRole('option', { name: 'Apple Silicon GPU (MPS)' })).toBeAttached()
   await expect(
     page.getByLabel('Inference device').locator('option[value="cuda"]'),
   ).toHaveJSProperty('disabled', true)
@@ -402,17 +423,133 @@ test('LAN HTTP loads controls, polls and recovers operations without secure-cont
     })
   })
   await page.goto('/thepersonincharge/ai')
+  await page.getByText('Diagnostics and operation history', { exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Index maintenance service' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Load model', exact: true })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Enable AI', exact: true })).toBeEnabled()
   state.settings.generation = 7
   await expect(page.getByText(/Configuration generation 7/)).toBeVisible({ timeout: 12000 })
   expect(calls.filter((c) => c.path === '/admin/ai/status').length).toBeGreaterThan(1)
-  await page.getByRole('button', { name: 'Load model', exact: true }).click()
+  await page.getByRole('button', { name: 'Enable AI', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('outcome unknown')
   await page.reload()
+  await page
+    .locator('details')
+    .filter({ has: page.getByText('Diagnostics and operation history', { exact: true }) })
+    .evaluate((el) => {
+      ;(el as HTMLDetailsElement).open = true
+    })
   await expect(page.getByText('1 operation(s) pending.', { exact: false })).toBeVisible()
   expect(keys).toHaveLength(2)
   expect(keys[0]).toMatch(/^[a-f0-9]{32}$/)
   expect(keys[1]).toBe(keys[0])
   expect(errors).toEqual([])
+})
+
+test('startup shows real download progress, survives refresh and permits Pause', async ({
+  page,
+}, testInfo) => {
+  const { state, calls } = await adminMocks(page)
+  state.settings.enabled = true
+  const startup = {
+    stage: 'downloading',
+    lifecycleId: 1,
+    completed: 2 as number | null,
+    total: 5 as number | null,
+    unit: 'files',
+    updatedAt: new Date().toISOString(),
+    reason: null as string | null,
+    online: true,
+  }
+  Object.assign(state, { startup })
+  await page.goto('/thepersonincharge/ai')
+  await expect(page.getByRole('progressbar', { name: 'AI startup progress' })).toHaveAttribute(
+    'value',
+    '40',
+  )
+  await expect(page.getByText('2 / 5 files available', { exact: false })).toBeVisible()
+  await expect(page.getByRole('progressbar', { name: 'Media indexing progress' })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('progressbar', { name: 'AI startup progress' })).toHaveAttribute(
+    'value',
+    '40',
+  )
+  if (process.env.PHOTOLY_AI_SCREENSHOTS) {
+    await page.screenshot({ path: `/tmp/photoly-ai-${testInfo.project.name}.png`, fullPage: true })
+    await page.getByRole('button', { name: 'Save AI settings' }).scrollIntoViewIfNeeded()
+    await page.screenshot({
+      path: `/tmp/photoly-ai-resources-${testInfo.project.name}.png`,
+      fullPage: true,
+    })
+  }
+  startup.stage = 'loading'
+  startup.completed = null
+  startup.total = null
+  await page.getByRole('button', { name: 'Refresh status' }).click()
+  await expect(page.getByRole('progressbar', { name: 'AI startup progress' })).not.toHaveAttribute(
+    'value',
+  )
+  await page.getByRole('button', { name: 'Pause AI', exact: true }).click()
+  await expect.poll(() => state.settings.enabled).toBe(false)
+  expect(calls.filter((c) => c.path === '/admin/ai/operations').at(-1)?.body).toMatchObject({
+    command: 'ai.pause',
+  })
+})
+
+test('feature switches save independently and failed startup can retry', async ({ page }) => {
+  const { state, calls } = await adminMocks(page)
+  state.settings.enabled = true
+  Object.assign(state, {
+    startup: {
+      stage: 'failed',
+      lifecycleId: 1,
+      completed: null,
+      total: null,
+      unit: null,
+      updatedAt: new Date().toISOString(),
+      reason: 'model_load_failed',
+      online: true,
+    },
+  })
+  await page.goto('/thepersonincharge/ai')
+  await expect(page.getByText('AI startup failed', { exact: true })).toBeVisible()
+  await page.getByLabel('AI Search', { exact: true }).uncheck()
+  await expect.poll(() => state.settings.search_enabled).toBe(false)
+  await page.getByLabel('Smart Tag', { exact: true }).check()
+  await expect.poll(() => state.settings.smart_tag_enabled).toBe(true)
+  expect(state.settings.enabled).toBe(true)
+  expect(
+    calls
+      .filter((c) => c.path === '/admin/ai/settings')
+      .map((c) => (c.body as { settings: object }).settings),
+  ).toEqual([{ search_enabled: false }, { smart_tag_enabled: true }])
+  await page.getByRole('button', { name: 'Enable AI', exact: true }).click()
+  expect(calls.filter((c) => c.path === '/admin/ai/operations').at(-1)?.body).toMatchObject({
+    command: 'ai.enable',
+  })
+})
+
+test('a rejected feature change rolls the switch back', async ({ page }) => {
+  await adminMocks(page)
+  await page.route(`${API}/admin/ai/settings`, (route) =>
+    route.fulfill({
+      status: 409,
+      headers: { 'access-control-allow-origin': '*' },
+      json: { msgCode: 409, t: null, error: 'generation_conflict' },
+    }),
+  )
+  await page.goto('/thepersonincharge/ai')
+  await page.getByLabel('AI Search', { exact: true }).uncheck()
+  await expect(page.getByRole('alert')).toContainText('another session')
+  await expect(page.getByLabel('AI Search', { exact: true })).toBeChecked()
+})
+
+test('feature toggles preserve an unsaved resource draft', async ({ page }) => {
+  const { state } = await adminMocks(page)
+  await page.goto('/thepersonincharge/ai')
+  await page.getByLabel('CPU utilization (%)', { exact: true }).fill('80')
+  await page.getByLabel('Smart Tag', { exact: true }).check()
+  await expect.poll(() => state.settings.smart_tag_enabled).toBe(true)
+  await expect(page.getByLabel('CPU utilization (%)', { exact: true })).toHaveValue('80')
+  await page.getByRole('button', { name: 'Save AI settings', exact: true }).click()
+  await expect.poll(() => state.settings.cpu_pause_percent).toBe(80)
 })

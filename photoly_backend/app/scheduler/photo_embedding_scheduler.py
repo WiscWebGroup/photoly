@@ -31,14 +31,17 @@ class Heartbeat:
         self.stop_event, self.lost = threading.Event(), threading.Event()
     def __enter__(self):
         def run():
-            while not self.stop_event.wait(20):
+            while not self.stop_event.wait(2):
                 try:
                     with self.scheduler.sessions.begin() as session:
                         if not self.scheduler.lead(session) or (self.task is not None and not jobs.renew(session,self.task)):
                             self.lost.set()
                             return
+                        cfg = settings(session)
                     try:
-                        observed = self.scheduler.runtime.status()
+                        # A new Pause also interrupts a legacy synchronous load.
+                        observed = (self.scheduler.managed_runtime(cfg) if cfg["managed_lifecycle"]
+                                    else self.scheduler.runtime.status())
                         self.scheduler.publish(observed)
                     except AIError:
                         continue
@@ -117,7 +120,9 @@ class PhotoEmbeddingScheduler(SchedulerInterface):
     def operate(self, task):
         with self.sessions.begin() as session:
             row = control(session,lock=True)
-            if task["payload"]["generation"]!=row.generation:
+            command = task["payload"]["command"]
+            expected = settings(session)["lifecycle_id"] if command.startswith("ai.") else row.generation
+            if task["payload"]["generation"] != expected:
                 jobs.finish(session,task,"cancelled",{"reason":"superseded"})
                 return
             cfg, command = settings(session), task["payload"]["command"]
@@ -204,6 +209,31 @@ class PhotoEmbeddingScheduler(SchedulerInterface):
                     return
                 jobs.commit_embedding(session,task,snapshot,vectors if "frames" in snapshot else vectors[0],int((time.monotonic()-start)*1000))
 
+    def managed_runtime(self, cfg):
+        observed = self.runtime.status()
+        pid = cfg["loaded_profile_id"] if cfg["enabled"] else None
+        with self.sessions() as session:
+            profile = session.get(EmbeddingProfile, pid) if pid else None
+            spec = dict(profile.spec) if profile else None
+        expected = "ready" if spec else "unloaded"
+        generation = cfg["lifecycle_id"]
+        if observed.get("generation") != generation:
+            submit = getattr(self.runtime, "submit", self.runtime.control)
+            observed = submit("load" if spec else "unload", spec, runtime_config(cfg), generation, f"ai:{generation}")
+        # Never activate a result from a superseded load, even if the fingerprint matches.
+        if observed.get("generation") == generation and observed["state"] == expected and spec:
+            with self.sessions.begin() as session:
+                row = control(session, lock=True)
+                current = settings(session)
+                profile = session.get(EmbeddingProfile, pid)
+                if (current["enabled"] and current["managed_lifecycle"] and current["lifecycle_id"] == generation
+                        and current["loaded_profile_id"] == pid and observed.get("fingerprint") == profile.fingerprint
+                        and profile.index_status == "ready"
+                        and (current["search_profile_id"] != pid or current["building_profile_id"] or current["maintenance"])):
+                    row.desired = {**current, "search_profile_id": pid, "building_profile_id": None, "maintenance": False}
+                    row.generation += 1
+        return observed
+
     def tick(self):
         with self.sessions.begin() as session:
             if not self.lead(session):
@@ -216,7 +246,7 @@ class PhotoEmbeddingScheduler(SchedulerInterface):
                 self.operate(task)
             except AIError as error:
                 with self.sessions.begin() as session:
-                    jobs.finish(session,task,"failed",{"reason":error.code})
+                    jobs.finish(session,task,"cancelled" if error.code in ("superseded", "stale_generation") else "failed",{"reason":error.code})
             return
         # Admin operations were handled first. Smart work has its own local CPU/memory
         # admission and never depends on runtime availability. One bounded batch per tick.
@@ -225,19 +255,22 @@ class PhotoEmbeddingScheduler(SchedulerInterface):
         except Exception as error:
             log.error("Smart Tag batch failed: %s", type(error).__name__)
         try:
-            observed = self.runtime.status()
-            expected_pid = cfg["loaded_profile_id"]
-            with self.sessions() as session:
-                profile = session.get(EmbeddingProfile,expected_pid) if expected_pid else None
-                spec = dict(profile.spec) if profile else None
-            expected_state = "ready" if cfg["runtime"]=="loaded" else "unloaded"
-            if observed["state"]!=expected_state or (spec and (observed["fingerprint"]!=spec["fingerprint"] or observed.get("config",runtime_config(cfg))!=runtime_config(cfg))):
-                # Durable desired state recovers after a container restart or a superseded operation.
-                with Heartbeat(self) as heartbeat:
-                    generation=self.generation()
-                    observed = self.runtime.control("load" if spec else "unload",spec,runtime_config(cfg),
-                        generation,"reconcile:"+str(generation))
-                    if heartbeat.lost.is_set():return
+            if cfg["managed_lifecycle"]:
+                observed = self.managed_runtime(cfg)
+            else:
+                observed = self.runtime.status()
+                expected_pid = cfg["loaded_profile_id"]
+                with self.sessions() as session:
+                    profile = session.get(EmbeddingProfile,expected_pid) if expected_pid else None
+                    spec = dict(profile.spec) if profile else None
+                expected_state = "ready" if cfg["runtime"]=="loaded" else "unloaded"
+                if observed["state"]!=expected_state or (spec and (observed["fingerprint"]!=spec["fingerprint"] or observed.get("config",runtime_config(cfg))!=runtime_config(cfg))):
+                    # Durable desired state recovers after a container restart or a superseded operation.
+                    with Heartbeat(self) as heartbeat:
+                        generation=self.generation()
+                        observed = self.runtime.control("load" if spec else "unload",spec,runtime_config(cfg),
+                            generation,"reconcile:"+str(generation))
+                        if heartbeat.lost.is_set():return
             decision = self.policy.decide(observed["resources"],cfg["device"],cfg)
             self.publish(observed, list(decision.reasons) if not decision.allowed else None)
         except AIError:

@@ -59,7 +59,7 @@ def test_settings_patch_persists_and_requires_admin_and_generation(ai):
     {"background_interval_seconds":-1},{"background_interval_seconds":3601},{"background_interval_seconds":1.5},
     {"background_max_per_minute":True},{"background_max_per_minute":601},{"cpu_threads":0},{"cpu_threads":65},
     {"cpu_pause_percent":101},{"gpu_resume_percent":None},{"memory_pause_free_mib":0},
-    {"disk_resume_free_mib":16777217},{"cpu_resume_percent":90},{"gpu_pause_percent":70},
+    {"disk_resume_free_mib":16777217},{"cpu_resume_percent":90},{"gpu_pause_percent":10},
     {"memory_resume_free_mib":1024},{"vram_pause_free_mib":2048},{"disk_resume_free_mib":2048},
     {"max_concurrency":8},
 ])

@@ -76,7 +76,8 @@ def test_load_errors_retain_reason_and_release(monkeypatch, error, code):
     sent = []
     connection = SimpleNamespace(send=sent.append, close=lambda: None)
     model_child(connection, {"provider": "siglip2"}, {"device": "mps", "precision": "float32"})
-    assert sent == [{"error": code, "status": 503}]
+    assert sent[-1] == {"error": code, "status": 503}
+    assert sent[0]["stage"] == "loading"
     assert cleaned == [True]
     assert model_error(error, "inference_failed")["error"] == ("inference_failed" if code == "model_load_failed" else code)
 
@@ -154,6 +155,8 @@ def test_runtime_load_preserves_child_error(monkeypatch):
     runtime.online, runtime.background = deque(), deque()
     runtime.process = runtime.pipe = None
     runtime.generation, runtime.last_operation = -1, None
+    runtime.requested_generation = -1
+    runtime.cancel_load = threading.Event()
     runtime.verified = []
     killed = []
     runtime.kill = lambda: killed.append(True)

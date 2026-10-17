@@ -9,8 +9,10 @@ class Siglip2Embedding(TorchEmbedding):
     def load(self, profile, runtime_config):
         from transformers import AutoModel, AutoProcessor
         self.prepare(profile, runtime_config)
-        self.processor = AutoProcessor.from_pretrained(profile["model_id"], use_fast=False, revision=profile["revision"], trust_remote_code=False)
-        self.model = AutoModel.from_pretrained(profile["model_id"], revision=profile["revision"], torch_dtype=self.dtype,
+        source = getattr(self, "model_path", profile["model_id"])
+        local = hasattr(self, "model_path")
+        self.processor = AutoProcessor.from_pretrained(source, local_files_only=local, use_fast=False, revision=profile["revision"], trust_remote_code=False)
+        self.model = AutoModel.from_pretrained(source, local_files_only=local, revision=profile["revision"], torch_dtype=self.dtype,
                                               attn_implementation="sdpa", low_cpu_mem_usage=True, trust_remote_code=False).to(runtime_config.device).eval()
 
     def encode_texts(self, texts, *, role):

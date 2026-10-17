@@ -24,7 +24,7 @@ docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai up -d
 
 CPU/CUDA 各自使用 `photoly_backend/inference/{cpu,cuda}/uv.lock`。CPU 镜像不含 CUDA wheel、不申请 GPU；CUDA 镜像需 NVIDIA 容器支持。管理 API 选择 cpu/float32 或 cuda/bfloat16；原生 Apple Silicon 使用 mps/float32，见 MPS 部署章节。NPU 不开放。
 
-默认项目 photoly 的模型缓存卷为 `photoly_ai_models`。首次显式 model.load 下载固定 revision，文本与图像预热都通过才 ready。加载期限 840 秒；慢网络可预先缓存后重试。Web 不安装 torch。
+默认项目 photoly 的模型缓存卷为 `photoly_ai_models`。首次 Enable AI（ai.enable）下载固定 revision，文本与图像预热都通过才 ready。加载期限 840 秒；慢网络可预先缓存后重试。Web 不安装 torch。
 
 WSL/Docker 必须分配足够的内存；修改 WSL 内存上限需要安排重启窗口，会影响同机其他 WSL 工作负载。CUDA 镜像固定使用 PyTorch 2.8.0+cu128 与 Transformers 4.57.3；实际设备是否可用，以 runtime 检测和模型预热结果为准。
 
@@ -32,20 +32,21 @@ WSL/Docker 必须分配足够的内存；修改 WSL 内存上限需要安排重�
 
 正常登录后在 Swagger 授权 `HRD-Token`。每次修改前 GET `/admin/ai/settings` 获取最新 generation。
 
-1. POST `/admin/ai/profiles`：`{"provider":"siglip2"}` 或 `qwen3_vl`。固定编码参数不可修改，重复创建返回同一 profile。
-2. 轮询 profiles 等待 indexStatus=ready。
-3. 模型未加载时可 PATCH settings：`{"generation":0,"settings":{"device":"cuda","precision":"bfloat16"}}`，替换实际 generation。
-4. POST `/admin/ai/operations`：`{"command":"model.load","profileId":1,"generation":1}`，替换实际 ID/generation，设置新的 `Idempotency-Key`。
-5. 轮询 operationId，等待 succeeded。202 仅表示受理。同幂等键和同 body 可重试，改变 body 返回 409。
-6. PATCH settings 开启 enabled；PATCH `/admin/users/{userId}/ai` 开启所需用户。new_user_default 只影响之后创建的用户。
-7. 提交 scheduler.start。存量回填每轮最多 4 位用户、每用户每 profile 最多 25 张，后台领取也按用户轮转。GET status 的 buildingCoverage 显示进度。
-8. 当前受支持照片全部完成，索引与模型 ready 后，显式提交 activate。failed 阻止激活；unsupported 独立计数。
+1. 在 AI Management 选择 Device（默认 CPU），必要时保存资源设置；为所需用户开启个人 AI 访问权限。
+2. 点击 **Enable AI**。后端自动创建或复用默认 SigLIP2 Profile、下载固定版本、加载并预热、准备索引，然后自动激活。高级设置可以选择 Qwen；旧部署默认沿用当前模型。
+3. 首次启用自动开启 Scheduler；之后保留管理员选择。搜索在模型和索引结构就绪后即可使用，返回已处理内容；媒体失败不会阻塞整个图库开放。
+4. **AI Search**、**Smart Tag** 为独立功能开关；Tag 仍需用户授权和主动开启。**Pause Scheduler** 停止新后台任务，在线搜索继续使用已有索引。
+5. **Pause AI** 关闭所有 AI 功能并释放模型进程，下载/加载期间也可暂停。缓存、向量和各开关偏好保留，恢复时无需重做已完成工作。
 
-操作包括 model.load/unload/restart、scheduler.start/pause/resume/stop、maintenance.enter/exit、backfill、retry_failed、rebuild、activate、purge。pause/stop 停止领取 embedding，当前任务允许完成；控制循环常驻。完全离线的容器由部署工具恢复。
+对应 API 为 POST `/admin/ai/operations`，例如 `{"command":"ai.enable","generation":0}`，可附加 `"provider":"qwen3_vl"`；暂停使用 `ai.pause`。每次提供新的 `Idempotency-Key`。202 表示受理，operation succeeded 表示目标状态已接受，实际启动完成以 GET `/admin/ai/status` 的 `startup.stage=ready` 为准。同幂等键和同 body 重试返回同一操作，改变 body 返回 409。
+
+`startup` 返回 stage、lifecycleId、completed/total、unit、updatedAt、reason、online。下载显示实际完成文件数（包含缓存命中），不是字节百分比或总启动百分比；无法计量的准备、加载、预热阶段显示不定进度。图库索引及 Smart Tag 进度独立展示。失败后再次 Enable 重试，修复离线容器后目标状态自动恢复。普通阈值修改不会取消加载；暂停/模型切换以独立生命周期标识屏蔽旧结果。
+
+高级 API 继续支持 model.load/unload/restart、scheduler.start/pause/resume/stop、maintenance.enter/exit、backfill、retry_failed、rebuild、activate、purge。手动模型或维护操作退出自动生命周期管理，保留原有显式激活的完整覆盖检查；日常管理无需使用这些操作。完全离线的容器仍由部署工具恢复。
 
 ## 切换与回退
 
-一次只驻留一个模型。跨模型流程：maintenance.enter → model.load 新 profile → scheduler.start/backfill → buildingCoverage 完成 → activate。维护期间 AI 搜索返回 503，普通图库继续工作。回退也显式维护、加载旧 profile；有新照片时先补齐旧 profile，再激活。
+高级设置选择模型后点击 **Apply model**，自动准备并激活目标模型；回退时选择原模型即可。一次只驻留一个模型，切换期间 AI 搜索暂不可用，普通图库继续工作。目标模型与索引结构就绪后立即开放已有结果，同时后台补齐剩余媒体，无需等待全量覆盖。
 
 旧 profile 保留并计入容量。purge 拒绝活动、构建、已加载或仍被请求引用的 profile。maintenance 使用白名单 CREATE/DROP INDEX CONCURRENTLY、advisory lock、invalid index 检测及可恢复重试；不接受任意 SQL，清理保留 operation 审计。
 
@@ -71,7 +72,7 @@ WSL/Docker 必须分配足够的内存；修改 WSL 内存上限需要安排重�
 
 ## 调度与资源限制管理 API
 
-使用现有 `GET /admin/ai/settings` 和 `PATCH /admin/ai/settings`，管理员认证与 generation 规则不变。不需要新数据库 migration，旧配置自动补齐默认值。
+使用现有 `GET /admin/ai/settings` 和 `PATCH /admin/ai/settings`，管理员认证与 generation 规则不变。不需要新数据库 migration，旧配置自动补齐兼容值并保留自定义限制，不自动开启 AI。旧配置 ram_policy=free，新配置 ram_policy=percent；保存 ram_max_percent 切换策略。enabled 是总开关，新增 search_enabled 默认为 true；smart_tag_enabled 保持原值。
 
 先 GET 获取实际 generation，再 PATCH，例如：
 
@@ -82,9 +83,8 @@ WSL/Docker 必须分配足够的内存；修改 WSL 内存上限需要安排重�
     "background_interval_seconds": 10,
     "background_max_per_minute": 6,
     "cpu_pause_percent": 80,
-    "cpu_resume_percent": 60,
-    "memory_pause_free_mib": 2048,
-    "memory_resume_free_mib": 3072
+    "gpu_pause_percent": 90,
+    "ram_max_percent": 85
   }
 }
 ```
@@ -94,9 +94,10 @@ WSL/Docker 必须分配足够的内存；修改 WSL 内存上限需要安排重�
 | background_interval_seconds | 2 | 0–3600；后台任务领取起点之间的最小秒数，0关闭额外间隔 |
 | background_max_per_minute | 0 | 0–600；滚动60秒窗口最多领取次数，0表示不设该上限 |
 | cpu_threads | 4 | 1–64；PyTorch CPU计算线程，也影响CUDA模式中的CPU计算 |
-| cpu_pause_percent / cpu_resume_percent | 90 / 70 | 各1–100；恢复值必须小于暂停值 |
-| gpu_pause_percent / gpu_resume_percent | 95 / 70 | 各1–100；恢复值必须小于暂停值 |
-| memory_pause_free_mib / memory_resume_free_mib | 1024 / 2048 | 可用RAM门槛，单位MiB |
+| cpu_pause_percent / cpu_resume_percent | 85 / 75 | 简化界面上限11–100；只提交上限时自动推导恢复值=上限−10。高级 API 仍支持显式合法配对 |
+| gpu_pause_percent / gpu_resume_percent | 90 / 80 | 同 CPU；仅 CUDA 使用 GPU 利用率保护 |
+| ram_max_percent | 85 | 6–100；有效系统/容器内存使用率，降低5个百分点后恢复 |
+| memory_pause_free_mib / memory_resume_free_mib | 1024 / 2048 | 旧配置兼容门槛；保存 ram_max_percent 后改用百分比策略 |
 | vram_pause_free_mib / vram_resume_free_mib | 1024 / 2048 | 可用显存门槛，单位MiB |
 | disk_pause_free_mib / disk_resume_free_mib | 2048 / 3072 | 磁盘余量门槛，单位MiB |
 
@@ -106,7 +107,7 @@ WSL/Docker 必须分配足够的内存；修改 WSL 内存上限需要安排重�
 
 限速记录保存在ai_control_state的background_throttle对象，与任务领取及容量预留同事务。在全局控制锁内检查和登记，不会因并发领取、worker重启、删除照片/任务而绕过；事务回滚不消耗次数。在线查询不计入后台限速，仍遵守其自身队列与单用户并发限制。
 
-修改cpu_threads前，先提交model.unload并等待完成，再PATCH，之后model.load。模型desired状态仍为loaded时修改线程数返回409 unload_before_thread_change。线程数属于部署配置，不改变profile fingerprint，不需要重算向量。
+修改cpu_threads前，先 Pause AI 并等待卸载，再保存，之后 Enable AI；底层 model.unload/load API 也继续支持。模型desired状态仍为loaded时修改线程数返回409 unload_before_thread_change。线程数属于部署配置，不改变profile fingerprint，不需要重算向量。
 
 GET `/admin/ai/status` 新增backgroundLimits：lastStartedAt、startsLastMinute、nextAllowedAt、reason（interval_wait/rate_limited/null），以及只读maxConcurrency=1、batchSize=1。nextAllowedAt仅是限速允许的最早时刻，还要满足模型、资源、资格等条件。
 
@@ -118,7 +119,7 @@ GET `/admin/ai/status` 新增backgroundLimits：lastStartedAt、startsLastMinute
 
 默认预算10GiB：所有profile的向量/行/索引估算与实际关系占用。领取在全局短事务锁内预留，完成结算；失败、取消、租约过期回收。预算不是物理硬上限；WAL、备份、索引临时空间另留余量。普通删除不会立即缩小文件。首版准入汇总数据库使用量，超大图库需根据性能数据优化计数缓存。
 
-任务租约120秒，每20秒续约，使用不可复用lease token。崩溃后最多等待租约到期；旧worker不能覆盖结果。重启恢复desired model/scheduler。资源不足、离线、超时/OOM暂态等待不消耗失败次数，其他失败最多5次并指数退避。状态不返回堆栈、凭据、内部路径或向量。
+任务租约120秒；scheduler每2秒续约并检查启停意图，maintenance每20秒续约，使用不可复用lease token。崩溃后最多等待租约到期；旧worker不能覆盖结果。重启恢复desired model/scheduler。资源不足、离线、超时/OOM暂态等待不消耗失败次数，其他失败最多5次并指数退避。状态不返回堆栈、凭据、内部路径或向量。
 
 关闭用户后拒绝搜索、取消任务、运行提交重验资格，旧向量保留。替换立即使旧向量失效，同事务登记新版本任务；标题/标签/目录变化不重算。原文件句柄在短用户锁内取得，复制/解码/推理在锁外执行。
 
@@ -142,11 +143,11 @@ smoke包含关闭后端的测试，只能用于隔离项目。真实模型单独
 
 管理员入口 `/thepersonincharge/ai`（侧栏 AI Management）。首页仪表盘现在显示 PostgreSQL、pgvector 和 schema revision。普通图库健康与AI状态独立。
 
-首次使用：创建profile并等待index ready → 在Settings选择cuda/bfloat16或cpu/float32并保存 → Load model → 开启全局AI和User Management中指定用户资格 → Start scheduler → 等待当前受支持照片全部完成 → Activate profile。注册和管理员新增账户使用new-user默认；更改默认不会修改存量用户。
+首次使用：在 Resources 选择 Device 并保存 → 在 User Management 授予所需用户资格 → Enable AI。模型与索引结构就绪后自动开放搜索，媒体索引在后台逐步补齐。注册和管理员新增账户使用 new-user 默认；更改默认不会修改存量用户。
 
-控制页提供步骤说明与高级操作。跨模型需在Advanced lifecycle controls中进入维护，再卸载旧模型并加载目标，完成构建后激活；激活会自动退出维护。回退同样需要维护和目标profile完整覆盖。只有不在使用的profile可清理；照片不随profile删除。
+页面提供 Enable/Pause AI、Enable/Pause Scheduler，以及即时保存的 AI Search/Smart Tag 开关。高级设置中的 Model 选择会在 Enable AI 或 Apply model 时自动处理 Profile、加载与激活；回退选择旧模型即可。下载文件进度、启动阶段、媒体索引进度和 Smart Tag 进度分开显示。
 
-Settings中的间隔、速率、CPU/GPU及内存/显存/磁盘阈值在后续周期生效。设备、精度和CPU线程要求先卸载再保存、重新加载。并发与batch只读为1。暂停scheduler不卸载模型；彻底释放模型占用需Unload model。页面不能代替Docker启动已离线容器。
+Resources 显示 CPU/GPU utilization、RAM max 和 Device，支持恢复推荐值；线程、速率、存储预算、磁盘/显存保护和相似度阈值折叠在 Advanced settings。设备和CPU线程要求先 Pause AI 再保存。暂停 Scheduler 不卸载模型，Pause AI 会释放模型资源且保留偏好。Diagnostics and operation history 展示服务、配额、操作历史。页面不能代替 Docker 启动已离线容器。
 
 新接口GET `/admin/ai/capabilities`给出字段范围、单位、配对约束、生效方式和运行时设备可用性。可用不代表已验证；显示的verified仅代表当前运行时会话真实加载和双模态预热成功。NPU未支持。
 

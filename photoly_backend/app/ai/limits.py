@@ -5,10 +5,11 @@ LIMIT_DEFAULTS = {
     "background_interval_seconds": 2,
     "background_max_per_minute": 0,
     "cpu_threads": 4,
-    "cpu_pause_percent": 90,
-    "cpu_resume_percent": 70,
-    "gpu_pause_percent": 95,
-    "gpu_resume_percent": 70,
+    "cpu_pause_percent": 85,
+    "cpu_resume_percent": 75,
+    "gpu_pause_percent": 90,
+    "gpu_resume_percent": 80,
+    "ram_max_percent": 85,
     "memory_pause_free_mib": 1024,
     "memory_resume_free_mib": 2048,
     "vram_pause_free_mib": 1024,
@@ -23,6 +24,9 @@ LIMIT_BOUNDS = {
     **{key: (1, 100) for key in LIMIT_DEFAULTS if key.endswith("_percent")},
     **{key: (1, 16 * 1024 * 1024) for key in LIMIT_DEFAULTS if key.endswith("_mib")},
 }
+
+
+LIMIT_BOUNDS["ram_max_percent"] = (6, 100)
 
 
 def validate_limit_values(changes):

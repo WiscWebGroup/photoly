@@ -37,6 +37,10 @@ class RuntimeClient:
         return self.call("/control", {"command": command, "profile": profile, "config": config,
             "generation": generation, "operation_id": operation_id}, control=True, timeout=900)
 
+    def submit(self, command, profile, config, generation, operation_id):
+        return self.call("/control", {"command": command, "profile": profile, "config": config,
+            "generation": generation, "operation_id": operation_id, "asynchronous": True}, control=True, timeout=10)
+
     def encode(self, profile, *, text=None, image=None, role="query", background=False, timeout=60):
         value = {"fingerprint": profile["fingerprint"], "role": role, "background": background, "timeout": min(60,timeout)}
         if image is not None:

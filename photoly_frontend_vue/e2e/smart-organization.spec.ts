@@ -148,8 +148,7 @@ test('administrator enables Smart Tag and sees progress and pause reasons', asyn
       }),
   })
   await page.goto('/thepersonincharge/ai')
-  await page.getByLabel('Enable Smart Tag', { exact: true }).check()
-  await page.getByRole('button', { name: 'Save AI settings', exact: true }).click()
+  await page.getByLabel('Smart Tag', { exact: true }).check()
   await expect(page.getByLabel('Smart Tag progress')).toContainText('30 / 50')
   await expect(page.getByLabel('Smart Tag progress')).toContainText('Paused for maintenance')
   await expect

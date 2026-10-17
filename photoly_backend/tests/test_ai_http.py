@@ -81,3 +81,35 @@ def test_ai_http_services_and_lifecycle(http,jpeg):
     assert http("PATCH","/admin/ai/settings",headers=admin,json={"generation":cfg["generation"],"settings":{"enabled":False}}).status_code==200
     assert http("GET","/healthz").status_code==200
     assert http("GET","/user/deleteUser",headers=user).json()["msgCode"]==200
+
+
+def test_simplified_controls_across_real_services(http):
+    login=http("POST","/user/signIn",json={"email":"admin@test.local","password":"test-password-only"}).json()
+    admin={"HRD-Token":login["token"]}
+    def get(path):return http("GET",path,headers=admin).json()["t"]
+    def operation(command):
+        data={"command":command,"generation":get("/admin/ai/settings")["generation"]}
+        response=http("POST","/admin/ai/operations",headers={**admin,"Idempotency-Key":uuid4().hex},json=data)
+        assert response.status_code==202,response.text
+    operation('ai.enable')
+    eventually(lambda:get('/admin/ai/status')['startup']['stage']=='ready')
+    before=get('/admin/ai/settings')
+    assert before['enabled'] and before['search_profile_id']
+    response=http('PATCH','/admin/ai/settings',headers=admin,
+        json={'generation':before['generation'],'settings':{'search_enabled':False,'ram_max_percent':85}})
+    assert response.status_code==200,response.text
+    after=get('/admin/ai/settings')
+    assert after['lifecycle_id']==before['lifecycle_id'] and after['enabled']
+    operation('ai.pause')
+    eventually(lambda:get('/admin/ai/status')['startup']['stage']=='paused')
+    paused=get('/admin/ai/settings')
+    assert paused['search_profile_id']==before['search_profile_id'] and not paused['search_enabled']
+    assert paused['scheduler']==before['scheduler']
+    operation('ai.enable')
+    eventually(lambda:get('/admin/ai/status')['startup']['stage']=='ready')
+    assert not get('/admin/ai/settings')['search_enabled']
+    operation('ai.pause')
+    eventually(lambda:get('/admin/ai/status')['startup']['stage']=='paused')
+    cfg=get('/admin/ai/settings')
+    assert http('PATCH','/admin/ai/settings',headers=admin,
+        json={'generation':cfg['generation'],'settings':{'search_enabled':True}}).status_code==200

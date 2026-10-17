@@ -23,8 +23,10 @@ class QwenEmbedding(TorchEmbedding):
             def forward(self, **inputs):
                 return self.model(**inputs, use_cache=False)
         self.prepare(profile, runtime_config)
-        self.processor = AutoProcessor.from_pretrained(profile["model_id"], use_fast=False, revision=profile["revision"], padding_side="right", trust_remote_code=False)
-        self.model = EmbeddingModel.from_pretrained(profile["model_id"], revision=profile["revision"], torch_dtype=self.dtype,
+        source = getattr(self, "model_path", profile["model_id"])
+        local = hasattr(self, "model_path")
+        self.processor = AutoProcessor.from_pretrained(source, local_files_only=local, use_fast=False, revision=profile["revision"], padding_side="right", trust_remote_code=False)
+        self.model = EmbeddingModel.from_pretrained(source, local_files_only=local, revision=profile["revision"], torch_dtype=self.dtype,
                                                    attn_implementation="sdpa", low_cpu_mem_usage=True, trust_remote_code=False).to(runtime_config.device).eval()
 
     def encode(self, values, role, images=False):

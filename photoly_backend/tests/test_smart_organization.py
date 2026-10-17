@@ -239,7 +239,7 @@ def test_scheduler_batches_offline_and_fences_changes(world, monkeypatch):
         def status(self): raise AIError('runtime_offline', 503)
         def encode(self, *a, **k): pytest.fail('Smart Tag must not run inference')
     scheduler = PhotoEmbeddingScheduler(sessions, Offline(), world.app.extensions['photoly'].storage)
-    monkeypatch.setattr('app.scheduler.smart_tag_scheduler.system_usage', lambda **kw: {'sampled_at': utcnow().isoformat(), 'cpu_percent': 0, 'memory_available': 16*1024**3, 'disk_free': 20*1024**3})
+    monkeypatch.setattr('app.scheduler.smart_tag_scheduler.system_usage', lambda **kw: {'sampled_at': utcnow().isoformat(), 'cpu_percent': 0, 'memory_total':32*1024**3, 'memory_available': 16*1024**3, 'disk_free': 20*1024**3})
     monkeypatch.setattr(scheduler.smart, 'read_media', lambda *a: {'facts': {'camera': 'iPhone 13'}, 'captured_at': None, 'latitude': None, 'longitude': None})
     scheduler.tick()
     with sessions() as s:
@@ -348,7 +348,7 @@ def test_pause_resources_finite_retries_and_manual_refresh(world, monkeypatch):
         enable(db.session); db.session.commit()
         sessions = sessionmaker(db.engine, expire_on_commit=False)
     scheduler = PhotoEmbeddingScheduler(sessions, storage=world.app.extensions['photoly'].storage)
-    resources = {'sampled_at':utcnow().isoformat(), 'cpu_percent':0, 'memory_available':0, 'disk_free':20*1024**3}
+    resources = {'sampled_at':utcnow().isoformat(), 'cpu_percent':0, 'memory_total':32*1024**3, 'memory_available':0, 'disk_free':20*1024**3}
     monkeypatch.setattr('app.scheduler.smart_tag_scheduler.system_usage', lambda **kw: resources)
     calls = []
     def broken(*args):
@@ -390,7 +390,7 @@ def test_large_library_has_bounded_batches(world, monkeypatch, tmp_path):
         db.session.commit()
         sessions = sessionmaker(db.engine, expire_on_commit=False)
     scheduler = PhotoEmbeddingScheduler(sessions, storage=world.app.extensions['photoly'].storage)
-    monkeypatch.setattr('app.scheduler.smart_tag_scheduler.system_usage', lambda **kw: {'sampled_at':utcnow().isoformat(),'cpu_percent':0,'memory_available':16*1024**3,'disk_free':20*1024**3})
+    monkeypatch.setattr('app.scheduler.smart_tag_scheduler.system_usage', lambda **kw: {'sampled_at':utcnow().isoformat(),'cpu_percent':0,'memory_total':32*1024**3, 'memory_available':16*1024**3,'disk_free':20*1024**3})
     monkeypatch.setattr(scheduler.smart, 'read_media', lambda *a: {'facts': {'camera':'iPhone 13'}, 'captured_at':None, 'latitude':None, 'longitude':None})
     gc.collect(); before = psutil.Process().memory_info().rss
     elapsed, peak = [], before
