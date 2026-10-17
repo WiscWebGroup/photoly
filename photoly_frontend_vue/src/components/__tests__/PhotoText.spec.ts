@@ -74,13 +74,14 @@ it('copies the current draft, saves edits and accepts empty text', async () => {
   button('Copy').click()
   await vi.waitFor(() => expect(copy).toHaveBeenCalledWith('my corrected text'))
   button('Save').click()
-  await vi.waitFor(() => expect(button('Save').disabled).toBe(true))
+  // Save is also disabled while busy; "Unsaved changes" only clears once the PUT has landed.
+  await vi.waitFor(() => expect(pageText()).not.toContain('Unsaved changes'))
   expect(await wrapper.vm.requestLeave()).toBe(true)
   edit('')
   await flushPromises()
   button('Save').click()
   await vi.waitFor(() => expect(pageText()).toContain('No text was recognized or saved'))
-}, 15_000) // many sequential round-trips; the 5s default flakes under CI coverage
+})
 
 it('asks before recognizing again and keeps edits on recognition failure', async () => {
   server.use(
