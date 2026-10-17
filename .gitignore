@@ -8,3 +8,7 @@ backup_data/
 
 # Root-level local tooling dependencies (the app is in photoly_frontend_vue).
 /node_modules/
+
+.claude
+.agents
+skills-lock.json
