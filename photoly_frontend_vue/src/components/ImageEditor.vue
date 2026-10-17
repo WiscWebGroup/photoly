@@ -44,6 +44,7 @@ import { photoUrl } from '@/lib/photoUrl'
 const props = defineProps<{ photo: Photo }>()
 const emit = defineEmits<{
   cancel: []
+  renamed: [name: string]
   /** `overwrite` replaced the stored file (so its format may have changed); `new` added a copy. */
   saved: [mode: 'new' | 'overwrite', format: string]
 }>()
@@ -69,6 +70,7 @@ const loadFailed = ref(false)
 const saving = ref(false)
 const confirmOverwrite = ref(false)
 const newName = ref(`${props.photo.photoName}_edited`)
+const renameTo = ref(props.photo.photoName)
 const estimate = ref<Encoded>()
 const estimating = ref(false)
 
@@ -282,6 +284,22 @@ const boxStyle = computed(() => ({
   height: pct(crop.value.h),
 }))
 
+async function rename() {
+  const photoName = renameTo.value.trim()
+  if (!photoName) return toast.warning('Image name cannot be empty!')
+  try {
+    await call({
+      method: 'post',
+      url: '/photo/update',
+      data: { photoId: props.photo.photoId, photoName },
+    })
+    toast.success('Photo name changed!')
+    emit('renamed', photoName)
+  } catch {
+    toast.error('change name Response Error!')
+  }
+}
+
 async function save(mode: 'new' | 'overwrite') {
   confirmOverwrite.value = false
   if (!canSave.value || (mode === 'new' && nameInvalid.value)) return
@@ -348,6 +366,19 @@ const label = 'text-sm font-medium'
 
     <div class="space-y-3">
       <h2 class="text-xl font-semibold">Edit Image</h2>
+
+      <section class="space-y-2 rounded-lg border p-3">
+        <p :class="label">Rename</p>
+        <div class="flex gap-2">
+          <Input
+            v-model="renameTo"
+            placeholder="New Name"
+            aria-label="Rename image"
+            @keyup.enter="rename"
+          />
+          <Button variant="secondary" size="sm" @click="rename">Update</Button>
+        </div>
+      </section>
 
       <section class="space-y-2 rounded-lg border p-3">
         <p :class="label">Rotate</p>

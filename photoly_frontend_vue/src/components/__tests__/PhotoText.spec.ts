@@ -74,7 +74,8 @@ it('copies the current draft, saves edits and accepts empty text', async () => {
   button('Copy').click()
   await vi.waitFor(() => expect(copy).toHaveBeenCalledWith('my corrected text'))
   button('Save').click()
-  await vi.waitFor(() => expect(button('Save').disabled).toBe(true))
+  // Save is also disabled while busy; "Unsaved changes" only clears once the PUT has landed.
+  await vi.waitFor(() => expect(pageText()).not.toContain('Unsaved changes'))
   expect(await wrapper.vm.requestLeave()).toBe(true)
   edit('')
   await flushPromises()

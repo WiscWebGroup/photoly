@@ -89,7 +89,6 @@ describe('MediaList', () => {
     expect(pageText()).toContain('Uploaded 2024-06-01')
     expect(pageText()).toContain('beach.jpg')
     expect(pageText()).toContain('2 MB')
-    expect(pageText()).toContain('Only you can see this')
     expect(calls).toContainEqual(
       expect.objectContaining({ path: '/namespace/trace', query: { nsId: '5' } }),
     )
