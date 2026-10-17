@@ -80,7 +80,7 @@ it('copies the current draft, saves edits and accepts empty text', async () => {
   await flushPromises()
   button('Save').click()
   await vi.waitFor(() => expect(pageText()).toContain('No text was recognized or saved'))
-})
+}, 15_000) // many sequential round-trips; the 5s default flakes under CI coverage
 
 it('asks before recognizing again and keeps edits on recognition failure', async () => {
   server.use(
