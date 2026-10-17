@@ -61,6 +61,8 @@ const { photos, moveTo, remove } = usePhotos()
 const selectMode = defineModel<boolean>('selectMode', { default: false })
 watch(selectMode, (on) => on || setChecked(false))
 const viewing = ref<Photo | null>(null)
+/** Where the clicked thumbnail sits, so the viewer can grow out of it. */
+const origin = ref<DOMRect | null>(null)
 const nsPath = ref('')
 watch(
   () => auth.token,
@@ -107,11 +109,13 @@ async function trace(id: number) {
   }
 }
 
-function open(photo: Photo) {
+function open(photo: Photo, e?: MouseEvent) {
   if (selectMode.value) {
     photo.checked = !photo.checked
     return
   }
+  origin.value =
+    (e?.currentTarget as HTMLElement | null)?.querySelector('img')?.getBoundingClientRect() ?? null
   viewing.value = photo
   if (!props.nsOrNot && photo.nsId !== undefined) trace(photo.nsId)
 }
@@ -274,7 +278,7 @@ defineExpose({
                     viewMode === 'list' ? 'flex items-center gap-3 p-2' : 'block',
                   )
                 "
-                @click="open(photo)"
+                @click="open(photo, $event)"
               >
                 <img
                   :src="
@@ -338,6 +342,7 @@ defineExpose({
     <PhotoViewer
       :allow-similar="allowSimilar !== false"
       :photo="viewing"
+      :origin="origin"
       :ns-path="nsPath"
       @close="viewing = null"
       @changed="(change) => emit('queryPhotos', change)"

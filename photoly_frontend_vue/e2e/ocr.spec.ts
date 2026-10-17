@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { mockApi, ok, photo, signIn } from './mockApi'
+import { mockApi, ok, openDetails, photo, signIn } from './mockApi'
 import { capabilitiesFixture } from '../src/test/aiFixtures'
 
 test.beforeEach(async ({ page }) => {
@@ -38,6 +38,7 @@ async function setup(
   return calls
 }
 async function expand(page: import('@playwright/test').Page) {
+  await openDetails(page)
   await page.locator('summary').filter({ hasText: 'Extract Text' }).click()
   await expect(page.getByLabel('Image text')).toBeVisible()
 }
@@ -121,6 +122,7 @@ test('similar-image navigation and history protect each image draft', async ({ p
   })
   await expand(page)
   await page.getByLabel('Image text').fill('first draft')
+  await page.getByRole('button', { name: 'Find similar' }).click() // results are on demand
   await page.getByTestId('photo-viewer-scroll').evaluate((element) => {
     element.dispatchEvent(new Event('touchmove', { bubbles: true }))
     element.scrollTop = element.scrollHeight
@@ -131,13 +133,17 @@ test('similar-image navigation and history protect each image draft', async ({ p
   await expect(page.getByLabel('Image text')).toHaveValue('first draft')
   await page.getByRole('button', { name: 'View second.jpg', exact: true }).click()
   await page.getByRole('button', { name: 'Discard', exact: true }).click()
-  await expect(page.getByText('Name: second.jpg', { exact: true })).toBeVisible()
+  await expect(
+    page.getByTestId('photo-viewer-scroll').getByRole('heading', { name: 'second.jpg' }),
+  ).toBeVisible()
   await expand(page)
   await expect(page.getByLabel('Image text')).toHaveValue('')
   await page.getByLabel('Image text').fill('second saved')
   await page.getByRole('button', { name: 'Back to previous photo' }).click()
   await page.getByRole('button', { name: 'Save and continue' }).click()
-  await expect(page.getByText('Name: first.jpg', { exact: true })).toBeVisible()
+  await expect(
+    page.getByTestId('photo-viewer-scroll').getByRole('heading', { name: 'first.jpg' }),
+  ).toBeVisible()
   await expand(page)
   await expect(page.getByLabel('Image text')).toHaveValue('')
   expect(calls.find((c) => c.method === 'PUT')?.body).toMatchObject({

@@ -19,11 +19,7 @@ interface PageResult extends AiSearchResponse {
   nextCursor: string | null
   hasMore: boolean
 }
-const props = defineProps<{
-  photo: Photo
-  scrollRoot: HTMLElement | null
-  resume?: RecommendationSnapshot
-}>()
+const props = defineProps<{ photo: Photo; resume?: RecommendationSnapshot }>()
 const emit = defineEmits<{ navigate: [photo: Photo]; invalidated: [] }>()
 const auth = useAuthStore()
 const restored = props.resume && props.resume.expiresAt > Date.now() ? props.resume : undefined
@@ -41,11 +37,6 @@ let controller: AbortController | undefined
 let capsController: AbortController | undefined
 let timer: ReturnType<typeof setTimeout> | undefined
 let disposed = false
-let scrolled = false
-let userIntent = false
-let lastTriggeredScroll = -1
-let previousScroll = 0
-let observer: IntersectionObserver | undefined
 const supported = computed(() =>
   caps.value?.formats.includes((props.photo.format ?? '').toLowerCase()),
 )
@@ -69,14 +60,7 @@ function invalidate() {
   cursor.value = null
   hasMore.value = true
   expiresAt.value = 0
-  resetScrollIntent()
   emit('invalidated')
-}
-function resetScrollIntent() {
-  scrolled = false
-  userIntent = false
-  lastTriggeredScroll = -1
-  previousScroll = props.scrollRoot?.scrollTop ?? 0
 }
 function collapse() {
   cancel()
@@ -86,7 +70,6 @@ function collapse() {
   expiresAt.value = 0
   error.value = ''
   restartRequired.value = false
-  resetScrollIntent()
 }
 const expanded = computed(() => busy.value || !!result.value || !!error.value)
 function capture(): RecommendationSnapshot {
@@ -97,7 +80,10 @@ function capture(): RecommendationSnapshot {
     expiresAt: expiresAt.value,
   }
 }
-defineExpose({ capture, invalidate, collapse, expanded })
+function start() {
+  if (!result.value && !busy.value) void load()
+}
+defineExpose({ capture, invalidate, collapse, start, expanded, allowed, unavailable })
 async function load(restart = false) {
   if (busy.value || !allowed.value || (!hasMore.value && !restart)) return
   if (restart) {
@@ -111,8 +97,6 @@ async function load(restart = false) {
     return
   }
   const restoreFocus = sentinel.value?.contains(document.activeElement)
-  userIntent = false
-  scrolled = false
   const request = ++sequence,
     token = auth.token
   controller = new AbortController()
@@ -186,58 +170,6 @@ async function load(restart = false) {
     }
   }
 }
-function maybeLoad() {
-  const root = props.scrollRoot,
-    target = sentinel.value
-  if (
-    !root ||
-    !target ||
-    !scrolled ||
-    !allowed.value ||
-    busy.value ||
-    error.value ||
-    !hasMore.value
-  )
-    return
-  const scroll = root.scrollTop
-  if (scroll <= lastTriggeredScroll + 8) return
-  const bounds = target.getBoundingClientRect(),
-    viewport = root.getBoundingClientRect()
-  if (bounds.top <= viewport.bottom + (result.value ? 160 : 0) && bounds.bottom >= viewport.top) {
-    lastTriggeredScroll = scroll
-    void load()
-  }
-}
-function intent() {
-  userIntent = true
-}
-function onScroll() {
-  const top = props.scrollRoot?.scrollTop ?? 0
-  const down = top > previousScroll
-  previousScroll = top
-  if (!userIntent || !down) return
-  if (top > 48) scrolled = true
-  maybeLoad()
-}
-watch(
-  () => props.scrollRoot,
-  (root, old) => {
-    old?.removeEventListener('scroll', onScroll)
-    for (const event of ['wheel', 'touchmove', 'keydown', 'pointerdown'])
-      old?.removeEventListener(event, intent)
-    observer?.disconnect()
-    resetScrollIntent()
-    if (!root) return
-    root.addEventListener('scroll', onScroll, { passive: true })
-    for (const event of ['wheel', 'touchmove', 'keydown', 'pointerdown'])
-      root.addEventListener(event, intent, { passive: true })
-    if (typeof IntersectionObserver !== 'undefined') {
-      observer = new IntersectionObserver(maybeLoad, { root, rootMargin: '160px' })
-      if (sentinel.value) observer.observe(sentinel.value)
-    }
-  },
-  { immediate: true, flush: 'post' },
-)
 async function refresh() {
   const token = auth.token
   capsController?.abort()
@@ -259,8 +191,6 @@ async function refresh() {
       restartRequired.value = true
     }
     caps.value = value
-    await nextTick()
-    maybeLoad()
   } catch {
     if (!disposed && token === auth.token) {
       caps.value = null
@@ -291,46 +221,36 @@ onBeforeUnmount(() => {
   cancel()
   capsController?.abort()
   clearTimeout(timer)
-  observer?.disconnect()
-  props.scrollRoot?.removeEventListener('scroll', onScroll)
-  for (const event of ['wheel', 'touchmove', 'keydown', 'pointerdown'])
-    props.scrollRoot?.removeEventListener(event, intent)
 })
 </script>
 
 <template>
-  <section aria-label="Similar photos and videos" class="mt-6 border-t pt-6">
-    <div class="flex min-h-28 flex-col items-center justify-center gap-2 text-center">
+  <section
+    v-if="expanded"
+    aria-label="Similar photos and videos"
+    class="mt-6 space-y-3 border-t pt-5"
+  >
+    <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
       <h2 class="text-lg font-semibold">Similar photos and videos</h2>
-      <p class="text-muted-foreground text-sm">Scroll down to discover similar photos and videos</p>
-      <span aria-hidden="true">↓</span>
+      <p v-if="result" class="text-sm text-muted-foreground" role="status">
+        {{ result.items.length }} found, most similar first
+      </p>
     </div>
-    <p v-if="caps && !allowed" role="status" class="py-4 text-sm text-muted-foreground">
-      {{ unavailable }}
+    <p
+      v-if="result?.coverage.pending || result?.coverage.failed"
+      class="text-sm text-muted-foreground"
+    >
+      Some photos and videos aren't indexed yet ({{ result.coverage.ready }} of
+      {{ result.coverage.supported }}). Reload later to include them.
     </p>
-    <div v-if="result" class="mb-4 text-sm text-muted-foreground" role="status">
-      <p>
-        {{ result.items.length }} similar photo(s) and video(s) · Profile #{{ result.profileId }}
-      </p>
-      <p>
-        Indexed {{ result.coverage.ready }} / {{ result.coverage.supported }} supported photos and
-        videos. Ordered by similarity.
-      </p>
-      <p v-if="result.similarityThreshold != null">
-        Minimum similarity: {{ result.similarityThreshold }}
-      </p>
-      <p v-if="result.coverage.pending || result.coverage.failed">
-        Coverage is partial. Reload later to include newly indexed photos and videos.
-      </p>
-    </div>
     <ul
-      class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+      class="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6"
       aria-label="Similar photos and videos results"
     >
       <li v-for="hit in result?.items ?? []" :key="hit.photo.photoId">
         <button
           type="button"
-          class="w-full overflow-hidden rounded-lg border text-left focus-visible:ring-2"
+          class="group w-full overflow-hidden rounded-md border text-left focus-visible:ring-2"
           :aria-label="`View ${hit.photo.photoName}.${hit.photo.format}`"
           @click="emit('navigate', hit.photo)"
         >
@@ -343,23 +263,19 @@ onBeforeUnmount(() => {
             :alt="hit.photo.photoName"
             loading="lazy"
             decoding="async"
-            class="aspect-square w-full object-cover"
+            class="aspect-square w-full object-cover transition-transform group-hover:scale-105"
           />
-          <span class="block truncate p-2 text-sm"
+          <span class="block truncate px-2 py-1 text-xs"
             >{{ hit.photo.photoName }}.{{ hit.photo.format }}</span
           >
         </button>
       </li>
     </ul>
-    <div
-      tabindex="-1"
-      ref="sentinel"
-      class="flex min-h-24 flex-col items-center justify-center gap-3 py-4"
-    >
+    <div tabindex="-1" ref="sentinel" class="flex flex-col items-center gap-3">
       <div v-if="busy" role="status" class="w-full">
-        <p class="mb-3 text-sm">Loading similar photos and videos…</p>
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          <Skeleton v-for="n in 5" :key="n" class="aspect-square" />
+        <p class="mb-2 text-sm">Loading similar photos and videos…</p>
+        <div class="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+          <Skeleton v-for="n in 6" :key="n" class="aspect-square" />
         </div>
       </div>
       <template v-else-if="error"
@@ -370,7 +286,7 @@ onBeforeUnmount(() => {
       >
       <template v-else-if="allowed"
         ><Button v-if="hasMore" variant="outline" @click="load()">Load more</Button>
-        <p v-else class="text-muted-foreground text-sm">
+        <p v-else class="text-sm text-muted-foreground">
           No more similar photos and videos
         </p></template
       >

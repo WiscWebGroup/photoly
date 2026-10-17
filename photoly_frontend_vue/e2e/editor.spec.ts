@@ -1,6 +1,6 @@
 import { deflateSync } from 'node:zlib'
 import { expect, test } from '@playwright/test'
-import { API, mockApi, ok, photo, signIn } from './mockApi'
+import { API, mockApi, ok, openDetails, photo, signIn } from './mockApi'
 
 /** A solid-colour PNG, so the editor has a real picture to decode and re-encode. */
 function png(width: number, height: number) {
@@ -63,6 +63,7 @@ async function openEditor(
   )
   await page.goto('/home/HomePart')
   await page.getByText('beach.png').click()
+  await openDetails(page)
   await page.getByRole('button', { name: 'Edit Image' }).click()
   await expect(page.getByText('Cropped size: 400 × 300 px')).toBeVisible()
   return calls

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { aiCall } from '@/lib/ai'
 import { capabilitiesFixture } from '@/test/aiFixtures'
-import { button, mountWithApp } from '@/test/utils'
+import { mountWithApp } from '@/test/utils'
 import SimilarRecommendations, { type RecommendationSnapshot } from '../SimilarRecommendations.vue'
 
 vi.mock('@/lib/ai', async (importOriginal) => ({
@@ -21,26 +21,18 @@ const page = {
 interface RecommendationsApi {
   capture(): RecommendationSnapshot
   collapse(): void
+  start(): void
   expanded: boolean
 }
 const query = vi.fn()
 async function mountRecommendations(resume?: RecommendationSnapshot, format = 'jpg') {
-  const root = document.createElement('div')
-  document.body.appendChild(root)
   const wrapper = mountWithApp<RecommendationsApi>(SimilarRecommendations, {
     photo: { photoId: 10, photoName: 'original', format, nsId: 1 },
-    scrollRoot: root,
     resume,
   })
   await flushPromises()
-  return { root, wrapper }
+  return { wrapper }
 }
-function scroll(root: HTMLElement, top: number, user = false) {
-  if (user) root.dispatchEvent(new Event('touchmove'))
-  root.scrollTop = top
-  root.dispatchEvent(new Event('scroll'))
-}
-
 describe('SimilarRecommendations reset', () => {
   beforeEach(() => {
     query.mockReset().mockResolvedValue(page)
@@ -69,9 +61,9 @@ describe('SimilarRecommendations reset', () => {
         },
       ],
     })
-    const { root, wrapper } = await mountRecommendations(undefined, 'mp4')
+    const { wrapper } = await mountRecommendations(undefined, 'mp4')
     expect(query).not.toHaveBeenCalled()
-    scroll(root, 100, true)
+    wrapper.vm.start()
     await flushPromises()
     expect(wrapper.vm.capture().result?.items).toHaveLength(2)
     const video = wrapper.find('button[aria-label="View clip.mp4"] img')
@@ -80,22 +72,20 @@ describe('SimilarRecommendations reset', () => {
     expect(wrapper.vm.capture().result).toBeNull()
   })
 
-  it('requires fresh downward scroll after collapse and resets the previous trigger position', async () => {
-    const { root, wrapper } = await mountRecommendations()
-    scroll(root, 100)
-    await flushPromises()
+  it('loads only when started, and starts again after collapse', async () => {
+    const { wrapper } = await mountRecommendations()
     expect(query).not.toHaveBeenCalled()
-    scroll(root, 200, true)
+    expect(wrapper.vm.expanded).toBe(false)
+    wrapper.vm.start()
     await flushPromises()
     expect(query).toHaveBeenCalledTimes(1)
     expect(wrapper.vm.expanded).toBe(true)
-    wrapper.vm.collapse()
-    scroll(root, 0)
-    scroll(root, 100)
+    wrapper.vm.start()
     await flushPromises()
     expect(query).toHaveBeenCalledTimes(1)
+    wrapper.vm.collapse()
     expect(wrapper.vm.capture().result).toBeNull()
-    scroll(root, 120, true)
+    wrapper.vm.start()
     await flushPromises()
     expect(query).toHaveBeenCalledTimes(2)
     expect(query.mock.calls[1]![0].data).toEqual({ pageSize: 24 })
@@ -110,7 +100,7 @@ describe('SimilarRecommendations reset', () => {
         }),
     )
     const { wrapper } = await mountRecommendations()
-    button('Load more').click()
+    wrapper.vm.start()
     await flushPromises()
     expect(wrapper.vm.expanded).toBe(true)
     const signal = query.mock.calls[0]![0].signal as AbortSignal
@@ -120,7 +110,7 @@ describe('SimilarRecommendations reset', () => {
     await flushPromises()
     expect(wrapper.vm.expanded).toBe(false)
     expect(wrapper.vm.capture().result).toBeNull()
-    button('Load more').click()
+    wrapper.vm.start()
     await flushPromises()
     expect(wrapper.vm.capture().result?.items).toHaveLength(1)
   })
@@ -128,14 +118,14 @@ describe('SimilarRecommendations reset', () => {
   it('clears errors as well as results when collapsed', async () => {
     query.mockRejectedValueOnce(new Error('request failed'))
     const { wrapper } = await mountRecommendations()
-    button('Load more').click()
+    wrapper.vm.start()
     await flushPromises()
     expect(document.querySelector('[role="alert"]')).not.toBeNull()
     wrapper.vm.collapse()
     await flushPromises()
     expect(document.querySelector('[role="alert"]')).toBeNull()
     expect(wrapper.vm.expanded).toBe(false)
-    button('Load more').click()
+    wrapper.vm.start()
     await flushPromises()
     expect(wrapper.vm.capture().result?.items).toHaveLength(1)
   })
