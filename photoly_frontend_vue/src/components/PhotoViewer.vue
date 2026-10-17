@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import SmartBadge from '@/components/SmartBadge.vue'
 import type { SmartSource } from '@/lib/smartOrganization'
-import { gsap } from 'gsap'
+import { animate, type AnimationPlaybackControls } from 'motion'
 import { useMediaQuery } from '@vueuse/core'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
@@ -212,17 +212,28 @@ const editing = ref(false)
 /** Hidden by default and again for every photo; kept mounted (v-show) so a text draft survives toggling. */
 const showDetails = ref(false)
 const detailsLabel = ref<HTMLElement | null>(null)
+// GSAP-equivalent eases (powerN = easeIn/Out of degree N+1).
+const EASE = {
+  p1Out: [0.25, 0.46, 0.45, 0.94],
+  p1In: [0.55, 0.085, 0.68, 0.53],
+  p1InOut: [0.455, 0.03, 0.515, 0.955],
+  p2In: [0.55, 0.055, 0.675, 0.19],
+  p3Out: [0.165, 0.84, 0.44, 1],
+  p3InOut: [0.77, 0, 0.175, 1],
+} as const satisfies Record<string, [number, number, number, number]>
+let labelAnim: AnimationPlaybackControls | null = null
 /** Expand the "Details" label on hover/focus, collapse back to the round "i". */
 function expandDetails(open: boolean) {
-  if (!detailsLabel.value) return
-  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  gsap.to(detailsLabel.value, {
-    width: open ? 'auto' : 0,
-    opacity: open ? 1 : 0,
-    duration: reduce ? 0 : 0.35,
-    ease: 'power3.out',
-    overwrite: true,
-  })
+  const el = detailsLabel.value
+  if (!el) return
+  labelAnim?.stop()
+  // Animate between measured px widths, then settle on `auto` so the label can change text.
+  const anim = (labelAnim = animate(
+    el,
+    { width: [el.offsetWidth, open ? el.scrollWidth : 0], opacity: open ? 1 : 0 },
+    { duration: reducedMotion() ? 0 : 0.35, ease: EASE.p3Out },
+  ))
+  void anim.finished.then(() => open && labelAnim === anim && (el.style.width = 'auto'))
 }
 // Stay expanded while the panel is open; collapse when it closes (click or photo change).
 watch(showDetails, expandDetails)
@@ -249,27 +260,28 @@ watch(
     if (!photo) return void ((openPlayed = false), (showBackdrop = null))
     const overlay = document.querySelector<HTMLElement>('[data-slot=dialog-overlay]')
     if (!overlay) return
-    gsap.set(overlay, { animation: 'none', opacity: 0 })
+    overlay.style.animation = 'none'
+    overlay.style.opacity = '0'
     const timer = setTimeout(() => showBackdrop?.(), 2000)
     showBackdrop = () => {
       showBackdrop = null
       clearTimeout(timer)
-      gsap.to(overlay, {
-        opacity: 1,
-        duration: reducedMotion() ? 0 : 0.6,
-        ease: 'power1.out',
-        clearProps: 'opacity',
-      })
+      void animate(
+        overlay,
+        { opacity: 1 },
+        { duration: reducedMotion() ? 0 : 0.6, ease: EASE.p1Out },
+      ).finished.then(() => overlay.style.removeProperty('opacity'))
     }
   },
   { flush: 'post' },
 )
 /**
  * Card ↔ modal: where the clicked thumbnail sits relative to the open viewer. The viewer is placed
- * there (scaled down) and animated to its real position, and back again on dismiss. Not gsap
- * transforms on the element: GSAP would fold Tailwind's centering `translate` into px.
+ * there (scaled down) and animated to its real position, and back again on dismiss. Driven by a
+ * 0→1 progress value written to `transform` by hand: Motion's x/y/scale would land in the same
+ * `transform` property and wipe out Tailwind's centering `translate`.
  */
-let openTl: gsap.core.Timeline | null = null
+let openAnims: AnimationPlaybackControls[] | null = null
 function cardOffset(content: HTMLElement) {
   const box = content.getBoundingClientRect()
   const o = selected.value ? null : props.origin // navigated to another photo: no card to return to
@@ -291,9 +303,9 @@ function playClose() {
   const overlay = document.querySelector<HTMLElement>('[data-slot=dialog-overlay]')
   if (!content || reducedMotion()) return Promise.resolve()
   startOpen = null
-  if (openTl) {
-    openTl.kill()
-    openTl = null
+  if (openAnims) {
+    openAnims.forEach((a) => a.stop())
+    openAnims = null
     for (const prop of ['transform', 'opacity']) content.style.removeProperty(prop)
   }
   if (!content.getBoundingClientRect().width) return Promise.resolve() // not laid out (e.g. jsdom)
@@ -301,33 +313,21 @@ function playClose() {
   content.style.transition = 'none'
   content.style.willChange = 'transform, opacity'
   const from = cardOffset(content)
-  const p = { v: 1 }
-  const fade = { v: 1 }
-  return new Promise<void>((resolve) => {
-    gsap
-      .timeline({ onComplete: resolve })
-      .to(
-        p,
-        {
-          v: 0,
-          duration: 0.4,
-          ease: 'power3.inOut',
-          onUpdate: () => placeCard(content, from, p.v),
-        },
-        0,
-      )
-      .to(
-        fade,
-        {
-          v: 0,
-          duration: 0.2,
-          ease: 'power1.in',
-          onUpdate: () => (content.style.opacity = String(fade.v)),
-        },
-        0.2,
-      )
-      .to(overlay, { opacity: 0, duration: 0.4, ease: 'power1.inOut' }, 0)
-  })
+  // Not awaited: same length as the shrink, and the dialog unmounts the overlay anyway.
+  if (overlay) animate(overlay, { opacity: 0 }, { duration: 0.4, ease: EASE.p1InOut })
+  return Promise.all([
+    animate(1, 0, {
+      duration: 0.4,
+      ease: EASE.p3InOut,
+      onUpdate: (v) => placeCard(content, from, v),
+    }).finished,
+    animate(1, 0, {
+      duration: 0.2,
+      delay: 0.2,
+      ease: EASE.p1In,
+      onUpdate: (v) => (content.style.opacity = String(v)),
+    }).finished,
+  ]).then(() => {})
 }
 /** Set while the open animation waits for the media size, so the viewer doesn't resize mid-grow. */
 let startOpen: (() => void) | null = null
@@ -339,7 +339,7 @@ watch(
     if (!content || openPlayed) return
     openPlayed = true
     // Silence the stock CSS open animation, then hand `animation` back so the close one still plays.
-    // Plain style writes on `content`: a GSAP tween on it would overwrite our inline transform.
+    // Plain style writes on `content`: a Motion tween on it would overwrite our inline transform.
     content.style.animation = 'none'
     content.style.transition = 'none' // the dialog's stock CSS transition would lag behind our frames
     content.style.opacity = '0'
@@ -347,34 +347,24 @@ watch(
     const run = () => {
       if (!content.isConnected) return
       const duration = reducedMotion() ? 0 : 0.55
-      // Not gsap transforms: GSAP would fold Tailwind's centering `translate` into px and break the position.
       // With a thumbnail rect the viewer grows out of it; otherwise it just zooms from the centre.
       showBackdrop?.()
       const from = cardOffset(content)
-      const p = { v: 0 }
-      const place = () => placeCard(content, from, p.v)
-      place()
-      const fade = { v: 0 }
-      openTl = gsap
-        .timeline({
-          onComplete: () => {
-            content.style.removeProperty('transform')
-            content.style.removeProperty('transition')
-            content.style.removeProperty('opacity')
-            content.style.removeProperty('will-change')
-          },
-        })
-        .to(
-          fade,
-          {
-            v: 1,
-            duration: duration / 3,
-            ease: 'power1.out',
-            onUpdate: () => (content.style.opacity = String(fade.v)),
-          },
-          0,
-        )
-        .to(p, { v: 1, duration, ease: 'power3.out', onUpdate: place }, 0)
+      placeCard(content, from, 0)
+      const anims = (openAnims = [
+        animate(0, 1, {
+          duration: duration / 3,
+          ease: EASE.p1Out,
+          onUpdate: (v) => (content.style.opacity = String(v)),
+        }),
+        animate(0, 1, { duration, ease: EASE.p3Out, onUpdate: (v) => placeCard(content, from, v) }),
+      ])
+      void Promise.all(anims.map((a) => a.finished)).then(() => {
+        if (openAnims !== anims) return // interrupted by a close
+        openAnims = null
+        for (const prop of ['transform', 'transition', 'opacity', 'will-change'])
+          content.style.removeProperty(prop)
+      })
     }
     // Wait for the photo/video size (layout depends on it); fall back if it never loads.
     const timer = setTimeout(() => startOpen?.(), 800)
@@ -422,8 +412,7 @@ function setDefaultWidth() {
 // A fixed, centred dialog can only shrink-wrap to the space right of its left edge (half the screen),
 // so tall media needs an explicit width too: picture + the details column as it animates open.
 const panePx = ref(0)
-const paneTweenState = { v: 0 }
-watch(paneOpen, (open) => open || (panePx.value = paneTweenState.v = 0))
+watch(paneOpen, (open) => open || (panePx.value = 0))
 const dialogStyle = computed(() =>
   resizeActive.value && !editing.value
     ? {
@@ -467,45 +456,45 @@ function startResize(e: PointerEvent) {
 watch(currentPhoto, () => (mediaWidth.value = null))
 
 watch(showDetails, (v) => v && (paneOpen.value = true))
+let paneAnims: AnimationPlaybackControls[] = []
 function paneTween(el: Element, show: boolean, done: () => void) {
-  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  gsap.killTweensOf(el) // a quick re-toggle must not fight the previous tween
-  const vars = {
-    duration: reduce ? 0 : 0.4,
-    overflow: 'hidden',
-    onComplete: () => (
-      show ? gsap.set(el, { clearProps: 'all' }) : (paneOpen.value = false),
-      done()
-    ),
-  }
+  paneAnims.forEach((a) => a.stop()) // a quick re-toggle must not fight the previous tween
+  const node = el as HTMLElement
+  const duration = reducedMotion() ? 0 : 0.4
+  const ease = show ? EASE.p3Out : EASE.p2In
   // Tall media on md+ puts the pane beside the picture, so reveal it by width; otherwise by height.
   const side = !landscape.value && !!window.matchMedia?.('(min-width: 768px)').matches
   const prop = side ? 'width' : 'height'
+  const axis = side ? 'x' : 'y'
+  node.style.overflow = 'hidden'
+  // Explicit px sizes: opening ends at the content size ("auto"), closing starts from the measured one.
+  const size = side ? PANE_WIDTH : node.scrollHeight
+  const current = side ? node.offsetWidth : node.offsetHeight
+  const anims = (paneAnims = [
+    animate(
+      node,
+      show
+        ? { opacity: [0, 1], [prop]: [0, size], [axis]: [-12, 0] }
+        : { opacity: 0, [prop]: [current, 0], [axis]: -12 },
+      { duration, ease },
+    ),
+  ])
   if (side)
-    gsap.to(paneTweenState, {
-      v: show ? PANE_WIDTH : 0,
-      duration: vars.duration,
-      ease: show ? 'power3.out' : 'power2.in',
-      overwrite: true,
-      onUpdate: () => (panePx.value = paneTweenState.v),
-    })
-  // `to` on leave: the size must start from the measured value, not "auto".
-  if (show)
-    gsap.fromTo(
-      el,
-      { opacity: 0, [prop]: 0, ...(!side && { y: -12 }), ...(side && { x: -12 }) },
-      { ...vars, opacity: 1, x: 0, y: 0, [prop]: side ? '21rem' : 'auto', ease: 'power3.out' },
+    anims.push(
+      animate(panePx.value, show ? PANE_WIDTH : 0, {
+        duration,
+        ease,
+        onUpdate: (v) => (panePx.value = v),
+      }),
     )
-  else
-    gsap.to(el, {
-      ...vars,
-      opacity: 0,
-      [prop]: 0,
-      ...(side ? { x: -12 } : { y: -12 }),
-      ease: 'power2.in',
-    })
+  void anims[0]!.finished.then(() => {
+    if (paneAnims !== anims) return // superseded by a re-toggle
+    if (show) node.style.cssText = ''
+    else paneOpen.value = false
+    done()
+  })
 }
-onBeforeUnmount(() => detailsLabel.value && gsap.killTweensOf(detailsLabel.value))
+onBeforeUnmount(() => labelAnim?.stop())
 /** Bumped after an overwrite so the browser refetches the image under the same URL. */
 const version = ref(0)
 

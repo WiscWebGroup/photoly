@@ -315,8 +315,10 @@ const results = (page: Page) =>
 const scrollPosition = (page: Page) =>
   page.getByTestId('photo-viewer-scroll').evaluate((el) => el.scrollTop)
 
-async function closeViewer(page: Page) {
+async function closeViewer(page: Page, fakeClock = false) {
   await page.keyboard.press('Escape')
+  // A frozen fake clock also freezes requestAnimationFrame: let the close animation finish.
+  if (fakeClock) await page.clock.runFor(1000)
   await expect(page.getByRole('dialog')).toHaveCount(0)
 }
 async function reopenOriginal(page: Page) {
@@ -358,13 +360,13 @@ test('retention starts on leaving, renews after returning, and expires after 30 
   await expect(results(page)).toHaveCount(24)
   await page.clock.fastForward(31000)
   await expect(results(page)).toHaveCount(24)
-  await closeViewer(page)
+  await closeViewer(page, true)
   await page.clock.fastForward(28000)
   await reopenOriginal(page)
   await expect(results(page)).toHaveCount(24)
   await page.clock.fastForward(31000)
   await expect(results(page)).toHaveCount(24)
-  await closeViewer(page)
+  await closeViewer(page, true)
   await page.clock.fastForward(30000)
   await reopenOriginal(page)
   await expect(results(page)).toHaveCount(0)
