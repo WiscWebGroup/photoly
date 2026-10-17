@@ -12,6 +12,7 @@ import time
 from flask import Flask, request, jsonify
 from werkzeug.serving import make_server
 from .types import AIError, RuntimeConfig
+from datetime import datetime, timezone
 from .devices import device_status
 from .registry import adapter, validate_spec
 from .preprocessing import decode_image, MAX_BYTES
@@ -38,6 +39,11 @@ def model_child(connection, spec, config):
             model = FakeEmbedding()
         else:
             model = adapter(spec["provider"])
+        def progress(stage, completed=None, total=None):
+            connection.send({"stage": stage, "completed": completed, "total": total, "unit": "files"})
+        if hasattr(model, "download"):
+            model.download(spec, progress)
+        progress("loading")
         model.load(spec, RuntimeConfig(**config))
         connection.send({"stage": "warming"})
         from PIL import Image
@@ -79,6 +85,11 @@ class Runtime:
         self.config = asdict(RuntimeConfig())
         self.generation, self.last_operation, self.online_streak = -1, None, 0
         self.verified = []
+        self.request_lock = threading.Lock()
+        self.requested_generation = -1
+        self.cancel_load = threading.Event()
+        self.progress = None
+        self.failure_reason = None
         self.devices = device_status(reason="probing")
         threading.Thread(target=self.probe_devices, daemon=True).start()
         threading.Thread(target=self.dispatch, daemon=True).start()
@@ -127,12 +138,48 @@ class Runtime:
             raise AIError(result["error"], result.get("status", 502))
         return result
 
-    def change(self, data):
+    def submit(self, data):
+        """Accept durable lifecycle intent without blocking the scheduler or Pause."""
+        if not isinstance(data, dict) or type(data.get("generation")) is not int or data.get("command") not in ("load", "unload", "restart"):
+            raise AIError("invalid_control")
+        if data["command"] != "unload":
+            validate_spec(data.get("profile"))
+            try:
+                RuntimeConfig(**data["config"])
+            except (TypeError, KeyError):
+                raise AIError("invalid_runtime_config")
+        with self.request_lock:
+            generation = data["generation"]
+            if generation < max(self.requested_generation, self.generation):
+                raise AIError("stale_generation", 409)
+            if generation == self.requested_generation:
+                return self.status()
+            self.cancel_load.set()
+            cancellation = threading.Event()
+            self.cancel_load = cancellation
+            self.requested_generation = generation
+            def run():
+                try:
+                    self.change(data, cancellation)
+                except Exception:
+                    # change() publishes failures; the caller polls /status.
+                    pass
+            threading.Thread(target=run, daemon=True).start()
+        return self.status()
+
+    def report_progress(self, stage, completed=None, total=None, unit=None):
+        self.progress = {"stage": stage, "completed": completed, "total": total, "unit": unit,
+                         "updatedAt": datetime.now(timezone.utc).isoformat(), "lifecycleId": self.generation}
+
+    def change(self, data, cancellation=None):
         if not isinstance(data,dict):raise AIError("invalid_control")
         if data.get("command") not in ("load", "unload", "restart") or type(data.get("generation")) is not int:
             raise AIError("invalid_control")
+        cancellation = cancellation or self.cancel_load
         with self.control_lock:
-            if data["generation"] < self.generation:
+            if cancellation.is_set():
+                raise AIError("superseded", 409)
+            if data["generation"] < max(self.generation, self.requested_generation):
                 raise AIError("stale_generation", 409)
             if data.get("operation_id") == self.last_operation and self.state in ("ready", "unloaded"):
                 return self.status()
@@ -143,9 +190,11 @@ class Runtime:
                     config = asdict(RuntimeConfig(**data["config"]))
                 except (TypeError, KeyError):
                     raise AIError("invalid_runtime_config")
-            self.generation = data["generation"]
-            self.state = "draining"
             with self.condition:
+                self.state = "draining"
+                self.generation = data["generation"]
+                self.failure_reason = None
+                self.report_progress("preparing")
                 for queue in (self.online, self.background):
                     while queue:
                         item = queue.popleft()
@@ -160,6 +209,7 @@ class Runtime:
                 self.spec = None
                 if data["command"] == "unload":
                     self.state = "unloaded"
+                    self.report_progress("paused")
                 else:
                     self.state, self.config = "loading", config
                     context = mp.get_context("spawn")
@@ -172,22 +222,33 @@ class Runtime:
                         child.close()
                     deadline = time.monotonic()+840
                     while True:
-                        if not parent.poll(max(0, deadline-time.monotonic())):
+                        if cancellation is not None and cancellation.is_set():
+                            raise AIError("superseded", 409)
+                        if time.monotonic() >= deadline:
                             raise AIError("model_load_timeout", 504)
+                        if not parent.poll(0.2):
+                            continue
                         result = parent.recv()
-                        if result.get("stage") == "warming":
-                            self.state = "warming"
+                        if result.get("stage"):
+                            self.state = result["stage"]
+                            self.report_progress(result["stage"], result.get("completed"), result.get("total"), result.get("unit"))
                             continue
                         break
                     if not result.get("ready"):
                         raise AIError(result.get("error", "model_load_failed"), result.get("status", 503))
-                    self.spec, self.state = spec, "ready"
+                    if cancellation is not None and cancellation.is_set():
+                        raise AIError("superseded", 409)
+                    with self.condition:
+                        self.spec, self.state = spec, "ready"
+                        self.report_progress("ready")
                     combination = {"fingerprint": spec["fingerprint"], **self.config}
                     if combination not in self.verified:
                         self.verified.append(combination)
                 self.last_operation = data.get("operation_id")
-            except Exception:
+            except Exception as error:
                 self.state = "failed"
+                self.failure_reason = error.code if isinstance(error, AIError) else "model_load_failed"
+                self.report_progress("failed")
                 self.kill()
                 raise
             finally:
@@ -195,11 +256,20 @@ class Runtime:
             return self.status()
 
     def status(self):
-        if self.state == "ready" and (not self.process or not self.process.is_alive()):
-            self.state = "failed"
-        return {"state": self.state, "fingerprint": self.spec["fingerprint"] if self.spec else None,
-                "generation": self.generation, "config": self.config, "verified": list(self.verified),
-                "devices": list(self.devices), "queued": len(self.online)+len(self.background), "resources": system_usage(self.config["device"])}
+        # Keep state, fingerprint and generation from the same transition. A mixed
+        # snapshot could otherwise activate an old model for a newer lifecycle.
+        with self.condition:
+            if self.state == "ready" and (not self.process or not self.process.is_alive()):
+                self.state = "failed"
+                self.failure_reason = "runtime_offline"
+                self.report_progress("failed")
+            result = {"state": self.state, "progress": getattr(self, "progress", None),
+                      "reason": getattr(self, "failure_reason", None),
+                      "fingerprint": self.spec["fingerprint"] if self.spec else None,
+                      "generation": self.generation, "config": self.config, "verified": list(self.verified),
+                      "devices": list(self.devices), "queued": len(self.online)+len(self.background)}
+        result["resources"] = system_usage(result["config"]["device"])
+        return result
 
     def encode(self, data):
         if not isinstance(data,dict):raise AIError("invalid_input")
@@ -272,7 +342,8 @@ def create_runtime_app(runtime=None):
         return jsonify(runtime.status())
     @app.post("/control")
     def control():
-        return jsonify(runtime.change(request.get_json()))
+        data = request.get_json()
+        return jsonify(runtime.submit(data) if isinstance(data, dict) and data.get("asynchronous") else runtime.change(data))
     @app.post("/encode")
     def encode():
         return jsonify(runtime.encode(request.get_json()))

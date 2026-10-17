@@ -6,7 +6,8 @@ from app.entities.ai import AIControlState
 from .types import AIError
 from .limits import LIMIT_DEFAULTS, validate_limit_values
 
-DEFAULTS = {"enabled": False, "new_user_default": False, "smart_tag_enabled": False, "maintenance": False, "similarity_threshold": None,
+DEFAULTS = {"enabled": False, "search_enabled": True, "ai_initialized": False,
+            "managed_lifecycle": False, "lifecycle_id": 0, "ram_policy": "percent", "new_user_default": False, "smart_tag_enabled": False, "maintenance": False, "similarity_threshold": None,
             "search_profile_id": None, "building_profile_id": None, "quota_bytes": 10 * 1024**3,
             "scheduler": "stopped", "runtime": "unloaded", "loaded_profile_id": None,
             "device": "cpu", "precision": "float32", **LIMIT_DEFAULTS}
@@ -26,13 +27,21 @@ def control(session, name="global", lock=False):
 
 def settings(session):
     row = session.get(AIControlState, "global")
-    return {**DEFAULTS, **(row.desired if row else {})}
+    saved = row.desired if row else {}
+    legacy = {}
+    if row and "ram_policy" not in saved:
+        legacy.update(ram_policy="free", cpu_pause_percent=90, cpu_resume_percent=70,
+                      gpu_pause_percent=95, gpu_resume_percent=70)
+    if row and "ai_initialized" not in saved:
+        legacy["ai_initialized"] = bool(saved.get("enabled") or saved.get("loaded_profile_id") or
+                                       saved.get("search_profile_id") or saved.get("scheduler", "stopped") != "stopped")
+    return {**DEFAULTS, **legacy, **saved}
 
 
 def validate_settings(changes):
-    if not isinstance(changes, dict) or set(changes) - ({"enabled", "new_user_default", "smart_tag_enabled", "quota_bytes", "device", "precision", "similarity_threshold"} | set(LIMIT_DEFAULTS)):
+    if not isinstance(changes, dict) or set(changes) - ({"enabled", "search_enabled", "new_user_default", "smart_tag_enabled", "quota_bytes", "device", "precision", "similarity_threshold"} | set(LIMIT_DEFAULTS)):
         raise AIError("invalid_settings")
-    for name in ("enabled", "new_user_default", "smart_tag_enabled"):
+    for name in ("enabled", "search_enabled", "new_user_default", "smart_tag_enabled"):
         if name in changes and type(changes[name]) is not bool:
             raise AIError("invalid_settings")
     if "quota_bytes" in changes and (type(changes["quota_bytes"]) is not int or not 1024**2 <= changes["quota_bytes"] <= 100*1024**4):

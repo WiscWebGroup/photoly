@@ -16,7 +16,7 @@ import {
 } from '@/lib/ai'
 interface Pending {
   key: string
-  body: { command: string; profileId?: number; generation: number }
+  body: { command: string; profileId?: number; provider?: string; generation: number }
 }
 export function useAiAdmin() {
   const auth = useAuthStore()
@@ -31,7 +31,12 @@ export function useAiAdmin() {
     pending = ref<Pending | null>(null),
     loaded = ref(false)
   const active = computed(() => jobs.value.filter(activeJob))
-  const locked = computed(() => saving.value || pending.value !== null || active.value.length > 0)
+  const locked = computed(
+    () =>
+      saving.value ||
+      pending.value !== null ||
+      active.value.some((job) => !job.command?.startsWith('ai.')),
+  )
   let disposed = false,
     refreshing = false,
     failures = 0
@@ -138,31 +143,23 @@ export function useAiAdmin() {
       saving.value = false
     }
   }
-  async function operate(command: string, profileId?: number) {
-    if (locked.value || !status.value) return
+  async function operate(command: string, profileId?: number, provider?: string) {
+    if (
+      (command === 'ai.pause' ? saving.value || pending.value !== null : locked.value) ||
+      !status.value
+    )
+      return
     pending.value = {
       key: newOperationKey(),
       body: {
         command,
         generation: status.value.settings.generation,
         ...(profileId ? { profileId } : {}),
+        ...(provider ? { provider } : {}),
       },
     }
     remember()
     await sendPending()
-  }
-  async function createProfile(provider: string) {
-    if (locked.value) return
-    saving.value = true
-    error.value = ''
-    try {
-      await aiCall({ method: 'post', url: '/admin/ai/profiles', data: { provider } })
-      await refresh()
-    } catch (e) {
-      error.value = aiMessage(e)
-    } finally {
-      saving.value = false
-    }
   }
   async function older() {
     if (!nextBefore.value) return
@@ -186,7 +183,8 @@ export function useAiAdmin() {
           ? Math.min(30000, 2000 * 2 ** failures)
           : document.hidden
             ? 30000
-            : active.value.length
+            : active.value.length ||
+                (status.value?.settings.enabled && status.value?.startup?.stage !== 'ready')
               ? 2000
               : 5000,
       )
@@ -238,7 +236,6 @@ export function useAiAdmin() {
     refresh,
     save,
     operate,
-    createProfile,
     older,
     sendPending,
   }

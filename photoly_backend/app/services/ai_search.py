@@ -26,7 +26,7 @@ class AISearch:
         user=self.session.get(User,uid)
         profile=self.session.get(EmbeddingProfile,cfg["search_profile_id"]) if cfg["search_profile_id"] else None
         eligible=bool(user and user.ai_search_enabled)
-        reason = "disabled" if not cfg["enabled"] else "not_enabled_for_user" if not eligible else "maintenance" if cfg["maintenance"] else "no_active_profile" if not profile else None
+        reason = "disabled" if (not cfg["enabled"] or not cfg["search_enabled"]) else "not_enabled_for_user" if not eligible else "maintenance" if cfg["maintenance"] else "no_active_profile" if not profile else None
         ready=False
         if reason is None:
             self.session.commit()
@@ -35,7 +35,7 @@ class AISearch:
                 ready=runtime["state"]=="ready" and runtime["fingerprint"]==profile.fingerprint and profile.index_status=="ready"
                 if not ready:reason="model_not_ready"
             except AIError:reason="runtime_offline"
-        return {"enabled":eligible,"globalEnabled":cfg["enabled"],"ready":ready,"reason":reason,
+        return {"enabled":eligible,"globalEnabled":cfg["enabled"] and cfg["search_enabled"],"ready":ready,"reason":reason,
                 "profileId":profile.profile_id if profile else None,"profile":({"provider":profile.provider,"dimension":profile.dimension,"modelId":profile.spec["model_id"]} if profile else None),"coverage":coverage(self.session,cfg["search_profile_id"],uid),
                 "modalities":["text","image","similar"],"limits":{"textCharacters":512,"imageBytes":MAX_BYTES,"imagePixels":MAX_PIXELS,"topK":100,"videoBytes":max_video_bytes(),"videoFrames":MAX_FRAMES,"videoExtractionSeconds":EXTRACT_SECONDS},
                 "similarityThreshold":cfg["similarity_threshold"],"formats":sorted(EXTENSIONS | VIDEO_EXTENSIONS),"videoFormats":sorted(VIDEO_EXTENSIONS),"videoSamplingVersion":SAMPLING_VERSION}
@@ -84,7 +84,7 @@ class AISearch:
             cfg=settings(self.session)
             if pagination and pagination[1] is not None and pagination[1].get("threshold") != cfg["similarity_threshold"]:
                 raise AIError("search_settings_changed",409)
-            if not user or not user.ai_search_enabled or not cfg["enabled"]:
+            if not user or not user.ai_search_enabled or (not cfg["enabled"] or not cfg["search_enabled"]):
                 raise AIError("ai_not_enabled",403)
             if cfg["maintenance"]:
                 raise AIError("maintenance",503)

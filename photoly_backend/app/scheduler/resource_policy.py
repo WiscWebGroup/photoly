@@ -30,7 +30,12 @@ class ResourcePolicy:
         self.cpu_average = cpu if self.cpu_average is None else (0.7*self.cpu_average + 0.3*cpu) if cpu is not None else None
         if self.cpu_average is None or self.cpu_average > limits[f"cpu_{mode}_percent"]:
             reasons.append("cpu_busy_or_unknown")
-        if (snapshot.get("memory_available") or 0) < limits[f"memory_{mode}_free_mib"]*1024**2:
+        if limits.get("ram_policy") == "percent":
+            total, available = snapshot.get("memory_total"), snapshot.get("memory_available")
+            maximum = limits["ram_max_percent"] - (5 if self.blocked else 0)
+            if not total or available is None or 100 * (1 - available / total) > maximum:
+                reasons.append("memory_pressure")
+        elif (snapshot.get("memory_available") or 0) < limits[f"memory_{mode}_free_mib"]*1024**2:
             reasons.append("memory_pressure")
         if (snapshot.get("disk_free") or 0) < limits[f"disk_{mode}_free_mib"]*1024**2:
             reasons.append("disk_pressure")

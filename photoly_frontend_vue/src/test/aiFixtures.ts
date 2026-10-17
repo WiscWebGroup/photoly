@@ -2,6 +2,12 @@ export const settingsFixture = {
   generation: 0,
   similarity_threshold: null as number | null,
   enabled: false,
+  search_enabled: true,
+  ai_initialized: false,
+  managed_lifecycle: false,
+  lifecycle_id: 0,
+  ram_policy: 'percent' as const,
+  ram_max_percent: 85,
   new_user_default: false,
   smart_tag_enabled: false,
   maintenance: false,
@@ -61,6 +67,15 @@ export const capabilitiesFixture = {
 
 export const adminCapabilitiesFixture = {
   fields: {
+    ram_max_percent: {
+      default: 85,
+      minimum: 6,
+      maximum: 100,
+      unit: '%',
+      apply: 'next_cycle',
+      pairedWith: null,
+      relation: null,
+    },
     similarity_threshold: {
       default: null,
       minimum: -1,
@@ -221,6 +236,12 @@ export const statusFixture = {
     generation: 0,
     similarity_threshold: null as number | null,
     enabled: false,
+    search_enabled: true,
+    ai_initialized: false,
+    managed_lifecycle: false,
+    lifecycle_id: 0,
+    ram_policy: 'percent' as const,
+    ram_max_percent: 85,
     new_user_default: false,
     smart_tag_enabled: false,
     maintenance: false,

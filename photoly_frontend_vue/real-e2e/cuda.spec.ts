@@ -54,28 +54,16 @@ test('two real CUDA models through the browser, controls, switching and rollback
     timeout: 45000,
   })
   await page.getByLabel('Inference device').selectOption('cuda')
-  await page.getByLabel('Enable AI search', { exact: true }).check()
+  await page.getByLabel('AI Search', { exact: true }).check()
+  await page.getByText('Advanced settings', { exact: true }).click()
   await page.getByLabel('Minimum background interval (seconds)', { exact: true }).fill('1')
   await page.getByRole('button', { name: 'Save AI settings' }).click()
   await expect.poll(async () => (await api('/admin/ai/settings')).device).toBe('cuda')
-  async function operation(button: string, confirm = false) {
-    if (
-      [
-        'Enter maintenance',
-        'Exit maintenance',
-        'Backfill',
-        'Retry failed',
-        'Rebuild',
-        'Delete profile and vectors',
-      ].includes(button) &&
-      !(await page.getByRole('button', { name: button, exact: true }).isVisible())
-    )
-      await page.getByText('Advanced lifecycle controls', { exact: true }).click()
+  async function operation(button: string) {
     const accepted = page.waitForResponse(
       (r) => r.url() === API + '/admin/ai/operations' && r.request().method() === 'POST',
     )
     await page.getByRole('button', { name: button, exact: true }).click()
-    if (confirm) await page.getByRole('button', { name: 'Confirm operation', exact: true }).click()
     const response = await accepted
     expect(response.status(), await response.text()).toBe(202)
     const job = (await response.json()).t
@@ -104,36 +92,29 @@ test('two real CUDA models through the browser, controls, switching and rollback
   const reports: object[] = []
   const ids: number[] = []
   for (const provider of ['siglip2', 'qwen3_vl']) {
-    if (provider === 'qwen3_vl') {
-      await operation('Enter maintenance', true)
-      await operation('Unload model')
-    }
+    await page
+      .locator('details')
+      .filter({ has: page.getByText('Advanced settings', { exact: true }) })
+      .evaluate((el) => {
+        ;(el as HTMLDetailsElement).open = true
+      })
     await page.getByLabel('Registered model', { exact: true }).selectOption(provider)
-    await page.getByRole('button', { name: 'Create profile', exact: true }).click()
+    const start = Date.now()
+    await operation(provider === 'siglip2' ? 'Enable AI' : 'Apply model')
     await expect
-      .poll(
-        async () =>
-          (await api('/admin/ai/profiles')).profiles.find(
-            (p: { provider: string }) => p.provider === provider,
-          )?.indexStatus,
-        { timeout: 30000 },
-      )
+      .poll(async () => (await api('/admin/ai/status')).startup.stage, {
+        timeout: 840000,
+        intervals: [1000, 2000],
+      })
       .toBe('ready')
+    const loadMs = Date.now() - start
     const profile = (await api('/admin/ai/profiles')).profiles.find(
       (p: { provider: string }) => p.provider === provider,
     )
     ids.push(profile.profileId)
-    await page.getByRole('button', { name: 'Refresh status', exact: true }).click()
-    await page
-      .getByLabel('Selected profile', { exact: true })
-      .selectOption(String(profile.profileId))
-    const loadMs = await operation('Load model')
-    if ((await api('/admin/ai/settings')).scheduler === 'stopped')
-      await operation('Start scheduler')
-    await expect(page.getByRole('button', { name: 'Activate profile', exact: true })).toBeEnabled({
-      timeout: 120000,
-    })
-    await operation('Activate profile')
+    await expect
+      .poll(async () => (await api('/admin/ai/status')).coverage.ready, { timeout: 120000 })
+      .toBe(4)
     const state = await api('/admin/ai/status')
     expect(state.services.runtime.observed.config).toMatchObject({
       device: 'cuda',
@@ -218,13 +199,16 @@ test('two real CUDA models through the browser, controls, switching and rollback
       firstPage.items[0].photo.photoId,
     )
     await page.goto('/thepersonincharge/ai')
-    await page
-      .getByLabel('Selected profile', { exact: true })
-      .selectOption(String(profile.profileId))
-    await operation('Restart model')
-    await operation('Pause scheduler')
+    await operation('Pause AI')
+    await expect.poll(async () => (await api('/admin/ai/status')).startup.stage).toBe('paused')
+    await operation('Enable AI')
+    await expect
+      .poll(async () => (await api('/admin/ai/status')).startup.stage, { timeout: 180000 })
+      .toBe('ready')
+    await operation('Pause Scheduler')
     await expect.poll(async () => (await api('/admin/ai/settings')).scheduler).toBe('paused')
-    await operation('Resume scheduler')
+    await operation('Enable Scheduler')
+    await page.getByText('Advanced settings', { exact: true }).click()
     await page.getByLabel('Minimum background interval (seconds)', { exact: true }).fill('3')
     await page.getByRole('button', { name: 'Save AI settings', exact: true }).click()
     await expect
@@ -240,14 +224,11 @@ test('two real CUDA models through the browser, controls, switching and rollback
       resources: state.services.runtime.observed.resources,
     })
   }
-  await operation('Enter maintenance', true)
-  await operation('Unload model')
-  await page.getByLabel('Selected profile', { exact: true }).selectOption(String(ids[0]))
-  await operation('Load model')
-  await expect(page.getByRole('button', { name: 'Activate profile', exact: true })).toBeEnabled({
-    timeout: 30000,
-  })
-  await operation('Activate profile')
+  await page.getByLabel('Registered model', { exact: true }).selectOption('siglip2')
+  await operation('Apply model')
+  await expect
+    .poll(async () => (await api('/admin/ai/status')).startup.stage, { timeout: 180000 })
+    .toBe('ready')
   expect((await api('/admin/ai/settings')).search_profile_id).toBe(ids[0])
   await page.reload()
   await expect(page.getByRole('heading', { name: 'AI Management', exact: true })).toBeVisible()

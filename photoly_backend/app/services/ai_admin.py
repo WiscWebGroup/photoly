@@ -13,7 +13,7 @@ from app.ai.limits import validate_limit_pairs, LIMIT_DEFAULTS, LIMIT_BOUNDS
 from app.scheduler.background_limits import status as background_limit_status
 from app.scheduler.job_repository import usage
 
-COMMANDS = {"model.load", "model.unload", "model.restart", "scheduler.start", "scheduler.pause", "scheduler.resume", "scheduler.stop",
+COMMANDS = {"ai.enable", "ai.pause", "model.load", "model.unload", "model.restart", "scheduler.start", "scheduler.pause", "scheduler.resume", "scheduler.stop",
             "maintenance.enter", "maintenance.exit", "backfill", "retry_failed", "rebuild", "activate", "purge"}
 
 
@@ -59,6 +59,16 @@ class AIAdmin:
             raise AIError("generation_conflict",409)
         current = settings(self.session)
         proposed = {**current, **changes}
+        if "ram_max_percent" in changes:
+            proposed["ram_policy"] = "percent"
+        elif any(key in changes for key in ("memory_pause_free_mib", "memory_resume_free_mib")):
+            proposed["ram_policy"] = "free"
+        for resource in ("cpu", "gpu"):
+            pause, resume = f"{resource}_pause_percent", f"{resource}_resume_percent"
+            if pause in changes and resume not in changes:
+                if changes[pause] < 11:
+                    raise AIError("invalid_resource_limits")
+                proposed[resume] = changes[pause] - 10
         validate_limit_pairs(proposed)
         if current["runtime"] == "loaded" and current["cpu_threads"] != proposed["cpu_threads"]:
             raise AIError("unload_before_thread_change",409)
@@ -66,6 +76,16 @@ class AIAdmin:
             raise AIError("unsupported_device_precision")
         if proposed["runtime"] == "loaded" and any(k in changes for k in ("device","precision")):
             raise AIError("unload_before_device_change",409)
+        if current["managed_lifecycle"] and "enabled" in changes and changes["enabled"] != current["enabled"]:
+            proposed["lifecycle_id"] = row.generation + 1
+            proposed["runtime"] = "loaded" if proposed["enabled"] else "unloaded"
+            if proposed["enabled"]:
+                proposed["loaded_profile_id"] = current["building_profile_id"] or current["search_profile_id"]
+                if not proposed["loaded_profile_id"]:
+                    proposed["loaded_profile_id"] = self.create_profile("siglip2")["profileId"]
+                    proposed["building_profile_id"] = proposed["loaded_profile_id"]
+            else:
+                proposed["loaded_profile_id"] = None
         row.desired, row.generation = proposed, row.generation+1
         return {"generation":row.generation, **proposed}
 
@@ -79,7 +99,7 @@ class AIAdmin:
             fields[key] = {"default":value,"minimum":LIMIT_BOUNDS[key][0],"maximum":LIMIT_BOUNDS[key][1],
                 "unit":"MiB" if key.endswith("_mib") else "%" if key.endswith("_percent") else "seconds" if key.endswith("_seconds") else "count",
                 "apply":"model_reload" if key=="cpu_threads" else "next_cycle", "pairedWith":pair,
-                "relation":("less" if "resume" in key else "greater") if key.endswith("_percent") else ("greater" if "resume" in key else "less") if pair else None}
+                "relation":("less" if "resume" in key else "greater") if pair and key.endswith("_percent") else ("greater" if "resume" in key else "less") if pair else None}
         fields["quota_bytes"] = {"default":10*1024**3,"minimum":1024**2,"maximum":100*1024**4,"unit":"bytes","apply":"next_cycle","pairedWith":None,"relation":None}
         fields["similarity_threshold"] = {"default":None,"minimum":-1,"maximum":1,"unit":"cosine similarity","apply":"next_query","pairedWith":None,"relation":None}
         devices = observed.get("devices", device_status(reason="runtime_offline" if not fresh else "unknown"))
@@ -160,7 +180,31 @@ class AIAdmin:
                 raise AIError("maintenance_required",409)
         if command=="rebuild" and not cfg["maintenance"]:
             raise AIError("maintenance_required",409)
-        if command.startswith("scheduler."):
+        if command.startswith("model.") or command in ("activate", "maintenance.enter"):
+            cfg["managed_lifecycle"] = False
+        if command == "ai.enable":
+            provider = data.get("provider")
+            if provider is not None:
+                pid = self.create_profile(provider)["profileId"]
+            else:
+                pid = pid or cfg["loaded_profile_id"] or cfg["building_profile_id"] or cfg["search_profile_id"]
+                if pid is None:
+                    pid = self.create_profile("siglip2")["profileId"]
+            # Explicit retry also repairs a failed index-preparation job.
+            self.session.execute(update(AIJob).where(AIJob.kind == "index", AIJob.profile_id == pid,
+                AIJob.status.in_(["failed", "cancelled"]))
+                .values(status="queued", attempts=0, finished_at=None, next_run_at=utcnow(), result={}))
+            if not cfg["ai_initialized"]:
+                cfg["scheduler"] = "running"
+            cfg.update(enabled=True, ai_initialized=True, managed_lifecycle=True,
+                       lifecycle_id=row.generation+1, runtime="loaded", loaded_profile_id=pid,
+                       building_profile_id=pid if pid != cfg["search_profile_id"] else None,
+                       maintenance=pid != cfg["search_profile_id"])
+        elif command == "ai.pause":
+            cfg.update(enabled=False, managed_lifecycle=True, lifecycle_id=row.generation+1,
+                       runtime="unloaded", loaded_profile_id=None)
+        elif command.startswith("scheduler."):
+            cfg["ai_initialized"] = True
             cfg["scheduler"] = {"start":"running","resume":"running","pause":"paused","stop":"stopped"}[command.split(".")[1]]
         elif command=="maintenance.enter":
             cfg["maintenance"] = True
@@ -183,7 +227,11 @@ class AIAdmin:
             raise AIError("profile_in_use",409)
         row.generation += 1
         row.desired = cfg
-        job = AIJob(kind="operation", profile_id=pid, dedup_key=dedup, payload={"command":command,"generation":row.generation,
+        if command.startswith("ai."):
+            self.session.execute(update(AIJob).where(AIJob.kind == "operation", AIJob.status.in_(["queued", "running"]),
+                AIJob.payload["command"].as_string().in_(["ai.enable", "ai.pause"]))
+                .values(status="cancelled", finished_at=utcnow(), result={"reason":"superseded"}))
+        job = AIJob(kind="operation", priority=100 if command == "ai.pause" else 0, profile_id=pid, dedup_key=dedup, payload={"command":command,"generation":row.generation,
                     "actor":user_id,"request_hash":request_hash,"cursor":0})
         self.session.add(job)
         self.session.flush()
@@ -199,7 +247,31 @@ class AIAdmin:
             services[name] = {"online":fresh and row.observed.get("state") not in ("offline","unknown"),"heartbeatAt":row.heartbeat_at.isoformat() if row and row.heartbeat_at else None,
                               "observed":row.observed if fresh else {"state":"offline"}}
         cfg = self.get_settings()
-        return {"settings":cfg,"services":services,"quota":usage(self.session),"backgroundLimits":background_limit_status(self.session,cfg),
+        observed = services["runtime"]["observed"]
+        same_load = observed.get("generation") == cfg["lifecycle_id"]
+        stage = observed.get("state", "unknown")
+        if cfg["managed_lifecycle"]:
+            if not same_load:
+                stage = "preparing" if cfg["enabled"] else "pausing"
+            elif not cfg["enabled"] and stage == "unloaded":
+                stage = "paused"
+            elif stage == "ready" and cfg["building_profile_id"]:
+                stage = "preparing_index"
+        elif not cfg["enabled"]:
+            stage = "paused"
+        progress = observed.get("progress") if same_load else None
+        index_job = self.session.scalar(select(AIJob).where(AIJob.kind == "index", AIJob.profile_id == cfg["building_profile_id"])) if cfg["building_profile_id"] else None
+        index_reason = index_job.result.get("reason") if index_job else None
+        if cfg["enabled"] and index_job and index_job.status == "failed":
+            stage = "failed"
+        startup = {"stage":stage, "lifecycleId":cfg["lifecycle_id"],
+                   "completed":progress.get("completed") if progress else None,
+                   "total":progress.get("total") if progress else None,
+                   "unit":progress.get("unit") if progress else None,
+                   "updatedAt":progress.get("updatedAt") if progress else None,
+                   "reason":index_reason or (observed.get("reason") if same_load else None),
+                   "online":services["runtime"]["online"]}
+        return {"startup":startup, "settings":cfg,"services":services,"quota":usage(self.session),"backgroundLimits":background_limit_status(self.session,cfg),
                 "jobs":dict(self.session.execute(select(AIJob.status,func.count()).group_by(AIJob.status)).all()),
                 "coverage":coverage(self.session,cfg["search_profile_id"]),
                 "buildingCoverage":coverage(self.session,cfg["building_profile_id"]) if cfg["building_profile_id"] else None,

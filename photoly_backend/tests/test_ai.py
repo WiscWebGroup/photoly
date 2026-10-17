@@ -34,7 +34,7 @@ class FakeRuntime:
         self.after_encode=None
     def status(self):
         return {"state":self.state,"fingerprint":self.spec["fingerprint"] if self.spec else None,"generation":self.generation,
-            "resources":{"sampled_at":utcnow().isoformat(),"cpu_percent":1,"memory_available":8*1024**3,"disk_free":20*1024**3,"gpu_percent":0,"vram_available":8*1024**3}}
+            "resources":{"sampled_at":utcnow().isoformat(),"cpu_percent":1,"memory_total":16*1024**3,"memory_available":8*1024**3,"disk_free":20*1024**3,"gpu_percent":0,"vram_available":8*1024**3}}
     def control(self,command,profile,config,generation,operation_id):
         self.state="unloaded" if command=="unload" else "ready"
         self.spec,self.generation=profile,generation
