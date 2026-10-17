@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 
+import { vCollapse } from '@/lib/collapse'
 const props = defineProps<{ photoId: number }>()
 interface OCRResult {
   photoId: number
@@ -155,8 +156,12 @@ defineExpose({ requestLeave, reset })
 </script>
 
 <template>
-  <details class="rounded-md border" @toggle="opened">
-    <summary class="cursor-pointer px-3 py-2 font-medium">Extract Text</summary>
+  <details v-collapse class="group rounded-lg border bg-card" @toggle="opened">
+    <summary
+      class="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden after:text-muted-foreground after:transition-transform after:content-['›'] group-open:after:rotate-90"
+    >
+      Extract Text
+    </summary>
     <div class="space-y-3 border-t p-3 text-sm" :aria-busy="busy">
       <p class="text-muted-foreground">
         Recognize Simplified Chinese, Traditional Chinese, English and Japanese. Animated and

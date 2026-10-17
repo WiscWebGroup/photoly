@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Info,
   Pencil,
+  Plus,
   Share2,
   Sparkles,
   X,
@@ -25,16 +26,10 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import type { Photo } from '@/composables/usePhotos'
+import { vCollapse } from '@/lib/collapse'
 import { download } from '@/lib/download'
 import { isEditable } from '@/lib/imageEdit'
 import { call } from '@/lib/http'
@@ -205,9 +200,16 @@ const tags = ref<{ tag_id: number; tag_name: string; smart?: SmartSource | null 
 const galleries = ref<{ ga_id: number; ga_name: string; smart?: SmartSource | null }[]>([])
 const tagOptions = ref<Tag[]>([])
 const galleryOptions = ref<Gallery[]>([])
-const tagChoice = ref('')
-const galleryChoice = ref('')
-const newName = ref('')
+const newTag = ref('')
+const newGallery = ref('')
+const tagOpen = ref(false)
+const galleryOpen = ref(false)
+const freeTags = computed(() =>
+  tagOptions.value.filter((o) => !tags.value.some((t) => t.tag_id === o.tagId)),
+)
+const freeGalleries = computed(() =>
+  galleryOptions.value.filter((o) => !galleries.value.some((g) => g.ga_id === o.gaId)),
+)
 const loaded = ref(false)
 const editing = ref(false)
 /** Hidden by default and again for every photo; kept mounted (v-show) so a text draft survives toggling. */
@@ -457,6 +459,28 @@ function startResize(e: PointerEvent) {
 watch(currentPhoto, () => (mediaWidth.value = null))
 
 watch(showDetails, (v) => v && (paneOpen.value = true))
+/** On phones the open details take the whole screen; FLIP the dialog between its two sizes. */
+const fullscreen = computed(() => showDetails.value && !canResize.value && !editing.value)
+watch(
+  fullscreen,
+  async () => {
+    const content = viewerBody.value?.closest<HTMLElement>('[data-slot=dialog-content]')
+    if (!content) return
+    const from = content.getBoundingClientRect()
+    await nextTick()
+    const to = content.getBoundingClientRect()
+    if (reducedMotion() || !from.width || !to.width) return
+    content.style.maxWidth = content.style.maxHeight = 'none'
+    await animate(
+      content,
+      { width: [from.width, to.width], height: [from.height, to.height] },
+      { duration: 0.4, ease: EASE.p3InOut },
+    ).finished
+    for (const prop of ['width', 'height', 'maxWidth', 'maxHeight'])
+      content.style.removeProperty(prop)
+  },
+  { flush: 'sync' },
+)
 let paneAnims: AnimationPlaybackControls[] = []
 function paneTween(el: Element, show: boolean, done: () => void) {
   paneAnims.forEach((a) => a.stop()) // a quick re-toggle must not fight the previous tween
@@ -575,7 +599,6 @@ watch(
         scrollRoot.value?.scrollTo({ top: restoreScroll ?? 0, behavior: 'instant' })
     })
     info.value = { ...photo }
-    newName.value = photo.photoName
     loaded.value = false
     editing.value = false
     version.value = 0
@@ -597,7 +620,7 @@ watch(
         .catch(() => {
           if (seq === metadataSequence) currentPath.value = 'Unavailable'
         })
-    tagChoice.value = galleryChoice.value = ''
+    tagOpen.value = galleryOpen.value = false
     void Promise.allSettled([loadTags(), loadGalleries(), loadExif()]).then(() => {
       if (seq === metadataSequence) {
         metadataLoaded = true
@@ -672,17 +695,48 @@ async function run(
   }
 }
 
-const addTag = () =>
+const addTag = (tagId: number) =>
   run(
     call({
       method: 'post',
       url: '/photo/addTags',
-      params: { ...params.value, tagIds: tagChoice.value },
+      params: { ...params.value, tagIds: tagId },
     }),
     'added to tag!',
     'add tag Response Error!',
-    () => ((tagChoice.value = ''), loadTags()),
+    () => ((tagOpen.value = false), loadTags()),
   )
+/** Create a tag, then attach it (the insert response carries no id, so look it up by name). */
+async function createTag() {
+  const tagName = newTag.value.trim()
+  if (!tagName) return
+  try {
+    await call({ method: 'post', url: '/tag/insert', data: { tagName } })
+    await loadTagOptions()
+    const created = tagOptions.value.find((t) => t.tagName === tagName)
+    newTag.value = ''
+    if (created) await addTag(created.tagId)
+  } catch {
+    toast.error('create tag Response Error!')
+  }
+}
+async function createGallery() {
+  const gaName = newGallery.value.trim()
+  if (!gaName) return
+  try {
+    await call({
+      method: 'post',
+      url: '/gallery/insert',
+      data: { gaName, coverId: 0, coverColor: '#000000' },
+    })
+    await loadGalleryOptions()
+    const created = galleryOptions.value.find((g) => g.gaName === gaName)
+    newGallery.value = ''
+    if (created) await addGallery(created.gaId)
+  } catch {
+    toast.error('create gallery Response Error!')
+  }
+}
 const removeTag = (tagId: number) =>
   run(
     call({ method: 'post', url: '/photo/deleteTag', params: { ...params.value, tagId } }),
@@ -690,16 +744,16 @@ const removeTag = (tagId: number) =>
     'remove tag Response Error!',
     loadTags,
   )
-const addGallery = () =>
+const addGallery = (gaId: number) =>
   run(
     call({
       method: 'post',
       url: '/photo/addToGallery',
-      params: { ...params.value, gaId: galleryChoice.value },
+      params: { ...params.value, gaId },
     }),
     'added to gallery!',
     'add gallery Response Error!',
-    () => ((galleryChoice.value = ''), loadGalleries()),
+    () => ((galleryOpen.value = false), loadGalleries()),
   )
 const removeGallery = (gaId: number) =>
   run(
@@ -723,21 +777,9 @@ function changeVisibility(on: boolean) {
   )
 }
 
-function changeName() {
-  if (!newName.value) return toast.warning('Image name cannot be empty!')
-  return run(
-    call({
-      method: 'post',
-      url: '/photo/update',
-      data: { photoId: info.value!.photoId, photoName: newName.value },
-    }),
-    'Photo name changed!',
-    'change name Response Error!',
-    () => (
-      (info.value!.photoName = newName.value),
-      emit('changed', { type: 'metadata', photo: info.value! })
-    ),
-  )
+function renamed(name: string) {
+  info.value!.photoName = name
+  emit('changed', { type: 'metadata', photo: info.value! })
 }
 
 async function copyShareAddr() {
@@ -770,6 +812,8 @@ const label = 'text-xs font-medium text-muted-foreground'
       :style="dialogStyle"
       :class="[
         'max-h-[95dvh] w-full overflow-hidden p-0',
+        fullscreen &&
+          'max-md:!h-dvh max-md:!max-h-dvh max-md:!w-screen max-md:!max-w-none max-md:!rounded-none max-md:!border-0',
         landscape || editing ? 'sm:max-w-4xl' : 'sm:w-fit sm:max-w-[calc(100%-2rem)]',
       ]"
     >
@@ -782,7 +826,8 @@ const label = 'text-xs font-medium text-muted-foreground'
         data-testid="photo-viewer-scroll"
         tabindex="-1"
         :class="[
-          'max-h-[95dvh] min-h-0 overflow-y-auto overscroll-contain outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          fullscreen ? 'max-h-dvh' : 'max-h-[95dvh]',
+          'min-h-0 overflow-y-auto overscroll-contain outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
           recommendations?.expanded && 'pb-20',
         ]"
       >
@@ -792,14 +837,14 @@ const label = 'text-xs font-medium text-muted-foreground'
           >
         </div>
         <div v-if="editing" class="p-6">
-          <ImageEditor :photo="info" @cancel="editing = false" @saved="edited" />
+          <ImageEditor :photo="info" @cancel="editing = false" @saved="edited" @renamed="renamed" />
         </div>
         <div v-else :class="!landscape && paneOpen ? 'grid md:grid-cols-[auto_auto]' : ''">
           <!-- Portrait media stays in view while the details scroll. -->
           <div
             :class="[
               'relative flex items-center justify-center',
-              landscape ? 'min-h-48 bg-muted' : '',
+              landscape ? 'min-h-48 md:bg-muted' : '',
             ]"
           >
             <Button
@@ -837,8 +882,8 @@ const label = 'text-xs font-medium text-muted-foreground'
                 :src="imageUrl"
                 :alt="info.photoName"
                 :class="[
-                  'max-w-full object-contain',
-                  landscape ? 'max-h-[62dvh]' : 'max-h-[60vh] md:max-h-[90dvh] md:max-w-[34rem]',
+                  'h-auto w-full object-contain md:w-auto md:max-w-full',
+                  landscape ? 'md:max-h-[62dvh]' : 'md:max-h-[90dvh] md:max-w-[34rem]',
                 ]"
                 :style="mediaStyle"
                 @load="imageLoaded"
@@ -851,7 +896,7 @@ const label = 'text-xs font-medium text-muted-foreground'
               :style="mediaStyle"
               :class="[
                 'w-full',
-                landscape ? 'max-h-[62dvh]' : 'max-h-[60vh] md:max-h-[90dvh] md:max-w-[34rem]',
+                landscape ? 'md:max-h-[62dvh]' : 'md:max-h-[90dvh] md:max-w-[34rem]',
               ]"
               @loadedmetadata="
                 (e) => {
@@ -939,10 +984,27 @@ const label = 'text-xs font-medium text-muted-foreground'
                         ></PopoverTrigger
                       >
                       <PopoverContent class="w-56 space-y-3">
-                        <Button variant="outline" size="sm" class="w-full" @click="copyShareAddr"
-                          ><Copy aria-hidden="true" /> Copy link</Button
-                        >
-                        <img :src="qrUrl" alt="QR code" class="mx-auto w-40" />
+                        <label class="flex items-center justify-between gap-3 text-sm">
+                          <span>
+                            <span class="block font-medium">Shared</span>
+                            <span class="block text-xs text-muted-foreground">{{
+                              info.visibility === 0
+                                ? 'Only you can see this'
+                                : 'Anyone with the link can see this'
+                            }}</span>
+                          </span>
+                          <Switch
+                            aria-label="Visibility"
+                            :model-value="info.visibility === 1"
+                            @update:model-value="changeVisibility"
+                          />
+                        </label>
+                        <template v-if="info.visibility === 1">
+                          <Button variant="outline" size="sm" class="w-full" @click="copyShareAddr"
+                            ><Copy aria-hidden="true" /> Copy link</Button
+                          >
+                          <img :src="qrUrl" alt="QR code" class="mx-auto w-40" />
+                        </template>
                       </PopoverContent>
                     </Popover>
                     <Button
@@ -964,24 +1026,6 @@ const label = 'text-xs font-medium text-muted-foreground'
                       : 'space-y-4'
                   "
                 >
-                  <label
-                    class="flex items-center justify-between gap-3 rounded-lg border bg-card px-3 py-2.5 text-sm"
-                  >
-                    <span>
-                      <span class="block font-medium">Shared</span>
-                      <span class="block text-xs text-muted-foreground">{{
-                        info.visibility === 0
-                          ? 'Only you can see this'
-                          : 'Anyone with the link can see this'
-                      }}</span>
-                    </span>
-                    <Switch
-                      aria-label="Visibility"
-                      :model-value="info.visibility === 1"
-                      @update:model-value="changeVisibility"
-                    />
-                  </label>
-
                   <PhotoText
                     v-if="kind === 'photo'"
                     :key="`${info.photoId}:${version}`"
@@ -989,7 +1033,7 @@ const label = 'text-xs font-medium text-muted-foreground'
                     :photo-id="info.photoId"
                   />
 
-                  <details open :class="section">
+                  <details v-collapse open :class="section">
                     <summary :class="summary">Tags and galleries</summary>
                     <div :class="body">
                       <div class="space-y-2">
@@ -1011,23 +1055,48 @@ const label = 'text-xs font-medium text-muted-foreground'
                             </button>
                           </Badge>
                           <span v-if="!tags.length" class="text-muted-foreground">No tags yet</span>
-                        </div>
-                        <div class="flex gap-2">
-                          <!-- Options load on first open so the viewer doesn't fetch every tag up front. -->
-                          <Select v-model="tagChoice" @update:open="(o) => o && loadTagOptions()">
-                            <SelectTrigger class="flex-1" aria-label="Tag"
-                              ><SelectValue placeholder="Add a tag"
-                            /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem
-                                v-for="t in tagOptions"
-                                :key="t.tagId"
-                                :value="String(t.tagId)"
-                                >{{ t.tagName }} <SmartBadge :smart="t.smart"
-                              /></SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button size="sm" :disabled="!tagChoice" @click="addTag">Add</Button>
+                          <!-- Options load on first open so the viewer doesn't fetch everything up front. -->
+                          <Popover
+                            v-model:open="tagOpen"
+                            @update:open="(o) => o && loadTagOptions()"
+                          >
+                            <PopoverTrigger as-child
+                              ><button
+                                type="button"
+                                class="inline-flex size-6 items-center justify-center rounded-full border border-dashed text-muted-foreground hover:bg-accent"
+                                aria-label="Add tag"
+                              >
+                                <Plus class="size-3.5" /></button
+                            ></PopoverTrigger>
+                            <PopoverContent class="max-h-60 w-56 overflow-y-auto p-1">
+                              <form class="flex gap-1 p-1" @submit.prevent="createTag">
+                                <Input
+                                  v-model="newTag"
+                                  class="h-8"
+                                  placeholder="New tag"
+                                  aria-label="New tag"
+                                />
+                                <Button type="submit" size="sm" :disabled="!newTag.trim()"
+                                  >Add</Button
+                                >
+                              </form>
+                              <button
+                                v-for="o in freeTags"
+                                :key="o.tagId"
+                                type="button"
+                                class="flex w-full items-center gap-1 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                                @click="addTag(o.tagId)"
+                              >
+                                {{ o.tagName }} <SmartBadge :smart="o.smart" />
+                              </button>
+                              <p
+                                v-if="!freeTags.length"
+                                class="px-2 py-1.5 text-sm text-muted-foreground"
+                              >
+                                No more tags
+                              </p>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
                       <div class="space-y-2">
@@ -1051,33 +1120,54 @@ const label = 'text-xs font-medium text-muted-foreground'
                           <span v-if="!galleries.length" class="text-muted-foreground"
                             >Not in a gallery</span
                           >
-                        </div>
-                        <div class="flex gap-2">
-                          <Select
-                            v-model="galleryChoice"
+                          <!-- Options load on first open so the viewer doesn't fetch everything up front. -->
+                          <Popover
+                            v-model:open="galleryOpen"
                             @update:open="(o) => o && loadGalleryOptions()"
                           >
-                            <SelectTrigger class="flex-1" aria-label="Gallery"
-                              ><SelectValue placeholder="Add to a gallery"
-                            /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem
-                                v-for="g in galleryOptions"
-                                :key="g.gaId"
-                                :value="String(g.gaId)"
-                                >{{ g.gaName }} <SmartBadge :smart="g.smart"
-                              /></SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button size="sm" :disabled="!galleryChoice" @click="addGallery"
-                            >Add</Button
-                          >
+                            <PopoverTrigger as-child
+                              ><button
+                                type="button"
+                                class="inline-flex size-6 items-center justify-center rounded-full border border-dashed text-muted-foreground hover:bg-accent"
+                                aria-label="Add gallery"
+                              >
+                                <Plus class="size-3.5" /></button
+                            ></PopoverTrigger>
+                            <PopoverContent class="max-h-60 w-56 overflow-y-auto p-1">
+                              <form class="flex gap-1 p-1" @submit.prevent="createGallery">
+                                <Input
+                                  v-model="newGallery"
+                                  class="h-8"
+                                  placeholder="New gallery"
+                                  aria-label="New gallery"
+                                />
+                                <Button type="submit" size="sm" :disabled="!newGallery.trim()"
+                                  >Add</Button
+                                >
+                              </form>
+                              <button
+                                v-for="o in freeGalleries"
+                                :key="o.gaId"
+                                type="button"
+                                class="flex w-full items-center gap-1 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                                @click="addGallery(o.gaId)"
+                              >
+                                {{ o.gaName }} <SmartBadge :smart="o.smart" />
+                              </button>
+                              <p
+                                v-if="!freeGalleries.length"
+                                class="px-2 py-1.5 text-sm text-muted-foreground"
+                              >
+                                No more galleries
+                              </p>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
                     </div>
                   </details>
 
-                  <details v-if="hasGps" :class="section">
+                  <details v-if="hasGps" v-collapse :class="section">
                     <summary :class="summary">Location</summary>
                     <div :class="body">
                       <LocationMap
@@ -1096,7 +1186,7 @@ const label = 'text-xs font-medium text-muted-foreground'
                     </div>
                   </details>
 
-                  <details :class="section">
+                  <details v-collapse :class="section">
                     <summary :class="summary">Camera and EXIF</summary>
                     <dl :class="[body, 'grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5']">
                       <template v-if="exif.Time"
@@ -1106,7 +1196,8 @@ const label = 'text-xs font-medium text-muted-foreground'
                       <template v-if="exif.Image_Height && exif.Image_Width"
                         ><dt :class="label">Dimensions</dt>
                         <dd>
-                          {{ exif.Image_Width }} × {{ exif.Image_Height.split(' ')[0] }}
+                          {{ exif.Image_Width.split(' ')[0] }} ×
+                          {{ exif.Image_Height.split(' ')[0] }}
                         </dd></template
                       >
                       <template v-if="exif.Model"
@@ -1146,15 +1237,7 @@ const label = 'text-xs font-medium text-muted-foreground'
                     </dl>
                   </details>
 
-                  <details :class="section">
-                    <summary :class="summary">Rename</summary>
-                    <div :class="[body, 'flex gap-2']">
-                      <Input v-model="newName" placeholder="New Name" @keyup.enter="changeName" />
-                      <Button size="sm" @click="changeName">Update</Button>
-                    </div>
-                  </details>
-
-                  <details :class="section">
+                  <details v-collapse :class="section">
                     <summary :class="summary">Technical IDs</summary>
                     <dl :class="[body, 'space-y-1']">
                       <dt :class="label">Token</dt>

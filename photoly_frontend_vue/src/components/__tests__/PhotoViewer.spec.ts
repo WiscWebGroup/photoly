@@ -31,33 +31,11 @@ describe('PhotoViewer', () => {
     )
   })
 
-  it('renames the photo, shows the new name and tells the parent', async () => {
-    const calls = recordRequests()
-    const wrapper = await openViewer()
-    type(input('New Name'), 'sunset')
-    button('Update').click()
-
-    await vi.waitFor(() => expect(pageText()).toContain('sunset.jpg'))
-    expect(calls.find((c) => c.path === '/photo/update')?.body).toEqual({
-      photoId: 10,
-      photoName: 'sunset',
-    })
-    expect(wrapper.emitted('changed')).toHaveLength(1)
-  })
-
-  it('rejects an empty name without calling the API', async () => {
-    const calls = recordRequests()
-    await openViewer()
-    type(input('New Name'), '')
-    button('Update').click()
-
-    await vi.waitFor(() => expect(pageText()).toContain('Image name cannot be empty!'))
-    expect(calls.map((c) => c.path)).not.toContain('/photo/update')
-  })
-
   it('toggles visibility', async () => {
     const calls = recordRequests()
     await openViewer()
+    button('Share').click()
+    await vi.waitFor(() => document.querySelector('[aria-label=Visibility]')!)
     document.querySelector<HTMLElement>('[aria-label=Visibility]')!.click()
 
     await vi.waitFor(() => expect(pageText()).toContain('Anyone with the link can see this'))
@@ -104,6 +82,30 @@ describe('PhotoViewer', () => {
     }
     const bodyOf = (calls: ReturnType<typeof recordRequests>, path: string) =>
       String(calls.find((c) => c.path === path)?.body)
+
+    it('renames the photo, shows the new name and tells the parent', async () => {
+      const calls = recordRequests()
+      const wrapper = await openEditor()
+      type(input('New Name'), 'sunset')
+      button('Update').click()
+
+      await vi.waitFor(() => expect(pageText()).toContain('Photo name changed!'))
+      expect(calls.find((c) => c.path === '/photo/update')?.body).toEqual({
+        photoId: 10,
+        photoName: 'sunset',
+      })
+      expect(wrapper.emitted('changed')).toHaveLength(1)
+    })
+
+    it('rejects an empty name without calling the API', async () => {
+      const calls = recordRequests()
+      await openEditor()
+      type(input('New Name'), '')
+      button('Update').click()
+
+      await vi.waitFor(() => expect(pageText()).toContain('Image name cannot be empty!'))
+      expect(calls.map((c) => c.path)).not.toContain('/photo/update')
+    })
 
     it('only offers editing for formats the browser can re-encode', async () => {
       mountWithApp(PhotoViewer, { photo: { ...photo, format: 'gif' }, nsPath: '/root' })
