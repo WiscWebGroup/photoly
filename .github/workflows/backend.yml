@@ -4,11 +4,36 @@ on:
     branches: [main]
     paths: ['photoly_backend/**', 'database/postgres-init/**', 'compose.test.yml', 'compose.cpu.yml', 'compose.ai-real-test.yml', 'docker-compose.yml', '.gitattributes', '.github/workflows/backend.yml']
   pull_request:
-    paths: ['photoly_backend/**', 'database/postgres-init/**', 'compose.test.yml', 'compose.cpu.yml', 'compose.ai-real-test.yml', 'docker-compose.yml', '.gitattributes', '.github/workflows/backend.yml']
 permissions:
   contents: read
 jobs:
+  # Always runs on PRs (no `paths` filter) so required checks report; skipped jobs count as passing.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'photoly_backend/**'
+              - 'database/postgres-init/**'
+              - 'compose.test.yml'
+              - 'compose.cpu.yml'
+              - 'compose.ai-real-test.yml'
+              - 'docker-compose.yml'
+              - '.gitattributes'
+              - '.github/workflows/backend.yml'
+
   postgres:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     env:
       COMPOSE_PROJECT_NAME: photoly-ci-${{ github.run_id }}-${{ github.run_attempt }}
