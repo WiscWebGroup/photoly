@@ -83,7 +83,7 @@ function capture(): RecommendationSnapshot {
 function start() {
   if (!result.value && !busy.value) void load()
 }
-defineExpose({ capture, invalidate, collapse, start, expanded, allowed, unavailable })
+defineExpose({ capture, cancel, invalidate, collapse, start, expanded, allowed, unavailable })
 async function load(restart = false) {
   if (busy.value || !allowed.value || (!hasMore.value && !restart)) return
   if (restart) {

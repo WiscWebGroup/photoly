@@ -83,6 +83,7 @@ async function closeViewer() {
   closing = true
   try {
     if (!(await leaveText())) return
+    recommendations.value?.cancel() // a query landing mid-animation must not be retained
     await playClose()
     acceptedPhoto.value = null
     emit('close')

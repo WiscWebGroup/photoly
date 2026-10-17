@@ -179,7 +179,7 @@ test('closing during a query discards late results and reopening starts fresh', 
   await page.route(API + path, async (route) => {
     if (route.request().method() !== 'POST') return route.fallback()
     requests++
-    await new Promise((resolve) => setTimeout(resolve, 650))
+    await new Promise((resolve) => setTimeout(resolve, 200))
     await route
       .fulfill({
         headers: { 'access-control-allow-origin': '*' },
