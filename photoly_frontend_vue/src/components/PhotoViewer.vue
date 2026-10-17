@@ -137,14 +137,12 @@ function resumeRecommendations(photoId: number) {
   restoredRecommendations.value = valid ? cached.recommendations : undefined
   restoreScroll = valid ? cached.scroll : null
 }
-let scrollAnim: AnimationPlaybackControls | undefined
 function backToTop() {
   if (info.value) forgetRecommendations(info.value.photoId)
   restoredRecommendations.value = undefined
   restoreScroll = null
   recommendations.value?.collapse()
   scrollRoot.value?.focus({ preventScroll: true })
-  scrollAnim?.stop() // a "Find similar" scroll may still be running
   scrollRoot.value?.scrollTo({ top: 0, behavior: 'instant' })
 }
 onBeforeUnmount(invalidateHistory)
@@ -660,16 +658,10 @@ function imageLoaded(e: Event) {
 async function findSimilar() {
   recommendations.value?.start()
   await nextTick()
-  const root = scrollRoot.value
-  const target = recommendations.value?.$el as HTMLElement | undefined
-  if (!root || !target) return
-  const from = root.scrollTop
-  const to = from + target.getBoundingClientRect().top - root.getBoundingClientRect().top
-  scrollAnim?.stop()
-  scrollAnim = animate(from, to, {
-    duration: reducedMotion() ? 0 : 0.4,
-    ease: EASE.p3Out,
-    onUpdate: (v) => root.scrollTo({ top: v, behavior: 'instant' }),
+  // Phones jump: a smooth scroll still running would fight a quick back-to-top.
+  ;(recommendations.value?.$el as HTMLElement | undefined)?.scrollIntoView?.({
+    block: 'start',
+    behavior: canResize.value ? 'smooth' : 'instant',
   })
 }
 
