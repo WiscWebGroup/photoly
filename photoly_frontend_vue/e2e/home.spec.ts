@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { mockApi, ok, photo, PNG, signIn } from './mockApi'
+import { mockApi, ok, openDetails, photo, PNG, signIn } from './mockApi'
 
 // Confirmations are `alertdialog`s now (the correct role for "are you sure?").
 const dialog = (page: Page, title: string) =>
@@ -155,6 +155,8 @@ test('view photo details', async ({ page }) => {
   await page.getByText('beach.jpg').click()
 
   await expect(page.getByRole('heading', { name: 'beach.jpg' })).toBeVisible()
-  await expect(page.getByText('Size: 2 MB')).toBeVisible()
-  await expect(page.getByText('Path: /root')).toBeVisible()
+  // Details are collapsed until the Details button is pressed.
+  await openDetails(page)
+  await expect(page.getByText(/Uploaded .*2 MB/)).toBeVisible()
+  await expect(page.getByText('/root', { exact: true })).toBeVisible()
 })

@@ -1,4 +1,4 @@
-import type { Page, Request } from '@playwright/test'
+import { expect, type Page, type Request } from '@playwright/test'
 import { capabilitiesFixture } from '../src/test/aiFixtures'
 
 // Must match VITE_APP_BASE_URL in .env (the dev server Playwright starts).
@@ -104,3 +104,16 @@ export const photo = (photoId: number, photoName: string, extra: object = {}) =>
   visibility: 0,
   ...extra,
 })
+
+/**
+ * The viewer's details pane is collapsed on open (and again after each photo change). Open it,
+ * retrying until it shows: under load the first click can land while the viewer is animating in.
+ */
+export const openDetails = (page: Page) =>
+  expect(async () => {
+    const details = page.getByRole('button', { name: 'Details', exact: true })
+    if (await details.count()) await details.click()
+    await expect(page.getByRole('button', { name: 'Hide details', exact: true })).toBeVisible({
+      timeout: 2000,
+    })
+  }).toPass()
