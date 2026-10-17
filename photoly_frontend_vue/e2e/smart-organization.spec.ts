@@ -77,6 +77,7 @@ test('smart tags, gallery details and viewer selectors have consistent badges', 
     '/tag/getAll': ok([
       { tagId: 1, tagName: 'iPhone 13', smart: camera },
       { tagId: 2, tagName: 'iPhone 13', smart: null },
+      { tagId: 3, tagName: 'iPhone 13 Pro', smart: camera },
     ]),
     '/gallery/getAll': ok([
       {
@@ -108,8 +109,8 @@ test('smart tags, gallery details and viewer selectors have consistent badges', 
   await openDetails(page)
   // "Tags and galleries" is open by default in the details pane.
   await expect(dialog.getByText(/Smart.*Camera/)).toBeVisible()
-  await dialog.getByRole('combobox', { name: 'Tag', exact: true }).click()
-  await expect(page.getByRole('option', { name: /iPhone 13.*Smart/ })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Add tag' }).click()
+  await expect(page.getByRole('button', { name: /iPhone 13 Pro.*Smart/ })).toBeVisible()
   expect(
     calls
       .filter((c) =>
