@@ -542,7 +542,12 @@ async function upload() {
             class="flex items-center justify-between gap-2"
           >
             <span class="truncate">{{ f.name }}</span>
-            <button type="button" :aria-label="`Remove ${f.name}`" @click="files.splice(i, 1)">
+            <button
+              type="button"
+              class="text-muted-foreground hover:text-foreground rounded-sm transition-colors"
+              :aria-label="`Remove ${f.name}`"
+              @click="files.splice(i, 1)"
+            >
               <X class="size-4" />
             </button>
           </li>

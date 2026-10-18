@@ -1046,11 +1046,13 @@ const label = 'text-xs font-medium text-muted-foreground'
                             variant="secondary"
                             class="max-w-full gap-1"
                           >
-                            <span class="min-w-0 truncate" :title="t.tag_name">{{ t.tag_name }}</span>
+                            <span class="min-w-0 truncate" :title="t.tag_name">{{
+                              t.tag_name
+                            }}</span>
                             <SmartBadge :smart="t.smart" />
                             <button
                               type="button"
-                              class="shrink-0"
+                              class="shrink-0 rounded-full opacity-70 transition-opacity hover:opacity-100"
                               :aria-label="`Remove ${t.tag_name}`"
                               @click="removeTag(t.tag_id)"
                             >
@@ -1066,7 +1068,7 @@ const label = 'text-xs font-medium text-muted-foreground'
                             <PopoverTrigger as-child
                               ><button
                                 type="button"
-                                class="inline-flex size-6 items-center justify-center rounded-full border border-dashed text-muted-foreground hover:bg-accent"
+                                class="inline-flex size-6 items-center justify-center rounded-full border border-dashed text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                                 aria-label="Add tag"
                               >
                                 <Plus class="size-3.5" /></button
@@ -1087,7 +1089,7 @@ const label = 'text-xs font-medium text-muted-foreground'
                                 v-for="o in freeTags"
                                 :key="o.tagId"
                                 type="button"
-                                class="flex w-full items-center gap-1 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                                class="flex w-full items-center gap-1 rounded-sm px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
                                 @click="addTag(o.tagId)"
                               >
                                 {{ o.tagName }} <SmartBadge :smart="o.smart" />
@@ -1115,7 +1117,7 @@ const label = 'text-xs font-medium text-muted-foreground'
                             <SmartBadge :smart="g.smart" />
                             <button
                               type="button"
-                              class="shrink-0"
+                              class="shrink-0 rounded-full opacity-70 transition-opacity hover:opacity-100"
                               :aria-label="`Remove ${g.ga_name}`"
                               @click="removeGallery(g.ga_id)"
                             >
@@ -1133,7 +1135,7 @@ const label = 'text-xs font-medium text-muted-foreground'
                             <PopoverTrigger as-child
                               ><button
                                 type="button"
-                                class="inline-flex size-6 items-center justify-center rounded-full border border-dashed text-muted-foreground hover:bg-accent"
+                                class="inline-flex size-6 items-center justify-center rounded-full border border-dashed text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                                 aria-label="Add gallery"
                               >
                                 <Plus class="size-3.5" /></button
@@ -1154,7 +1156,7 @@ const label = 'text-xs font-medium text-muted-foreground'
                                 v-for="o in freeGalleries"
                                 :key="o.gaId"
                                 type="button"
-                                class="flex w-full items-center gap-1 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                                class="flex w-full items-center gap-1 rounded-sm px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
                                 @click="addGallery(o.gaId)"
                               >
                                 {{ o.gaName }} <SmartBadge :smart="o.smart" />

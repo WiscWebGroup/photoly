@@ -106,7 +106,7 @@ defineExpose({ openModal: () => (open.value = true) })
             :style="{ paddingLeft: `${depth * 1.25 + 0.5}rem` }"
             :class="
               cn(
-                'hover:bg-accent flex w-full items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-sm disabled:opacity-50',
+                'hover:bg-accent flex w-full transition-colors disabled:hover:bg-transparent items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-sm disabled:opacity-50',
                 n.id === selectedNsId && 'bg-accent text-accent-foreground',
               )
             "
