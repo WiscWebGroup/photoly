@@ -38,6 +38,23 @@ describe('TagPart', () => {
     expect(byText('Beach').getAttribute('aria-pressed')).toBe('false')
   })
 
+  it('deselects every tag at once', async () => {
+    mockTags()
+    mountWithApp(TagPart)
+    await vi.waitFor(() => byText('Sunset'))
+    expect(document.body.textContent).not.toContain('Deselect all')
+
+    byText('Sunset').click()
+    byText('Beach').click()
+    await vi.waitFor(() => byText('Deselect all (2)'))
+    byText('Deselect all (2)').click()
+    await flushPromises()
+
+    expect(byText('Sunset').getAttribute('aria-pressed')).toBe('false')
+    expect(byText('Beach').getAttribute('aria-pressed')).toBe('false')
+    expect(document.body.textContent).not.toContain('Deselect all')
+  })
+
   it('refuses to create an empty tag', async () => {
     const calls = recordRequests()
     mockTags()
