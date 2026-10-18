@@ -56,6 +56,7 @@ import {
 import type { Photo } from '@/composables/usePhotos'
 import { download } from '@/lib/download'
 import { call } from '@/lib/http'
+import { vCollapse } from '@/lib/collapse'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
 
@@ -214,8 +215,12 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
     <aside class="w-full shrink-0 space-y-3 md:w-64">
       <h2 class="text-2xl font-semibold">Galleries</h2>
 
-      <details class="rounded-lg border">
-        <summary class="cursor-pointer px-3 py-2 text-sm font-medium">Add New Gallery</summary>
+      <details v-collapse class="group rounded-lg border">
+        <summary
+          class="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-medium after:text-muted-foreground after:transition-transform after:content-['›'] group-open:after:rotate-90 [&::-webkit-details-marker]:hidden"
+        >
+          Add New Gallery
+        </summary>
         <div class="space-y-2 border-t p-3">
           <Input v-model="newName" placeholder="Gallery Name" @keyup.enter="createGallery" />
           <Select v-model="newCover">
@@ -236,8 +241,12 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
         </div>
       </details>
 
-      <details open class="rounded-lg border">
-        <summary class="cursor-pointer px-3 py-2 text-sm font-medium">Galleries</summary>
+      <details v-collapse open class="group rounded-lg border">
+        <summary
+          class="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-medium after:text-muted-foreground after:transition-transform after:content-['›'] group-open:after:rotate-90 [&::-webkit-details-marker]:hidden"
+        >
+          Galleries
+        </summary>
         <div class="flex flex-col gap-2 border-t p-3">
           <ContextMenu v-for="g in galleries" :key="g.gaId">
             <ContextMenuTrigger as-child>
@@ -262,7 +271,7 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
                   />
                 </span>
                 <SmartBadge :smart="g.smart" />
-                <SmartBasis v-if="selectedGaId === g.gaId" :smart="g.smart" />
+                <SmartBasis v-if="selectedGaId === g.gaId" class="animate-fade" :smart="g.smart" />
                 <span class="text-muted-foreground text-xs"
                   >Created: {{ g.createDate.split('T')[0] }}</span
                 >

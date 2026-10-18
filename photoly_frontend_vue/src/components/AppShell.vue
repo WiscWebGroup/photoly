@@ -29,7 +29,8 @@ async function logOut() {
   router.push('/')
 }
 
-const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors'
+const linkClass =
+  'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors'
 </script>
 
 <template>
@@ -44,7 +45,9 @@ const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-med
           v-for="item in nav"
           :key="item.part"
           :to="`/home/${item.part}`"
-          :class="cn(linkClass, 'text-muted-foreground hover:bg-accent hover:text-accent-foreground')"
+          :class="
+            cn(linkClass, 'text-muted-foreground hover:bg-accent hover:text-accent-foreground')
+          "
           active-class="!bg-accent !text-accent-foreground"
         >
           <component :is="item.icon" class="size-4" />
@@ -63,7 +66,9 @@ const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-med
     </aside>
 
     <!-- Mobile top bar -->
-    <header class="bg-card flex min-h-14 shrink-0 items-center gap-2 border-b px-4 pt-[env(safe-area-inset-top)] md:hidden">
+    <header
+      class="bg-card flex min-h-14 shrink-0 items-center gap-2 border-b px-4 pt-[env(safe-area-inset-top)] md:hidden"
+    >
       <img src="@/assets/photoly-wordmark.svg" alt="Photoly" class="h-7 invert dark:invert-0" />
       <span class="ml-auto"><ThemeToggle /></span>
       <Button variant="ghost" size="icon" aria-label="Logout" @click="logOut">
@@ -84,8 +89,8 @@ const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-med
         v-for="item in nav"
         :key="item.part"
         :to="`/home/${item.part}`"
-        class="text-muted-foreground flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px]"
-        active-class="!text-primary"
+        class="text-muted-foreground flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors [&>svg]:transition-transform"
+        active-class="!text-primary [&>svg]:scale-110"
       >
         <component :is="item.icon" class="size-5" />
         {{ item.label }}

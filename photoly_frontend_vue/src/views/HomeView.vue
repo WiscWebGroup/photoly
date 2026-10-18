@@ -21,7 +21,17 @@ const fullBleed = computed(() => ['ManagePart', 'MapPart'].includes(props.part))
 
 <template>
   <AppShell>
-    <component :is="current" v-if="current" :class="fullBleed ? '' : 'p-4 md:p-6'" />
-    <EmptyState v-else :icon="SearchX" title="Page not found" description="That section doesn't exist." />
+    <!-- Each part mounts fresh, so the entry animation replays on every switch. -->
+    <component
+      :is="current"
+      v-if="current"
+      :class="['animate-rise', fullBleed ? '' : 'p-4 md:p-6']"
+    />
+    <EmptyState
+      v-else
+      :icon="SearchX"
+      title="Page not found"
+      description="That section doesn't exist."
+    />
   </AppShell>
 </template>

@@ -21,9 +21,11 @@ const options = [
 <template>
   <DropdownMenu>
     <DropdownMenuTrigger as-child>
-      <Button variant="ghost" size="icon" aria-label="Change theme">
-        <Sun class="size-4 dark:hidden" />
-        <Moon class="hidden size-4 dark:block" />
+      <Button variant="ghost" size="icon" aria-label="Change theme" class="relative">
+        <Sun class="size-4 transition-transform duration-300 dark:scale-0 dark:-rotate-90" />
+        <Moon
+          class="absolute size-4 scale-0 rotate-90 transition-transform duration-300 dark:scale-100 dark:rotate-0"
+        />
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end">

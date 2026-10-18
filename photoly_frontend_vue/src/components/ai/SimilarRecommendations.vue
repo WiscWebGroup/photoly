@@ -228,7 +228,7 @@ onBeforeUnmount(() => {
   <section
     v-if="expanded"
     aria-label="Similar photos and videos"
-    class="mt-6 space-y-3 border-t pt-5"
+    class="animate-rise mt-6 space-y-3 border-t pt-5"
   >
     <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
       <h2 class="text-lg font-semibold">Similar photos and videos</h2>
@@ -247,7 +247,7 @@ onBeforeUnmount(() => {
       class="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6"
       aria-label="Similar photos and videos results"
     >
-      <li v-for="hit in result?.items ?? []" :key="hit.photo.photoId">
+      <li v-for="hit in result?.items ?? []" :key="hit.photo.photoId" class="animate-fade">
         <button
           type="button"
           class="group w-full overflow-hidden rounded-md border text-left transition-colors hover:border-primary/50 hover:bg-accent focus-visible:ring-2"
@@ -263,7 +263,7 @@ onBeforeUnmount(() => {
             :alt="hit.photo.photoName"
             loading="lazy"
             decoding="async"
-            class="aspect-square w-full object-cover transition-transform group-hover:scale-105"
+            class="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           <span class="block truncate px-2 py-1 text-xs"
             >{{ hit.photo.photoName }}.{{ hit.photo.format }}</span
