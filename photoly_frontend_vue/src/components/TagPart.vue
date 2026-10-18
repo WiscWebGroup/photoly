@@ -32,6 +32,7 @@ import {
 import { Input } from '@/components/ui/input'
 import type { Photo } from '@/composables/usePhotos'
 import { call } from '@/lib/http'
+import { vCollapse } from '@/lib/collapse'
 import { cn } from '@/lib/utils'
 
 interface Tag {
@@ -153,16 +154,24 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
     <aside class="w-full shrink-0 space-y-3 md:w-56">
       <h2 class="text-2xl font-semibold">Tags</h2>
 
-      <details class="rounded-lg border">
-        <summary class="cursor-pointer px-3 py-2 text-sm font-medium">Add New Tag</summary>
+      <details v-collapse class="group rounded-lg border">
+        <summary
+          class="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-medium after:text-muted-foreground after:transition-transform after:content-['›'] group-open:after:rotate-90 [&::-webkit-details-marker]:hidden"
+        >
+          Add New Tag
+        </summary>
         <div class="space-y-2 border-t p-3">
           <Input v-model="newTagName" placeholder="Tag Name" @keyup.enter="createTag" />
           <Button variant="secondary" class="w-full" @click="createTag">Add</Button>
         </div>
       </details>
 
-      <details open class="rounded-lg border">
-        <summary class="cursor-pointer px-3 py-2 text-sm font-medium">Tags</summary>
+      <details v-collapse open class="group rounded-lg border">
+        <summary
+          class="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-medium after:text-muted-foreground after:transition-transform after:content-['›'] group-open:after:rotate-90 [&::-webkit-details-marker]:hidden"
+        >
+          Tags
+        </summary>
         <div class="flex flex-wrap gap-2 border-t p-3 md:flex-col">
           <ContextMenu v-for="tag in tags" :key="tag.tagId">
             <ContextMenuTrigger as-child>
@@ -193,14 +202,16 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
           </ContextMenu>
         </div>
       </details>
-      <Button
-        v-if="selectedTagIds.length"
-        variant="outline"
-        size="sm"
-        class="w-full"
-        @click="(selectedTagIds = []), queryPhotos()"
-        >Deselect all ({{ selectedTagIds.length }})</Button
-      >
+      <Transition name="reveal">
+        <Button
+          v-if="selectedTagIds.length"
+          variant="outline"
+          size="sm"
+          class="w-full"
+          @click="((selectedTagIds = []), queryPhotos())"
+          >Deselect all ({{ selectedTagIds.length }})</Button
+        >
+      </Transition>
     </aside>
 
     <MediaList

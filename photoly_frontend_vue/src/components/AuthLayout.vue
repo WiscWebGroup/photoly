@@ -27,7 +27,9 @@ defineProps<{ title: string; warning?: string }>()
         @error="(e: Error) => console.warn('ShapeWaves unavailable:', e.message)"
       />
     </div>
-    <div class="bg-card/50 relative w-full max-w-sm space-y-4 rounded-xl border p-6 shadow-lg backdrop-blur">
+    <div
+      class="animate-rise bg-card/50 relative w-full max-w-sm space-y-4 rounded-xl border p-6 shadow-lg backdrop-blur"
+    >
       <h1 class="text-xl font-semibold">{{ title }}</h1>
       <p
         v-if="warning"

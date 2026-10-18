@@ -403,26 +403,28 @@ async function upload() {
                 ><FolderPlus /> New Folder</Button
               >
             </div>
-            <div v-if="selectMode" class="flex flex-wrap items-center gap-2">
-              <span class="text-muted-foreground mr-2 text-sm">{{ selectedCount }} selected</span>
-              <Button variant="outline" size="sm" @click="selectMode = false">Done</Button>
-              <Button variant="outline" size="sm" @click="clearSelection">Clear</Button>
-              <Button variant="outline" size="sm" @click="selectAll">Select All</Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                :disabled="!selectedCount"
-                @click="startMoveSelected"
-                >Move</Button
-              >
-              <Button
-                variant="destructive"
-                size="sm"
-                :disabled="!selectedCount"
-                @click="confirmDeleteSelected = true"
-                >Delete Selected</Button
-              >
-            </div>
+            <Transition name="reveal">
+              <div v-if="selectMode" class="flex flex-wrap items-center gap-2">
+                <span class="text-muted-foreground mr-2 text-sm">{{ selectedCount }} selected</span>
+                <Button variant="outline" size="sm" @click="selectMode = false">Done</Button>
+                <Button variant="outline" size="sm" @click="clearSelection">Clear</Button>
+                <Button variant="outline" size="sm" @click="selectAll">Select All</Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  :disabled="!selectedCount"
+                  @click="startMoveSelected"
+                  >Move</Button
+                >
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  :disabled="!selectedCount"
+                  @click="confirmDeleteSelected = true"
+                  >Delete Selected</Button
+                >
+              </div>
+            </Transition>
           </section>
           <section>
             <div class="mb-3 flex flex-wrap items-center gap-3">
@@ -443,7 +445,12 @@ async function upload() {
                   : 'grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
               "
             >
-              <li v-for="folder in folders.children.value" :key="folder.nsId">
+              <li
+                v-for="(folder, i) in folders.children.value"
+                :key="folder.nsId"
+                class="animate-rise"
+                :style="{ animationDelay: `${Math.min(i, 12) * 30}ms` }"
+              >
                 <ContextMenu>
                   <ContextMenuTrigger as-child>
                     <Button
@@ -465,7 +472,7 @@ async function upload() {
                       <span class="truncate" :title="folder.nsName">{{ folder.nsName }}</span>
                       <Checkbox
                         v-if="selectMode"
-                        class="ml-auto"
+                        class="animate-in fade-in zoom-in-75 ml-auto"
                         :aria-label="`Select ${folder.nsName}`"
                         :model-value="selected.includes(folder.nsId)"
                         @click.stop
@@ -521,7 +528,7 @@ async function upload() {
           >
         </DialogHeader>
         <label
-          class="hover:bg-accent flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-8 text-center"
+          class="hover:bg-accent hover:border-primary/50 flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-8 text-center transition-colors"
           @dragover.prevent
           @drop.prevent="addFiles($event.dataTransfer?.files ?? null)"
         >
@@ -552,7 +559,7 @@ async function upload() {
             </button>
           </li>
         </ul>
-        <div v-if="sending" class="space-y-1">
+        <div v-if="sending" class="animate-fade space-y-1">
           <Progress :model-value="progress" aria-label="Upload progress" />
           <p class="text-muted-foreground text-right text-xs">
             {{ progress < 100 ? `Uploading… ${progress}%` : 'Processing…' }}

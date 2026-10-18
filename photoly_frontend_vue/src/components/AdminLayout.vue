@@ -53,7 +53,7 @@ const idle = 'text-muted-foreground hover:bg-accent hover:text-accent-foreground
     </header>
 
     <main class="min-h-0 flex-1 overflow-auto">
-      <div class="mx-auto flex max-w-5xl flex-col gap-4 p-4 md:p-8">
+      <div class="animate-rise mx-auto flex max-w-5xl flex-col gap-4 p-4 md:p-8">
         <slot />
       </div>
     </main>
@@ -67,15 +67,15 @@ const idle = 'text-muted-foreground hover:bg-accent hover:text-accent-foreground
         v-for="item in nav"
         :key="item.to"
         :to="item.to"
-        class="text-muted-foreground flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px]"
-        active-class="!text-primary"
+        class="text-muted-foreground flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors [&>svg]:transition-transform"
+        active-class="!text-primary [&>svg]:scale-110"
       >
         <component :is="item.icon" class="size-5" />
         {{ item.label }}
       </router-link>
       <router-link
         to="/home/HomePart"
-        class="text-muted-foreground flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px]"
+        class="text-muted-foreground flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors [&>svg]:transition-transform"
       >
         <ArrowLeft class="size-5" />
         Home

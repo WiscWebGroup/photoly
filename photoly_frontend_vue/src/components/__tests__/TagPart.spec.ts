@@ -52,7 +52,8 @@ describe('TagPart', () => {
 
     expect(byText('Sunset').getAttribute('aria-pressed')).toBe('false')
     expect(byText('Beach').getAttribute('aria-pressed')).toBe('false')
-    expect(document.body.textContent).not.toContain('Deselect all')
+    // The button leaves through a transition, so it is removed a frame later.
+    await vi.waitFor(() => expect(document.body.textContent).not.toContain('Deselect all'))
   })
 
   it('refuses to create an empty tag', async () => {

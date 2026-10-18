@@ -219,18 +219,20 @@ defineExpose({
   <div class="space-y-4">
     <div class="flex flex-wrap items-center gap-3">
       <h2 class="text-2xl font-semibold">Media</h2>
-      <template v-if="selectMode && !hideBar">
-        <Button variant="outline" size="sm" @click="selectMode = false">Done</Button>
-        <Button variant="outline" size="sm" @click="setChecked(false)">Clear</Button>
-        <Button variant="outline" size="sm" @click="setChecked(true)">Select All</Button>
-        <Button variant="secondary" size="sm" @click="askMove([...checked])">Move</Button>
-        <Button v-if="detachEnabled" variant="secondary" size="sm" @click="confirmDetach = true">
-          Remove From {{ detachStr }}
-        </Button>
-        <Button variant="destructive" size="sm" @click="confirmDelete = true"
-          >Delete Selected</Button
-        >
-      </template>
+      <Transition name="reveal">
+        <div v-if="selectMode && !hideBar" class="flex flex-wrap items-center gap-3">
+          <Button variant="outline" size="sm" @click="selectMode = false">Done</Button>
+          <Button variant="outline" size="sm" @click="setChecked(false)">Clear</Button>
+          <Button variant="outline" size="sm" @click="setChecked(true)">Select All</Button>
+          <Button variant="secondary" size="sm" @click="askMove([...checked])">Move</Button>
+          <Button v-if="detachEnabled" variant="secondary" size="sm" @click="confirmDetach = true">
+            Remove From {{ detachStr }}
+          </Button>
+          <Button variant="destructive" size="sm" @click="confirmDelete = true"
+            >Delete Selected</Button
+          >
+        </div>
+      </Transition>
       <ViewToggle v-if="!hideBar" class="ml-auto" />
     </div>
 
@@ -242,16 +244,21 @@ defineExpose({
           : 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
       "
     >
-      <li v-for="photo in photos" :key="photo.photoId" class="[content-visibility:auto]">
+      <li
+        v-for="(photo, i) in photos"
+        :key="photo.photoId"
+        class="animate-rise [content-visibility:auto]"
+        :style="{ animationDelay: `${Math.min(i, 12) * 30}ms` }"
+      >
         <ContextMenu>
           <ContextMenuTrigger as-child>
             <div
               :class="
                 cn(
-                  'bg-card hover:bg-accent relative overflow-hidden border transition-[box-shadow,background-color]',
+                  'group bg-card hover:bg-accent relative overflow-hidden border transition-[box-shadow,background-color,translate] duration-200',
                   viewMode === 'list'
                     ? 'flex items-center rounded-lg hover:shadow-sm'
-                    : 'rounded-xl shadow-xs hover:shadow-md',
+                    : 'rounded-xl shadow-xs hover:-translate-y-0.5 hover:shadow-md',
                 )
               "
               draggable="true"
@@ -262,8 +269,8 @@ defineExpose({
                 v-if="selectMode"
                 :class="
                   cn(
-                    'bg-background size-5',
-                    viewMode === 'list' ? 'mx-3 shrink-0' : 'absolute top-2 left-2',
+                    'bg-background animate-in fade-in zoom-in-75 size-5',
+                    viewMode === 'list' ? 'mx-3 shrink-0' : 'absolute top-2 left-2 z-10',
                   )
                 "
                 :aria-label="`Select ${photo.photoName}`"
@@ -295,7 +302,11 @@ defineExpose({
                   :class="
                     viewMode === 'list'
                       ? 'size-10 shrink-0 rounded object-cover'
-                      : 'aspect-[2/1] w-full object-cover'
+                      : cn(
+                          'aspect-[2/1] w-full object-cover transition-[transform,filter] duration-300 group-hover:scale-[1.03]',
+                          // Dim thumbnails so the corner checkbox stands out.
+                          selectMode && 'brightness-75',
+                        )
                   "
                 />
                 <p

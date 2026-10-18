@@ -883,7 +883,7 @@ const label = 'text-xs font-medium text-muted-foreground'
                 :src="imageUrl"
                 :alt="info.photoName"
                 :class="[
-                  'h-auto w-full object-contain md:w-auto md:max-w-full',
+                  'animate-fade h-auto w-full object-contain [animation-duration:300ms] md:w-auto md:max-w-full',
                   landscape ? 'md:max-h-[62dvh]' : 'md:max-h-[90dvh] md:max-w-[34rem]',
                 ]"
                 :style="mediaStyle"
@@ -1270,14 +1270,16 @@ const label = 'text-xs font-medium text-muted-foreground'
           />
         </div>
       </div>
-      <Button
-        v-if="!editing && recommendations?.expanded"
-        class="absolute bottom-4 right-4 z-10 shadow-lg"
-        aria-label="Back to top and close similar photos and videos"
-        @click="backToTop"
-      >
-        <ArrowUp aria-hidden="true" /> Back to top
-      </Button>
+      <Transition name="reveal">
+        <Button
+          v-if="!editing && recommendations?.expanded"
+          class="absolute bottom-4 right-4 z-10 shadow-lg"
+          aria-label="Back to top and close similar photos and videos"
+          @click="backToTop"
+        >
+          <ArrowUp aria-hidden="true" /> Back to top
+        </Button>
+      </Transition>
     </DialogContent>
   </Dialog>
 </template>

@@ -48,6 +48,36 @@
   --ring: oklch(0.72 0.11 190);
 }
 
+/* Shared motion: `animate-rise` for content entering, `reveal` for <Transition name="reveal">. */
+@theme {
+  --ease-out-quart: cubic-bezier(0.165, 0.84, 0.44, 1);
+  --animate-rise: rise 0.35s var(--ease-out-quart) backwards;
+  --animate-fade: fade 0.2s ease-out backwards;
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem);
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+.reveal-enter-active,
+.reveal-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s var(--ease-out-quart);
+}
+.reveal-enter-from,
+.reveal-leave-to {
+  opacity: 0;
+  transform: translateY(-0.25rem);
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -82,7 +112,20 @@
   }
   /* Tailwind v4 resets buttons to cursor: default */
   button:not(:disabled),
-  [role="button"]:not([aria-disabled="true"]) {
+  [role='button']:not([aria-disabled='true']) {
     cursor: pointer;
+  }
+  /* Inline status / error messages fade in instead of popping. */
+  p:where([role='alert'], [role='status']) {
+    animation: var(--animate-fade);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0s !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }

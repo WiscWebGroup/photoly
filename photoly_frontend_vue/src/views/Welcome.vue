@@ -105,20 +105,30 @@ const team = [
 
         <div class="relative flex flex-col items-center gap-4">
           <span
-            class="rounded-full border border-teal-300/30 bg-teal-300/10 px-4 py-1 text-sm tracking-wide text-teal-200 backdrop-blur"
+            style="animation-delay: 0ms"
+            class="animate-rise rounded-full border border-teal-300/30 bg-teal-300/10 px-4 py-1 text-sm tracking-wide text-teal-200 backdrop-blur"
           >
             Self-hosted photo management
           </span>
-          <h1 class="max-w-3xl text-5xl leading-tight font-semibold tracking-tight md:text-7xl">
+          <h1
+            style="animation-delay: 80ms"
+            class="animate-rise max-w-3xl text-5xl leading-tight font-semibold tracking-tight md:text-7xl"
+          >
             See the Value of Photo Inside
           </h1>
           <p
-            class="bg-gradient-to-r from-teal-200 via-white to-teal-200 bg-clip-text text-3xl text-transparent md:text-4xl"
+            style="animation-delay: 160ms"
+            class="animate-rise bg-gradient-to-r from-teal-200 via-white to-teal-200 bg-clip-text text-3xl text-transparent md:text-4xl"
           >
             The Beauty Shines Here
           </p>
-          <p class="text-lg text-teal-100/70 md:text-xl">Photoly - Share Your Inspiration</p>
-          <div class="mt-6 flex gap-4">
+          <p
+            style="animation-delay: 240ms"
+            class="animate-rise text-lg text-teal-100/70 md:text-xl"
+          >
+            Photoly - Share Your Inspiration
+          </p>
+          <div style="animation-delay: 320ms" class="animate-rise mt-6 flex gap-4">
             <Button
               size="lg"
               class="bg-teal-400 text-teal-950 shadow-[0_0_32px_-4px] shadow-teal-400/60 hover:bg-teal-300"
@@ -156,7 +166,7 @@ const team = [
           <div
             v-for="f in features"
             :key="f.title"
-            class="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur transition hover:border-teal-300/40 hover:bg-white/10"
+            class="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-teal-300/40 hover:bg-white/10"
           >
             <div
               class="mb-4 flex size-11 items-center justify-center rounded-xl bg-teal-400/15 text-teal-300"
@@ -196,7 +206,7 @@ const team = [
             v-for="p in team"
             :key="p.github"
             :href="`https://github.com/${p.github}`"
-            class="group flex items-start gap-5 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur transition hover:border-teal-300/40 hover:bg-white/10"
+            class="group flex items-start gap-5 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-teal-300/40 hover:bg-white/10"
           >
             <img
               :src="`https://avatars.githubusercontent.com/u/${p.avatar}`"

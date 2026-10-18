@@ -11,7 +11,7 @@ withDefaults(defineProps<{ title: string; description?: string; icon?: Component
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+  <div class="animate-fade flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
     <component :is="icon" class="text-muted-foreground size-10" aria-hidden="true" />
     <h2 class="text-lg font-semibold">{{ title }}</h2>
     <p v-if="description" class="text-muted-foreground max-w-sm text-sm">{{ description }}</p>
