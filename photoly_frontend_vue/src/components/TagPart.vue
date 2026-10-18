@@ -172,7 +172,7 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
                 :title="tag.tagName"
                 :class="
                   cn(
-                    'max-w-full cursor-pointer truncate rounded-full border px-3 py-1 text-left text-sm select-none',
+                    'max-w-full truncate transition-colors rounded-full border px-3 py-1 text-left text-sm select-none',
                     selectedTagIds.includes(tag.tagId)
                       ? 'bg-primary text-primary-foreground border-transparent'
                       : 'hover:bg-accent',

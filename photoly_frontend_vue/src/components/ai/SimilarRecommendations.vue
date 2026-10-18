@@ -250,7 +250,7 @@ onBeforeUnmount(() => {
       <li v-for="hit in result?.items ?? []" :key="hit.photo.photoId">
         <button
           type="button"
-          class="group w-full overflow-hidden rounded-md border text-left focus-visible:ring-2"
+          class="group w-full overflow-hidden rounded-md border text-left transition-colors hover:border-primary/50 hover:bg-accent focus-visible:ring-2"
           :aria-label="`View ${hit.photo.photoName}.${hit.photo.format}`"
           @click="emit('navigate', hit.photo)"
         >

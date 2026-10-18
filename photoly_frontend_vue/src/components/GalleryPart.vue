@@ -246,7 +246,7 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
                 :aria-pressed="selectedGaId === g.gaId"
                 :class="
                   cn(
-                    'hover:bg-accent flex flex-col gap-1 rounded-lg border p-3 text-left text-sm',
+                    'hover:bg-accent flex flex-col transition-colors gap-1 rounded-lg border p-3 text-left text-sm',
                     selectedGaId === g.gaId && 'bg-accent text-accent-foreground',
                     g.smart && 'border-teal-500',
                   )
