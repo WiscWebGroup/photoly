@@ -193,6 +193,14 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
           </ContextMenu>
         </div>
       </details>
+      <Button
+        v-if="selectedTagIds.length"
+        variant="outline"
+        size="sm"
+        class="w-full"
+        @click="(selectedTagIds = []), queryPhotos()"
+        >Deselect all ({{ selectedTagIds.length }})</Button
+      >
     </aside>
 
     <MediaList

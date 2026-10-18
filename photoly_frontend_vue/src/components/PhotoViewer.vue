@@ -1044,11 +1044,13 @@ const label = 'text-xs font-medium text-muted-foreground'
                             v-for="t in tags"
                             :key="t.tag_id"
                             variant="secondary"
-                            class="gap-1"
+                            class="max-w-full gap-1"
                           >
-                            {{ t.tag_name }} <SmartBadge :smart="t.smart" />
+                            <span class="min-w-0 truncate" :title="t.tag_name">{{ t.tag_name }}</span>
+                            <SmartBadge :smart="t.smart" />
                             <button
                               type="button"
+                              class="shrink-0"
                               :aria-label="`Remove ${t.tag_name}`"
                               @click="removeTag(t.tag_id)"
                             >
@@ -1107,11 +1109,13 @@ const label = 'text-xs font-medium text-muted-foreground'
                             v-for="g in galleries"
                             :key="g.ga_id"
                             variant="secondary"
-                            class="gap-1"
+                            class="max-w-full gap-1"
                           >
-                            {{ g.ga_name }} <SmartBadge :smart="g.smart" />
+                            <span class="min-w-0 truncate" :title="g.ga_name">{{ g.ga_name }}</span>
+                            <SmartBadge :smart="g.smart" />
                             <button
                               type="button"
+                              class="shrink-0"
                               :aria-label="`Remove ${g.ga_name}`"
                               @click="removeGallery(g.ga_id)"
                             >
