@@ -23,12 +23,12 @@ pipeline {
             steps {
                 sh '''
                     case "$AI_DEVICE" in
-                      cuda) set -- --profile ai ;;
-                      cpu) set -- -f docker-compose.yml -f compose.cpu.yml --profile ai ;;
-                      disabled) set -- ;;
+                      cuda) export COMPOSE_PROFILES=ai-cuda ;;
+                      cpu) export COMPOSE_PROFILES=ai-cpu ;;
+                      disabled) export COMPOSE_PROFILES= ;;
                     esac
-                    docker compose "$@" --env-file "$PHOTOLY_ENV_FILE" -p photoly build
-                    docker compose "$@" --env-file "$PHOTOLY_ENV_FILE" -p photoly up -d
+                    docker compose --env-file "$PHOTOLY_ENV_FILE" -p photoly build
+                    docker compose --env-file "$PHOTOLY_ENV_FILE" -p photoly up -d
                 '''
             }
         }

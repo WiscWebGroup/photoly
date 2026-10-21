@@ -2,7 +2,7 @@ name: Backend PostgreSQL
 on:
   push:
     branches: [main]
-    paths: ['photoly_backend/**', 'database/postgres-init/**', 'compose.test.yml', 'compose.cpu.yml', 'compose.ai-real-test.yml', 'docker-compose.yml', '.gitattributes', '.github/workflows/backend.yml']
+    paths: ['photoly_backend/**', 'database/postgres-init/**', 'compose.test.yml', 'compose.ai-real-test.yml', 'docker-compose.yml', '.gitattributes', '.github/workflows/backend.yml']
   pull_request:
 permissions:
   contents: read
@@ -25,7 +25,6 @@ jobs:
               - 'photoly_backend/**'
               - 'database/postgres-init/**'
               - 'compose.test.yml'
-              - 'compose.cpu.yml'
               - 'compose.ai-real-test.yml'
               - 'docker-compose.yml'
               - '.gitattributes'
