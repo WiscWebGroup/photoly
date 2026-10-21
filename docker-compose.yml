@@ -1,3 +1,6 @@
+# AI runtime: set COMPOSE_PROFILES in .env to ai-cuda, ai-cpu or ai-mps (unset = no AI).
+# ai-mps also needs AI_RUNTIME_URL=http://host.docker.internal:8090 and the native runtime
+# (photoly_backend/scripts/mps-runtime.sh). Enable only one AI profile.
 x-app-environment: &app-environment
   POSTGRES_HOST: db_postgres
   POSTGRES_DB: photoly
@@ -8,7 +11,7 @@ x-app-environment: &app-environment
   TIMEZONE: ${TIMEZONE:-America/New_York}
   MAX_CONTENT_LENGTH: ${MAX_CONTENT_LENGTH:-629145600}
   ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@a.com}
-  AI_RUNTIME_URL: http://ai-runtime:8090
+  AI_RUNTIME_URL: ${AI_RUNTIME_URL:-http://ai-runtime:8090}
   AI_INFERENCE_TOKEN: ${AI_INFERENCE_TOKEN:-}
 
 services:
@@ -81,15 +84,15 @@ services:
       retries: 20
     restart: unless-stopped
   ai-runtime:
-    profiles: [ai]
+    profiles: [ai-cuda]
     image: photoly-ai-runtime:phase2
     build:
       context: ./photoly_backend
       target: inference
-    environment:
+    environment: &ai-runtime-environment
       AI_INFERENCE_TOKEN: ${AI_INFERENCE_TOKEN:?Set AI_INFERENCE_TOKEN}
       AI_CONTROL_TOKEN: ${AI_CONTROL_TOKEN:?Set AI_CONTROL_TOKEN}
-    volumes:
+    volumes: &ai-runtime-volumes
       - ai_models:/models
     deploy:
       resources:
@@ -99,8 +102,22 @@ services:
               count: 1
               capabilities: [gpu]
     restart: unless-stopped
+  ai-runtime-cpu:
+    profiles: [ai-cpu]
+    image: photoly-ai-runtime:phase2-cpu
+    build:
+      context: ./photoly_backend
+      target: inference
+      args:
+        INFERENCE_VARIANT: cpu
+    environment: *ai-runtime-environment
+    volumes: *ai-runtime-volumes
+    networks:
+      default:
+        aliases: [ai-runtime]
+    restart: unless-stopped
   ai-scheduler:
-    profiles: [ai]
+    profiles: [ai-cuda, ai-cpu, ai-mps]
     build:
       context: ./photoly_backend
       target: production
@@ -114,13 +131,18 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      # Only the runtime for the active profile exists; ai-mps runs it on the host.
       ai-runtime:
         condition: service_healthy
+        required: false
+      ai-runtime-cpu:
+        condition: service_healthy
+        required: false
     healthcheck:
       disable: true
     restart: unless-stopped
   ai-maintenance:
-    profiles: [ai]
+    profiles: [ai-cuda, ai-cpu, ai-mps]
     build:
       context: ./photoly_backend
       target: production

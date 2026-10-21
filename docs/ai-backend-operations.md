@@ -4,23 +4,18 @@
 
 ## 部署
 
-默认全局关闭、新用户默认关闭，管理员无自动资格；启动容器不下载或加载模型。数据库增量升级至当前 head `0005_smart_organization`（含视频帧、OCR 和智能整理迁移）。已有部署先备份 PostgreSQL 和媒体，再按实际 CPU/CUDA/MPS 组合升级；以下是 CUDA 示例：
+默认全局关闭、新用户默认关闭，管理员无自动资格；启动容器不下载或加载模型。数据库增量升级至当前 head `0005_smart_organization`（含视频帧、OCR 和智能整理迁移）。已有部署先备份 PostgreSQL 和媒体。在 `.env` 设置 `COMPOSE_PROFILES`（`ai-cuda`、`ai-cpu` 或 `ai-mps`，只启用一个），之后各命令自动使用该 profile：
 
 ```sh
-docker compose --profile ai stop backend ai-scheduler ai-maintenance
-docker compose --profile ai build
-docker compose --profile ai run --rm migrate
-docker compose --profile ai up -d
+docker compose stop backend ai-scheduler ai-maintenance
+docker compose build
+docker compose run --rm migrate
+docker compose up -d
 ```
 
 `.env` 增加独立随机 `AI_INFERENCE_TOKEN`、`AI_CONTROL_TOKEN`，不提交凭据。Web 只有推理密钥，scheduler 有控制密钥，只有 maintenance/migrate 获得 migration 数据库凭据。容器 runtime 无数据库凭据、媒体挂载、主机端口或 Docker socket；MPS 原生运行时通过鉴权主机端口提供服务，见下文。
 
-CPU 专用部署（Compose >=2.24.4）：
-
-```sh
-docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai build
-docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai up -d
-```
+CPU 专用部署使用 `COMPOSE_PROFILES=ai-cpu`（启动 `ai-runtime-cpu`，网络别名仍为 `ai-runtime`）；CUDA 使用 `COMPOSE_PROFILES=ai-cuda`。
 
 CPU/CUDA 各自使用 `photoly_backend/inference/{cpu,cuda}/uv.lock`。CPU 镜像不含 CUDA wheel、不申请 GPU；CUDA 镜像需 NVIDIA 容器支持。管理 API 选择 cpu/float32 或 cuda/bfloat16；原生 Apple Silicon 使用 mps/float32，见 MPS 部署章节。NPU 不开放。
 
@@ -219,13 +214,13 @@ sh photoly_backend/scripts/mps-runtime.sh start
 
 先在 `.env` 配置现有 `AI_INFERENCE_TOKEN` 和 `AI_CONTROL_TOKEN`；主机与 Docker 必须使用同一组值。脚本只读取运行时相关键，环境变量优先，不执行 shell、不展开变量。可用 `--env-file /absolute/path/.env` 选择文件。`check` 验证设备及一次真实 MPS 运算，不下载模型。
 
-另开终端启动其余服务：
+在 `.env` 设置 `COMPOSE_PROFILES=ai-mps` 和 `AI_RUNTIME_URL=http://host.docker.internal:8090`，另开终端启动其余服务：
 
 ```sh
-docker compose -f docker-compose.yml -f compose.mps.yml --profile ai-mps up -d --build
+docker compose up -d --build
 ```
 
-此组合不启动 Linux `ai-runtime`，也不请求 NVIDIA GPU。不要同时启用 `ai` 或 `container-runtime-disabled` profile。后端和调度器连接 `host.docker.internal:8090`；调度器在运行时离线时保持控制循环，主机运行时恢复后重新连接。
+此 profile 不启动 Linux `ai-runtime`，也不请求 NVIDIA GPU。不要同时启用 `ai-cuda` 或 `ai-cpu`。后端和调度器连接 `AI_RUNTIME_URL`；调度器在运行时离线时保持控制循环，主机运行时恢复后重新连接。
 
 原生服务默认监听 `0.0.0.0:8090`，仅供可信本机/Docker 网络使用，继续严格区分推理与控制令牌。可设置 `AI_RUNTIME_HOST` 和 `AI_RUNTIME_PORT`；混合部署必须保持 Docker 可访问的监听地址，且主机及 Compose 使用相同端口。默认模型缓存为 `~/.cache/photoly/models`，可用 `HF_HOME` 覆盖。令牌不会输出到日志。
 

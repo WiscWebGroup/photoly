@@ -64,14 +64,16 @@ For access from another machine, set `PUBLIC_BASE_URL` to the externally reachab
 
 ### Optional AI runtimes
 
-Docker Compose **2.24.4+** is required for the CPU and MPS overrides. Set separate `AI_INFERENCE_TOKEN` and `AI_CONTROL_TOKEN` in the root `.env`, including for configurations where Compose validates inactive AI services. Run commands from the repository root:
+Docker Compose **2.24.4+** is required. Set separate `AI_INFERENCE_TOKEN` and `AI_CONTROL_TOKEN` in the root `.env`, including for configurations where Compose validates inactive AI services. Choose the runtime once with `COMPOSE_PROFILES` in `.env`, then use plain `docker compose up -d --build` from the repository root:
 
-| Deployment | Start command | Requirements |
+| Deployment | `.env` setting | Requirements |
 | --- | --- | --- |
-| Base library + OCR | `docker compose up -d --build` | No model runtime required |
-| NVIDIA CUDA | `docker compose --profile ai up -d --build` | NVIDIA GPU and container runtime |
-| CPU | `docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai up -d --build` | CPU-only inference image |
-| Apple Silicon MPS | `docker compose -f docker-compose.yml -f compose.mps.yml --profile ai-mps up -d --build` | Start the native runtime first, as below |
+| Base library + OCR | leave `COMPOSE_PROFILES` unset | No model runtime required |
+| NVIDIA CUDA | `COMPOSE_PROFILES=ai-cuda` | NVIDIA GPU and container runtime |
+| CPU | `COMPOSE_PROFILES=ai-cpu` | CPU-only inference image |
+| Apple Silicon MPS | `COMPOSE_PROFILES=ai-mps` and `AI_RUNTIME_URL=http://host.docker.internal:8090` | Start the native runtime first, as below |
+
+Enable only one AI profile at a time.
 
 For MPS, use a native ARM64 macOS 14+ shell with `uv` installed:
 
@@ -81,22 +83,22 @@ sh photoly_backend/scripts/mps-runtime.sh check
 sh photoly_backend/scripts/mps-runtime.sh start
 ```
 
-Keep `start` running in its terminal and run the MPS Compose command in another. Docker connects to `host.docker.internal:8090`; the native runtime defaults to `0.0.0.0:8090`, authenticated with the same two tokens. Do not enable the `ai` profile with the MPS override. See [runtime setup and troubleshooting](docs/ai-backend-operations.md).
+Keep `start` running in its terminal and run `docker compose up -d --build` in another. Docker connects to `AI_RUNTIME_URL`; the native runtime defaults to `0.0.0.0:8090`, authenticated with the same two tokens. See [runtime setup and troubleshooting](docs/ai-backend-operations.md).
 
 AI starts disabled. In **AI Management**, configure the device (`cpu/float32`, `cuda/bfloat16`, or `mps/float32`), explicitly load a model, grant user access and activate a search profile. Startup alone does not download weights. SigLIP2 is recommended for 16 GB Macs; Qwen video queries can exceed the 60-second deadline under memory pressure.
 
 ### Upgrading an existing PostgreSQL deployment
 
-Back up the database and media together. Use the **same Compose files and profile as your deployment** for every command. For example, for CPU AI:
+Back up the database and media together. `COMPOSE_PROFILES` in `.env` keeps every command on your deployment's AI profile:
 
 ```sh
-docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai stop backend ai-scheduler ai-maintenance
-docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai build
-docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai run --rm migrate
-docker compose -f docker-compose.yml -f compose.cpu.yml --profile ai up -d
+docker compose stop backend ai-scheduler ai-maintenance
+docker compose build
+docker compose run --rm migrate
+docker compose up -d
 ```
 
-For base deployments, omit the override/profile and stop only `backend`. For CUDA, omit the CPU override. For MPS, substitute `compose.mps.yml` / `ai-mps`; stop the native runtime, rerun its `install` command after dependency changes, and restart it before the final Compose command. If migration fails, resolve it before starting the new application services.
+For base deployments, stop only `backend`. For MPS, stop the native runtime, rerun its `install` command after dependency changes, and restart it before the final Compose command. If migration fails, resolve it before starting the new application services.
 
 Alembic `upgrade head` includes video frame vectors (`0003_video_vectors`), OCR (`0004_photo_ocr`) and Smart Tag (`0005_smart_organization`). Existing image vectors are retained. Rebuild the application images to include FFmpeg, Tesseract language data and the offline city index. Never use `down -v` to upgrade a production deployment.
 
