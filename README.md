@@ -1,7 +1,5 @@
 ![example workflow](https://github.com/WiscWebGroup/photoly/actions/workflows/codeql-analysis.yml/badge.svg)
 # Photoly
-<img src="https://raw.githubusercontent.com/Harold-y/photoly/main/Logo.png" height="160px" width="160px" />
-<br>
 
 Photoly is a self-hosted photo and video library. Organize media with folders, tags and galleries, share selected items, and search names, metadata and visual content. A documented REST API supports integrations.
 
@@ -21,21 +19,7 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 - Create API to operate your photo using REST API
 
 ## Screenshots
-<img src="https://github.com/WiscWebGroup/photoly/assets/68500948/3304e591-7b8a-49d2-a483-61e04206e8dd" style="width: 800px;" />
-
-<img src="https://github.com/WiscWebGroup/photoly/assets/68500948/bd6cc12e-dc89-4e98-9cf7-2eaf35ba95b7" style="width: 800px;" />
-
-<img src="https://github.com/WiscWebGroup/photoly/assets/68500948/1518dfcc-eee2-4c5e-b686-aa1c5cdb57ae" style="width: 800px;" />
-
-<img src="https://github.com/WiscWebGroup/photoly/assets/68500948/4219d76f-5e9b-4587-ae4b-11379107fb35" style="width: 800px;" />
-
-<img src="https://github.com/WiscWebGroup/photoly/assets/68500948/44d94933-d7e7-4617-9fa5-4b2cc972da9c" style="width: 800px;" />
-
-<img src="https://github.com/WiscWebGroup/photoly/assets/68500948/23ae3e12-e465-4c3b-b642-c9b2de01c5a5" style="width: 800px;" />
-
-<img src="https://github.com/WiscWebGroup/photoly/assets/68500948/72e5adf6-d4bb-4f20-bd20-d6c7ea7921c8" style="width: 800px;" />
-
-<img src="https://github.com/WiscWebGroup/photoly/assets/68500948/7acbc34e-30c0-4115-8607-9cfc8c9396ca" style="width: 800px;" />
+![The Photoly welcome page: “Your photos, on your terms” beside a photo grid with a search-by-meaning demo](docs/screenshots/welcome.webp)
 
 ## Specifications
 
