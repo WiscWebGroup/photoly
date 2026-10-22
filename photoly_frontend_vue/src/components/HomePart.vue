@@ -163,6 +163,14 @@ async function mutate(action: () => Promise<unknown>, success: string, failure: 
 
 // --- Folder selection ---------------------------------------------------------------------------
 const selectMode = ref(false)
+/**
+ * The phone "+" menu. While it is open the page ignores taps, except the photo grid: its context
+ * menu trigger keeps `pointer-events: auto`. So a tap meant to close the menu (on the "+", now an
+ * "×", or beside it) would open the photo underneath. The "+" stays tappable to close its own
+ * menu, and a shield catches every other tap.
+ */
+const addOpen = ref(false)
+const addButton = ref<HTMLElement>()
 const selected = ref<number[]>([])
 watch(selectMode, (on) => on || (selected.value = []))
 const confirmDeleteSelected = ref(false)
@@ -507,7 +515,7 @@ async function upload() {
       <ContextMenuTrigger as-child>
         <div
           v-show="nsId !== -1"
-          class="flex w-full max-w-[1280px] flex-1 flex-col gap-8 px-4 pt-4 pb-32 md:gap-10 md:px-10 md:pt-8"
+          class="flex w-full flex-1 flex-col gap-8 px-4 pt-4 pb-32 md:gap-10 md:px-10 md:pt-8"
         >
           <div class="flex flex-col gap-1">
             <button
@@ -545,13 +553,13 @@ async function upload() {
               :class="
                 viewMode === 'list'
                   ? 'flex flex-col gap-1'
-                  : '-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 2xl:grid-cols-6'
+                  : '-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 2xl:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]'
               "
             >
               <li
                 v-for="(folder, i) in folders.children.value"
                 :key="folder.nsId"
-                :class="['animate-rise', viewMode === 'grid' && 'w-36 shrink-0 sm:w-auto']"
+                :class="['animate-rise', viewMode === 'grid' && 'flex w-36 shrink-0 sm:w-auto']"
                 :style="{ animationDelay: `${Math.min(i, 12) * 30}ms` }"
               >
                 <ContextMenu>
@@ -672,12 +680,16 @@ async function upload() {
               </li>
               <li
                 v-if="viewMode === 'grid'"
-                class="animate-rise w-36 shrink-0 sm:w-auto"
+                class="animate-rise flex w-36 shrink-0 sm:w-auto"
                 :style="{ animationDelay: `${Math.min(folders.children.value.length, 12) * 30}ms` }"
               >
+                <!-- Stretches to the folder cards in its row; alone, as tall as an empty folder card. -->
                 <button
                   type="button"
-                  class="text-muted-foreground hover:border-primary hover:text-primary flex size-full min-h-[158px] flex-col items-center justify-center gap-2 rounded-[14px] border border-dashed text-sm transition-colors sm:min-h-[194px]"
+                  :class="[
+                    'text-muted-foreground hover:border-primary hover:text-primary flex w-full flex-col items-center justify-center gap-2 rounded-[14px] border border-dashed text-sm transition-colors',
+                    !folders.children.value.length && 'min-h-[142px] sm:min-h-[174px]',
+                  ]"
                   @click="startCreate"
                 >
                   <Plus class="size-5" aria-hidden="true" />
@@ -714,18 +726,32 @@ async function upload() {
     </ContextMenu>
 
     <!-- Phones add through one floating button instead of the header actions. -->
-    <DropdownMenu>
+    <div
+      v-if="addOpen"
+      class="pointer-events-auto fixed inset-0 z-20 md:hidden"
+      aria-hidden="true"
+      data-testid="add-menu-shield"
+    />
+    <DropdownMenu v-model:open="addOpen">
       <DropdownMenuTrigger as-child>
         <button
           v-show="!selectMode"
+          ref="addButton"
           type="button"
           aria-label="Add"
-          class="bg-primary text-primary-foreground fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-2xl shadow-lg transition-transform active:scale-95 data-[state=open]:rotate-45 md:hidden"
+          class="bg-primary text-primary-foreground pointer-events-auto fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-2xl shadow-lg transition-transform active:scale-95 data-[state=open]:rotate-45 md:hidden"
         >
           <Plus class="size-6" aria-hidden="true" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="top" class="w-48">
+      <DropdownMenuContent
+        align="end"
+        side="top"
+        class="w-48"
+        @pointer-down-outside="
+          (e: Event) => addButton?.contains(e.target as Node) && e.preventDefault()
+        "
+      >
         <DropdownMenuItem @select="startUpload"><Upload /> Upload Photos</DropdownMenuItem>
         <DropdownMenuItem @select="startCreate"><FolderPlus /> New Folder</DropdownMenuItem>
         <DropdownMenuItem @select="viewMode = viewMode === 'grid' ? 'list' : 'grid'"

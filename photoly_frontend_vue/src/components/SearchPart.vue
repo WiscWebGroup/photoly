@@ -152,7 +152,7 @@ async function queryPhotos() {
       </div>
     </div>
 
-    <div class="flex w-full max-w-[1280px] flex-col gap-5 px-4 pt-6 pb-32 md:px-10">
+    <div class="flex w-full flex-col gap-5 px-4 pt-6 pb-32 md:px-10">
       <div v-if="searchType === 'smart'" aria-live="polite" class="flex flex-col gap-1 text-sm">
         <p v-if="smart.error.value" role="alert" class="text-destructive">
           {{ smart.error.value }}
