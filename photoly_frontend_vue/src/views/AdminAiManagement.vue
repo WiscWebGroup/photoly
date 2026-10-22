@@ -2,6 +2,8 @@
 import { smartReason } from '@/lib/smartOrganization'
 import { computed, ref, watch } from 'vue'
 import AdminLayout from '@/components/AdminLayout.vue'
+import PageHeader from '@/components/PageHeader.vue'
+import { RefreshCw } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { useAiAdmin } from '@/composables/useAiAdmin'
 import { aiMessage, bytesLabel, type AiChanges, type AiSettings } from '@/lib/ai'
@@ -25,7 +27,8 @@ const draft = ref<AiSettings | null>(null),
   budgetGiB = ref(10)
 const selectedProvider = ref('')
 const ramEdited = ref(false)
-const inputClass = 'h-9 rounded-md border bg-background px-3 text-sm w-full'
+const inputClass =
+  'mt-1.5 h-9 w-full rounded-md border border-input bg-card px-3 text-sm shadow-xs outline-none transition-[border-color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50'
 const runtime = computed(() => status.value?.services.runtime)
 const resources = computed(() => runtime.value?.observed.resources)
 const staleResources = computed(
@@ -255,32 +258,56 @@ const numberLabel = (value: number | null | undefined) =>
 const time = (value: string | null | undefined) => (value ? new Date(value).toLocaleString() : '—')
 </script>
 <template>
-  <AdminLayout>
-    <header class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 class="text-2xl font-semibold">AI Management</h1>
-        <p class="text-sm text-muted-foreground">Search, Smart Tag and background processing.</p>
-      </div>
-      <Button variant="outline" @click="admin.refresh">Refresh status</Button>
-    </header>
+  <AdminLayout wide>
+    <PageHeader title="AI Management" description="Search, Smart Tag and background processing.">
+      <span
+        v-if="status"
+        class="bg-card flex h-9 items-center gap-2 rounded-full border px-3.5 text-sm"
+        aria-hidden="true"
+      >
+        <span
+          :class="[
+            'size-2 rounded-full',
+            stage === 'ready'
+              ? 'bg-green-600'
+              : stage === 'failed'
+                ? 'bg-destructive'
+                : status.settings.enabled
+                  ? 'animate-pulse bg-amber-500'
+                  : 'bg-muted-foreground/50',
+          ]"
+        />
+        <span class="font-medium">{{
+          stage === 'ready'
+            ? 'Running'
+            : stage === 'failed'
+              ? 'Failed'
+              : status.settings.enabled
+                ? 'Starting'
+                : 'Paused'
+        }}</span>
+        <span class="text-muted-foreground uppercase">{{ status.settings.device }}</span>
+      </span>
+      <Button variant="outline" @click="admin.refresh"><RefreshCw /> Refresh status</Button>
+    </PageHeader>
     <p
       v-if="error"
       role="alert"
-      class="rounded-md border border-destructive p-3 text-sm text-destructive"
+      class="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
     >
       {{ error }}
     </p>
-    <p v-if="!loaded" role="status">
+    <p v-if="!loaded" role="status" class="text-muted-foreground text-sm">
       Loading AI controls… If the service is unavailable, use Refresh status to retry.
     </p>
     <Button v-if="pending" :disabled="saving" @click="admin.sendPending"
       >Recover operation status</Button
     >
     <template v-if="status">
-      <section class="rounded-lg border bg-card p-5 space-y-4" aria-label="AI controls">
+      <section class="space-y-4 rounded-xl border bg-card p-5 shadow-xs" aria-label="AI controls">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 class="text-lg font-semibold">
+            <h2 class="text-base font-semibold">
               {{ stageLabels[stage ?? ''] ?? 'AI status unknown' }}
             </h2>
             <p class="text-sm text-muted-foreground">
@@ -309,7 +336,7 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
         </div>
         <div v-if="starting" class="space-y-2" role="status">
           <progress
-            class="w-full h-3 accent-primary"
+            class="h-2 w-full accent-primary"
             aria-label="AI startup progress"
             :value="downloadPercent"
             max="100"
@@ -334,18 +361,20 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
           Offline / unknown — startup will continue when the AI services are available.
         </p>
         <div class="flex flex-wrap gap-5 border-t pt-4">
-          <label class="flex items-center gap-2 text-sm"
+          <label class="flex items-center gap-2 text-sm font-medium"
             ><input
               type="checkbox"
+              class="accent-primary size-4"
               :checked="status.settings.search_enabled"
               :disabled="locked"
               aria-label="AI Search"
               @change="feature('search_enabled', $event)"
             />AI Search</label
           >
-          <label class="flex items-center gap-2 text-sm"
+          <label class="flex items-center gap-2 text-sm font-medium"
             ><input
               type="checkbox"
+              class="accent-primary size-4"
               :checked="status.settings.smart_tag_enabled"
               :disabled="locked"
               aria-label="Smart Tag"
@@ -356,15 +385,17 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
         <p class="text-xs text-muted-foreground">
           Pause AI releases model memory and preserves your index and preferences. Individual access
           is managed in
-          <router-link class="underline" to="/thepersonincharge/usermanage"
+          <router-link
+            class="text-primary font-medium hover:underline"
+            to="/thepersonincharge/usermanage"
             >User Management</router-link
           >; Smart Tag also requires user opt-in.
         </p>
       </section>
-      <section class="rounded-lg border bg-card p-5 space-y-4" aria-label="Scheduler">
+      <section class="space-y-4 rounded-xl border bg-card p-5 shadow-xs" aria-label="Scheduler">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 class="text-lg font-semibold">Background scheduler</h2>
+            <h2 class="text-base font-semibold">Background scheduler</h2>
             <p class="text-sm text-muted-foreground">
               {{
                 status.settings.scheduler === 'running'
@@ -432,10 +463,10 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
       </section>
       <section
         v-if="draft && capabilities"
-        class="rounded-lg border bg-card p-5 space-y-4"
+        class="space-y-4 rounded-xl border bg-card p-5 shadow-xs"
         aria-label="AI settings"
       >
-        <h2 class="text-lg font-semibold">Resources</h2>
+        <h2 class="text-base font-semibold">Resources</h2>
         <p class="text-sm">
           CPU {{ numberLabel(resources?.cpu_percent) }} · GPU
           {{ numberLabel(resources?.gpu_percent) }} · RAM {{ numberLabel(ramUsage) }}
@@ -504,8 +535,8 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
           <Button type="button" variant="outline" @click="recommended"
             >Use recommended thresholds</Button
           >
-          <details class="rounded-md border p-3">
-            <summary class="cursor-pointer font-medium">Advanced settings</summary>
+          <details class="rounded-lg border p-3">
+            <summary class="cursor-pointer text-sm font-medium">Advanced settings</summary>
             <div class="mt-4 space-y-4">
               <div class="space-y-2">
                 <label class="block text-sm"
@@ -598,9 +629,10 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                   image queries; natural language search is unchanged.
                 </p>
               </div>
-              <label class="flex gap-2 text-sm"
+              <label class="flex items-center gap-2 text-sm"
                 ><input
                   v-model="draft.new_user_default"
+                  class="accent-primary size-4"
                   type="checkbox"
                   aria-label="Enable AI for new users"
                 />Enable AI for new users</label
@@ -623,8 +655,10 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
           </div>
         </form>
       </section>
-      <details class="rounded-lg border bg-card p-4">
-        <summary class="cursor-pointer font-medium">Diagnostics and operation history</summary>
+      <details class="rounded-xl border bg-card p-4 shadow-xs">
+        <summary class="cursor-pointer text-sm font-medium">
+          Diagnostics and operation history
+        </summary>
         <div class="mt-4 space-y-3 text-sm">
           <p>
             Configuration generation {{ status.settings.generation }} · Search profile
@@ -658,7 +692,7 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
           </p>
           <p v-if="active.length" role="status">{{ active.length }} operation(s) pending.</p>
           <p v-if="!allJobs.length">No operations yet.</p>
-          <div v-for="job in allJobs" :key="job.operationId" class="rounded-md border p-3">
+          <div v-for="job in allJobs" :key="job.operationId" class="rounded-lg border p-3">
             <p>#{{ job.operationId }} {{ job.command }} · {{ job.status }} · {{ job.stage }}</p>
             <p>{{ time(job.createdAt) }}</p>
             <p v-if="job.result.reason">{{ aiMessage(job.result.reason) }}</p>

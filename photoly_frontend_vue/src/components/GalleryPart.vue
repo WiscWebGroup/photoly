@@ -2,13 +2,16 @@
 import SmartBasis from '@/components/SmartBasis.vue'
 import SmartBadge from '@/components/SmartBadge.vue'
 import type { SmartSource } from '@/lib/smartOrganization'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import {
   Album,
   Archive,
+  Check,
+  ChevronRight,
   Dog,
   Download,
+  Ellipsis,
   Flag,
   Globe,
   Heart,
@@ -17,9 +20,14 @@ import {
   Palmtree,
   Pencil,
   Plane,
+  Plus,
+  Sparkles,
   Star,
   Trash2,
 } from '@lucide/vue'
+import AlbumSwitch from '@/components/AlbumSwitch.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import PageHeader from '@/components/PageHeader.vue'
 import MediaList from '@/components/MediaList.vue'
 import {
   AlertDialog,
@@ -45,18 +53,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import type { Photo } from '@/composables/usePhotos'
 import { download } from '@/lib/download'
 import { call } from '@/lib/http'
-import { vCollapse } from '@/lib/collapse'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
 
@@ -90,12 +98,66 @@ const mediaList = ref<InstanceType<typeof MediaList>>()
 const galleries = ref<Gallery[]>([])
 const selectedGaId = ref(-1)
 
-const newName = ref('')
-const newCover = ref('0')
-const newColor = ref('#000000')
+const colors = ['#16827d', '#d97706', '#7c3aed', '#db2777', '#2563eb', '#404040']
 
-const editing = ref<Gallery | null>(null)
+/** The create / edit dialog; `gaId` is set when editing. */
+const form = ref<{
+  gaId?: number
+  userId?: number
+  gaName: string
+  coverId: number
+  coverColor: string
+} | null>(null)
 const deleting = ref<Gallery | null>(null)
+
+const tab = ref<'all' | 'yours' | 'smart'>('all')
+const tabs = computed(() => [
+  { value: 'all' as const, label: 'All', count: galleries.value.length },
+  {
+    value: 'yours' as const,
+    label: 'Yours',
+    count: galleries.value.filter((g) => !g.smart).length,
+  },
+  {
+    value: 'smart' as const,
+    label: 'Smart trips',
+    count: galleries.value.filter((g) => g.smart).length,
+  },
+])
+const shown = computed(() =>
+  galleries.value.filter((g) =>
+    tab.value === 'all' ? true : tab.value === 'smart' ? !!g.smart : !g.smart,
+  ),
+)
+const current = computed(() => galleries.value.find((g) => g.gaId === selectedGaId.value))
+
+const iconFor = (g: { coverId: number | null }) => covers[g.coverId ?? 0]?.icon ?? Album
+/** A light wash of the gallery's color for its card. */
+const tint = (color: string) => `color-mix(in oklab, ${color || '#16827d'} 14%, var(--card))`
+const formatDate = (iso: string) => {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
+  return y && m && d
+    ? new Date(y, m - 1, d).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    : ''
+}
+
+function startCreate() {
+  form.value = { gaName: '', coverId: 0, coverColor: colors[0]! }
+}
+
+function startEdit(g: Gallery) {
+  form.value = {
+    gaId: g.gaId,
+    userId: g.userId,
+    gaName: g.gaName,
+    coverId: g.coverId ?? 0,
+    coverColor: g.coverColor || colors[0]!,
+  }
+}
 
 const loadGalleries = async () =>
   (galleries.value = await call<Gallery[]>({
@@ -113,50 +175,36 @@ async function queryPhotos() {
   }
 }
 
-function selectGallery(gallery: Gallery) {
-  if (selectedGaId.value === gallery.gaId) {
-    selectedGaId.value = -1
-    mediaList.value?.updatePhotoList([])
-  } else {
-    selectedGaId.value = gallery.gaId
-    queryPhotos()
-  }
+function openGallery(gallery: Gallery) {
+  selectedGaId.value = gallery.gaId
+  mediaList.value?.updatePhotoList([])
+  queryPhotos()
 }
 
-async function createGallery() {
-  if (!newName.value) return toast.warning('Please Input a Valid Gallery Name!')
-  try {
-    await call({
-      method: 'post',
-      url: '/gallery/insert',
-      data: { gaName: newName.value, coverId: Number(newCover.value), coverColor: newColor.value },
-    })
-    toast.success('Created a New Gallery!')
-    newName.value = ''
-    newCover.value = '0'
-    newColor.value = '#000000'
-    await loadGalleries()
-  } catch {
-    toast.error('createGa Response Error!')
-  }
+function closeGallery() {
+  selectedGaId.value = -1
 }
 
-async function saveEdit() {
-  const g = editing.value
-  if (!g) return
-  if (!g.gaName) return toast.warning('Please Input a Valid Gallery Name!')
+async function saveForm() {
+  const f = form.value
+  if (!f) return
+  if (!f.gaName.trim()) return toast.warning('Please Input a Valid Gallery Name!')
+  const editing = f.gaId !== undefined
   try {
-    const { gaId, gaName, userId, coverId, coverColor } = g
-    await call({
-      method: 'post',
-      url: '/gallery/update',
-      data: { gaId, gaName, userId, coverId, coverColor },
-    })
-    toast.success('Information Updated!')
-    editing.value = null
+    await call(
+      editing
+        ? { method: 'post', url: '/gallery/update', data: { ...f } }
+        : {
+            method: 'post',
+            url: '/gallery/insert',
+            data: { gaName: f.gaName, coverId: f.coverId, coverColor: f.coverColor },
+          },
+    )
+    toast.success(editing ? 'Information Updated!' : 'Created a New Gallery!')
+    form.value = null
     await loadGalleries()
   } catch {
-    toast.error('Update Response Error!')
+    toast.error(editing ? 'Update Response Error!' : 'createGa Response Error!')
   }
 }
 
@@ -167,10 +215,7 @@ async function deleteGallery() {
     await call({ method: 'post', url: '/gallery/delete', params: { gaId: g.gaId } })
     toast.success('Gallery Deleted!')
     deleting.value = null
-    if (selectedGaId.value === g.gaId) {
-      selectedGaId.value = -1
-      mediaList.value?.updatePhotoList([])
-    }
+    if (selectedGaId.value === g.gaId) selectedGaId.value = -1
     await loadGalleries()
   } catch {
     toast.warning('Update Error!')
@@ -211,87 +256,169 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 md:flex-row md:items-start" @contextmenu.prevent.stop>
-    <aside class="w-full shrink-0 space-y-3 md:w-64">
-      <h2 class="text-2xl font-semibold">Galleries</h2>
+  <div
+    class="flex w-full max-w-[1280px] flex-col gap-6 px-4 pt-5 pb-32 md:px-10 md:pt-10"
+    @contextmenu.prevent.stop
+  >
+    <AlbumSwitch class="md:hidden" />
 
-      <details v-collapse class="group rounded-lg border">
-        <summary
-          class="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-medium after:text-muted-foreground after:transition-transform after:content-['›'] group-open:after:rotate-90 [&::-webkit-details-marker]:hidden"
-        >
-          Add New Gallery
-        </summary>
-        <div class="space-y-2 border-t p-3">
-          <Input v-model="newName" placeholder="Gallery Name" @keyup.enter="createGallery" />
-          <Select v-model="newCover">
-            <SelectTrigger class="w-full" aria-label="Cover icon"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="(c, i) in covers" :key="c.label" :value="String(i)">{{
-                c.label
-              }}</SelectItem>
-            </SelectContent>
-          </Select>
-          <input
-            v-model="newColor"
-            type="color"
-            aria-label="Cover color"
-            class="h-9 w-full cursor-pointer rounded-md border"
-          />
-          <Button variant="secondary" class="w-full" @click="createGallery">Add</Button>
-        </div>
-      </details>
+    <!-- Overview: every gallery as a card. -->
+    <template v-if="!current">
+      <PageHeader title="Galleries" description="Curated sets that can pull from any folder.">
+        <Button @click="startCreate"><Plus /> New Gallery</Button>
+      </PageHeader>
 
-      <details v-collapse open class="group rounded-lg border">
-        <summary
-          class="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-medium after:text-muted-foreground after:transition-transform after:content-['›'] group-open:after:rotate-90 [&::-webkit-details-marker]:hidden"
+      <div role="tablist" aria-label="Filter galleries" class="-mt-1 flex gap-6 border-b">
+        <template v-for="t in tabs" :key="t.value">
+          <button
+            v-if="t.value !== 'smart' || t.count"
+            type="button"
+            role="tab"
+            :aria-selected="tab === t.value"
+            class="text-muted-foreground aria-selected:text-foreground aria-selected:border-foreground -mb-px flex h-10 items-center gap-1.5 border-b-2 border-transparent text-sm font-medium transition-colors hover:text-foreground"
+            @click="tab = t.value"
+          >
+            <Sparkles v-if="t.value === 'smart'" class="text-primary size-3.5" aria-hidden="true" />
+            {{ t.label }}
+            <span class="font-normal opacity-70 tabular-nums">{{ t.count }}</span>
+          </button>
+        </template>
+      </div>
+
+      <EmptyState
+        v-if="!shown.length"
+        :icon="Images"
+        title="No galleries yet"
+        description="Galleries collect photos from any folder without moving them."
+      >
+        <Button variant="outline" @click="startCreate"><Plus /> New Gallery</Button>
+      </EmptyState>
+      <ul v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+        <li
+          v-for="(g, i) in shown"
+          :key="g.gaId"
+          class="animate-rise"
+          :style="{ animationDelay: `${Math.min(i, 12) * 40}ms` }"
         >
-          Galleries
-        </summary>
-        <div class="flex flex-col gap-2 border-t p-3">
-          <ContextMenu v-for="g in galleries" :key="g.gaId">
+          <ContextMenu>
             <ContextMenuTrigger as-child>
-              <button
-                type="button"
-                :aria-pressed="selectedGaId === g.gaId"
-                :class="
-                  cn(
-                    'hover:bg-accent flex flex-col transition-colors gap-1 rounded-lg border p-3 text-left text-sm',
-                    selectedGaId === g.gaId && 'bg-accent text-accent-foreground',
-                    g.smart && 'border-teal-500',
-                  )
-                "
-                @click="selectGallery(g)"
+              <article
+                class="group bg-card hover:border-primary relative overflow-hidden rounded-xl border shadow-xs transition-[border-color,box-shadow,translate] duration-200 hover:-translate-y-0.5 hover:shadow-sm"
               >
-                <span class="flex items-center justify-between gap-2">
-                  <span class="truncate font-medium" :title="g.gaName">{{ g.gaName }}</span>
-                  <component
-                    :is="covers[g.coverId ?? 0]?.icon ?? Album"
-                    class="size-5 shrink-0"
-                    :style="{ color: g.coverColor }"
-                  />
-                </span>
-                <SmartBadge :smart="g.smart" />
-                <SmartBasis v-if="selectedGaId === g.gaId" class="animate-fade" :smart="g.smart" />
-                <span class="text-muted-foreground text-xs"
-                  >Created: {{ g.createDate.split('T')[0] }}</span
+                <button
+                  type="button"
+                  class="block w-full text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
+                  @click="openGallery(g)"
                 >
-              </button>
+                  <span
+                    class="relative grid h-28 place-items-center sm:h-36"
+                    :style="{ background: tint(g.coverColor) }"
+                    aria-hidden="true"
+                  >
+                    <component
+                      :is="iconFor(g)"
+                      class="size-12 stroke-[1.5] transition-transform duration-300 ease-(--ease-out-quart) group-hover:scale-110 group-hover:-rotate-6"
+                      :style="{ color: g.coverColor || undefined }"
+                    />
+                  </span>
+                  <span class="flex flex-col gap-0.5 py-3 pr-12 pl-4">
+                    <span class="truncate font-medium" :title="g.gaName">{{ g.gaName }}</span>
+                    <span class="text-muted-foreground text-xs"
+                      >Created {{ formatDate(g.createDate) }}</span
+                    >
+                  </span>
+                  <SmartBadge :smart="g.smart" class="bg-card absolute top-3 left-3" />
+                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger as-child>
+                    <button
+                      type="button"
+                      :aria-label="`More for ${g.gaName}`"
+                      class="text-muted-foreground hover:bg-accent hover:text-foreground absolute right-2 bottom-3 grid size-8 place-items-center rounded-md transition-colors"
+                    >
+                      <Ellipsis class="size-4" aria-hidden="true" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem @select="startEdit(g)"><Pencil /> Edit</DropdownMenuItem>
+                    <DropdownMenuItem @select="downloadGallery(g)"
+                      ><Download /> Download</DropdownMenuItem
+                    >
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" @select="deleting = g"
+                      ><Trash2 /> Delete</DropdownMenuItem
+                    >
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </article>
             </ContextMenuTrigger>
             <ContextMenuContent>
-              <ContextMenuItem @select="editing = { ...g }"><Pencil /> Edit</ContextMenuItem>
+              <ContextMenuItem @select="startEdit(g)"><Pencil /> Edit</ContextMenuItem>
+              <ContextMenuItem @select="downloadGallery(g)"><Download /> Download</ContextMenuItem>
               <ContextMenuItem variant="destructive" @select="deleting = g"
                 ><Trash2 /> Delete</ContextMenuItem
               >
-              <ContextMenuItem @select="downloadGallery(g)"><Download /> Download</ContextMenuItem>
             </ContextMenuContent>
           </ContextMenu>
-        </div>
-      </details>
-    </aside>
+        </li>
+      </ul>
+    </template>
+
+    <!-- One gallery open. -->
+    <template v-else>
+      <nav aria-label="Gallery path" class="-mb-2 flex items-center gap-1 text-sm">
+        <button
+          type="button"
+          class="text-muted-foreground hover:bg-accent hover:text-accent-foreground -ml-1.5 rounded-md px-1.5 py-1 transition-colors"
+          @click="closeGallery"
+        >
+          Galleries
+        </button>
+        <ChevronRight class="text-muted-foreground/70 size-3.5" aria-hidden="true" />
+        <span aria-current="page" class="truncate px-1.5 py-1 font-medium">{{
+          current.gaName
+        }}</span>
+      </nav>
+      <div class="flex flex-wrap items-center gap-4">
+        <span
+          class="animate-in zoom-in-75 grid size-14 shrink-0 place-items-center rounded-xl text-white shadow-sm duration-300"
+          :style="{ background: current.coverColor || '#16827d' }"
+          aria-hidden="true"
+        >
+          <component :is="iconFor(current)" class="size-6" />
+        </span>
+        <PageHeader :title="current.gaName" class="min-w-0 flex-1 !items-center">
+          <template #description>
+            <span class="flex flex-wrap items-center gap-2">
+              Created {{ formatDate(current.createDate) }}
+              <SmartBadge :smart="current.smart" />
+            </span>
+          </template>
+          <Button variant="outline" @click="startEdit(current)"><Pencil /> Edit</Button>
+          <Button variant="outline" @click="downloadGallery(current)"><Download /> Download</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button variant="outline" size="icon" aria-label="More"><Ellipsis /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem variant="destructive" @select="deleting = current"
+                ><Trash2 /> Delete Gallery</DropdownMenuItem
+              >
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </PageHeader>
+      </div>
+      <SmartBasis
+        v-if="current.smart"
+        class="bg-card animate-fade rounded-xl border px-4 py-3"
+        :smart="current.smart"
+      />
+    </template>
 
     <MediaList
+      v-show="current"
       ref="mediaList"
-      class="min-w-0 flex-1"
+      class="min-w-0"
       :ns-or-not="false"
       :detach-enabled="true"
       detach-str="Gallery"
@@ -302,10 +429,9 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
     <AlertDialog :open="!!deleting" @update:open="deleting = null">
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Confirm to Delete</AlertDialogTitle>
+          <AlertDialogTitle>Delete {{ deleting?.gaName }}?</AlertDialogTitle>
           <AlertDialogDescription>
-            Do you really want to DELETE this gallery? *All photos associated with this gallery will
-            be detached (photos will not been deleted).
+            Its photos stay in your library; only the gallery goes away.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -315,33 +441,106 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
       </AlertDialogContent>
     </AlertDialog>
 
-    <Dialog :open="!!editing" @update:open="editing = null">
-      <DialogContent>
+    <Dialog :open="!!form" @update:open="form = null">
+      <DialogContent v-if="form" class="sm:max-w-[640px]">
         <DialogHeader>
-          <DialogTitle>Edit Gallery</DialogTitle>
-          <DialogDescription>Change this gallery's name, icon and color.</DialogDescription>
-        </DialogHeader>
-        <template v-if="editing">
-          <Input v-model="editing.gaName" placeholder="Gallery Name" @keyup.enter="saveEdit" />
-          <Select
-            :model-value="String(editing.coverId ?? 0)"
-            @update:model-value="editing.coverId = Number($event)"
+          <DialogTitle>{{ form.gaId === undefined ? 'New Gallery' : 'Edit Gallery' }}</DialogTitle>
+          <DialogDescription
+            >Galleries collect items from any folder without moving them.</DialogDescription
           >
-            <SelectTrigger class="w-full" aria-label="Cover icon"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="(c, i) in covers" :key="c.label" :value="String(i)">{{
-                c.label
-              }}</SelectItem>
-            </SelectContent>
-          </Select>
-          <input
-            v-model="editing.coverColor"
-            type="color"
-            aria-label="Cover color"
-            class="h-9 w-full cursor-pointer rounded-md border"
-          />
-        </template>
-        <DialogFooter><Button @click="saveEdit">Submit</Button></DialogFooter>
+        </DialogHeader>
+        <form class="grid gap-6 sm:grid-cols-[220px_1fr]" @submit.prevent="saveForm">
+          <!-- Live preview of the card. -->
+          <div
+            class="bg-card hidden self-start overflow-hidden rounded-xl border shadow-xs sm:block"
+            aria-hidden="true"
+          >
+            <div
+              class="grid h-32 place-items-center transition-colors"
+              :style="{ background: tint(form.coverColor) }"
+            >
+              <component
+                :is="iconFor(form)"
+                :key="form.coverId"
+                class="animate-in zoom-in-50 size-10 stroke-[1.5] duration-300"
+                :style="{ color: form.coverColor }"
+              />
+            </div>
+            <div class="flex items-center gap-3 p-3">
+              <span
+                class="grid size-8 shrink-0 place-items-center rounded-lg text-white transition-colors"
+                :style="{ background: form.coverColor }"
+                ><component :is="iconFor(form)" class="size-4"
+              /></span>
+              <span class="flex min-w-0 flex-col">
+                <span class="truncate font-medium">{{ form.gaName || 'Untitled' }}</span>
+                <span class="text-muted-foreground text-xs">{{
+                  form.gaId === undefined ? 'Empty until you add photos' : 'Gallery'
+                }}</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-5">
+            <div class="flex flex-col gap-2">
+              <Label for="gallery-name">Name</Label>
+              <Input id="gallery-name" v-model="form.gaName" placeholder="Gallery Name" />
+            </div>
+            <fieldset class="flex flex-col gap-2">
+              <legend class="mb-2 text-sm font-medium">Color</legend>
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  v-for="c in colors"
+                  :key="c"
+                  type="button"
+                  :aria-label="`Color ${c}`"
+                  :aria-pressed="form.coverColor === c"
+                  class="grid size-8 place-items-center rounded-full text-white ring-offset-2 ring-offset-card transition-transform hover:scale-110 aria-pressed:ring-2"
+                  :style="{ background: c, '--tw-ring-color': c }"
+                  @click="form.coverColor = c"
+                >
+                  <Check v-if="form.coverColor === c" class="size-4" aria-hidden="true" />
+                </button>
+                <label
+                  class="relative grid size-8 cursor-pointer place-items-center rounded-full border border-dashed"
+                  title="Custom color"
+                >
+                  <Plus class="text-muted-foreground size-4" aria-hidden="true" />
+                  <input
+                    v-model="form.coverColor"
+                    type="color"
+                    aria-label="Cover color"
+                    class="absolute inset-0 cursor-pointer opacity-0"
+                  />
+                </label>
+              </div>
+            </fieldset>
+            <fieldset class="flex flex-col">
+              <legend class="mb-2 text-sm font-medium">Icon</legend>
+              <div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Cover icon">
+                <button
+                  v-for="(c, i) in covers"
+                  :key="c.label"
+                  type="button"
+                  role="radio"
+                  :aria-checked="form.coverId === i"
+                  :aria-label="c.label"
+                  :title="c.label"
+                  class="bg-card hover:bg-accent aria-checked:border-primary aria-checked:bg-accent aria-checked:text-accent-foreground grid size-10 place-items-center rounded-lg border shadow-xs transition-colors"
+                  @click="form.coverId = i"
+                >
+                  <component :is="c.icon" class="size-4" aria-hidden="true" />
+                </button>
+              </div>
+            </fieldset>
+          </div>
+        </form>
+        <DialogFooter>
+          <Button variant="outline" @click="form = null">Cancel</Button>
+          <Button @click="saveForm">{{
+            form.gaId === undefined ? 'Create Gallery' : 'Save Changes'
+          }}</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   </div>

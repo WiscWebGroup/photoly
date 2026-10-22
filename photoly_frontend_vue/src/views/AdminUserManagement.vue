@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { KeyRound, Search, Trash2, X } from '@lucide/vue'
+import PageHeader from '@/components/PageHeader.vue'
 import { toast } from 'vue-sonner'
 import AdminLayout from '@/components/AdminLayout.vue'
 import {
@@ -12,15 +14,16 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -28,14 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { assertAdmin, useAdminGuard } from '@/composables/useAdminGuard'
 import { ApiError, call, http, type Envelope } from '@/lib/http'
 import { aiCall, aiMessage } from '@/lib/ai'
@@ -183,114 +178,174 @@ onMounted(() =>
 </script>
 
 <template>
-  <AdminLayout>
-    <Card>
-      <CardHeader><CardTitle class="text-2xl">User Management</CardTitle></CardHeader>
-      <CardContent class="space-y-4">
-        <div class="flex flex-wrap gap-2">
-          <Input
-            v-model="searchText"
-            class="max-w-xs"
-            aria-label="Search users"
-            @keyup.enter="search(searchText)"
-          />
-          <Button variant="outline" @click="search(searchText)">Search</Button>
-          <Button variant="outline" @click="search(null)">Back to Indexing</Button>
-        </div>
+  <AdminLayout wide>
+    <PageHeader title="User Management" description="Everyone with an account on this server." />
 
-        <p class="text-sm text-muted-foreground">
-          Enabling AI indexes existing photos in the background. Disabling stops search and new
-          computation; stored vectors are retained. New-user defaults are in
-          <router-link class="underline" to="/thepersonincharge/ai">AI Management</router-link>.
-        </p>
-        <p v-if="aiError" role="alert" class="text-sm text-destructive">
-          {{ aiError }} <Button variant="outline" size="sm" @click="reload">Retry</Button>
-        </p>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User ID</TableHead>
-              <TableHead>Username</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Create Date</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>AI Search</TableHead>
-              <TableHead>UUID</TableHead>
-              <TableHead>Password</TableHead>
-              <TableHead>Delete</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="u in users" :key="u.userId">
-              <TableCell>{{ u.userId }}</TableCell>
-              <TableCell
-                ><Input v-model="u.userName" aria-label="Username" @change="rename(u)"
-              /></TableCell>
-              <TableCell
-                ><Input v-model="u.email" aria-label="Email" @change="changeEmail(u)"
-              /></TableCell>
-              <TableCell>{{ u.createDate }}</TableCell>
-              <TableCell>
+    <form
+      class="flex flex-wrap items-center gap-2"
+      role="search"
+      @submit.prevent="search(searchText)"
+    >
+      <label class="relative w-full max-w-80">
+        <Search
+          class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+          aria-hidden="true"
+        />
+        <Input
+          v-model="searchText"
+          class="pl-9"
+          placeholder="Search name or email"
+          aria-label="Search users"
+        />
+      </label>
+      <Button type="submit" variant="outline">Search</Button>
+      <Button
+        v-if="activeSearch !== null"
+        type="button"
+        variant="ghost"
+        @click="((searchText = ''), search(null))"
+        ><X /> Clear</Button
+      >
+    </form>
+
+    <p class="text-muted-foreground -mt-2 text-sm">
+      Turning on AI search indexes that person's photos in the background; turning it off stops new
+      work and keeps what's stored. Defaults for new accounts live in
+      <router-link class="text-primary font-medium hover:underline" to="/thepersonincharge/ai"
+        >AI</router-link
+      >.
+    </p>
+    <p
+      v-if="aiError"
+      role="alert"
+      class="border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-3 rounded-xl border px-4 py-3 text-sm"
+    >
+      {{ aiError }}
+      <Button variant="outline" size="sm" class="ml-auto" @click="reload">Retry</Button>
+    </p>
+
+    <div class="bg-card overflow-hidden rounded-xl border shadow-xs">
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[880px] border-collapse text-sm">
+          <thead>
+            <tr class="text-muted-foreground text-left text-xs">
+              <th scope="col" class="border-b px-4 py-3 font-medium">User</th>
+              <th scope="col" class="border-b px-4 py-3 font-medium">Role</th>
+              <th scope="col" class="border-b px-4 py-3 font-medium">AI search</th>
+              <th scope="col" class="border-b px-4 py-3 font-medium">Joined</th>
+              <th scope="col" class="border-b px-4 py-3 font-medium">UUID</th>
+              <th scope="col" class="border-b px-4 py-3"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(u, i) in users"
+              :key="u.userId"
+              class="animate-rise hover:bg-muted/40 transition-colors [&>td]:border-b"
+              :style="{ animationDelay: `${i * 30}ms` }"
+            >
+              <td class="px-4 py-2.5">
+                <div class="flex items-center gap-3">
+                  <span
+                    class="bg-accent text-accent-foreground grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold uppercase"
+                    aria-hidden="true"
+                    >{{ u.userName?.slice(0, 1) }}</span
+                  >
+                  <div class="flex min-w-0 flex-1 flex-col">
+                    <input
+                      v-model="u.userName"
+                      aria-label="Username"
+                      class="hover:border-input focus:border-ring focus:ring-ring/30 -mx-1.5 rounded-md border border-transparent bg-transparent px-1.5 font-medium outline-none focus:ring-3"
+                      @change="rename(u)"
+                    />
+                    <input
+                      v-model="u.email"
+                      aria-label="Email"
+                      class="text-muted-foreground hover:border-input focus:border-ring focus:ring-ring/30 -mx-1.5 rounded-md border border-transparent bg-transparent px-1.5 text-xs outline-none focus:ring-3"
+                      @change="changeEmail(u)"
+                    />
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-2.5">
                 <Select :model-value="u.role" @update:model-value="changeRole(u, $event as string)">
-                  <SelectTrigger class="w-28" aria-label="Role"><SelectValue /></SelectTrigger>
+                  <SelectTrigger size="sm" class="w-24 capitalize" aria-label="Role"
+                    ><SelectValue
+                  /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">admin</SelectItem>
                     <SelectItem value="user">user</SelectItem>
                   </SelectContent>
                 </Select>
-              </TableCell>
-              <TableCell
-                ><Switch
-                  :aria-label="`AI search for user ${u.userId}`"
-                  :model-value="aiStates[u.userId] ?? false"
-                  :disabled="aiStates[u.userId] === undefined || aiSaving[u.userId]"
-                  @update:model-value="(enabled) => changeAi(u.userId, enabled)"
-                /><span v-if="aiStates[u.userId] === undefined" class="text-xs"
-                  >Unknown</span
-                ></TableCell
-              >
-              <TableCell>{{ u.uuid }}</TableCell>
-              <TableCell
-                ><Button variant="secondary" size="sm" @click="passwordUser = u"
-                  >Change</Button
-                ></TableCell
-              >
-              <TableCell
-                ><Button variant="destructive" size="sm" @click="deleteUser = u"
-                  >Delete User</Button
-                ></TableCell
-              >
-            </TableRow>
-          </TableBody>
-        </Table>
-
-        <div class="flex flex-wrap items-center justify-end gap-3">
-          <Select :model-value="String(pageSize)" @update:model-value="goTo(1, Number($event))">
-            <SelectTrigger class="w-28" aria-label="Rows per page"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="n in [10, 20, 30]" :key="n" :value="String(n)"
-                >{{ n }} / page</SelectItem
-              >
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="sm" :disabled="page <= 1" @click="goTo(page - 1)"
-            >Previous</Button
-          >
-          <span class="text-sm">Page {{ page }} of {{ pageCount }}</span>
-          <Button variant="outline" size="sm" :disabled="page >= pageCount" @click="goTo(page + 1)"
-            >Next</Button
-          >
-        </div>
-      </CardContent>
-    </Card>
+              </td>
+              <td class="px-4 py-2.5">
+                <span class="flex items-center gap-2">
+                  <Switch
+                    :aria-label="`AI search for user ${u.userId}`"
+                    :model-value="aiStates[u.userId] ?? false"
+                    :disabled="aiStates[u.userId] === undefined || aiSaving[u.userId]"
+                    @update:model-value="(enabled) => changeAi(u.userId, enabled)"
+                  /><span
+                    v-if="aiStates[u.userId] === undefined"
+                    class="text-muted-foreground text-xs"
+                    >Unknown</span
+                  >
+                </span>
+              </td>
+              <td class="text-muted-foreground px-4 py-2.5 whitespace-nowrap">
+                {{ u.createDate?.slice(0, 10) }}
+              </td>
+              <td class="text-muted-foreground px-4 py-2.5 font-mono text-xs">{{ u.uuid }}</td>
+              <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                <Button variant="ghost" size="sm" @click="passwordUser = u"
+                  ><KeyRound /> Reset Password</Button
+                >
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  class="text-destructive hover:text-destructive"
+                  aria-label="Delete User"
+                  @click="deleteUser = u"
+                  ><Trash2
+                /></Button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+        <span class="text-muted-foreground">Page {{ page }} of {{ pageCount }}</span>
+        <span class="text-muted-foreground ml-auto">Rows</span>
+        <Select :model-value="String(pageSize)" @update:model-value="goTo(1, Number($event))">
+          <SelectTrigger size="sm" class="w-20" aria-label="Rows per page"
+            ><SelectValue
+          /></SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="n in [10, 20, 30]" :key="n" :value="String(n)">{{ n }}</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" :disabled="page <= 1" @click="goTo(page - 1)"
+          >Previous</Button
+        >
+        <Button variant="outline" size="sm" :disabled="page >= pageCount" @click="goTo(page + 1)"
+          >Next</Button
+        >
+      </div>
+    </div>
 
     <Dialog :open="!!passwordUser" @update:open="passwordUser = null">
-      <DialogContent>
-        <DialogHeader><DialogTitle>Edit Password</DialogTitle></DialogHeader>
-        <p class="text-sm">
-          ID: {{ passwordUser?.userId }} | Username: {{ passwordUser?.userName }}
-        </p>
-        <Input v-model="newPassword" placeholder="New Password" @keyup.enter="changePassword" />
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Reset Password</DialogTitle>
+          <DialogDescription
+            >Set a new password for {{ passwordUser?.userName }} (ID
+            {{ passwordUser?.userId }}).</DialogDescription
+          >
+        </DialogHeader>
+        <form class="flex flex-col gap-2" @submit.prevent="changePassword">
+          <Label for="reset-pw">New Password</Label>
+          <Input id="reset-pw" v-model="newPassword" placeholder="New Password" />
+        </form>
         <DialogFooter>
           <Button variant="outline" @click="passwordUser = null">Cancel</Button>
           <Button @click="changePassword">Submit</Button>
@@ -301,10 +356,9 @@ onMounted(() =>
     <AlertDialog :open="!!deleteUser" @update:open="deleteUser = null">
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Confirm to Delete</AlertDialogTitle>
+          <AlertDialogTitle>Delete {{ deleteUser?.userName }}?</AlertDialogTitle>
           <AlertDialogDescription>
-            Do you really want to Delete this User with ID {{ deleteUser?.userId }} and Username
-            {{ deleteUser?.userName }}?
+            The account with ID {{ deleteUser?.userId }} is deleted. This can't be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

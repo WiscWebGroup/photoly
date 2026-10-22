@@ -17,7 +17,7 @@ test('create a tag and filter photos by it', async ({ page }) => {
   })
   await page.goto('/home/TagPart')
 
-  await page.getByText('Add New Tag', { exact: true }).click()
+  await page.getByRole('button', { name: 'Add New Tag' }).click()
   await page.getByPlaceholder('Tag Name').fill('Beach')
   await page.getByRole('button', { name: 'Add', exact: true }).click()
   await expect(page.getByText('Created a New Tag!')).toBeVisible()
@@ -32,8 +32,7 @@ test('create a tag and filter photos by it', async ({ page }) => {
 test('search photos by name', async ({ page }) => {
   const calls = await mockApi(page, { '/photo/searchPhoto': ok([photo(10, 'beach')]) })
   await page.goto('/home/SearchPart')
-  await page.getByRole('combobox', { name: 'Search by' }).click()
-  await page.getByRole('option', { name: 'Photo Name', exact: true }).click()
+  await page.getByRole('radio', { name: 'Name', exact: true }).click()
   await page.getByRole('textbox').fill('bea')
   await page.getByRole('textbox').press('Enter')
 
@@ -59,7 +58,7 @@ test('browse a gallery', async ({ page }) => {
     '/photo/getByGallery': ok([photo(10, 'beach')]),
   })
   await page.goto('/home/GalleryPart')
-  await expect(page.getByText('Created: 2024-06-01')).toBeVisible()
+  await expect(page.getByText(/^Created Jun 1, 2024$/)).toBeVisible()
   await page.getByText('Summer', { exact: true }).click()
 
   await expect(page.getByText('beach.jpg')).toBeVisible()

@@ -1,11 +1,22 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
-import { Download, Eye, FolderInput, SquareCheck, Trash2 } from '@lucide/vue'
+import {
+  Check,
+  Download,
+  Eye,
+  File,
+  Film,
+  FolderInput,
+  Play,
+  SquareCheck,
+  Trash2,
+} from '@lucide/vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { startDrag } from '@/composables/dragDrop'
 import MoveToShowFolder from '@/components/MoveToShowFolder.vue'
 import PhotoViewer from '@/components/PhotoViewer.vue'
+import SelectionBar from '@/components/SelectionBar.vue'
 import ViewToggle from '@/components/ViewToggle.vue'
 import {
   AlertDialog,
@@ -17,7 +28,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -32,8 +42,6 @@ import { mediaKind } from '@/lib/media'
 import { cn } from '@/lib/utils'
 import { photoUrl } from '@/lib/photoUrl'
 import { useAuthStore } from '@/stores/auth'
-import videoIcon from '@/assets/icons/Video.png'
-import logo from '@/assets/logo.ico'
 
 /** `dragFolders`: selected folders that travel along when a selected photo is dragged. */
 const props = withDefaults(
@@ -45,8 +53,16 @@ const props = withDefaults(
     dragFolders?: number[]
     /** The parent renders one shared selection bar instead (see HomePart). */
     hideBar?: boolean
+    /** Section heading. */
+    heading?: string
+    /** Split the grid into days by upload date (the library); search keeps its ranking. */
+    groupByDay?: boolean
+    /** The parent shows the grid / list switch in its own header instead. */
+    hideToggle?: boolean
+    emptyTitle?: string
+    emptyDescription?: string
   }>(),
-  { allowSimilar: true },
+  { allowSimilar: true, heading: 'Media', emptyTitle: 'No photos here' },
 )
 /** `queryPhotos`: the list changed on the server, reload it. `doDetach`: remove the checked photos from the parent's tag/gallery. */
 const emit = defineEmits<{
@@ -90,6 +106,37 @@ function formatDate(iso?: string) {
 }
 
 const checked = computed(() => photos.value.filter((p) => p.checked))
+
+/** "Saturday, 1 June 2024" for an ISO date, or '' when there isn't one. */
+function formatDay(iso?: string) {
+  const [y, m, d] = (iso ?? '').slice(0, 10).split('-').map(Number)
+  if (!y || !m || !d) return ''
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
+const groups = computed(() => {
+  if (!props.groupByDay) return [{ key: 'all', label: '', items: photos.value }]
+  const byDay = new Map<string, Photo[]>()
+  for (const p of photos.value) {
+    const key = (p.uploadDate ?? '').slice(0, 10)
+    byDay.set(key, [...(byDay.get(key) ?? []), p])
+  }
+  return [...byDay.entries()]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([key, items]) => ({ key, label: formatDay(key) || 'Undated', items }))
+})
+
+/** Selects a whole day, or clears it when it's already all selected. */
+function selectGroup(items: Photo[]) {
+  const all = items.every((p) => p.checked)
+  items.forEach((p) => (p.checked = !all))
+  selectMode.value = true
+}
 
 function setChecked(value: boolean) {
   photos.value.forEach((p) => (p.checked = value))
@@ -216,139 +263,197 @@ defineExpose({
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div class="flex flex-wrap items-center gap-3">
-      <h2 class="text-2xl font-semibold">Media</h2>
-      <Transition name="reveal">
-        <div v-if="selectMode && !hideBar" class="flex flex-wrap items-center gap-3">
-          <Button variant="outline" size="sm" @click="selectMode = false">Done</Button>
-          <Button variant="outline" size="sm" @click="setChecked(false)">Clear</Button>
-          <Button variant="outline" size="sm" @click="setChecked(true)">Select All</Button>
-          <Button variant="secondary" size="sm" @click="askMove([...checked])">Move</Button>
-          <Button v-if="detachEnabled" variant="secondary" size="sm" @click="confirmDetach = true">
-            Remove From {{ detachStr }}
-          </Button>
-          <Button variant="destructive" size="sm" @click="confirmDelete = true"
-            >Delete Selected</Button
-          >
-        </div>
-      </Transition>
-      <ViewToggle v-if="!hideBar" class="ml-auto" />
+  <section class="flex flex-col gap-5" :aria-label="heading">
+    <div class="flex flex-wrap items-baseline gap-2">
+      <h2 class="text-base font-semibold">{{ heading }}</h2>
+      <span v-if="photos.length" class="text-muted-foreground text-sm tabular-nums">{{
+        photos.length
+      }}</span>
+      <div class="ml-auto flex items-center gap-1 self-center">
+        <button
+          v-if="photos.length && !groupByDay"
+          type="button"
+          class="text-primary hover:bg-accent h-8 rounded-md px-2 text-sm font-medium transition-colors"
+          :aria-pressed="selectMode"
+          @click="selectMode = !selectMode"
+        >
+          {{ selectMode ? 'Cancel' : 'Select' }}
+        </button>
+        <ViewToggle v-if="!hideToggle" />
+      </div>
     </div>
 
-    <EmptyState v-if="!photos.length" title="No photos here" />
-    <ul
-      :class="
-        viewMode === 'list'
-          ? 'flex flex-col gap-1'
-          : 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
-      "
-    >
-      <li
-        v-for="(photo, i) in photos"
-        :key="photo.photoId"
-        class="animate-rise [content-visibility:auto]"
-        :style="{ animationDelay: `${Math.min(i, 12) * 30}ms` }"
+    <EmptyState
+      v-if="!photos.length"
+      :title="emptyTitle"
+      :description="emptyDescription"
+      class="py-10"
+    />
+    <div v-for="group in groups" :key="group.key" class="flex flex-col gap-2.5">
+      <div v-if="groupByDay" class="flex items-baseline gap-2">
+        <h3 class="text-sm font-medium">{{ group.label }}</h3>
+        <span class="text-muted-foreground text-xs tabular-nums">{{ group.items.length }}</span>
+        <button
+          type="button"
+          class="text-primary hover:text-accent-foreground ml-auto rounded-sm text-[13px] font-medium transition-colors"
+          @click="selectGroup(group.items)"
+        >
+          {{ selectMode && group.items.every((p) => p.checked) ? 'Deselect' : 'Select' }}
+        </button>
+      </div>
+      <ul
+        :class="
+          viewMode === 'list'
+            ? 'flex flex-col gap-1'
+            : '-mx-4 grid grid-cols-3 gap-0.5 sm:mx-0 sm:grid-cols-4 sm:gap-1 lg:grid-cols-5 xl:grid-cols-6'
+        "
       >
-        <ContextMenu>
-          <ContextMenuTrigger as-child>
-            <div
-              :class="
-                cn(
-                  'group bg-card hover:bg-accent relative overflow-hidden border transition-[box-shadow,background-color,translate] duration-200',
-                  viewMode === 'list'
-                    ? 'flex items-center rounded-lg hover:shadow-sm'
-                    : 'rounded-xl shadow-xs hover:-translate-y-0.5 hover:shadow-md',
-                )
-              "
-              draggable="true"
-              @dragstart="dragPhoto($event, photo)"
-              @contextmenu.stop
-            >
-              <Checkbox
-                v-if="selectMode"
-                :class="
-                  cn(
-                    'bg-background animate-in fade-in zoom-in-75 size-5',
-                    viewMode === 'list' ? 'mx-3 shrink-0' : 'absolute top-2 left-2 z-10',
-                  )
-                "
-                :aria-label="`Select ${photo.photoName}`"
-                :model-value="!!photo.checked"
-                @update:model-value="photo.checked = $event === true"
-              />
+        <li
+          v-for="(photo, i) in group.items"
+          :key="photo.photoId"
+          class="animate-rise relative [content-visibility:auto]"
+          :style="{ animationDelay: `${Math.min(i, 12) * 25}ms` }"
+        >
+          <ContextMenu>
+            <ContextMenuTrigger as-child>
               <button
                 type="button"
+                :aria-pressed="selectMode ? !!photo.checked : undefined"
                 :class="
                   cn(
-                    'w-full min-w-0 text-left',
-                    viewMode === 'list' ? 'flex items-center gap-3 p-2' : 'block',
+                    'group relative block w-full min-w-0 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+                    viewMode === 'list'
+                      ? 'bg-card hover:bg-accent flex items-center gap-3 rounded-lg border p-2 transition-colors'
+                      : 'bg-muted aspect-square overflow-hidden sm:rounded-[4px]',
+                    viewMode === 'list' && photo.checked && 'border-primary bg-accent',
                   )
                 "
+                draggable="true"
+                @dragstart="dragPhoto($event, photo)"
                 @click="open(photo, $event)"
+                @contextmenu.stop
               >
                 <img
-                  :src="
-                    {
-                      photo: photoUrl(photo.photoId, 'renderThumbnail'),
-                      video: videoIcon,
-                      other: logo,
-                    }[mediaKind(photo.format)]
-                  "
+                  v-if="mediaKind(photo.format) === 'photo'"
+                  :src="photoUrl(photo.photoId, 'renderThumbnail')"
                   alt=""
                   loading="lazy"
                   decoding="async"
                   draggable="false"
                   :class="
                     viewMode === 'list'
-                      ? 'size-10 shrink-0 rounded object-cover'
+                      ? 'size-10 shrink-0 rounded-md object-cover'
                       : cn(
-                          'aspect-[2/1] w-full object-cover transition-[transform,filter] duration-300 group-hover:scale-[1.03]',
-                          // Dim thumbnails so the corner checkbox stands out.
-                          selectMode && 'brightness-75',
+                          'size-full object-cover transition-transform duration-350 ease-(--ease-out-quart) group-hover:scale-[1.04]',
+                          photo.checked && '!scale-[0.92] sm:rounded-[2px]',
                         )
                   "
                 />
-                <p
+                <span
+                  v-else
                   :class="
-                    cn('truncate text-sm', viewMode === 'list' ? 'min-w-0 flex-1' : 'px-3 py-2')
+                    cn(
+                      'text-muted-foreground grid place-items-center',
+                      viewMode === 'list' ? 'bg-muted size-10 shrink-0 rounded-md' : 'size-full',
+                    )
+                  "
+                >
+                  <component
+                    :is="mediaKind(photo.format) === 'video' ? Film : File"
+                    :class="viewMode === 'list' ? 'size-4' : 'size-8'"
+                    aria-hidden="true"
+                  />
+                </span>
+                <span
+                  v-if="viewMode === 'grid' && mediaKind(photo.format) === 'video'"
+                  class="pointer-events-none absolute right-1.5 bottom-1.5 flex items-center gap-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[11px] leading-4 font-medium text-white"
+                  ><Play class="size-2.5 fill-current" aria-hidden="true" />Video</span
+                >
+                <!-- The name rides along on hover in the grid, and is the row label in the list. -->
+                <span
+                  :class="
+                    viewMode === 'list'
+                      ? 'min-w-0 flex-1 truncate text-sm'
+                      : 'pointer-events-none absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/60 to-transparent px-2 pt-6 pb-1.5 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100'
                   "
                   :title="`${photo.photoName}.${photo.format}`"
+                  >{{ photo.photoName }}.{{ photo.format }}</span
                 >
-                  {{ photo.photoName }}.{{ photo.format }}
-                </p>
                 <span
                   v-if="viewMode === 'list'"
-                  class="text-muted-foreground hidden shrink-0 text-xs sm:block"
-                  >Created on {{ formatDate(photo.uploadDate) }}</span
+                  class="text-muted-foreground hidden shrink-0 pr-1 text-xs sm:block"
+                  >{{ formatDate(photo.uploadDate) }}</span
                 >
+                <span
+                  v-if="selectMode"
+                  aria-hidden="true"
+                  :class="
+                    cn(
+                      'animate-in fade-in zoom-in-75 grid size-[22px] shrink-0 place-items-center rounded-full transition-colors',
+                      viewMode === 'list' ? 'order-first ml-1' : 'absolute top-2 left-2',
+                      photo.checked
+                        ? 'bg-primary text-primary-foreground ring-2 ring-white'
+                        : 'border-2 border-white bg-black/20 shadow-sm',
+                      viewMode === 'list' && !photo.checked && 'border-input bg-card',
+                    )
+                  "
+                  ><Check v-if="photo.checked" class="size-3.5" stroke-width="3" aria-hidden="true"
+                /></span>
               </button>
-            </div>
-          </ContextMenuTrigger>
-          <ContextMenuContent>
-            <ContextMenuItem @select="selectPhoto(photo)">
-              <SquareCheck /> {{ photo.checked ? 'Deselect' : 'Select' }}
-            </ContextMenuItem>
-            <ContextMenuItem @select="open(photo)"><Eye /> View</ContextMenuItem>
-            <ContextMenuItem @select="downloadPhoto(photo)"><Download /> Download</ContextMenuItem>
-            <ContextMenuItem
-              variant="destructive"
-              @select="
-                applyToAll(
-                  [photo],
-                  (p) => remove(p.photoId),
-                  'Photo deleted!',
-                  'delete photo Response Error!',
-                )
-              "
-            >
-              <Trash2 /> Delete
-            </ContextMenuItem>
-            <ContextMenuItem @select="askMove([photo])"><FolderInput /> Move To</ContextMenuItem>
-          </ContextMenuContent>
-        </ContextMenu>
-      </li>
-    </ul>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+              <ContextMenuItem @select="selectPhoto(photo)">
+                <SquareCheck /> {{ photo.checked ? 'Deselect' : 'Select' }}
+              </ContextMenuItem>
+              <ContextMenuItem @select="open(photo)"><Eye /> View</ContextMenuItem>
+              <ContextMenuItem @select="downloadPhoto(photo)"
+                ><Download /> Download</ContextMenuItem
+              >
+              <ContextMenuItem @select="askMove([photo])"><FolderInput /> Move To</ContextMenuItem>
+              <ContextMenuItem
+                variant="destructive"
+                @select="
+                  applyToAll(
+                    [photo],
+                    (p) => remove(p.photoId),
+                    'Photo deleted!',
+                    'delete photo Response Error!',
+                  )
+                "
+              >
+                <Trash2 /> Delete
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
+        </li>
+      </ul>
+    </div>
+
+    <SelectionBar
+      v-if="!hideBar"
+      :open="selectMode"
+      :count="checked.length"
+      @close="selectMode = false"
+    >
+      <button type="button" @click="setChecked(true)">Select All</button>
+      <button type="button" :disabled="!checked.length" @click="askMove([...checked])">Move</button>
+      <button
+        v-if="detachEnabled"
+        type="button"
+        :disabled="!checked.length"
+        @click="confirmDetach = true"
+      >
+        Remove From {{ detachStr }}
+      </button>
+      <button
+        type="button"
+        class="text-red-300 dark:text-red-700"
+        :disabled="!checked.length"
+        @click="confirmDelete = true"
+      >
+        Delete Selected
+      </button>
+    </SelectionBar>
 
     <PhotoViewer
       :allow-similar="allowSimilar !== false"
@@ -362,10 +467,13 @@ defineExpose({
     <AlertDialog v-model:open="confirmDelete">
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Confirm to Delete</AlertDialogTitle>
+          <AlertDialogTitle
+            >Delete {{ checked.length }}
+            {{ checked.length === 1 ? 'item' : 'items' }}?</AlertDialogTitle
+          >
           <AlertDialogDescription
-            >Do you really want to DELETE these photos? *All photos will be
-            destroied.</AlertDialogDescription
+            >The selected photos and videos are deleted for good. This can't be
+            undone.</AlertDialogDescription
           >
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -378,19 +486,24 @@ defineExpose({
     <AlertDialog v-model:open="confirmDetach">
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Confirm to Detach</AlertDialogTitle>
+          <AlertDialogTitle>Remove from this {{ detachStr?.toLowerCase() }}?</AlertDialogTitle>
           <AlertDialogDescription
-            >Do you really want to Detach these photos from this
-            {{ detachStr }}?</AlertDialogDescription
+            >The photos stay in your library; only this {{ detachStr?.toLowerCase() }} lets go of
+            them.</AlertDialogDescription
           >
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <Button @click="detachChecked">Confirm</Button>
+          <Button @click="detachChecked">Remove</Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
 
-    <MoveToShowFolder ref="movePicker" @move-to-update="moveChosen" />
-  </div>
+    <MoveToShowFolder
+      ref="movePicker"
+      :count="moving.length"
+      :item-name="moving.length === 1 ? `${moving[0]!.photoName}.${moving[0]!.format}` : undefined"
+      @move-to-update="moveChosen"
+    />
+  </section>
 </template>

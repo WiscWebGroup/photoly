@@ -61,24 +61,17 @@ describe('AdminDashboard', () => {
     mountWithApp(AdminDashboard)
 
     await vi.waitFor(() => expect(pageText()).toContain('db:5432'))
-    const rings = [...document.querySelectorAll('svg[role=img]')].map((s) =>
+    await vi.waitFor(() => expect(pageText()).toContain('Redis not responding'))
+    const status = [...document.querySelectorAll('[role=status]')].map((s) =>
       s.getAttribute('aria-label'),
     )
-    expect(rings).toEqual([
-      'Total Status: 67%',
-      'PostgreSQL Status: 100%',
-      'Redis Status: 0%',
-      'Backend Status: 100%',
+    expect(status).toEqual([
+      'Backend Status: Running',
+      'PostgreSQL Status: Running',
+      'Redis Status: Down',
     ])
-    const arcs = [...document.querySelectorAll('svg[role=img] circle:nth-child(2)')].map((c) =>
-      c.getAttribute('class'),
-    )
-    expect(arcs).toEqual([
-      'stroke-primary',
-      'stroke-primary',
-      'stroke-destructive',
-      'stroke-primary',
-    ])
+    expect(pageText()).toContain('pgvector 0.8.7')
+    expect(pageText()).toContain('/up')
     expect(document.querySelector('[aria-label=Registry]')?.getAttribute('data-state')).toBe(
       'checked',
     )
@@ -141,10 +134,9 @@ describe('AdminUserManagement', () => {
     mountWithApp(AdminUserManagement)
     await vi.waitFor(() => expect(pageText()).toContain('uuid-alice'))
 
-    button('Delete User').click()
-    await vi.waitFor(() =>
-      expect(pageText()).toContain('Do you really want to Delete this User with ID 1'),
-    )
+    document.querySelector<HTMLButtonElement>('button[aria-label="Delete User"]')!.click()
+    await vi.waitFor(() => expect(pageText()).toContain('Delete alice?'))
+    expect(pageText()).toContain('The account with ID 1 is deleted.')
     button('Delete').click()
     await vi.waitFor(() => expect(calls.some((c) => c.path === '/admin/deleteUser')).toBe(true))
     expect(calls.find((c) => c.path === '/admin/deleteUser')).toMatchObject({

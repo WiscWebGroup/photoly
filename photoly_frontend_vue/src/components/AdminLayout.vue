@@ -1,59 +1,73 @@
 <script setup lang="ts">
-import { ArrowLeft, LayoutDashboard, Users, Sparkles } from '@lucide/vue'
+import { ArrowLeft, Server, Sparkles, Users } from '@lucide/vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
-import { cn } from '@/lib/utils'
+
+withDefaults(defineProps<{ wide?: boolean }>(), { wide: false })
 
 const nav = [
-  { to: '/thepersonincharge/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/thepersonincharge/ai', label: 'AI Management', icon: Sparkles },
-  { to: '/thepersonincharge/usermanage', label: 'User Management', icon: Users },
+  { to: '/thepersonincharge/dashboard', label: 'Overview', icon: Server },
+  { to: '/thepersonincharge/usermanage', label: 'Users', icon: Users },
+  { to: '/thepersonincharge/ai', label: 'AI', icon: Sparkles },
 ]
 
-const linkClass =
-  'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors'
-const idle = 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+const link =
+  'flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50'
+const pill =
+  'bg-foreground text-background rounded-full px-1.5 text-[11px] leading-5 font-semibold tracking-[0.06em] uppercase'
 </script>
 
 <template>
   <div class="bg-background flex h-dvh flex-col md:flex-row">
     <!-- Desktop sidebar -->
-    <aside class="bg-card hidden w-56 shrink-0 flex-col border-r p-3 md:flex">
-      <router-link to="/thepersonincharge/dashboard" class="mb-4 flex items-center gap-2 px-3 py-2">
-        <img src="@/assets/photoly-wordmark.svg" alt="Photoly" class="h-7 invert dark:invert-0" />
-        <span class="text-muted-foreground text-xs font-semibold tracking-wide">ADMIN</span>
+    <aside class="bg-card hidden w-58 shrink-0 flex-col gap-7 border-r px-3 pt-5 pb-4 md:flex">
+      <router-link
+        to="/thepersonincharge/dashboard"
+        class="flex h-8 items-center gap-2 self-start rounded-md px-2.5 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <img src="@/assets/photoly-wordmark.svg" alt="Photoly" class="h-6 invert dark:invert-0" />
+        <span :class="pill">Admin</span>
       </router-link>
-      <nav aria-label="Admin" class="flex flex-1 flex-col gap-1">
+      <nav aria-label="Admin" class="flex flex-col gap-0.5">
         <router-link
           v-for="item in nav"
           :key="item.to"
           :to="item.to"
-          :class="cn(linkClass, idle)"
+          :class="link"
           active-class="!bg-accent !text-accent-foreground"
         >
-          <component :is="item.icon" class="size-4" />
+          <component :is="item.icon" class="size-4" aria-hidden="true" />
           {{ item.label }}
         </router-link>
       </nav>
-      <div class="flex items-center gap-1 border-t pt-3">
-        <router-link to="/home/HomePart" :class="cn(linkClass, idle)">
-          <ArrowLeft class="size-4" />
-          Back to Home
+      <div class="mt-auto flex items-center gap-1">
+        <router-link to="/home/HomePart" :class="[link, 'text-muted-foreground flex-1']">
+          <ArrowLeft class="size-4" aria-hidden="true" />
+          Back to Library
         </router-link>
-        <span class="ml-auto"><ThemeToggle /></span>
+        <ThemeToggle />
       </div>
     </aside>
 
     <!-- Mobile top bar -->
     <header
-      class="bg-card flex min-h-14 shrink-0 items-center gap-2 border-b px-4 pt-[env(safe-area-inset-top)] md:hidden"
+      class="bg-card flex min-h-14 shrink-0 items-center gap-2 border-b pt-[env(safe-area-inset-top)] pr-2 pl-4 md:hidden"
     >
-      <img src="@/assets/photoly-wordmark.svg" alt="Photoly" class="h-7 invert dark:invert-0" />
-      <span class="text-muted-foreground text-xs font-semibold tracking-wide">ADMIN</span>
+      <img
+        src="@/assets/photoly-wordmark.svg"
+        alt="Photoly"
+        class="h-[22px] invert dark:invert-0"
+      />
+      <span :class="pill">Admin</span>
       <span class="ml-auto"><ThemeToggle /></span>
     </header>
 
     <main class="min-h-0 flex-1 overflow-auto">
-      <div class="animate-rise mx-auto flex max-w-5xl flex-col gap-4 p-4 md:p-8">
+      <div
+        :class="[
+          'animate-rise flex w-full flex-col gap-6 px-4 pt-5 pb-10 md:px-10 md:pt-10 md:pb-16',
+          wide ? 'max-w-[1120px]' : 'max-w-[1040px]',
+        ]"
+      >
         <slot />
       </div>
     </main>
@@ -67,18 +81,18 @@ const idle = 'text-muted-foreground hover:bg-accent hover:text-accent-foreground
         v-for="item in nav"
         :key="item.to"
         :to="item.to"
-        class="text-muted-foreground flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors [&>svg]:transition-transform"
-        active-class="!text-primary [&>svg]:scale-110"
+        class="text-muted-foreground flex h-16 flex-col items-center justify-center gap-[3px] text-xs transition-colors [&>svg]:transition-transform"
+        active-class="!text-primary font-medium [&>svg]:scale-110"
       >
-        <component :is="item.icon" class="size-5" />
+        <component :is="item.icon" class="size-5" aria-hidden="true" />
         {{ item.label }}
       </router-link>
       <router-link
         to="/home/HomePart"
-        class="text-muted-foreground flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors [&>svg]:transition-transform"
+        class="text-muted-foreground flex h-16 flex-col items-center justify-center gap-[3px] text-xs"
       >
-        <ArrowLeft class="size-5" />
-        Home
+        <ArrowLeft class="size-5" aria-hidden="true" />
+        Library
       </router-link>
     </nav>
   </div>

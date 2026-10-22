@@ -2,7 +2,9 @@ import { flushPromises } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { http } from 'msw'
 import { API, ok, recordRequests, server } from '@/test/server'
-import { byText, mountWithApp } from '@/test/utils'
+import { button, byText, mountWithApp } from '@/test/utils'
+
+const tag = (name: string) => byText(name).closest('button')!
 import TagPart from '../TagPart.vue'
 
 function mockTags() {
@@ -34,8 +36,8 @@ describe('TagPart', () => {
     byText('Sunset').click()
     byText('Beach').click()
     await vi.waitFor(() => expect(photoQueries()).toEqual(['3', '3,4', '4']))
-    expect(byText('Sunset').getAttribute('aria-pressed')).toBe('false')
-    expect(byText('Beach').getAttribute('aria-pressed')).toBe('false')
+    expect(tag('Sunset').getAttribute('aria-pressed')).toBe('false')
+    expect(tag('Beach').getAttribute('aria-pressed')).toBe('false')
   })
 
   it('deselects every tag at once', async () => {
@@ -50,8 +52,8 @@ describe('TagPart', () => {
     byText('Deselect all (2)').click()
     await flushPromises()
 
-    expect(byText('Sunset').getAttribute('aria-pressed')).toBe('false')
-    expect(byText('Beach').getAttribute('aria-pressed')).toBe('false')
+    expect(tag('Sunset').getAttribute('aria-pressed')).toBe('false')
+    expect(tag('Beach').getAttribute('aria-pressed')).toBe('false')
     // The button leaves through a transition, so it is removed a frame later.
     await vi.waitFor(() => expect(document.body.textContent).not.toContain('Deselect all'))
   })
@@ -61,7 +63,9 @@ describe('TagPart', () => {
     mockTags()
     mountWithApp(TagPart)
     await vi.waitFor(() => byText('Sunset'))
-    byText('Add').click()
+    document.querySelector<HTMLButtonElement>('button[aria-label="Add New Tag"]')!.click()
+    await vi.waitFor(() => button('Add'))
+    button('Add').click()
     await flushPromises()
 
     expect(calls.map((c) => c.path)).not.toContain('/tag/insert')

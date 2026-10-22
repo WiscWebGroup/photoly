@@ -59,7 +59,7 @@ describe('HomePart', () => {
     await vi.waitFor(() => byText('beach.jpg'))
     expect(document.querySelector('[role=progressbar]')).toBeNull()
 
-    document.querySelector<HTMLButtonElement>('[role=dialog] button.w-full')!.click()
+    button('Upload', document.querySelector('[role=dialog]')!).click()
     await vi.waitFor(() => expect(document.querySelector('[role=progressbar]')).not.toBeNull())
     await vi.waitFor(() => expect(pageText()).toContain('Upload successful!'))
     expect(document.querySelector('[role=progressbar]')).toBeNull()
@@ -88,9 +88,7 @@ describe('HomePart', () => {
     await vi.waitFor(() => button('Select All'))
     button('Select All').click()
     button('Delete Selected').click()
-    await vi.waitFor(() =>
-      expect(pageText()).toContain('Do you really want to DELETE the selected items?'),
-    )
+    await vi.waitFor(() => expect(pageText()).toContain('Delete 2 items?'))
     button('Delete').click()
 
     await vi.waitFor(() =>

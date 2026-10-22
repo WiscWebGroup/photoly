@@ -2,6 +2,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { http } from 'msw'
 import { API, ok, recordRequests, server } from '@/test/server'
 import { byText, mountWithApp, pageText } from '@/test/utils'
+
+const created = new Date(2024, 5, 1).toLocaleDateString(undefined, {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+})
 import GalleryPart from '../GalleryPart.vue'
 
 function mockGalleries() {
@@ -25,10 +31,10 @@ describe('GalleryPart', () => {
   it('lists galleries with their creation date', async () => {
     mockGalleries()
     mountWithApp(GalleryPart)
-    await vi.waitFor(() => expect(pageText()).toContain('Created: 2024-06-01'))
+    await vi.waitFor(() => expect(pageText()).toContain(`Created ${created}`))
   })
 
-  it('loads a gallery on click and clears it on a second click', async () => {
+  it('opens a gallery with its photos, and goes back to the list', async () => {
     const calls = recordRequests()
     mockGalleries()
     mountWithApp(GalleryPart)
@@ -38,12 +44,11 @@ describe('GalleryPart', () => {
 
     byText('Summer').click()
     await vi.waitFor(() => expect(queries()).toEqual(['7']))
-    expect(byText('Summer').closest('button')?.getAttribute('aria-pressed')).toBe('true')
+    await vi.waitFor(() => expect(document.querySelector('h1')?.textContent).toContain('Summer'))
+    expect(document.querySelector('[aria-current=page]')?.textContent).toBe('Summer')
 
-    byText('Summer').click()
-    await vi.waitFor(() =>
-      expect(byText('Summer').closest('button')?.getAttribute('aria-pressed')).toBe('false'),
-    )
+    byText('Galleries').click()
+    await vi.waitFor(() => expect(document.querySelector('h1')?.textContent).toContain('Galleries'))
     expect(queries()).toEqual(['7'])
   })
 })

@@ -19,8 +19,7 @@ const response = {
 }
 async function mode(page: Page, name = 'Natural language') {
   await page.goto('/home/SearchPart')
-  await page.getByRole('combobox', { name: 'Search by' }).click()
-  await page.getByRole('option', { name, exact: true }).click()
+  await page.getByRole('radio', { name, exact: true }).click()
 }
 async function searchMocks(page: Page) {
   return mockApi(page, {

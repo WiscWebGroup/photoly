@@ -803,7 +803,7 @@ const section = 'group rounded-lg border bg-card'
 const summary =
   'flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden after:text-muted-foreground after:transition-transform after:content-["›"] group-open:after:rotate-90'
 const body = 'space-y-3 border-t p-3 text-sm'
-const label = 'text-xs font-medium text-muted-foreground'
+const label = 'text-xs font-semibold uppercase tracking-[0.025em] text-muted-foreground'
 </script>
 
 <template>
@@ -812,7 +812,8 @@ const label = 'text-xs font-medium text-muted-foreground'
       v-if="currentPhoto && info"
       :style="dialogStyle"
       :class="[
-        'max-h-[95dvh] w-full overflow-hidden p-0',
+        // Photos read best on a dark ground, whatever the app theme.
+        'dark text-foreground max-h-[95dvh] w-full overflow-hidden border-white/10 bg-[#0f0f0f] p-0 shadow-2xl',
         fullscreen &&
           'max-md:!h-dvh max-md:!max-h-dvh max-md:!w-screen max-md:!max-w-none max-md:!rounded-none max-md:!border-0',
         landscape || editing ? 'sm:max-w-4xl' : 'sm:w-fit sm:max-w-[calc(100%-2rem)]',
@@ -845,7 +846,7 @@ const label = 'text-xs font-medium text-muted-foreground'
           <div
             :class="[
               'relative flex items-center justify-center',
-              landscape ? 'min-h-48 md:bg-muted' : '',
+              landscape ? 'min-h-48 bg-black' : '',
             ]"
           >
             <Button
@@ -960,7 +961,7 @@ const label = 'text-xs font-medium text-muted-foreground'
                       {{ info.photoName }}.{{ info.format }}
                     </h2>
                     <p class="text-sm text-muted-foreground">
-                      Uploaded {{ info.uploadDate
+                      Uploaded {{ info.uploadDate?.slice(0, 10)
                       }}<template v-if="exif.File_Size">, {{ exif.File_Size }}</template>
                     </p>
                     <p class="break-all text-xs text-muted-foreground">{{ currentPath }}</p>

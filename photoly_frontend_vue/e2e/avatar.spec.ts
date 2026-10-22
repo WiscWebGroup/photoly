@@ -55,7 +55,7 @@ async function setup(page: Page) {
     }),
   })
   await page.goto('/home/ManagePart')
-  await page.getByRole('button', { name: 'Edit Avatar', exact: true }).click()
+  await page.getByRole('button', { name: 'Change Picture', exact: true }).click()
   await expect(page.getByTestId('avatar-crop')).toBeVisible()
 }
 async function imageFile(page: Page, width: number, height: number, transparent = false) {

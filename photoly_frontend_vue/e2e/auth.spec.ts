@@ -9,7 +9,7 @@ test('login lands on home with the root folder', async ({ page }) => {
   await page.getByRole('button', { name: 'Sign In' }).click()
 
   await expect(page).toHaveURL(/\/home\/HomePart$/)
-  await expect(page.getByText('Folders')).toBeVisible()
+  await expect(page.getByText('Folders', { exact: true })).toBeVisible()
   expect(calls.find((c) => c.path === '/user/signIn')?.body).toEqual({
     email: 'alice@example.com',
     password: 'secret',
@@ -56,8 +56,12 @@ test('logout clears the token and returns to the welcome page', async ({ page })
   const calls = await mockApi(page, { '/user/signOut': ok() })
   await page.goto('/login')
   await page.evaluate((token) => localStorage.setItem('HRD-Token', token), TOKEN)
-  await page.goto('/home/HomePart')
-  await page.getByRole('button', { name: 'Logout' }).click()
+  // Phones sign out from the account page; wider screens from the sidebar.
+  await page.goto('/home/ManagePart')
+  await page
+    .getByRole('button', { name: /^Sign out$/i })
+    .filter({ visible: true })
+    .click()
 
   await expect(page).toHaveURL(/\/$/)
   expect(calls.map((c) => c.path)).toContain('/user/signOut')

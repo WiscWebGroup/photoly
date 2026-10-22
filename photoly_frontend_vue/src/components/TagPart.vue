@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import SmartBadge from '@/components/SmartBadge.vue'
 import type { SmartSource } from '@/lib/smartOrganization'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
-import { Pencil, Trash2 } from '@lucide/vue'
+import { Check, Hash, Pencil, Plus, Search, Sparkles, Tag as TagIcon, Trash2, X } from '@lucide/vue'
+import AlbumSwitch from '@/components/AlbumSwitch.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import PageHeader from '@/components/PageHeader.vue'
 import MediaList from '@/components/MediaList.vue'
 import {
   AlertDialog,
@@ -30,9 +33,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import type { Photo } from '@/composables/usePhotos'
 import { call } from '@/lib/http'
-import { vCollapse } from '@/lib/collapse'
 import { cn } from '@/lib/utils'
 
 interface Tag {
@@ -45,6 +48,26 @@ const mediaList = ref<InstanceType<typeof MediaList>>()
 const tags = ref<Tag[]>([])
 const selectedTagIds = ref<number[]>([])
 const newTagName = ref('')
+const creating = ref(false)
+const filter = ref('')
+
+const matching = computed(() => {
+  const q = filter.value.trim().toLowerCase()
+  return q ? tags.value.filter((t) => t.tagName.toLowerCase().includes(q)) : tags.value
+})
+const sections = computed(() => [
+  { label: 'Your tags', smart: false, items: matching.value.filter((t) => !t.smart) },
+  { label: 'Smart · Camera and lens', smart: true, items: matching.value.filter((t) => t.smart) },
+])
+const selectedTags = computed(() =>
+  tags.value.filter((t) => selectedTagIds.value.includes(t.tagId)),
+)
+const onlyTag = computed(() => (selectedTags.value.length === 1 ? selectedTags.value[0] : null))
+
+function clearTags() {
+  selectedTagIds.value = []
+  return queryPhotos()
+}
 const editing = ref<Tag | null>(null)
 const editName = ref('')
 const deleting = ref<Tag | null>(null)
@@ -81,6 +104,7 @@ async function createTag() {
     await call({ method: 'post', url: '/tag/insert', data: { tagName: newTagName.value } })
     toast.success('Created a New Tag!')
     newTagName.value = ''
+    creating.value = false
     await loadTags()
   } catch {
     toast.error('createTag Response Error!')
@@ -150,87 +174,163 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 md:flex-row md:items-start" @contextmenu.prevent.stop>
-    <aside class="w-full shrink-0 space-y-3 md:w-56">
-      <h2 class="text-2xl font-semibold">Tags</h2>
-
-      <details v-collapse class="group rounded-lg border">
-        <summary
-          class="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-medium after:text-muted-foreground after:transition-transform after:content-['›'] group-open:after:rotate-90 [&::-webkit-details-marker]:hidden"
-        >
-          Add New Tag
-        </summary>
-        <div class="space-y-2 border-t p-3">
-          <Input v-model="newTagName" placeholder="Tag Name" @keyup.enter="createTag" />
-          <Button variant="secondary" class="w-full" @click="createTag">Add</Button>
-        </div>
-      </details>
-
-      <details v-collapse open class="group rounded-lg border">
-        <summary
-          class="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-medium after:text-muted-foreground after:transition-transform after:content-['›'] group-open:after:rotate-90 [&::-webkit-details-marker]:hidden"
-        >
-          Tags
-        </summary>
-        <div class="flex flex-wrap gap-2 border-t p-3 md:flex-col">
-          <ContextMenu v-for="tag in tags" :key="tag.tagId">
-            <ContextMenuTrigger as-child>
-              <button
-                type="button"
-                :aria-pressed="selectedTagIds.includes(tag.tagId)"
-                :title="tag.tagName"
-                :class="
-                  cn(
-                    'max-w-full truncate transition-colors rounded-full border px-3 py-1 text-left text-sm select-none',
-                    selectedTagIds.includes(tag.tagId)
-                      ? 'bg-primary text-primary-foreground border-transparent'
-                      : 'hover:bg-accent',
-                    tag.smart && 'border-violet-500',
-                  )
-                "
-                @click="selectTag(tag)"
-              >
-                {{ tag.tagName }} <SmartBadge :smart="tag.smart" />
-              </button>
-            </ContextMenuTrigger>
-            <ContextMenuContent>
-              <ContextMenuItem @select="startEdit(tag)"><Pencil /> Edit</ContextMenuItem>
-              <ContextMenuItem variant="destructive" @select="deleting = tag"
-                ><Trash2 /> Delete</ContextMenuItem
-              >
-            </ContextMenuContent>
-          </ContextMenu>
-        </div>
-      </details>
-      <Transition name="reveal">
+  <div class="flex min-h-full flex-col md:flex-row" @contextmenu.prevent.stop>
+    <!-- The tag list. -->
+    <aside
+      class="bg-card flex shrink-0 flex-col gap-4 border-b px-4 pt-5 pb-4 md:sticky md:top-0 md:h-[100dvh] md:w-80 md:overflow-y-auto md:border-r md:border-b-0 md:px-6 md:pt-8"
+    >
+      <AlbumSwitch class="md:hidden" />
+      <div class="flex items-center gap-2">
+        <h1 class="text-2xl leading-8 font-semibold tracking-[-0.01em]">Tags</h1>
+        <Transition name="reveal">
+          <button
+            v-if="selectedTagIds.length"
+            type="button"
+            class="text-primary hover:bg-accent ml-auto h-8 rounded-md px-2 text-sm font-medium transition-colors"
+            @click="clearTags"
+          >
+            Deselect all ({{ selectedTagIds.length }})
+          </button>
+        </Transition>
         <Button
-          v-if="selectedTagIds.length"
           variant="outline"
-          size="sm"
-          class="w-full"
-          @click="((selectedTagIds = []), queryPhotos())"
-          >Deselect all ({{ selectedTagIds.length }})</Button
-        >
-      </Transition>
+          size="icon-sm"
+          aria-label="Add New Tag"
+          :class="!selectedTagIds.length && 'ml-auto'"
+          @click="creating = true"
+          ><Plus
+        /></Button>
+      </div>
+      <label class="relative">
+        <Search
+          class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+          aria-hidden="true"
+        />
+        <Input v-model="filter" class="pl-9" placeholder="Filter tags" aria-label="Filter tags" />
+      </label>
+
+      <template v-for="section in sections" :key="section.label">
+        <section v-if="section.items.length" class="flex flex-col gap-0.5">
+          <h2
+            class="text-muted-foreground flex items-center gap-1.5 pb-1.5 text-xs font-semibold tracking-[0.025em] uppercase"
+          >
+            <Sparkles v-if="section.smart" class="text-primary size-3" aria-hidden="true" />
+            {{ section.label }}
+          </h2>
+          <div class="flex flex-wrap gap-1.5 md:flex-col md:gap-0.5">
+            <ContextMenu v-for="tag in section.items" :key="tag.tagId">
+              <ContextMenuTrigger as-child>
+                <button
+                  type="button"
+                  :aria-pressed="selectedTagIds.includes(tag.tagId)"
+                  :title="tag.tagName"
+                  :class="
+                    cn(
+                      'hover:bg-accent hover:text-accent-foreground flex h-9 min-w-0 items-center gap-1.5 rounded-lg px-2.5 text-left text-sm transition-colors select-none max-md:rounded-full max-md:border max-md:h-8',
+                      selectedTagIds.includes(tag.tagId) &&
+                        'bg-accent text-accent-foreground font-medium max-md:border-primary',
+                    )
+                  "
+                  @click="selectTag(tag)"
+                >
+                  <Hash
+                    v-if="!section.smart"
+                    class="text-muted-foreground size-3.5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <span class="truncate">{{ tag.tagName }}</span>
+                  <!-- The section heading shows this; keep it in the name so twins stay distinct. -->
+                  <span v-if="tag.smart" class="sr-only">{{
+                    ` Smart · ${tag.smart.source === 'lens' ? 'Lens' : 'Camera'}`
+                  }}</span>
+                  <Check
+                    v-if="selectedTagIds.includes(tag.tagId)"
+                    class="text-primary animate-in zoom-in-50 ml-auto size-4 shrink-0"
+                    aria-hidden="true"
+                  />
+                </button>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem @select="startEdit(tag)"><Pencil /> Rename</ContextMenuItem>
+                <ContextMenuItem variant="destructive" @select="deleting = tag"
+                  ><Trash2 /> Delete</ContextMenuItem
+                >
+              </ContextMenuContent>
+            </ContextMenu>
+          </div>
+        </section>
+      </template>
+      <p v-if="!matching.length" class="text-muted-foreground animate-fade text-sm">
+        {{ tags.length ? 'No tags match.' : 'No tags yet.' }}
+      </p>
     </aside>
 
-    <MediaList
-      ref="mediaList"
-      class="min-w-0 flex-1"
-      :ns-or-not="false"
-      :detach-enabled="true"
-      detach-str="Tag"
-      @query-photos="queryPhotos"
-      @do-detach="detach"
-    />
+    <!-- The selected tags' photos. -->
+    <div class="flex min-w-0 flex-1 flex-col gap-6 px-4 pt-6 pb-32 md:px-10 md:pt-8">
+      <EmptyState
+        v-if="!selectedTagIds.length"
+        :icon="TagIcon"
+        title="Pick a tag"
+        description="Choose one or more tags to see the photos and videos that carry them."
+      />
+      <template v-else>
+        <PageHeader eyebrow="Tag" :title="selectedTags.map((t) => `#${t.tagName}`).join(' + ')">
+          <template #title>
+            <span v-for="(t, i) in selectedTags" :key="t.tagId"
+              ><span v-if="i" class="text-muted-foreground font-normal"> + </span
+              ><span class="text-muted-foreground font-normal">#</span>{{ t.tagName }}</span
+            >
+          </template>
+          <template v-if="onlyTag" #description><SmartBadge :smart="onlyTag.smart" /></template>
+          <template v-if="onlyTag">
+            <Button variant="outline" @click="startEdit(onlyTag)"><Pencil /> Rename</Button>
+            <Button
+              variant="outline"
+              size="icon"
+              class="text-destructive hover:text-destructive"
+              aria-label="Delete tag"
+              @click="deleting = onlyTag"
+              ><Trash2
+            /></Button>
+          </template>
+          <Button v-else variant="outline" @click="clearTags"><X /> Clear</Button>
+        </PageHeader>
+      </template>
+      <MediaList
+        v-show="selectedTagIds.length"
+        ref="mediaList"
+        class="min-w-0"
+        :ns-or-not="false"
+        :detach-enabled="true"
+        detach-str="Tag"
+        @query-photos="queryPhotos"
+        @do-detach="detach"
+      />
+    </div>
+
+    <Dialog v-model:open="creating">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>New Tag</DialogTitle>
+          <DialogDescription>Tags describe what's in a photo, wherever it lives.</DialogDescription>
+        </DialogHeader>
+        <form class="flex flex-col gap-2" @submit.prevent="createTag">
+          <Label for="new-tag">Name</Label>
+          <Input id="new-tag" v-model="newTagName" placeholder="Tag Name" />
+        </form>
+        <DialogFooter>
+          <Button variant="outline" @click="creating = false">Cancel</Button>
+          <Button @click="createTag">Add</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <AlertDialog :open="!!deleting" @update:open="deleting = null">
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Confirm to Delete</AlertDialogTitle>
+          <AlertDialogTitle>Delete #{{ deleting?.tagName }}?</AlertDialogTitle>
           <AlertDialogDescription>
-            Do you really want to DELETE this tag? *All photos associated with this tag will be
-            detached (photos will not been deleted).
+            The tag comes off every photo. The photos themselves stay.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -241,13 +341,22 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
     </AlertDialog>
 
     <Dialog :open="!!editing" @update:open="editing = null">
-      <DialogContent>
+      <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Tag</DialogTitle>
-          <DialogDescription>Rename this tag.</DialogDescription>
+          <DialogTitle>Rename Tag</DialogTitle>
+          <DialogDescription
+            >Every photo with #{{ editing?.tagName }} keeps it under the new
+            name.</DialogDescription
+          >
         </DialogHeader>
-        <Input v-model="editName" placeholder="Tag Name" @keyup.enter="editTag" />
-        <DialogFooter><Button @click="editTag">Submit</Button></DialogFooter>
+        <form class="flex flex-col gap-2" @submit.prevent="editTag">
+          <Label for="rename-tag">Name</Label>
+          <Input id="rename-tag" v-model="editName" placeholder="Tag Name" />
+        </form>
+        <DialogFooter>
+          <Button variant="outline" @click="editing = null">Cancel</Button>
+          <Button @click="editTag">Save</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   </div>

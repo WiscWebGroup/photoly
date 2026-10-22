@@ -46,9 +46,8 @@ const findSimilar = (page: Page) => page.getByRole('button', { name: 'Find simil
 test('Search retains text but removes image upload mode', async ({ page }) => {
   await setup(page)
   await page.goto('/home/SearchPart')
-  await page.getByRole('combobox', { name: 'Search by' }).click()
-  await expect(page.getByRole('option', { name: 'Natural language', exact: true })).toBeVisible()
-  await expect(page.getByRole('option', { name: 'Image search', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('radio', { name: 'Natural language', exact: true })).toBeVisible()
+  await expect(page.getByRole('radio', { name: 'Image search', exact: true })).toHaveCount(0)
 })
 test('pages beyond 100 only after Find similar, preserves order and ends', async ({ page }) => {
   const calls = await setup(page)

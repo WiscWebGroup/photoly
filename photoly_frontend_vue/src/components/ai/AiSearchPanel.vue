@@ -167,9 +167,9 @@ onBeforeUnmount(removeFile)
 
 <template>
   <section class="space-y-4" aria-label="AI search">
-    <div class="rounded-lg border bg-card p-4 space-y-4">
+    <div class="space-y-4 rounded-xl border bg-card p-5 shadow-xs">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <h3 class="text-lg font-semibold">
+        <h3 class="text-base font-semibold">
           {{
             mode === 'similar'
               ? 'Similar photos and videos'
@@ -202,7 +202,7 @@ onBeforeUnmount(removeFile)
         </template>
         <div
           v-if="mode === 'image'"
-          class="rounded-md border border-dashed p-4 space-y-2"
+          class="space-y-2 rounded-xl border-2 border-dashed border-primary/50 bg-accent/40 p-4"
           @dragover.prevent
           @drop.prevent="drop"
         >
@@ -306,6 +306,7 @@ onBeforeUnmount(removeFile)
     <MoveToShowFolder
       ref="folderPicker"
       title="Choose a search folder"
+      confirm="Choose Folder"
       @move-to-update="
         (id: number) => {
           folderId = id
