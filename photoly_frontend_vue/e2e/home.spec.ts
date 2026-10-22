@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { mockUploads } from './uploadsMock'
 import { mockApi, ok, openDetails, photo, PNG, signIn } from './mockApi'
 
 // Confirmations are `alertdialog`s now (the correct role for "are you sure?").
@@ -21,12 +22,9 @@ test.beforeEach(async ({ page }) => {
 test('upload a photo into the current folder', async ({ page, isMobile }) => {
   skipMobile(isMobile)
   const photos: object[] = []
-  const calls = await mockApi(page, {
-    '/photo/getByNamespace': () => ok(photos),
-    '/photo/inserts': () => {
-      photos.push(photo(10, 'beach'))
-      return ok()
-    },
+  await mockApi(page, { '/photo/getByNamespace': () => ok(photos) })
+  const imported = await mockUploads(page, {
+    imported: (item) => photos.push(photo(item.photoId!, 'beach')),
   })
   await page.goto('/home/HomePart')
   await openBlankMenu(page)
@@ -34,16 +32,18 @@ test('upload a photo into the current folder', async ({ page, isMobile }) => {
 
   const upload = dialog(page, 'Upload to Library')
   await upload
-    .locator('input[type=file]')
+    .getByLabel('Choose files or ZIP')
     .setInputFiles({ name: 'beach.jpg', mimeType: 'image/jpeg', buffer: PNG })
   await upload.getByRole('button', { name: 'Upload' }).click()
 
-  await expect(page.getByText('Upload successful!')).toBeVisible()
+  await expect(page.getByText('Upload queued. You can keep browsing.')).toBeVisible()
   await expect(upload).toBeHidden()
-  await expect(page.getByText('beach.jpg')).toBeVisible()
-  const body = String(calls.find((c) => c.path === '/photo/inserts')?.body)
-  expect(body).toContain('filename="beach.jpg"')
-  expect(body).toContain('[{"nsId":1}]')
+  await expect.poll(() => imported.items.filter((i) => i.state === 'done').length).toBe(1)
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(page.getByRole('dialog')).toBeHidden()
+  await expect(page.getByLabel('Media').getByText('beach.jpg')).toBeVisible()
+  expect(imported.items[0]!.path).toBe('beach.jpg')
+  expect(imported.batches[0]!.nsId).toBe(1)
 })
 
 test('create a folder', async ({ page, isMobile }) => {

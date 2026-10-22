@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useColorMode } from '@vueuse/core'
+import UploadCenter from '@/components/UploadCenter.vue'
 import { Toaster } from '@/components/ui/sonner'
 
 const { state } = useColorMode()
@@ -7,5 +8,6 @@ const { state } = useColorMode()
 
 <template>
   <router-view />
+  <UploadCenter />
   <Toaster rich-colors position="top-center" :theme="state" />
 </template>

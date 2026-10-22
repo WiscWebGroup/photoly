@@ -51,6 +51,21 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+  upload-worker:
+    build:
+      context: ./photoly_backend
+      target: production
+    user: "10001:10001"
+    entrypoint: ["sh", "-c", "flask --app app:create_app wait-ready && flask --app app:create_app check-schema && exec python -m app.uploads.worker"]
+    environment: *http-environment
+    volumes:
+      - test_media:/photoly
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      disable: true
+    restart: unless-stopped
   migrate:
     build:
       context: ./photoly_backend
@@ -86,12 +101,14 @@ services:
       context: ./photoly_backend
       target: test
     entrypoint: []
-    command: ["pytest", "-q", "tests/test_ai_http.py", "tests/test_http.py", "-m", "http"]
+    command: ["pytest", "-q", "tests/test_ai_http.py", "tests/test_upload_http.py", "tests/test_http.py", "-m", "http"]
     environment:
       PHOTOLY_TEST_HTTP_URL: http://backend:8084
     depends_on:
       backend:
         condition: service_healthy
+      upload-worker:
+        condition: service_started
       ai-scheduler:
         condition: service_started
       ai-maintenance:

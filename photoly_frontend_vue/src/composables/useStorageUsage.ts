@@ -3,14 +3,17 @@ import { call } from '@/lib/http'
 
 export interface StorageUsage {
   usedBytes: number
-  /** Size of the disk holding everyone's media; there are no per-account quotas. */
-  capacityBytes: number
+  /** Effective per-account limit; null means unlimited. */
+  capacityBytes: number | null
+  quotaSource?: 'user' | 'group'
+  overQuota?: boolean
 }
 
 const UNITS = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
 
 /** "48.2 of 200 GB": both numbers in the unit that suits the capacity. */
 export function storageLabel({ usedBytes, capacityBytes }: StorageUsage) {
+  if (capacityBytes === null) return `${(usedBytes / 1e9).toFixed(1)} GB · Unlimited`
   const power = Math.max(
     0,
     Math.min(UNITS.length - 1, Math.floor(Math.log10(capacityBytes || 1) / 3)),
@@ -35,10 +38,11 @@ export function useStorageUsage() {
       if (id === sequence) usage.value = null
     }
   }
-  const percent = computed(() =>
-    usage.value?.capacityBytes
-      ? Math.min(100, Math.round((usage.value.usedBytes / usage.value.capacityBytes) * 100))
-      : 0,
-  )
+  const percent = computed(() => {
+    const value = usage.value
+    if (!value || value.capacityBytes === null) return 0
+    if (value.capacityBytes === 0) return value.usedBytes > 0 ? 100 : 0
+    return Math.min(100, Math.round((value.usedBytes / value.capacityBytes) * 100))
+  })
   return { usage, percent, refresh }
 }

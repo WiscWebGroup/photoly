@@ -92,7 +92,7 @@ def search_users(uid):
 @legacy(missing=-2)
 def user_list(uid):
     return result(service(AdminService).user_list(uid, arg("page", integer=True), arg("rowsPerPage", integer=True),
-                                                  arg("search"), arg("role")))
+                                                  arg("search"), arg("role"), arg("groupId", integer=True)))
 
 
 @bp.post("/addUser")
@@ -144,3 +144,36 @@ def get_general(uid):
 @legacy(missing=-2)
 def set_general(uid):
     return changed(service(AdminService).set_general_setting(uid, arg("name"), arg("val", required=True)))
+
+
+from app.services.quota import QuotaService
+
+
+@bp.get('/user-groups')
+@legacy()
+def groups(uid):
+    return result(service(QuotaService).groups(uid))
+
+
+@bp.post('/user-groups')
+@legacy()
+def create_group(uid):
+    return result(service(QuotaService).save_group(uid, body()))
+
+
+@bp.put('/user-groups/<int:group_id>')
+@legacy()
+def edit_group(uid, group_id):
+    return result(service(QuotaService).save_group(uid, body(), group_id))
+
+
+@bp.delete('/user-groups/<int:group_id>')
+@legacy()
+def delete_group(uid, group_id):
+    return result(service(QuotaService).delete_group(uid, group_id, body().get('reassignTo')))
+
+
+@bp.put('/users/<int:user_id>/storage')
+@legacy()
+def set_user_storage(uid, user_id):
+    return result(service(QuotaService).set_user(uid, user_id, body()))

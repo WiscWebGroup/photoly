@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
-  Film,
   Folder,
   FolderInput,
   Images,
@@ -18,7 +17,6 @@ import {
   Loader2,
   Pencil,
   Plus,
-  Search,
   SquareCheck,
   Trash2,
   Upload,
@@ -63,19 +61,21 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Progress } from '@/components/ui/progress'
 import { isValidFolderName, useFolders, type Folder as FolderInfo } from '@/composables/useFolders'
 import { usePhotos } from '@/composables/usePhotos'
 import { useCovers } from '@/composables/useCovers'
 import { viewMode } from '@/composables/useViewMode'
 import { download } from '@/lib/download'
 import { photoUrl } from '@/lib/photoUrl'
-import { call, http } from '@/lib/http'
+import { call } from '@/lib/http'
 import { mediaKind } from '@/lib/media'
 import { cn } from '@/lib/utils'
+import { useRoute } from 'vue-router'
+import { useUploadsStore } from '@/stores/uploads'
 import { useAuthStore } from '@/stores/auth'
 
-const MAX_UPLOAD_FILES = 15
+const uploads = useUploadsStore()
+const route = useRoute()
 
 const auth = useAuthStore()
 const folders = useFolders()
@@ -141,7 +141,9 @@ async function go(id: number, name = '') {
 
 onMounted(async () => {
   try {
-    await folders.openRoot()
+    if (route.query.folder && Number(route.query.folder) > 0)
+      await folders.open(Number(route.query.folder))
+    else await folders.openRoot()
     mediaList.value?.updateNsId(nsId.value)
     await queryPhotos()
   } catch {
@@ -390,66 +392,22 @@ function abortDownload() {
   toast.warning('Download Request Canceled')
 }
 
-// --- Upload ---------------------------------------------------------------------------------------
-const uploadOpen = ref(false)
-const files = ref<File[]>([])
-const sending = ref(false)
-const dropping = ref(false)
-/** Share of the request body sent so far, 0-100. */
-const progress = ref(0)
-
-/** Local previews for the picked images, released when the list changes. */
-const previews = ref<(string | null)[]>([])
-watch(files, (list, _, onCleanup) => {
-  const canPreview = typeof URL.createObjectURL === 'function'
-  previews.value = list.map((f) =>
-    canPreview && f.type.startsWith('image/') ? URL.createObjectURL(f) : null,
-  )
-  const urls = previews.value
-  onCleanup(() => urls.forEach((u) => u && URL.revokeObjectURL(u)))
-})
-
-function formatSize(bytes: number) {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-}
-const totalSize = computed(() => formatSize(files.value.reduce((n, f) => n + f.size, 0)))
-
+// Upload state belongs to the application, so navigating never cancels a transfer.
 function startUpload() {
-  files.value = []
-  progress.value = 0
-  uploadOpen.value = true
+  uploads.start(nsId.value, title.value)
 }
-
-function addFiles(list: FileList | File[] | null) {
-  dropping.value = false
-  const accepted = [...(list ?? [])].filter((f) => /^(image|video)\//.test(f.type))
-  files.value = [...files.value, ...accepted].slice(0, MAX_UPLOAD_FILES)
-}
-
-async function upload() {
-  if (!files.value.length) return toast.warning('No Photo selected!')
-  const body = new FormData()
-  files.value.forEach((f) => body.append('files', f))
-  body.append('photosStr', JSON.stringify(files.value.map(() => ({ nsId: nsId.value }))))
-  progress.value = 0
-  sending.value = true
-  try {
-    const { data } = await http.post('/photo/inserts', body, {
-      onUploadProgress: (e) => {
-        if (e.progress !== undefined) progress.value = Math.round(e.progress * 100)
-      },
-    })
-    if (data.msgCode !== 200) throw new Error()
-    toast.success('Upload successful!')
-    uploadOpen.value = false
-    await queryPhotos()
-  } catch {
-    toast.warning('Submit upload error!')
-  } finally {
-    sending.value = false
-  }
-}
+watch(
+  () => uploads.revision,
+  async () => {
+    if (nsId.value > 0) await Promise.all([folders.refresh(), queryPhotos()])
+  },
+)
+watch(
+  () => route.query.folder,
+  async (value) => {
+    if (value && Number(value) > 0) await go(Number(value))
+  },
+)
 </script>
 
 <template>
@@ -484,18 +442,6 @@ async function upload() {
           </button>
         </template>
       </nav>
-      <router-link
-        to="/home/SearchPart"
-        class="text-muted-foreground hover:border-ring/60 ml-auto flex h-9 w-70 max-w-[40%] items-center gap-2 rounded-lg border bg-background pr-2.5 pl-3 text-sm transition-colors"
-      >
-        <Search class="size-4" aria-hidden="true" />
-        <span class="flex-1 truncate">Search photos</span>
-        <kbd
-          class="bg-card rounded border px-1 font-mono text-[11px] leading-[18px]"
-          aria-hidden="true"
-          >/</kbd
-        >
-      </router-link>
     </div>
 
     <div v-if="nsId === -1" class="flex justify-center py-24" role="status" aria-label="Loading">
@@ -764,100 +710,6 @@ async function upload() {
         Delete
       </button>
     </SelectionBar>
-
-    <Dialog v-model:open="uploadOpen">
-      <DialogContent class="sm:max-w-[560px]">
-        <DialogHeader>
-          <DialogTitle>Upload to {{ title }}</DialogTitle>
-          <DialogDescription
-            >New items land in this folder. You can move them later.</DialogDescription
-          >
-        </DialogHeader>
-        <label
-          :class="
-            cn(
-              'border-primary/60 bg-accent/50 hover:bg-accent flex cursor-pointer flex-col items-center gap-1 rounded-xl border-2 border-dashed px-6 py-7 text-center text-sm transition-colors focus-within:ring-3 focus-within:ring-ring/50',
-              dropping && 'bg-accent border-primary scale-[1.01]',
-            )
-          "
-          @dragover.prevent="dropping = true"
-          @dragleave="dropping = false"
-          @drop.prevent="addFiles($event.dataTransfer?.files ?? null)"
-        >
-          <span
-            class="bg-card text-primary mb-2 grid size-10 place-items-center rounded-full shadow-xs transition-transform"
-            :class="dropping && '-translate-y-1'"
-            ><Upload class="size-4" aria-hidden="true"
-          /></span>
-          <span class="text-accent-foreground font-medium">Drop photos and videos here</span>
-          <span
-            >or
-            <span class="text-primary font-medium underline underline-offset-2">choose files</span>
-            from your computer</span
-          >
-          <span class="text-muted-foreground text-xs">Up to {{ MAX_UPLOAD_FILES }} at a time</span>
-          <input
-            type="file"
-            multiple
-            accept="image/*, video/*"
-            class="sr-only"
-            @change="addFiles(($event.target as HTMLInputElement).files)"
-          />
-        </label>
-        <div v-if="files.length" class="animate-fade flex flex-col">
-          <div
-            class="text-muted-foreground flex items-baseline justify-between border-b pb-2 text-xs"
-          >
-            <span class="font-semibold tracking-[0.025em] uppercase">Ready to upload</span>
-            <span>{{ plural(files.length, 'item') }} · {{ totalSize }}</span>
-          </div>
-          <ul class="max-h-56 overflow-auto">
-            <li
-              v-for="(f, i) in files"
-              :key="`${f.name}-${i}`"
-              class="flex items-center gap-3 border-b py-2 last:border-b-0"
-            >
-              <img
-                v-if="previews[i]"
-                :src="previews[i]!"
-                alt=""
-                class="size-10 shrink-0 rounded-md object-cover"
-              />
-              <span
-                v-else
-                class="bg-muted text-muted-foreground grid size-10 shrink-0 place-items-center rounded-md"
-                ><Film class="size-4" aria-hidden="true"
-              /></span>
-              <span class="flex min-w-0 flex-1 flex-col">
-                <span class="truncate text-sm">{{ f.name }}</span>
-                <span class="text-muted-foreground text-xs">{{ formatSize(f.size) }}</span>
-              </span>
-              <button
-                type="button"
-                class="text-muted-foreground hover:bg-accent hover:text-foreground grid size-8 place-items-center rounded-md transition-colors"
-                :aria-label="`Remove ${f.name}`"
-                :disabled="sending"
-                @click="files.splice(i, 1)"
-              >
-                <X class="size-4" />
-              </button>
-            </li>
-          </ul>
-        </div>
-        <div v-if="sending" class="animate-fade space-y-1">
-          <Progress :model-value="progress" aria-label="Upload progress" />
-          <p class="text-muted-foreground text-right text-xs">
-            {{ progress < 100 ? `Uploading… ${progress}%` : 'Processing…' }}
-          </p>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" :disabled="sending" @click="uploadOpen = false">Cancel</Button>
-          <Button :disabled="sending || !files.length" @click="upload"
-            ><Upload /> {{ files.length > 1 ? `Upload ${files.length} Items` : 'Upload' }}</Button
-          >
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
 
     <Dialog v-model:open="creating">
       <DialogContent class="sm:max-w-md">

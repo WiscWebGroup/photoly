@@ -5,6 +5,8 @@ import { onKeyStroke } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import { Camera, Images, LogOut, Map, Search, Tag } from '@lucide/vue'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
+import UploadButton from '@/components/UploadButton.vue'
+import { useUploadsStore } from '@/stores/uploads'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import { useProfile } from '@/composables/useProfile'
 import { storageLabel, useStorageUsage } from '@/composables/useStorageUsage'
@@ -19,6 +21,8 @@ onMounted(() => load().catch(() => {}))
 
 // Uploads and deletions happen on other pages, so re-read usage whenever the page changes.
 const storage = useStorageUsage()
+const uploads = useUploadsStore()
+watch(() => uploads.revision, storage.refresh)
 watch(() => route.params.part, storage.refresh, { immediate: true })
 
 type NavItem = { part: string; label: string; icon: typeof Camera; key?: string }
@@ -174,11 +178,12 @@ const iconButton =
           class="h-[22px] invert dark:invert-0"
         />
       </router-link>
+      <UploadButton class="ml-auto" />
       <router-link
         to="/home/ManagePart"
         aria-label="Account"
         :aria-current="onAccount ? 'page' : undefined"
-        class="ml-auto grid size-11 place-items-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        class="grid size-11 place-items-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <Avatar :class="cn('ring-border size-8 ring-1', onAccount && 'ring-primary ring-2')"
           ><AvatarImage :src="auth.avatarUrl" alt=""
@@ -186,9 +191,20 @@ const iconButton =
       </router-link>
     </header>
 
-    <main class="min-h-0 flex-1 overflow-auto">
-      <slot />
-    </main>
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <header
+        class="bg-card hidden h-14 shrink-0 items-center justify-end gap-3 border-b px-10 md:flex"
+      >
+        <router-link
+          to="/home/SearchPart"
+          class="text-muted-foreground bg-background flex h-9 w-70 items-center gap-2 rounded-lg border px-3 text-sm"
+          ><Search class="size-4" /><span class="flex-1">Search photos</span
+          ><kbd class="rounded border px-1 text-xs">/</kbd></router-link
+        >
+        <UploadButton />
+      </header>
+      <main class="min-h-0 flex-1 overflow-auto"><slot /></main>
+    </div>
 
     <!-- Mobile bottom tab bar -->
     <nav

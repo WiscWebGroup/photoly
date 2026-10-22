@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from math import ceil
 from zoneinfo import ZoneInfo
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text, inspect
 from app.entities import User, Setting
 from app.serialization import page_result
 
@@ -47,16 +47,31 @@ class BaseService:
         return page_result(self.session.scalars(query.offset((page - 1) * rows).limit(rows)).all(), ceil(total / rows))
 
     @contextmanager
-    def atomic(self, user_id=None):
+    def atomic(self, user_id=None, policy_write=False):
         # User-row locks serialize mutations of each user's directory tree, including
         # concurrent move/delete/upload requests across Gunicorn workers.
         with self.storage.mutation() as files:
             try:
+                # A shared policy lock permits concurrent users; quota/group edits take
+                # its exclusive counterpart before any user row, avoiding lock inversion.
+                lock = 'pg_advisory_xact_lock' if policy_write else 'pg_advisory_xact_lock_shared'
+                self.session.execute(text(f'SELECT {lock}(74831003)'))
+                user = None
                 if user_id is not None:
-                    user = self.session.scalar(select(User).where(User.user_id == user_id).with_for_update())
+                    user = self.session.scalar(select(User).where(User.user_id == user_id)
+                        .with_for_update().execution_options(populate_existing=True))
                     if user is None:
                         raise BusinessError(-1)
+                    if user.used_bytes is None:
+                        user.used_bytes = self.storage.usage(user.uuid)[0]
                 yield files
+                if user is not None and not inspect(user).deleted and user not in self.session.deleted:
+                    from app.services.quota import effective_limit
+                    delta = files.delta(self.storage.root / user.uuid)
+                    limit = effective_limit(self.session, user)
+                    if delta > 0 and limit is not None and user.used_bytes + delta > limit:
+                        raise BusinessError('storage_quota_exceeded', 413)
+                    user.used_bytes = max(0, user.used_bytes + delta)
                 self.session.commit()
             except Exception:
                 self.session.rollback()

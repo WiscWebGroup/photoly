@@ -24,30 +24,34 @@ class PhotoService(BaseService):
                     raise BusinessError(-1)
                 self.owned(Namespace, data.get("nsId"), user_id, -2)
             for upload, data in zip(uploads, descriptions):
-                filename = upload.filename
-                if not filename or "." not in filename:
-                    raise BusinessError(-1)
-                stem, suffix = filename.rsplit(".", 1)
-                valid_name(stem)
-                if not re.fullmatch(r"[a-zA-Z0-9]{1,20}", suffix):
-                    raise BusinessError(-1)
-                visibility = data.get("visibility", 0)
-                if visibility not in (0, 1, 2):
-                    visibility = 0
-                photo = Photo(photo_name=stem, format=suffix, upload_date=self.now(), ns_id=data["nsId"],
-                              visibility=visibility, token=str(uuid4()), photo_uuid=str(uuid4()), user_id=user_id)
-                path = self.storage.media(user.uuid, photo)
-                photo.content_sha256 = files.install(upload.stream, path)
-                photo.content_version = 1
-                self.storage.thumbnail(path, self.storage.media(user.uuid, photo, True), files)
-                self.session.add(photo)
-                self.session.flush()
-                metadata = self.infra.metadata.read(path)
-                self.session.add(self.infra.metadata.extra(photo.photo_id, metadata))
-                from app.ai.hooks import photo_changed
-                photo_changed(self.session, photo)
-                objects.append(photo)
+                objects.append(self.install_one(user, upload, data, files))
         return objects
+
+    def install_one(self, user, upload, data, files):
+        user_id = user.user_id
+        filename = upload.filename
+        if not filename or "." not in filename:
+            raise BusinessError(-1)
+        stem, suffix = filename.rsplit(".", 1)
+        valid_name(stem)
+        if not re.fullmatch(r"[a-zA-Z0-9]{1,20}", suffix):
+            raise BusinessError(-1)
+        visibility = data.get("visibility", 0)
+        if visibility not in (0, 1, 2):
+            visibility = 0
+        photo = Photo(photo_name=stem, format=suffix, upload_date=self.now(), ns_id=data["nsId"],
+                      visibility=visibility, token=str(uuid4()), photo_uuid=str(uuid4()), user_id=user_id)
+        path = self.storage.media(user.uuid, photo)
+        photo.content_sha256 = files.install(upload.stream, path)
+        photo.content_version = 1
+        self.storage.thumbnail(path, self.storage.media(user.uuid, photo, True), files)
+        self.session.add(photo)
+        self.session.flush()
+        metadata = self.infra.metadata.read(path)
+        self.session.add(self.infra.metadata.extra(photo.photo_id, metadata))
+        from app.ai.hooks import photo_changed
+        photo_changed(self.session, photo)
+        return photo
 
     def replace(self, user_id, photo_id, upload):
         """Swap an owned image's content in place; id, UUID, share token, tags and galleries are kept."""

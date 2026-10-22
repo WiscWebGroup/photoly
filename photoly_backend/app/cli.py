@@ -42,6 +42,21 @@ def register_cli(app):
         initialize(app)
         click.echo("Photoly database initialized.")
 
+    @app.cli.command("reconcile-storage")
+    @click.option('--all-users', is_flag=True, help='Recount initialized accounts too.')
+    def reconcile_storage(all_users):
+        """Initialize/reconcile counters while holding each account's mutation lock."""
+        users = UserService(db.session, app.extensions['photoly'])
+        query = select(User.user_id)
+        if not all_users:
+            query = query.where(User.used_bytes.is_(None))
+        ids = list(db.session.scalars(query))
+        for uid in ids:
+            with users.atomic(uid):
+                user = db.session.get(User, uid)
+                user.used_bytes = users.storage.usage(user.uuid)[0]
+        click.echo(f'Reconciled {len(ids)} accounts.')
+
     @app.cli.command("check-schema")
     def check_schema():
         """Refuse to serve an uninitialized or incompatible schema."""

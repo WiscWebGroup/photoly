@@ -47,7 +47,7 @@ def create_app(config=None):
         app.config.get("LIFECYCLE") or ServerLifecycle(app.config["GUNICORN_PID_FILE"]),
         app.config.get("QR_ENCODER") or QRCodeEncoder(),
     )
-    for name in ("user", "admin", "photo", "namespace", "gallery", "tag", "cred", "photo_extra", "ai"):
+    for name in ("user", "admin", "photo", "namespace", "gallery", "tag", "cred", "photo_extra", "ai", "uploads"):
         app.register_blueprint(import_module("app.controllers." + name).bp)
     from app.docs import bp as docs_bp
     app.register_blueprint(docs_bp)

@@ -2,16 +2,17 @@ import re
 from uuid import uuid4
 from sqlalchemy import select, func
 from werkzeug.security import generate_password_hash, check_password_hash
-from app.entities import User, Namespace, Gallery, Tag, Cred
+from app.entities import User, Namespace, Gallery, Tag, Cred, UserGroup
 from app.serialization import token_result
 from app.services.base import BaseService, BusinessError
 
 
 class UserService(BaseService):
     def storage_usage(self, user_id):
-        user = self.session.get(User, user_id)
-        used, capacity = self.storage.usage(user.uuid)
-        return {"usedBytes": used, "capacityBytes": capacity}
+        from app.services.quota import storage_projection
+        with self.atomic(user_id):
+            user = self.session.get(User, user_id)
+        return storage_projection(self.session, user)
 
     def by_email(self, email):
         return self.session.scalar(select(User).where(func.lower(User.email) == str(email).lower()))
@@ -25,6 +26,9 @@ class UserService(BaseService):
         user = User(email=email, password=generate_password_hash(password), user_name=data.get("userName"),
                     role=role, uuid=str(uuid4()), create_date=self.now())
         from app.ai.state import settings
+        group = self.session.scalar(select(UserGroup).where(UserGroup.is_default.is_(True)))
+        user.group_id = group.id
+        user.used_bytes = 0
         user.ai_search_enabled = settings(self.session)["new_user_default"]
         self.session.add(user)
         self.session.flush()

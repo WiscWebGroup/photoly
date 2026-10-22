@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, Server, Sparkles, Users } from '@lucide/vue'
+import UploadButton from '@/components/UploadButton.vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 
 withDefaults(defineProps<{ wide?: boolean }>(), { wide: false })
@@ -17,7 +18,7 @@ const pill =
 </script>
 
 <template>
-  <div class="bg-background flex h-dvh flex-col md:flex-row">
+  <div class="bg-background flex h-dvh w-full min-w-0 flex-col overflow-hidden md:flex-row">
     <!-- Desktop sidebar -->
     <aside class="bg-card hidden w-58 shrink-0 flex-col gap-7 border-r px-3 pt-5 pb-4 md:flex">
       <router-link
@@ -58,13 +59,22 @@ const pill =
         class="h-[22px] invert dark:invert-0"
       />
       <span :class="pill">Admin</span>
-      <span class="ml-auto"><ThemeToggle /></span>
+      <UploadButton class="ml-auto" /><ThemeToggle />
     </header>
 
-    <main class="min-h-0 flex-1 overflow-auto">
+    <main class="min-h-0 min-w-0 flex-1 overflow-auto">
+      <header
+        class="bg-card sticky top-0 z-20 hidden h-14 items-center justify-end gap-3 border-b px-10 md:flex"
+      >
+        <router-link
+          to="/home/SearchPart"
+          class="text-muted-foreground rounded-lg border px-3 py-2 text-sm"
+          >Search photos</router-link
+        ><UploadButton />
+      </header>
       <div
         :class="[
-          'animate-rise flex w-full flex-col gap-6 px-4 pt-5 pb-10 md:px-10 md:pt-10 md:pb-16',
+          'animate-rise flex w-full min-w-0 flex-col gap-6 px-4 pt-5 pb-10 md:px-10 md:pt-10 md:pb-16',
           wide ? 'max-w-[1120px]' : 'max-w-[1040px]',
         ]"
       >

@@ -75,7 +75,7 @@ class AdminService(BaseService):
             query = query.where(or_(User.user_name.ilike(pattern), User.email.ilike(pattern)))
         return self.page(query, page, rows)
 
-    def user_list(self, user_id, page, rows, search=None, role=None):
+    def user_list(self, user_id, page, rows, search=None, role=None, group_id=None):
         """One page of accounts with each one's media count, plus the total that match."""
         self.require_admin(user_id)
         if page is None or rows is None or page < 1 or not 1 <= rows <= 200 or role not in (None, "admin", "user"):
@@ -86,11 +86,14 @@ class AdminService(BaseService):
             query = query.where(or_(User.user_name.ilike(pattern, escape="\\"), User.email.ilike(pattern, escape="\\")))
         if role:
             query = query.where(User.role == role)
+        if group_id is not None:
+            query = query.where(User.group_id == group_id)
         total = self.session.scalar(select(func.count()).select_from(query.subquery()))
         users = self.session.scalars(query.order_by(User.user_id).offset((page - 1) * rows).limit(rows)).all()
         counts = dict(self.session.execute(select(Photo.user_id, func.count()).where(Photo.user_id.in_([u.user_id for u in users]))
                                            .group_by(Photo.user_id)).all()) if users else {}
-        return {"users": [{**serialize(u), "mediaCount": counts.get(u.user_id, 0)} for u in users], "total": total}
+        from app.services.quota import storage_projection
+        return {"users": [{**serialize(u), **storage_projection(self.session, u), "mediaCount": counts.get(u.user_id, 0)} for u in users], "total": total}
 
     def add_user(self, user_id, data):
         self.require_admin(user_id)

@@ -97,7 +97,8 @@ def test_http_openapi_and_upload_contract(http, jpeg):
         "/photo/searchSmart", "/photo/ocr", "/photo/ocr/recognize", "/user/getStorage", "/photo/getCovers",
         "/photo-extra/getMapPlaces", "/admin/getUsers"}
     from app.docs.definitions.ai import OPERATIONS as AI_OPERATIONS
-    expected |= {path for path, _, _ in AI_OPERATIONS}
+    from app.docs.definitions.uploads_storage import OPERATIONS as UPLOAD_OPERATIONS
+    expected |= {path for path, _, _ in AI_OPERATIONS + UPLOAD_OPERATIONS}
     assert spec["openapi"] == "3.2.0" and set(spec["paths"]) == expected
     for asset in ("vendor/swagger-ui-bundle.js", "vendor/swagger-ui.css", "swagger-init.js"):
         assert http("GET", "/docs/assets/" + asset).status_code == 200

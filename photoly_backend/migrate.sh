@@ -8,3 +8,4 @@ fi
 flask --app app:create_app wait-ready
 alembic upgrade head
 flask --app app:create_app seed-db
+flask --app app:create_app reconcile-storage

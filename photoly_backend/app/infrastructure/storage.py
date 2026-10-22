@@ -19,6 +19,7 @@ class FileMutation:
         self.created = []
         self.removed = []
         self.work = None
+        self.original_sizes = {}
 
     def __enter__(self):
         staging = self.root / ".staging"
@@ -40,12 +41,17 @@ class FileMutation:
         return digest.hexdigest()
 
     def remove(self, path):
+        self.original_sizes.setdefault(path, path.stat().st_size if path.is_file() else 0)
         if path.exists():
             backup = self.work / str(uuid4())
             os.replace(path, backup)
             self.removed.append((path, backup))
             return 1
         return 0
+
+    def delta(self, directory):
+        return sum((path.stat().st_size if path.is_file() else 0) - before
+                   for path, before in self.original_sizes.items() if path.parent == directory)
 
     def __exit__(self, kind, value, traceback):
         if kind is not None:

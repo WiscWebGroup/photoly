@@ -38,7 +38,7 @@ jobs:
       COMPOSE_PROJECT_NAME: photoly-ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v7
-      - run: docker compose -f compose.test.yml build tests backend migrate smoke ai-runtime ai-scheduler ai-maintenance
+      - run: docker compose -f compose.test.yml build tests backend migrate smoke upload-worker ai-runtime ai-scheduler ai-maintenance
       - run: docker compose -f compose.test.yml run --rm tests
       - run: docker compose -f compose.test.yml run --rm smoke
       - if: always()
