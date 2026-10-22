@@ -84,10 +84,10 @@ onBeforeUnmount(() => (stopped = true))
           class="size-full object-cover transition-[filter,transform,opacity] duration-500 ease-(--ease-out-quart)"
           :class="
             match === null
-              ? 'opacity-90'
+              ? 'brightness-90'
               : match === tile.photo
                 ? 'scale-[1.04]'
-                : 'opacity-40 saturate-50'
+                : 'brightness-40 saturate-50'
           "
         />
       </div>

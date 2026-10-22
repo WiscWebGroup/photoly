@@ -26,16 +26,16 @@ function onError(e: Error) {
       v-else
       shapes="mixed"
       :cell-size="20"
-      :dot-size="0.8"
+      :dot-size="0.6"
       color="#39bab4"
       hover-color="#83e1db"
       background-color="#031417"
       :speed="0.8"
       :scale="1.2"
-      :contrast="1.6"
-      :brightness="1"
+      :contrast="1.2"
+      :brightness="0.3"
       :fade="0.35"
-      :glow="0.8"
+      :glow="0.3"
       :splash-radius="60"
       :intro-duration="2.2"
       @error="onError"
@@ -45,10 +45,15 @@ function onError(e: Error) {
 
 <style scoped>
 .night-backdrop {
+  /* Kept quiet so text on top stays easy to read. */
+  opacity: 0.45;
   animation: var(--animate-fade);
   animation-duration: 1.2s;
 }
 .hero {
+  /* Only the first screen, so the sections below sit on plain night. */
+  bottom: auto;
+  height: min(100dvh, 1000px);
   mask-image: radial-gradient(ellipse at 70% 30%, #000 10%, transparent 70%);
 }
 .ring {
@@ -57,6 +62,6 @@ function onError(e: Error) {
 .night-dots {
   background-image: radial-gradient(circle, #39bab4 1.2px, transparent 1.6px);
   background-size: 22px 22px;
-  opacity: 0.45;
+  opacity: 0.6;
 }
 </style>
