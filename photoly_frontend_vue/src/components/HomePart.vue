@@ -515,7 +515,7 @@ async function upload() {
       <ContextMenuTrigger as-child>
         <div
           v-show="nsId !== -1"
-          class="flex w-full max-w-[1280px] flex-1 flex-col gap-8 px-4 pt-4 pb-32 md:gap-10 md:px-10 md:pt-8"
+          class="flex w-full flex-1 flex-col gap-8 px-4 pt-4 pb-32 md:gap-10 md:px-10 md:pt-8"
         >
           <div class="flex flex-col gap-1">
             <button
@@ -553,7 +553,7 @@ async function upload() {
               :class="
                 viewMode === 'list'
                   ? 'flex flex-col gap-1'
-                  : '-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 2xl:grid-cols-6'
+                  : '-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 2xl:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]'
               "
             >
               <li

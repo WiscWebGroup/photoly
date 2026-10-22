@@ -408,7 +408,7 @@ defineExpose({
         :class="
           viewMode === 'list'
             ? 'flex flex-col gap-1'
-            : '-mx-4 grid grid-cols-3 gap-0.5 sm:mx-0 sm:grid-cols-4 sm:gap-1 lg:grid-cols-5 xl:grid-cols-6'
+            : '-mx-4 grid grid-cols-3 gap-0.5 sm:mx-0 sm:grid-cols-4 sm:gap-1 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]'
         "
       >
         <li

@@ -312,7 +312,7 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
 
 <template>
   <div
-    class="flex w-full max-w-[1280px] flex-col gap-6 px-4 pt-5 pb-32 md:px-10 md:pt-10"
+    class="flex w-full flex-col gap-6 px-4 pt-5 pb-32 md:px-10 md:pt-10"
     @contextmenu.prevent.stop
   >
     <AlbumSwitch
@@ -381,7 +381,7 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
       </EmptyState>
       <ul
         v-else
-        class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 2xl:grid-cols-4"
+        class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 2xl:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]"
       >
         <li
           v-for="(g, i) in shown"
