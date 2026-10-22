@@ -14,7 +14,7 @@ from app.infrastructure.schema import migration_config
 from werkzeug.security import generate_password_hash
 from app import create_app
 from app.extensions import db
-from app.entities import User, Namespace, Gallery, Tag, Photo, PhotoExtra, GalleryPhoto, TagPhoto, Cred, Setting
+from app.entities import UserGroup, User, Namespace, Gallery, Tag, Photo, PhotoExtra, GalleryPhoto, TagPhoto, Cred, Setting
 from app.cli import DEFAULT_SETTINGS
 
 
@@ -83,6 +83,9 @@ def app(tmp_path, migration_engine):
         for index in indexes:
             connection.exec_driver_sql(f'DROP INDEX "{index}"')
         connection.execute(text("TRUNCATE TABLE " + names + " RESTART IDENTITY CASCADE"))
+    with app.app_context():
+        db.session.add(UserGroup(id=1, name='Default', max_storage_bytes=50000000000, is_default=True))
+        db.session.commit()
     # Only touch session keys within the dedicated test database.
     for key in redis.scan_iter(match="photoly:session:*"):
         redis.delete(key)

@@ -76,7 +76,7 @@ AI starts disabled. In **AI Management**, configure the device (`cpu/float32`, `
 Back up the database and media together. `COMPOSE_PROFILES` in `.env` keeps every command on your deployment's AI profile:
 
 ```sh
-docker compose stop backend ai-scheduler ai-maintenance
+docker compose stop backend upload-worker ai-scheduler ai-maintenance
 docker compose build
 docker compose run --rm migrate
 docker compose up -d
@@ -84,7 +84,7 @@ docker compose up -d
 
 For base deployments, stop only `backend`. For MPS, stop the native runtime, rerun its `install` command after dependency changes, and restart it before the final Compose command. If migration fails, resolve it before starting the new application services.
 
-Alembic `upgrade head` includes video frame vectors (`0003_video_vectors`), OCR (`0004_photo_ocr`) and Smart Tag (`0005_smart_organization`). Existing image vectors are retained. Rebuild the application images to include FFmpeg, Tesseract language data and the offline city index. Never use `down -v` to upgrade a production deployment.
+Alembic `upgrade head` includes video frame vectors (`0003_video_vectors`), OCR (`0004_photo_ocr`) Smart Tag (`0005_smart_organization`), and uploads/storage groups (`0006_uploads_storage`). Existing image vectors are retained. Rebuild the application images to include FFmpeg, Tesseract language data and the offline city index. Never use `down -v` to upgrade a production deployment.
 
 ### Development and tests
 
@@ -93,7 +93,7 @@ See [backend setup and architecture](photoly_backend/README.md), [frontend devel
 Database tests require real PostgreSQL and an Alembic-created schema. Run from the repository root:
 
 ```sh
-docker compose -p photoly-test -f compose.test.yml build tests backend migrate smoke ai-runtime ai-scheduler ai-maintenance
+docker compose -p photoly-test -f compose.test.yml build tests backend migrate smoke upload-worker ai-runtime ai-scheduler ai-maintenance
 docker compose -p photoly-test -f compose.test.yml run --rm tests
 docker compose -p photoly-test -f compose.test.yml run --rm smoke
 docker compose -p photoly-test -f compose.test.yml down -v --remove-orphans
@@ -114,3 +114,25 @@ Scroll down in the viewer to load **Similar photos and videos**. Each item has i
 **Extract Text** runs only when requested. Tesseract recognizes simplified/traditional Chinese, English and Japanese on CPU, independently of AI permissions or the model runtime. Results are saved and can be edited or copied. See [OCR limits and operation](docs/ocr.md).
 
 **Smart Tag** requires global AI, administrator Smart Tag, user AI permission and personal Smart Tag to be enabled. Both Smart Tag switches default off. It runs inside the existing scheduler process, with no extra container or model inference. Turning it off retains editable results. See [rules, controls and offline city attribution](docs/smart-tag.md).
+
+### Bulk uploads and storage groups
+
+Files, folders and ZIPs can be uploaded in unlimited-count batches. The global Upload activity panel stays available while browsing. Each account inherits a default 50 GB group quota, with administrator-managed groups and personal overrides. See [uploads, storage, migration and worker operations](docs/uploads-storage.md).
+
+### Dates and folder details
+
+**Organize → Dates** brings together the signed-in user's photos across all folders. Latest/Oldest
+uses EXIF capture time, falling back to upload time; records with neither appear last under Undated.
+Dates loads 100 photos per page. Changing the sort, editing a photo or completing an upload refreshes
+the feed. The photo viewer's **Open folder** link returns to the containing folder.
+
+Right-click a folder and choose **Details** to view recursive photo,
+video and subfolder counts. Storage separates original files from thumbnails and excludes avatars
+and temporary files. Missing expected files are reported as incomplete totals. Places are approximate
+nearby towns derived from GPS; cameras and lenses come from photo metadata, with counts per photo.
+
+The new owner-only endpoints are `GET /photo/getByDate` and `GET /namespace/getDetails`; see `/docs`
+for parameters, pagination and response schemas. No new migration is required beyond `0006_uploads_storage`.
+When deploying with Compose overrides, mount the same media directory on `backend`, `migrate`,
+`upload-worker` and the maintenance service. Validate the merged configuration with `docker compose config --quiet`
+using your deployment's existing project, environment file, overrides and AI profile before restarting it.

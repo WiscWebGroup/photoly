@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { delay, http } from 'msw'
+import { http } from 'msw'
 import { API, ok, recordRequests, server } from '@/test/server'
 import { button, byText, input, mountWithApp, pageText, type } from '@/test/utils'
 import { viewMode } from '@/composables/useViewMode'
 import HomePart from '../HomePart.vue'
+import { useUploadsStore } from '@/stores/uploads'
 
 async function mountHome() {
   const wrapper = mountWithApp(HomePart)
@@ -41,28 +42,12 @@ describe('HomePart', () => {
     )
   })
 
-  it('shows a progress bar while photos upload, then closes the dialog', async () => {
-    server.use(
-      http.post(`${API}/photo/inserts`, async () => {
-        await delay(100)
-        return ok()
-      }),
-    )
+  it('opens the application upload picker for the current folder', async () => {
     await mountHome()
     button('Upload').click()
-    await vi.waitFor(() => expect(document.querySelector('input[type=file]')).not.toBeNull())
-    const picker = document.querySelector<HTMLInputElement>('input[type=file]')!
-    Object.defineProperty(picker, 'files', {
-      value: [new File(['x'], 'beach.jpg', { type: 'image/jpeg' })],
-    })
-    picker.dispatchEvent(new Event('change', { bubbles: true }))
-    await vi.waitFor(() => byText('beach.jpg'))
-    expect(document.querySelector('[role=progressbar]')).toBeNull()
-
-    button('Upload', document.querySelector('[role=dialog]')!).click()
-    await vi.waitFor(() => expect(document.querySelector('[role=progressbar]')).not.toBeNull())
-    await vi.waitFor(() => expect(pageText()).toContain('Upload successful!'))
-    expect(document.querySelector('[role=progressbar]')).toBeNull()
+    const uploads = useUploadsStore()
+    expect(uploads.pickerOpen).toBe(true)
+    expect(uploads.target).toEqual({ nsId: 1, name: 'Library' })
   })
 
   it('rejects reserved folder names without calling the API', async () => {

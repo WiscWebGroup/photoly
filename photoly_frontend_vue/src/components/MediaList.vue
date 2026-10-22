@@ -65,6 +65,8 @@ const props = withDefaults(
     heading?: string
     /** Split the grid into days by upload date (the library); search keeps its ranking. */
     groupByDay?: boolean
+    /** Server-ordered date feed; preserve its order and group by timelineDate. */
+    timeline?: boolean
     /** Group by month instead (galleries); day grouping wins when both are set. */
     groupByMonth?: boolean
     /** The parent shows the grid / list switch in its own header instead. */
@@ -135,7 +137,7 @@ function formatDay(iso?: string) {
 const sorts = { newest: 'Newest first', oldest: 'Oldest first', name: 'Name' } as const
 const sort = ref<keyof typeof sorts>('newest')
 const grouped = computed(() => props.groupByDay || props.groupByMonth)
-const byDay = computed(() => grouped.value && sort.value !== 'name')
+const byDay = computed(() => grouped.value && (props.timeline || sort.value !== 'name'))
 const keyLength = computed(() => (props.groupByDay ? 10 : 7))
 function formatMonth(key: string) {
   const [y, m] = key.split('-').map(Number)
@@ -155,12 +157,12 @@ const groups = computed(() => {
   }
   const days = new Map<string, Photo[]>()
   for (const p of photos.value) {
-    const key = (p.uploadDate ?? '').slice(0, keyLength.value)
+    const key = ((props.timeline ? p.timelineDate : p.uploadDate) ?? '').slice(0, keyLength.value)
     days.set(key, [...(days.get(key) ?? []), p])
   }
   const dir = sort.value === 'oldest' ? -1 : 1
   return [...days.entries()]
-    .sort(([a], [b]) => dir * b.localeCompare(a))
+    .sort(([a], [b]) => (props.timeline ? 0 : dir * b.localeCompare(a)))
     .map(([key, items]) => ({
       key,
       label: (props.groupByDay ? formatDay(key) : formatMonth(key)) || 'Undated',
@@ -357,7 +359,7 @@ defineExpose({
         photos.length
       }}</span>
       <div class="ml-auto flex items-center gap-1 self-center">
-        <template v-if="grouped && photos.length">
+        <template v-if="grouped && photos.length && !timeline">
           <span class="text-muted-foreground text-sm">Sort</span>
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -486,7 +488,9 @@ defineExpose({
                 <span
                   v-if="viewMode === 'list'"
                   class="text-muted-foreground hidden shrink-0 pr-1 text-xs sm:block"
-                  >{{ formatDate(photo.uploadDate) }}</span
+                  >{{
+                    formatDate((timeline ? photo.timelineDate : photo.uploadDate) ?? undefined)
+                  }}</span
                 >
                 <span
                   v-if="selectMode"

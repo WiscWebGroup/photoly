@@ -1,5 +1,5 @@
-from sqlalchemy import select
-from app.entities import Namespace, Photo, User
+from sqlalchemy import select, func
+from app.entities import Namespace, Photo, PhotoExtra, User
 from app.services.base import BaseService, BusinessError, valid_name
 
 
@@ -12,6 +12,63 @@ class NamespaceService(BaseService):
 
     def name(self, user_id, ns_id):
         return self.owned(Namespace, ns_id, user_id).ns_name
+
+    def details(self, user_id, ns_id):
+        from collections import Counter
+        from app.services.photo import IMAGE_FORMATS, VIDEO_FORMATS
+        from app.places import index
+        folder = self.owned(Namespace, ns_id, user_id)
+        user = self.session.get(User, user_id)
+        # UNION deduplicates IDs, so even malformed legacy cycles terminate.
+        descendants = select(Namespace.ns_id).where(Namespace.ns_id == folder.ns_id,
+            Namespace.user_id == user_id).cte("descendants", recursive=True)
+        descendants = descendants.union(select(Namespace.ns_id).join(descendants,
+            Namespace.ns_parent_id == descendants.c.ns_id).where(Namespace.user_id == user_id))
+        folder_count = self.session.scalar(select(func.count()).select_from(descendants)) - 1
+        rows = self.session.execute(select(Photo, PhotoExtra).outerjoin(PhotoExtra,
+            PhotoExtra.f_photo_id == Photo.photo_id).where(Photo.user_id == user_id,
+                Photo.ns_id.in_(select(descendants.c.ns_id))).order_by(Photo.photo_id).execution_options(yield_per=500))
+        photos = videos = original_bytes = thumbnail_bytes = missing = 0
+        cameras, lenses, places = Counter(), Counter(), Counter()
+        labels = {}
+        def device(counter, value):
+            name = " ".join((value or "").split())
+            if name:
+                key = name.casefold()
+                labels.setdefault(key, name)
+                counter[key] += 1
+        for photo, extra in rows:
+            suffix = (photo.format or "").lower()
+            photos += suffix in IMAGE_FORMATS
+            videos += suffix in VIDEO_FORMATS
+            try:
+                original_bytes += self.storage.media(user.uuid, photo).stat().st_size
+            except OSError:
+                missing += 1
+            try:
+                thumbnail_bytes += self.storage.media(user.uuid, photo, True).stat().st_size
+            except FileNotFoundError:
+                # Thumbnails are only generated for formats supported by Pillow.
+                if suffix in {"jpg", "jpeg", "png", "gif", "jfif", "ico", "bmp", "tif", "tiff", "webp"}:
+                    missing += 1
+            except OSError:
+                missing += 1
+            if extra is not None and suffix in IMAGE_FORMATS:
+                device(cameras, extra.extra_photo_camera)
+                device(lenses, extra.extra_photo_lens)
+                place = index().nearest(extra.extra_photo_gps_lat, extra.extra_photo_gps_lon)
+                if place:
+                    places[(place["place"], place["country"])] += 1
+        def devices(counter):
+            return [{"name": labels[key], "count": count} for key, count in
+                    sorted(counter.items(), key=lambda entry: (-entry[1], entry[0]))]
+        return {"nsId": folder.ns_id, "nsName": folder.ns_name, "photoCount": photos,
+                "videoCount": videos, "folderCount": folder_count, "originalBytes": original_bytes,
+                "thumbnailBytes": thumbnail_bytes, "totalBytes": original_bytes + thumbnail_bytes,
+                "missingFileCount": missing, "complete": missing == 0,
+                "cameras": devices(cameras), "lenses": devices(lenses),
+                "places": [{"name": name + ", " + country, "count": count}
+                           for (name, country), count in sorted(places.items(), key=lambda entry: (-entry[1], entry[0]))]}
 
     def insert(self, user_id, data):
         with self.atomic(user_id):

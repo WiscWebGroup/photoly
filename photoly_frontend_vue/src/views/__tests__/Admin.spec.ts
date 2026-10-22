@@ -18,6 +18,13 @@ const user = (userId: number, userName: string) => ({
   role: 'user',
   uuid: `uuid-${userName}`,
   mediaCount: 1234,
+  groupId: 1,
+  groupName: 'Default',
+  usedBytes: 1000,
+  capacityBytes: 50000000000,
+  storageOverride: false,
+  maxStorageBytes: null,
+  overQuota: false,
 })
 
 beforeEach(async () => {

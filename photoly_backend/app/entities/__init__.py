@@ -12,8 +12,13 @@ class User(db.Model):
     role = db.Column(db.String(255))
     password = db.Column(db.String(255))
     uuid = db.Column(db.String(255), unique=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('user_group.id'), nullable=False, server_default='1', index=True)
+    storage_override = db.Column(db.Boolean, nullable=False, server_default=db.false())
+    max_storage_bytes = db.Column(db.BigInteger)
+    used_bytes = db.Column(db.BigInteger)
     ai_search_enabled = db.Column(db.Boolean, nullable=False, server_default=db.false())
-    __table_args__ = (db.Index("uq_user_email_lower", func.lower(email), unique=True),)
+    __table_args__ = (db.Index("uq_user_email_lower", func.lower(email), unique=True),
+        db.CheckConstraint('(max_storage_bytes IS NULL OR max_storage_bytes >= 0) AND (used_bytes IS NULL OR used_bytes >= 0)', name='ck_user_storage'))
 
 
 class Namespace(db.Model):
@@ -133,3 +138,18 @@ class PhotoOCR(db.Model):
     )
 
 from .smart import SmartPreference, SmartMedia, SmartItem, SmartMember, SmartLineage
+
+
+class UserGroup(db.Model):
+    __tablename__ = 'user_group'
+    id = db.Column(db.Integer, db.Identity(), primary_key=True)
+    name = db.Column(db.String(255), nullable=False, unique=True)
+    max_storage_bytes = db.Column(db.BigInteger)
+    is_default = db.Column(db.Boolean, nullable=False, server_default=db.false())
+    __table_args__ = (
+        db.Index('uq_default_group', 'is_default', unique=True, postgresql_where=db.text('is_default')),
+        db.CheckConstraint('max_storage_bytes IS NULL OR max_storage_bytes >= 0', name='ck_group_storage'),
+    )
+
+
+from .uploads import UploadBatch, UploadItem

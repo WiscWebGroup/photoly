@@ -2,6 +2,8 @@
 from ..builders import operation as op, parameter as p, pages, json_body
 from ..schemas import BOOLEAN, INTEGER, STRING, EMAIL, PASSWORD, obj, array, ref, EXAMPLES
 
+from .uploads_storage import STORAGE_FIELDS, STORAGE_EXAMPLE
+
 OPERATIONS = [
     op('Admin', 'is_admin', 'GET', '/admin/isAdmin', 'Check the current account role', BOOLEAN, True, missing=False, failure=False,
        description='An authenticated non-administrator receives false with msgCode 200.'),
@@ -30,11 +32,12 @@ OPERATIONS = [
     op('Admin', 'search_user_page', 'GET', '/admin/searchUserPage', 'Search accounts by name or email', array(ref('User')), [EXAMPLES['User']],
        params=pages() + [p('search', STRING, 'Case-insensitive substring of name or email.', False, example='reader')], shape='page'),
     op('Admin', 'list_users', 'GET', '/admin/getUsers', 'List accounts with media counts',
-       obj({'users': array({'allOf': [ref('User'), obj({'mediaCount': INTEGER})]}), 'total': INTEGER}),
-       {'users': [{**EXAMPLES['User'], 'mediaCount': 1284}], 'total': 48}, missing=-2, failure=-2,
+       obj({'users': array({'allOf': [ref('User'), obj({'mediaCount': INTEGER, **STORAGE_FIELDS})]}), 'total': INTEGER}),
+       {'users': [{**EXAMPLES['User'], **STORAGE_EXAMPLE, 'mediaCount': 1284}], 'total': 48}, missing=-2, failure=-2,
        params=[p('page', {'type': 'integer', 'minimum': 1}, 'One-based page number.', example=1),
                p('rowsPerPage', {'type': 'integer', 'minimum': 1, 'maximum': 200}, 'Number of records per page.', example=20),
                p('search', STRING, 'Case-insensitive substring of name or email.', False, example='reader'),
+               p('groupId', INTEGER, 'Only members of this group.', False),
                p('role', {'type': 'string', 'enum': ['admin', 'user']}, 'Only accounts with this role.', False, example='admin')],
        description='total counts every account matching search and role, for "1-20 of 48" paging.'),
     op('Admin', 'add_user', 'POST', '/admin/addUser', 'Create an account as administrator', missing=-2, failure=-2,

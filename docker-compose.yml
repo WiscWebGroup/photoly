@@ -10,6 +10,10 @@ x-app-environment: &app-environment
   PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8384}
   TIMEZONE: ${TIMEZONE:-America/New_York}
   MAX_CONTENT_LENGTH: ${MAX_CONTENT_LENGTH:-629145600}
+  UPLOAD_ZIP_MAX_BYTES: ${UPLOAD_ZIP_MAX_BYTES:-50000000000}
+  UPLOAD_DISK_RESERVE_BYTES: ${UPLOAD_DISK_RESERVE_BYTES:-536870912}
+  UPLOAD_TEMP_HOURS: ${UPLOAD_TEMP_HOURS:-24}
+  UPLOAD_HISTORY_DAYS: ${UPLOAD_HISTORY_DAYS:-30}
   ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@a.com}
   AI_RUNTIME_URL: ${AI_RUNTIME_URL:-http://ai-runtime:8090}
   AI_INFERENCE_TOKEN: ${AI_INFERENCE_TOKEN:-}
@@ -36,6 +40,21 @@ services:
     environment: *app-environment
     volumes:
       - ./upload_data:/photoly
+  upload-worker:
+    build:
+      context: ./photoly_backend
+      target: production
+    user: "10001:10001"
+    entrypoint: ["sh", "-c", "flask --app app:create_app wait-ready && flask --app app:create_app check-schema && exec python -m app.uploads.worker"]
+    environment: *app-environment
+    volumes:
+      - ./upload_data:/photoly
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      disable: true
+    restart: unless-stopped
   migrate:
     build:
       context: ./photoly_backend

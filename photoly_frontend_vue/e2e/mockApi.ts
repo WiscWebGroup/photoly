@@ -45,6 +45,10 @@ const defaults: Record<string, Reply> = {
     ready: false,
     reason: 'disabled',
   }),
+  '/uploads': ok({ batches: [], total: 0, maxFileBytes: 629145600 }),
+  '/admin/user-groups': ok([
+    { id: 1, name: 'Default', maxStorageBytes: 50000000000, isDefault: true, memberCount: 3 },
+  ]),
   '/user/pingToken': ok(),
   '/namespace/getRoot': ok({ nsId: 1, nsName: 'root' }),
   '/namespace/trace': ok([{ nsId: 1, nsName: 'root' }]),

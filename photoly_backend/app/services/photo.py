@@ -2,7 +2,7 @@ from app.services.smart import manual_member, decorate
 import re
 from uuid import uuid4
 from urllib.parse import urlencode
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_, and_
 from app.entities import Photo, PhotoExtra, Namespace, Gallery, GalleryPhoto, Tag, TagPhoto, User
 from app.services.base import BaseService, BusinessError, valid_name
 
@@ -24,30 +24,34 @@ class PhotoService(BaseService):
                     raise BusinessError(-1)
                 self.owned(Namespace, data.get("nsId"), user_id, -2)
             for upload, data in zip(uploads, descriptions):
-                filename = upload.filename
-                if not filename or "." not in filename:
-                    raise BusinessError(-1)
-                stem, suffix = filename.rsplit(".", 1)
-                valid_name(stem)
-                if not re.fullmatch(r"[a-zA-Z0-9]{1,20}", suffix):
-                    raise BusinessError(-1)
-                visibility = data.get("visibility", 0)
-                if visibility not in (0, 1, 2):
-                    visibility = 0
-                photo = Photo(photo_name=stem, format=suffix, upload_date=self.now(), ns_id=data["nsId"],
-                              visibility=visibility, token=str(uuid4()), photo_uuid=str(uuid4()), user_id=user_id)
-                path = self.storage.media(user.uuid, photo)
-                photo.content_sha256 = files.install(upload.stream, path)
-                photo.content_version = 1
-                self.storage.thumbnail(path, self.storage.media(user.uuid, photo, True), files)
-                self.session.add(photo)
-                self.session.flush()
-                metadata = self.infra.metadata.read(path)
-                self.session.add(self.infra.metadata.extra(photo.photo_id, metadata))
-                from app.ai.hooks import photo_changed
-                photo_changed(self.session, photo)
-                objects.append(photo)
+                objects.append(self.install_one(user, upload, data, files))
         return objects
+
+    def install_one(self, user, upload, data, files):
+        user_id = user.user_id
+        filename = upload.filename
+        if not filename or "." not in filename:
+            raise BusinessError(-1)
+        stem, suffix = filename.rsplit(".", 1)
+        valid_name(stem)
+        if not re.fullmatch(r"[a-zA-Z0-9]{1,20}", suffix):
+            raise BusinessError(-1)
+        visibility = data.get("visibility", 0)
+        if visibility not in (0, 1, 2):
+            visibility = 0
+        photo = Photo(photo_name=stem, format=suffix, upload_date=self.now(), ns_id=data["nsId"],
+                      visibility=visibility, token=str(uuid4()), photo_uuid=str(uuid4()), user_id=user_id)
+        path = self.storage.media(user.uuid, photo)
+        photo.content_sha256 = files.install(upload.stream, path)
+        photo.content_version = 1
+        self.storage.thumbnail(path, self.storage.media(user.uuid, photo, True), files)
+        self.session.add(photo)
+        self.session.flush()
+        metadata = self.infra.metadata.read(path)
+        self.session.add(self.infra.metadata.extra(photo.photo_id, metadata))
+        from app.ai.hooks import photo_changed
+        photo_changed(self.session, photo)
+        return photo
 
     def replace(self, user_id, photo_id, upload):
         """Swap an owned image's content in place; id, UUID, share token, tags and galleries are kept."""
@@ -74,6 +78,52 @@ class PhotoService(BaseService):
 
     def all_for_user(self, user_id):
         return self.session.scalars(select(Photo).where(Photo.user_id == user_id).order_by(Photo.photo_id)).all()
+
+    def by_date(self, user_id, order="latest", limit=100, cursor=None):
+        """Owner-scoped keyset pagination; undated images always follow dated images."""
+        import base64
+        import json
+        from datetime import datetime
+        from app.serialization import serialize
+        if order not in ("latest", "oldest") or not 1 <= limit <= 200:
+            raise BusinessError(-1)
+        date = func.coalesce(PhotoExtra.extra_photo_taken_date, Photo.upload_date)
+        statement = select(Photo, PhotoExtra.extra_photo_taken_date, date).outerjoin(
+            PhotoExtra, PhotoExtra.f_photo_id == Photo.photo_id).where(
+                Photo.user_id == user_id, func.lower(Photo.format).in_(IMAGE_FORMATS))
+        if cursor:
+            try:
+                if len(cursor) > 512:
+                    raise ValueError()
+                value = json.loads(base64.b64decode(cursor, altchars=b"-_", validate=True))
+                if not isinstance(value, dict) or value.get("order") != order or value.get("user") != user_id:
+                    raise ValueError()
+                identifier = value["id"]
+                if type(identifier) is not int or not 0 < identifier <= 2147483647:
+                    raise ValueError()
+                stamp = datetime.fromisoformat(value["date"]) if value["date"] is not None else None
+                if stamp and stamp.tzinfo is not None:
+                    raise ValueError()
+            except (ValueError, TypeError, KeyError, UnicodeError) as error:
+                raise BusinessError(-1) from error
+            after_id = Photo.photo_id < identifier if order == "latest" else Photo.photo_id > identifier
+            if stamp is None:
+                statement = statement.where(date.is_(None), after_id)
+            else:
+                after_date = date < stamp if order == "latest" else date > stamp
+                statement = statement.where(or_(date.is_(None), after_date, and_(date == stamp, after_id)))
+        direction = date.desc() if order == "latest" else date.asc()
+        rows = self.session.execute(statement.order_by(direction.nulls_last(),
+            Photo.photo_id.desc() if order == "latest" else Photo.photo_id.asc()).limit(limit + 1)).all()
+        items = [{**serialize(photo), "timelineDate": serialize(stamp),
+                  "dateSource": "taken" if taken is not None else "upload" if stamp is not None else None}
+                 for photo, taken, stamp in rows[:limit]]
+        next_cursor = None
+        if len(rows) > limit:
+            last = items[-1]
+            next_cursor = base64.urlsafe_b64encode(json.dumps({"order": order, "user": user_id,
+                "id": last["photoId"], "date": last["timelineDate"]}).encode()).decode()
+        return {"items": items, "nextCursor": next_cursor}
 
     def by_namespace(self, user_id, ns_id):
         return self.session.scalars(select(Photo).where(Photo.user_id == user_id, Photo.ns_id == ns_id).order_by(Photo.photo_id)).all()

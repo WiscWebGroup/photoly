@@ -3,8 +3,10 @@ import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { onKeyStroke } from '@vueuse/core'
 import { toast } from 'vue-sonner'
-import { Camera, Images, LogOut, Map, Search, Tag } from '@lucide/vue'
+import { CalendarDays, Camera, Images, LogOut, Map, Search, Tag } from '@lucide/vue'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
+import UploadButton from '@/components/UploadButton.vue'
+import { useUploadsStore } from '@/stores/uploads'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import { useProfile } from '@/composables/useProfile'
 import { storageLabel, useStorageUsage } from '@/composables/useStorageUsage'
@@ -19,6 +21,8 @@ onMounted(() => load().catch(() => {}))
 
 // Uploads and deletions happen on other pages, so re-read usage whenever the page changes.
 const storage = useStorageUsage()
+const uploads = useUploadsStore()
+watch(() => uploads.revision, storage.refresh)
 watch(() => route.params.part, storage.refresh, { immediate: true })
 
 type NavItem = { part: string; label: string; icon: typeof Camera; key?: string }
@@ -35,15 +39,17 @@ const groups: { label: string; items: NavItem[] }[] = [
     items: [
       { part: 'GalleryPart', label: 'Galleries', icon: Images },
       { part: 'TagPart', label: 'Tags', icon: Tag },
+      { part: 'DatesPart', label: 'Dates', icon: CalendarDays },
     ],
   },
   { label: 'Find', items: [{ part: 'SearchPart', label: 'Search', icon: Search, key: '/' }] },
 ]
 
-// Phones get four tabs; galleries and tags share "Albums", the account sits behind the avatar.
+// Phones get five tabs; galleries and tags share "Albums", the account sits behind the avatar.
 const tabs = [
   { part: 'HomePart', label: 'Photos', icon: Camera, also: [] as string[] },
   { part: 'GalleryPart', label: 'Albums', icon: Images, also: ['TagPart'] },
+  { part: 'DatesPart', label: 'Dates', icon: CalendarDays, also: [] },
   { part: 'MapPart', label: 'Map', icon: Map, also: [] },
   { part: 'SearchPart', label: 'Search', icon: Search, also: [] },
 ]
@@ -174,11 +180,12 @@ const iconButton =
           class="h-[22px] invert dark:invert-0"
         />
       </router-link>
+      <UploadButton class="ml-auto" />
       <router-link
         to="/home/ManagePart"
         aria-label="Account"
         :aria-current="onAccount ? 'page' : undefined"
-        class="ml-auto grid size-11 place-items-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        class="grid size-11 place-items-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <Avatar :class="cn('ring-border size-8 ring-1', onAccount && 'ring-primary ring-2')"
           ><AvatarImage :src="auth.avatarUrl" alt=""
@@ -186,14 +193,25 @@ const iconButton =
       </router-link>
     </header>
 
-    <main class="min-h-0 flex-1 overflow-auto">
-      <slot />
-    </main>
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <header
+        class="bg-card hidden h-14 shrink-0 items-center justify-end gap-3 border-b px-10 md:flex"
+      >
+        <router-link
+          to="/home/SearchPart"
+          class="text-muted-foreground bg-background flex h-9 w-70 items-center gap-2 rounded-lg border px-3 text-sm"
+          ><Search class="size-4" /><span class="flex-1">Search photos</span
+          ><kbd class="rounded border px-1 text-xs">/</kbd></router-link
+        >
+        <UploadButton />
+      </header>
+      <main class="min-h-0 flex-1 overflow-auto"><slot /></main>
+    </div>
 
     <!-- Mobile bottom tab bar -->
     <nav
       aria-label="Main"
-      class="bg-card grid shrink-0 grid-cols-4 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
+      class="bg-card grid shrink-0 grid-cols-5 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <router-link
         v-for="tab in tabs"

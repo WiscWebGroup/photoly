@@ -190,7 +190,9 @@ def test_runtime_async_pause_interrupts_long_startup(monkeypatch, phase):
             'generation':1, 'operation_id':'start'}
     try:
         runtime.submit(data)
-        wait_until(lambda: runtime.state == phase)
+        # Loading is announced before the child is assigned; wait for the process
+        # this test intends to interrupt, especially on busy CI/build hosts.
+        wait_until(lambda: runtime.state == phase and runtime.process is not None and runtime.process.is_alive())
         before = runtime.process
         start = time.monotonic()
         runtime.submit({**data, 'command':'unload', 'generation':2, 'operation_id':'pause'})

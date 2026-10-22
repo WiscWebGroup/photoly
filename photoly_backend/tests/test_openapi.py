@@ -9,6 +9,7 @@ from openapi_spec_validator import validate
 from app import create_app
 from app.docs.definitions.ai import OPERATIONS as AI_OPERATIONS
 from app.docs import build_spec
+from app.docs.definitions.uploads_storage import OPERATIONS as UPLOAD_OPERATIONS
 from tests.openapi_assertions import validate_value
 
 CONTRACTS = Path(__file__).parent / 'contracts'
@@ -22,10 +23,10 @@ def test_openapi_32_is_valid_and_covers_exact_legacy_routes():
     expected = {(row['method'].lower(), row['path']) for row in json.loads((CONTRACTS / 'spring_routes.json').read_text())['routes']}
     actual = {(method, path) for path, methods in spec['paths'].items() for method in methods}
     assert len(expected) == 90
-    assert actual == expected | {(method,path) for path,method,_ in AI_OPERATIONS} | {('get', '/photo/ocr'), ('put', '/photo/ocr'), ('post', '/photo/ocr/recognize'), ('get', '/photo/searchSmart'), ('get', '/healthz'), ('post', '/photo/replace'), ('get', '/admin/pingDatabase'), ('get', '/admin/databaseInfo'),
-        ('get', '/user/getStorage'), ('get', '/photo/getCovers'), ('get', '/photo-extra/getMapPlaces'), ('get', '/admin/getUsers')}
+    assert actual == expected | {(method,path) for path,method,_ in AI_OPERATIONS + UPLOAD_OPERATIONS} | {('get', '/photo/ocr'), ('put', '/photo/ocr'), ('post', '/photo/ocr/recognize'), ('get', '/photo/searchSmart'), ('get', '/healthz'), ('post', '/photo/replace'), ('get', '/admin/pingDatabase'), ('get', '/admin/databaseInfo'),
+        ('get', '/user/getStorage'), ('get', '/photo/getCovers'), ('get', '/photo-extra/getMapPlaces'), ('get', '/admin/getUsers'), ('get', '/photo/getByDate'), ('get', '/namespace/getDetails')}
     ids = [op['operationId'] for methods in spec['paths'].values() for op in methods.values()]
-    assert len(ids) == len(set(ids)) == 124
+    assert len(ids) == len(set(ids)) == 139
     for path, methods in spec['paths'].items():
         for op in methods.values():
             assert op['summary'] and op['description'] and op['tags']

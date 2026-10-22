@@ -7,6 +7,8 @@ export interface Photo {
   format?: string
   nsId?: number
   uploadDate?: string
+  timelineDate?: string | null
+  dateSource?: 'taken' | 'upload' | null
   /** 1 when shared. */
   visibility?: number
   token?: string

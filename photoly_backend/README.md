@@ -42,7 +42,7 @@ uv run flask --app app:create_app run --port 8084
 
 Standalone commands read exported environment variables; Compose reads the root `.env`. The Flask server is for development. Docker runs Gunicorn with two workers/four threads by default.
 
-For upgrades, follow the [root upgrade procedure](../README.md#upgrading-an-existing-postgresql-deployment), including the scheduler and maintenance images when enabled. The current migration head is `0005_smart_organization`; migrate before starting new application services. Existing PostgreSQL deployments can upgrade in place; legacy MySQL/AES/session migration remains unsupported.
+For upgrades, follow the [root upgrade procedure](../README.md#upgrading-an-existing-postgresql-deployment), including the scheduler and maintenance images when enabled. The current migration head is `0006_uploads_storage`; migrate before starting new application services. Existing PostgreSQL deployments can upgrade in place; legacy MySQL/AES/session migration remains unsupported.
 
 ## Configuration
 
@@ -96,3 +96,5 @@ See [compatibility notes](COMPATIBILITY.md) and the test commands above. Histori
 [OCR](../docs/ocr.md) uses Tesseract CPU in the application image, without AI enablement or GPU allocation. Recognition is on demand, globally limited to one task, with optimistic content/revision checks. The browser can edit and copy saved text. Avatar uploads are normalized by Pillow to square 512 × 512 JPEGs.
 
 [Smart Tag](../docs/smart-tag.md) runs inside the existing `ai-scheduler` Python process. Both administrator and user switches default off; global AI and user AI access are also required. Device tags use real metadata; trip galleries use capture time, offline GeoNames cities and existing document vectors. No additional inference request or container is introduced. The checked-in city index, manifest and attribution are required deployment assets.
+
+[Uploads and storage groups](../docs/uploads-storage.md) describe the always-on upload worker, ZIP imports, per-account quotas, migration and reconciliation.

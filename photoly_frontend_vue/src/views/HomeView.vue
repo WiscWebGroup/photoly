@@ -12,6 +12,7 @@ const parts = {
   TagPart: defineAsyncComponent(() => import('@/components/TagPart.vue')),
   SearchPart: defineAsyncComponent(() => import('@/components/SearchPart.vue')),
   ManagePart: defineAsyncComponent(() => import('@/components/ManagePart.vue')),
+  DatesPart: defineAsyncComponent(() => import('@/components/DatesPart.vue')),
   MapPart: defineAsyncComponent(() => import('@/components/MapPart.vue')),
 }
 const current = computed(() => parts[props.part as keyof typeof parts])

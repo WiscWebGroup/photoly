@@ -57,3 +57,7 @@ Revision `0004_photo_ocr` adds owner-only editable text in `photo_ocr`. New endp
 ## Smart organization
 
 Migration `0005_smart_organization` adds companion preferences, metadata, smart identities, membership overrides and lineage tables. Ordinary catalog fields remain unchanged unless `includeSmart=true` is requested on catalog lists/pages or photo associations. Existing edits/deletes/member changes also record smart overrides. Six owner-authenticated Smart Tag operations are documented under `/ai/smart/*`; admin AI settings/status add `smart_tag_enabled` and `smartTag`. Both Smart Tag switches default off. See [Smart Tag](../docs/smart-tag.md).
+
+## Bulk uploads and quotas
+
+Migration 0006 adds user groups, persistent storage counters and private upload history. Legacy entity response fields remain frozen. `/user/getStorage.capacityBytes` now means effective account quota (nullable for unlimited), and its response adds group/source/over-quota information. `/admin/getUsers` adds corresponding fields and an optional groupId filter. All legacy write routes enforce quota in their file transaction; new routes are listed in OpenAPI.

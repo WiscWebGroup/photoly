@@ -23,7 +23,7 @@ def test_database_api_and_legacy_alias(world):
         assert world.client.get(route).json["msgCode"] == 403
     info = world.client.get("/admin/databaseInfo", headers=world.admin).json["t"]
     assert info["type"] == "postgresql" and info["version"].startswith("17.")
-    assert info["pgvectorVersion"] == "0.8.7" and info["schemaRevision"] == "0005_smart_organization"
+    assert info["pgvectorVersion"] == "0.8.7" and info["schemaRevision"] == "0006_uploads_storage"
     assert set(info) == {"type", "version", "address", "pgvectorVersion", "schemaRevision"}
     address = world.client.get("/admin/getAddress", headers=world.admin).json["t"]
     assert address["mysql"].endswith(":5432")
@@ -39,7 +39,7 @@ def test_repeated_migration_preserves_data_and_schema(world, migration_engine):
         require_schema(db.session)
         assert db.session.get(User, 2).email == "alice@test.local"
         inspector = inspect(db.engine)
-        assert len(inspector.get_table_names()) == 23
+        assert len(inspector.get_table_names()) == 26
         assert inspector.get_columns("user")[0]["identity"]["always"] is False
         assert any(i["name"] == "uq_user_email_lower" and i["unique"] for i in inspector.get_indexes("user"))
         assert db.session.scalar(text("SHOW transaction_isolation")) == "read committed"
@@ -71,7 +71,7 @@ def test_schema_check_rejects_unexpected_revision(app, migration_engine):
                 require_schema(db.session)
     finally:
         with migration_engine.begin() as connection:
-            connection.execute(text("UPDATE alembic_version SET version_num='0005_smart_organization'"))
+            connection.execute(text("UPDATE alembic_version SET version_num='0006_uploads_storage'"))
 
 
 def test_case_insensitive_email_unique_under_concurrent_writes(app):

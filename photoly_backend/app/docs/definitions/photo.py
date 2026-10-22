@@ -124,3 +124,13 @@ for path, method, operation in OPERATIONS:
         operation['description'] = operation.get('description', '') + ' For smart items, explicitly added memberships are retained during automatic recomputation.'
     if path in ('/photo/deleteTag', '/photo/deleteTags', '/photo/deleteFromGallery'):
         operation['description'] = operation.get('description', '') + ' Removing a smart membership records an exclusion so automatic recomputation does not restore it.'
+
+OPERATIONS.append(op('Photo', 'by_date', 'GET', '/photo/getByDate', 'Page through owned images by capture date',
+    obj({'items': array({'allOf': [ref('Photo'), obj({'timelineDate': {'type': ['string', 'null']},
+        'dateSource': {'enum': ['taken', 'upload', None]}})]}), 'nextCursor': {'type': ['string', 'null']}}),
+    {'items': [], 'nextCursor': None}, params=[
+        p('order', {'enum': ['latest', 'oldest'], 'type': 'string'}, 'Sort direction; default latest.', False, example='latest'),
+        p('limit', {'type': 'integer', 'minimum': 1, 'maximum': 200}, 'Page size; default 100.', False, example=100),
+        p('cursor', STRING, 'Opaque nextCursor from the preceding page, for the same user and order.', False, example='opaque')],
+    description='Images only, across all owned folders. Capture time falls back to upload time; both absent sorts last. '
+                'Photo ID breaks ties in the same direction. Existing uploadDate is unchanged. New uploads or date edits require restarting pagination.'))

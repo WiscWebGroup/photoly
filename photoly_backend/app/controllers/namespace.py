@@ -18,6 +18,12 @@ def children(uid):
     return result(service(NamespaceService).children(uid, arg("parentId", integer=True)))
 
 
+@bp.get("/getDetails")
+@legacy()
+def details(uid):
+    return result(service(NamespaceService).details(uid, arg("nsId", integer=True, required=True)))
+
+
 @bp.get("/getNameById")
 @legacy()
 def name(uid):

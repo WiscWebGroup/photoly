@@ -318,6 +318,22 @@
       "ai_search_enabled": {
         "type": "BOOLEAN",
         "nullable": false
+      },
+      "group_id": {
+        "type": "INTEGER",
+        "nullable": false
+      },
+      "storage_override": {
+        "type": "BOOLEAN",
+        "nullable": false
+      },
+      "max_storage_bytes": {
+        "type": "BIGINT",
+        "nullable": true
+      },
+      "used_bytes": {
+        "type": "BIGINT",
+        "nullable": true
       }
     },
     "primary_key": [

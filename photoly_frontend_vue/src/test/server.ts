@@ -8,11 +8,22 @@ export const API = import.meta.env.VITE_APP_BASE_URL
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'HRD-Token, Content-Type, Idempotency-Key',
-  'Access-Control-Allow-Methods': 'GET, POST, PATCH',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE',
 }
 export const json = (body: JsonBodyType) => HttpResponse.json(body, { headers: cors })
 
 export const server = setupServer(
+  http.get(`${API}/uploads`, () =>
+    json({ msgCode: 200, t: { batches: [], total: 0, maxFileBytes: 629145600 } }),
+  ),
+  http.get(`${API}/admin/user-groups`, () =>
+    json({
+      msgCode: 200,
+      t: [
+        { id: 1, name: 'Default', maxStorageBytes: 50000000000, isDefault: true, memberCount: 3 },
+      ],
+    }),
+  ),
   http.get(`${API}/ai/smart/settings`, () =>
     json({ msgCode: 200, t: { enabled: false, available: false, reason: 'smart_tag_disabled' } }),
   ),
