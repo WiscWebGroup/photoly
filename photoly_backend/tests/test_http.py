@@ -43,6 +43,12 @@ def test_http_full_workflow(http, jpeg, video_bytes):
         assert response.json() == {"t": 1, "msgCode": 200}
     photos = http("GET", "/photo/getByNamespace", headers=headers, params={"nsId": folder}).json()["t"]
     photo, video = photos
+    dates = http("GET", "/photo/getByDate", headers=headers).json()["t"]
+    assert [p["photoId"] for p in dates["items"]] == [photo["photoId"]]
+    assert dates["items"][0]["dateSource"] == "upload"
+    details = http("GET", "/namespace/getDetails", headers=headers, params={"nsId": root}).json()["t"]
+    assert (details["photoCount"], details["videoCount"], details["folderCount"]) == (1, 1, 1)
+    assert details["originalBytes"] == len(jpeg) + len(video_bytes) and details["complete"]
     assert http("GET", f"/photo/render/{token}", params={"photoId": photo["photoId"]}).content == jpeg
     ranged = http("GET", f"/photo/renderV/{token}", params={"photoId": video["photoId"]}, headers={"Range": "bytes=4-11"})
     assert ranged.status_code == 206 and ranged.content == video_bytes[4:12]
@@ -95,7 +101,7 @@ def test_http_openapi_and_upload_contract(http, jpeg):
     legacy = json.loads((Path(__file__).parent / "contracts/spring_routes.json").read_text())
     expected = {r["path"] for r in legacy["routes"]} | {"/healthz", "/photo/replace", "/admin/pingDatabase", "/admin/databaseInfo",
         "/photo/searchSmart", "/photo/ocr", "/photo/ocr/recognize", "/user/getStorage", "/photo/getCovers",
-        "/photo-extra/getMapPlaces", "/admin/getUsers"}
+        "/photo-extra/getMapPlaces", "/admin/getUsers", "/photo/getByDate", "/namespace/getDetails"}
     from app.docs.definitions.ai import OPERATIONS as AI_OPERATIONS
     from app.docs.definitions.uploads_storage import OPERATIONS as UPLOAD_OPERATIONS
     expected |= {path for path, _, _ in AI_OPERATIONS + UPLOAD_OPERATIONS}

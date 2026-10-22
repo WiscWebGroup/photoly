@@ -118,3 +118,21 @@ Scroll down in the viewer to load **Similar photos and videos**. Each item has i
 ### Bulk uploads and storage groups
 
 Files, folders and ZIPs can be uploaded in unlimited-count batches. The global Upload activity panel stays available while browsing. Each account inherits a default 50 GB group quota, with administrator-managed groups and personal overrides. See [uploads, storage, migration and worker operations](docs/uploads-storage.md).
+
+### Dates and folder details
+
+**Organize → Dates** brings together the signed-in user's photos across all folders. Latest/Oldest
+uses EXIF capture time, falling back to upload time; records with neither appear last under Undated.
+Dates loads 100 photos per page. Changing the sort, editing a photo or completing an upload refreshes
+the feed. The photo viewer's **Open folder** link returns to the containing folder.
+
+Right-click a folder, or use its **Actions → Details** menu on touch devices, to view recursive photo,
+video and subfolder counts. Storage separates original files from thumbnails and excludes avatars
+and temporary files. Missing expected files are reported as incomplete totals. Places are approximate
+nearby towns derived from GPS; cameras and lenses come from photo metadata, with counts per photo.
+
+The new owner-only endpoints are `GET /photo/getByDate` and `GET /namespace/getDetails`; see `/docs`
+for parameters, pagination and response schemas. No new migration is required beyond `0006_uploads_storage`.
+When deploying with Compose overrides, mount the same media directory on `backend`, `migrate`,
+`upload-worker` and the maintenance service. Validate the merged configuration with `docker compose config --quiet`
+using your deployment's existing project, environment file, overrides and AI profile before restarting it.

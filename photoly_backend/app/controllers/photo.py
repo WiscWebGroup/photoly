@@ -39,6 +39,13 @@ def update(uid):
     return changed(service(PhotoService).update(uid, body()))
 
 
+@bp.get("/getByDate")
+@legacy()
+def by_date(uid):
+    return result(service(PhotoService).by_date(uid, request.args.get("order", "latest"),
+        arg("limit", integer=True) if "limit" in request.args else 100, request.args.get("cursor")))
+
+
 @bp.get("/getByNamespace")
 @legacy()
 def by_namespace(uid):

@@ -31,7 +31,16 @@ services:
       context: ./photoly_backend
       target: production
     depends_on:
-      upload-worker:
+      migrate:
+        condition: service_completed_successfully
+      db_redis:
+        condition: service_healthy
+    ports:
+      - "8384:8084"
+    environment: *app-environment
+    volumes:
+      - ./upload_data:/photoly
+  upload-worker:
     build:
       context: ./photoly_backend
       target: production
@@ -46,15 +55,6 @@ services:
     healthcheck:
       disable: true
     restart: unless-stopped
-  migrate:
-        condition: service_completed_successfully
-      db_redis:
-        condition: service_healthy
-    ports:
-      - "8384:8084"
-    environment: *app-environment
-    volumes:
-      - ./upload_data:/photoly
   migrate:
     build:
       context: ./photoly_backend

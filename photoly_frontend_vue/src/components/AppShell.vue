@@ -3,7 +3,7 @@ import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { onKeyStroke } from '@vueuse/core'
 import { toast } from 'vue-sonner'
-import { Camera, Images, LogOut, Map, Search, Tag } from '@lucide/vue'
+import { CalendarDays, Camera, Images, LogOut, Map, Search, Tag } from '@lucide/vue'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
 import UploadButton from '@/components/UploadButton.vue'
 import { useUploadsStore } from '@/stores/uploads'
@@ -39,15 +39,17 @@ const groups: { label: string; items: NavItem[] }[] = [
     items: [
       { part: 'GalleryPart', label: 'Galleries', icon: Images },
       { part: 'TagPart', label: 'Tags', icon: Tag },
+      { part: 'DatesPart', label: 'Dates', icon: CalendarDays },
     ],
   },
   { label: 'Find', items: [{ part: 'SearchPart', label: 'Search', icon: Search, key: '/' }] },
 ]
 
-// Phones get four tabs; galleries and tags share "Albums", the account sits behind the avatar.
+// Phones get five tabs; galleries and tags share "Albums", the account sits behind the avatar.
 const tabs = [
   { part: 'HomePart', label: 'Photos', icon: Camera, also: [] as string[] },
   { part: 'GalleryPart', label: 'Albums', icon: Images, also: ['TagPart'] },
+  { part: 'DatesPart', label: 'Dates', icon: CalendarDays, also: [] },
   { part: 'MapPart', label: 'Map', icon: Map, also: [] },
   { part: 'SearchPart', label: 'Search', icon: Search, also: [] },
 ]
@@ -209,7 +211,7 @@ const iconButton =
     <!-- Mobile bottom tab bar -->
     <nav
       aria-label="Main"
-      class="bg-card grid shrink-0 grid-cols-4 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
+      class="bg-card grid shrink-0 grid-cols-5 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <router-link
         v-for="tab in tabs"

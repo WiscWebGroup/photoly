@@ -1163,6 +1163,13 @@ const overlay = 'dark text-foreground'
               <template v-if="folder">
                 <Folder class="max-md:hidden" aria-hidden="true" />
                 <div class="break-words max-md:hidden">{{ folder }}</div>
+                <router-link
+                  v-if="info?.nsId !== undefined"
+                  :to="{ path: '/home/HomePart', query: { folder: info.nsId } }"
+                  class="text-primary text-sm underline"
+                  @click="emit('close')"
+                  >Open folder</router-link
+                >
               </template>
               <template v-if="camera || lens || exposure.length">
                 <Aperture class="max-md:hidden" aria-hidden="true" />

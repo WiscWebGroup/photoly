@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import {
@@ -10,6 +10,8 @@ import {
   Folder,
   FolderInput,
   Images,
+  Info,
+  MoreHorizontal,
   FolderOpen,
   FolderPlus,
   LayoutGrid,
@@ -24,6 +26,7 @@ import {
 } from '@lucide/vue'
 import EmptyState from '@/components/EmptyState.vue'
 import MediaList from '@/components/MediaList.vue'
+import FolderDetails from '@/components/FolderDetails.vue'
 import { DRAG_TYPE, dragging, startDrag, type DragPayload } from '@/composables/dragDrop'
 import MoveToShowFolder from '@/components/MoveToShowFolder.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -82,6 +85,17 @@ const folders = useFolders()
 const library = usePhotos()
 const mediaList = ref<InstanceType<typeof MediaList>>()
 const movePicker = ref<InstanceType<typeof MoveToShowFolder>>()
+const detailsFolder = ref<FolderInfo | null>(null)
+let detailsFocus: HTMLElement | null = null
+function showDetails(folder: FolderInfo) {
+  detailsFocus = document.querySelector<HTMLElement>(`[data-folder-id="${folder.nsId}"]`)
+  detailsFolder.value = folder
+}
+async function closeDetails() {
+  detailsFolder.value = null
+  await nextTick()
+  detailsFocus?.focus()
+}
 
 const nsId = computed(() => folders.current.value?.nsId ?? -1)
 const isRoot = computed(() => folders.path.value.length <= 1)
@@ -497,19 +511,20 @@ watch(
               <li
                 v-for="(folder, i) in folders.children.value"
                 :key="folder.nsId"
-                :class="['animate-rise', viewMode === 'grid' && 'w-36 shrink-0 sm:w-auto']"
+                :class="['animate-rise relative', viewMode === 'grid' && 'w-36 shrink-0 sm:w-auto']"
                 :style="{ animationDelay: `${Math.min(i, 12) * 30}ms` }"
               >
                 <ContextMenu>
                   <ContextMenuTrigger as-child>
                     <button
                       type="button"
+                      :data-folder-id="folder.nsId"
                       :aria-pressed="selectMode ? selected.includes(folder.nsId) : undefined"
                       :class="
                         cn(
                           'group bg-card relative flex w-full text-left text-sm shadow-xs transition-[border-color,box-shadow,translate] duration-200 outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
                           viewMode === 'list'
-                            ? 'hover:bg-accent h-11 items-center gap-3 rounded-lg border px-3'
+                            ? 'hover:bg-accent h-11 items-center gap-3 rounded-lg border pl-3 pr-12'
                             : 'hover:border-primary flex-col overflow-hidden rounded-[14px] border hover:-translate-y-0.5 hover:shadow-sm',
                           (selected.includes(folder.nsId) || dragOver === folder.nsId) &&
                             'border-primary ring-primary ring-1',
@@ -601,6 +616,9 @@ watch(
                     <ContextMenuItem @select="selectFolder(folder)">
                       <SquareCheck /> {{ selected.includes(folder.nsId) ? 'Deselect' : 'Select' }}
                     </ContextMenuItem>
+                    <ContextMenuItem @select="showDetails(folder)"
+                      ><Info /> Details</ContextMenuItem
+                    >
                     <ContextMenuItem @select="startRename(folder)"
                       ><Pencil /> Rename</ContextMenuItem
                     >
@@ -615,6 +633,22 @@ watch(
                     >
                   </ContextMenuContent>
                 </ContextMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger as-child>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      class="absolute right-1 top-1 size-8"
+                      :aria-label="`Actions for ${folder.nsName}`"
+                      ><MoreHorizontal class="size-4"
+                    /></Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem @select="showDetails(folder)"
+                      ><Info /> Details</DropdownMenuItem
+                    >
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </li>
               <li
                 v-if="viewMode === 'grid'"
@@ -799,5 +833,6 @@ watch(
       :item-name="movingFolder?.nsName"
       @move-to-update="moveFolder"
     />
+    <FolderDetails :folder="detailsFolder" @close="closeDetails" />
   </div>
 </template>

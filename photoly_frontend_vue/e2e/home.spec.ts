@@ -64,7 +64,7 @@ test('create a folder', async ({ page, isMobile }) => {
   await create.getByRole('button', { name: 'Create' }).click()
 
   await expect(page.getByText('Folder created!')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Trips' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Trips', exact: true })).toBeVisible()
   expect(calls.find((c) => c.path === '/namespace/insert')?.body).toEqual({
     nsParentId: 1,
     nsName: 'Trips',
@@ -82,12 +82,12 @@ test('delete a folder', async ({ page, isMobile }) => {
     },
   })
   await page.goto('/home/HomePart')
-  await page.getByRole('button', { name: 'Trips' }).click({ button: 'right' })
+  await page.getByRole('button', { name: 'Trips', exact: true }).click({ button: 'right' })
   await menuItem(page, 'Delete').click()
   await dialog(page, 'Delete Trips?').getByRole('button', { name: 'Delete' }).click()
 
   await expect(page.getByText('Folder deleted!')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Trips' })).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Trips', exact: true })).toBeHidden()
   expect(calls.find((c) => c.path === '/namespace/delete')?.query).toEqual({ nsId: '5' })
 })
 
@@ -108,17 +108,17 @@ test('open a folder', async ({ page }) => {
       ),
   })
   await page.goto('/home/HomePart')
-  await page.getByRole('button', { name: 'Trips' }).click()
+  await page.getByRole('button', { name: 'Trips', exact: true }).click()
 
   await expect(page.getByText('beach.jpg')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Trips' })).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Trips', exact: true })).toBeHidden()
   expect(calls).toContainEqual(
     expect.objectContaining({ path: '/namespace/getChildren', query: { parentId: '5' } }),
   )
 
   // Breadcrumb (or the phone back link) to the library root.
   await page.getByRole('button', { name: 'Library' }).filter({ visible: true }).click()
-  await expect(page.getByRole('button', { name: 'Trips' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Trips', exact: true })).toBeVisible()
 })
 
 test('move a photo to another folder', async ({ page, isMobile }) => {
