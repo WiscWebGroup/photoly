@@ -133,9 +133,9 @@ describe('MediaList', () => {
     const wrapper = await mountWithPhotos()
     await enterSelectMode()
     await selectAll()
-    button('Delete Selected').click()
+    button('Delete', document.querySelector('[role=toolbar]')!).click()
     await vi.waitFor(() => expect(pageText()).toContain('Delete 2 items?'))
-    button('Delete').click()
+    button('Delete', document.querySelector('[role=alertdialog]')!).click()
 
     // One reload after the whole batch, not one per photo.
     await vi.waitFor(() => expect(wrapper.emitted('queryPhotos')).toHaveLength(1))

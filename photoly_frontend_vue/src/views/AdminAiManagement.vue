@@ -81,6 +81,15 @@ const labels: Record<string, string> = {
   disk_pause_free_mib: 'Disk pause below (MiB)',
   disk_resume_free_mib: 'Disk resume above (MiB)',
 }
+/** How many settings the draft changes, for the save bar. */
+const unsavedCount = computed(() => {
+  if (!draft.value || !original.value) return 0
+  const d = draft.value as unknown as Record<string, unknown>
+  const o = original.value as unknown as Record<string, unknown>
+  const keys = Object.keys(d).filter((k) => k !== 'quota_bytes' && d[k] !== o[k])
+  const budget = budgetGiB.value !== (original.value.quota_bytes ?? 0) / 1024 ** 3 ? 1 : 0
+  return keys.length + budget
+})
 function resetDraft() {
   if (status.value) {
     ramEdited.value = false
@@ -304,402 +313,445 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
       >Recover operation status</Button
     >
     <template v-if="status">
-      <section class="space-y-4 rounded-xl border bg-card p-5 shadow-xs" aria-label="AI controls">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 class="text-base font-semibold">
-              {{ stageLabels[stage ?? ''] ?? 'AI status unknown' }}
-            </h2>
-            <p class="text-sm text-muted-foreground">
-              {{
-                status.settings.enabled
-                  ? 'AI is enabled.'
-                  : 'Enable AI to prepare your model automatically.'
-              }}
-            </p>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <Button
-              v-if="!status.settings.enabled || stage === 'failed'"
-              :disabled="locked"
-              @click="enableAi"
-              >Enable AI</Button
-            >
-            <Button
-              v-if="status.settings.enabled || status.settings.runtime === 'loaded'"
-              variant="outline"
-              :disabled="saving || !!pending"
-              @click="admin.operate('ai.pause')"
-              >Pause AI</Button
-            >
-          </div>
-        </div>
-        <div v-if="starting" class="space-y-2" role="status">
-          <progress
-            class="h-2 w-full accent-primary"
-            aria-label="AI startup progress"
-            :value="downloadPercent"
-            max="100"
-          ></progress>
-          <p v-if="downloadPercent !== undefined" class="text-sm">
-            {{ status.startup?.completed }} / {{ status.startup?.total }} files available ·
-            {{ downloadPercent.toFixed(0) }}% of download files
-          </p>
-          <p class="text-xs text-muted-foreground">
-            Prepare → Download → Load → Validate → Ready. First startup may take longer while model
-            files download.
-          </p>
-          <p v-if="stalled" class="text-sm">
-            Still waiting for the current step. A large download or model load may take several
-            minutes. You can pause and retry.
-          </p>
-        </div>
-        <p v-if="status.startup?.reason" role="status" class="text-sm">
-          {{ aiMessage(status.startup.reason) }}
-        </p>
-        <p v-if="!runtime?.online" role="status" class="text-sm">
-          Offline / unknown — startup will continue when the AI services are available.
-        </p>
-        <div class="flex flex-wrap gap-5 border-t pt-4">
-          <label class="flex items-center gap-2 text-sm font-medium"
-            ><input
-              type="checkbox"
-              class="accent-primary size-4"
-              :checked="status.settings.search_enabled"
-              :disabled="locked"
-              aria-label="AI Search"
-              @change="feature('search_enabled', $event)"
-            />AI Search</label
+      <div class="grid items-start gap-6 min-[1100px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <div class="flex min-w-0 flex-col gap-6">
+          <section
+            class="space-y-4 rounded-xl border bg-card p-5 shadow-xs"
+            aria-label="AI controls"
           >
-          <label class="flex items-center gap-2 text-sm font-medium"
-            ><input
-              type="checkbox"
-              class="accent-primary size-4"
-              :checked="status.settings.smart_tag_enabled"
-              :disabled="locked"
-              aria-label="Smart Tag"
-              @change="feature('smart_tag_enabled', $event)"
-            />Smart Tag</label
-          >
-        </div>
-        <p class="text-xs text-muted-foreground">
-          Pause AI releases model memory and preserves your index and preferences. Individual access
-          is managed in
-          <router-link
-            class="text-primary font-medium hover:underline"
-            to="/thepersonincharge/usermanage"
-            >User Management</router-link
-          >; Smart Tag also requires user opt-in.
-        </p>
-      </section>
-      <section class="space-y-4 rounded-xl border bg-card p-5 shadow-xs" aria-label="Scheduler">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 class="text-base font-semibold">Background scheduler</h2>
-            <p class="text-sm text-muted-foreground">
-              {{
-                status.settings.scheduler === 'running'
-                  ? status.settings.enabled
-                    ? 'Enabled'
-                    : 'Enabled · waiting for AI'
-                  : 'Paused'
-              }}
-            </p>
-          </div>
-          <Button
-            :disabled="locked"
-            :variant="status.settings.scheduler === 'running' ? 'outline' : 'default'"
-            @click="
-              admin.operate(
-                status.settings.scheduler === 'running' ? 'scheduler.pause' : 'scheduler.start',
-              )
-            "
-            >{{
-              status.settings.scheduler === 'running' ? 'Pause Scheduler' : 'Enable Scheduler'
-            }}</Button
-          >
-        </div>
-        <p class="text-xs text-muted-foreground">
-          Pausing stops new background tasks. The current item may finish; search remains available
-          for indexed media.
-        </p>
-        <p v-if="!status.services.scheduler?.online" role="status" class="text-sm">
-          Scheduler service offline. Restore the service to continue processing.
-        </p>
-        <p v-if="status.services.scheduler?.observed.reason" role="status" class="text-sm">
-          Waiting:
-          {{
-            Array.isArray(status.services.scheduler.observed.reason)
-              ? status.services.scheduler.observed.reason.map(aiMessage).join(', ')
-              : aiMessage(status.services.scheduler.observed.reason)
-          }}
-        </p>
-        <p v-if="status.backgroundLimits.reason" role="status" class="text-sm">
-          Waiting: {{ aiMessage(status.backgroundLimits.reason) }}
-        </p>
-        <div v-if="indexCoverage" class="space-y-2">
-          <p class="text-sm font-medium">
-            Photo and video index · {{ indexCoverage.ready }} / {{ indexCoverage.supported }} ready
-          </p>
-          <progress
-            aria-label="Media indexing progress"
-            class="w-full h-2 accent-primary"
-            :value="indexCoverage.ready"
-            :max="Math.max(indexCoverage.supported, 1)"
-          ></progress>
-          <p class="text-xs text-muted-foreground">
-            {{ indexCoverage.pending }} pending · {{ indexCoverage.failed }} failed ·
-            {{ indexCoverage.unsupported }} unsupported. Search includes indexed content as it
-            becomes ready.
-          </p>
-        </div>
-        <div v-if="status.smartTag" class="text-sm" aria-label="Smart Tag progress">
-          <p>
-            Smart Tag: {{ status.smartTag.processed }} / {{ status.smartTag.total }} media inspected
-            · {{ status.smartTag.failed }} failed
-          </p>
-          <p v-if="status.smartTag.reason">{{ smartReason(status.smartTag.reason) }}</p>
-        </div>
-      </section>
-      <section
-        v-if="draft && capabilities"
-        class="space-y-4 rounded-xl border bg-card p-5 shadow-xs"
-        aria-label="AI settings"
-      >
-        <h2 class="text-base font-semibold">Resources</h2>
-        <p class="text-sm">
-          CPU {{ numberLabel(resources?.cpu_percent) }} · GPU
-          {{ numberLabel(resources?.gpu_percent) }} · RAM {{ numberLabel(ramUsage) }}
-        </p>
-        <p v-if="original?.generation !== status.settings.generation" role="status" class="text-sm">
-          The server configuration changed. Your draft is preserved; reload saved settings before
-          editing again.
-        </p>
-        <form class="space-y-4" @submit.prevent="save">
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <label
-              v-for="key in ['cpu_pause_percent', 'gpu_pause_percent', 'ram_max_percent']"
-              :key="key"
-              class="text-sm"
-              >{{ labels[key] }}
-              <input
-                :value="fieldValue(key)"
-                :aria-label="labels[key]"
-                type="number"
-                step="1"
-                :min="key === 'ram_max_percent' ? 6 : 11"
-                max="100"
-                :disabled="key === 'gpu_pause_percent' && draft.device !== 'cuda'"
-                :class="inputClass"
-                @input="setResource(key, $event)"
-              />
-            </label>
-            <label class="text-sm"
-              >Device<select
-                :value="draft.device"
-                aria-label="Inference device"
-                :disabled="loadedModel"
-                :class="inputClass"
-                @change="chooseDevice"
-              >
-                <option
-                  v-for="device in capabilities.devices"
-                  :key="device.device"
-                  :value="device.device"
-                  :disabled="device.available !== true"
-                >
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 class="text-base font-semibold">
+                  {{ stageLabels[stage ?? ''] ?? 'AI status unknown' }}
+                </h2>
+                <p class="text-sm text-muted-foreground">
                   {{
-                    device.device === 'mps'
-                      ? 'Apple Silicon GPU (MPS)'
-                      : device.device.toUpperCase()
-                  }}{{ device.available !== true ? ' — unavailable or unknown' : '' }}
-                </option>
-              </select></label
-            >
-          </div>
-          <p class="text-xs text-muted-foreground">
-            Background tasks wait above these limits. Changing a CPU/GPU limit sets recovery 10
-            percentage points below; RAM recovers 5 points below. Existing custom CPU/GPU recovery
-            values are preserved until changed. Limits are admission thresholds, not hard resource
-            caps. Pause AI before changing Device.
-          </p>
-          <p v-if="draft.ram_policy === 'free' && !ramEdited" class="text-sm">
-            Legacy RAM protection is active: pause below {{ draft.memory_pause_free_mib }} MiB free;
-            resume above {{ draft.memory_resume_free_mib }} MiB. Save a RAM max value to use
-            percentage limits.
-          </p>
-          <p v-if="draft.device === 'mps'" class="text-sm">
-            Apple Silicon uses unified memory. GPU utilization is unavailable; CPU and RAM
-            thresholds apply.
-          </p>
-          <Button type="button" variant="outline" @click="recommended"
-            >Use recommended thresholds</Button
+                    status.settings.enabled
+                      ? 'AI is enabled.'
+                      : 'Enable AI to prepare your model automatically.'
+                  }}
+                </p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <Button
+                  v-if="!status.settings.enabled || stage === 'failed'"
+                  :disabled="locked"
+                  @click="enableAi"
+                  >Enable AI</Button
+                >
+                <Button
+                  v-if="status.settings.enabled || status.settings.runtime === 'loaded'"
+                  variant="outline"
+                  :disabled="saving || !!pending"
+                  @click="admin.operate('ai.pause')"
+                  >Pause AI</Button
+                >
+              </div>
+            </div>
+            <div v-if="starting" class="space-y-2" role="status">
+              <progress
+                class="h-2 w-full accent-primary"
+                aria-label="AI startup progress"
+                :value="downloadPercent"
+                max="100"
+              ></progress>
+              <p v-if="downloadPercent !== undefined" class="text-sm">
+                {{ status.startup?.completed }} / {{ status.startup?.total }} files available ·
+                {{ downloadPercent.toFixed(0) }}% of download files
+              </p>
+              <p class="text-xs text-muted-foreground">
+                Prepare → Download → Load → Validate → Ready. First startup may take longer while
+                model files download.
+              </p>
+              <p v-if="stalled" class="text-sm">
+                Still waiting for the current step. A large download or model load may take several
+                minutes. You can pause and retry.
+              </p>
+            </div>
+            <p v-if="status.startup?.reason" role="status" class="text-sm">
+              {{ aiMessage(status.startup.reason) }}
+            </p>
+            <p v-if="!runtime?.online" role="status" class="text-sm">
+              Offline / unknown — startup will continue when the AI services are available.
+            </p>
+            <div class="flex flex-wrap gap-5 border-t pt-4">
+              <label class="flex items-center gap-2 text-sm font-medium"
+                ><input
+                  type="checkbox"
+                  class="accent-primary size-4"
+                  :checked="status.settings.search_enabled"
+                  :disabled="locked"
+                  aria-label="AI Search"
+                  @change="feature('search_enabled', $event)"
+                />AI Search</label
+              >
+              <label class="flex items-center gap-2 text-sm font-medium"
+                ><input
+                  type="checkbox"
+                  class="accent-primary size-4"
+                  :checked="status.settings.smart_tag_enabled"
+                  :disabled="locked"
+                  aria-label="Smart Tag"
+                  @change="feature('smart_tag_enabled', $event)"
+                />Smart Tag</label
+              >
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Pause AI releases model memory and preserves your index and preferences. Individual
+              access is managed in
+              <router-link
+                class="text-primary font-medium hover:underline"
+                to="/thepersonincharge/usermanage"
+                >User Management</router-link
+              >; Smart Tag also requires user opt-in.
+            </p>
+          </section>
+          <section
+            v-if="draft && capabilities"
+            class="space-y-4 rounded-xl border bg-card p-5 shadow-xs"
+            aria-label="AI settings"
           >
-          <details class="rounded-lg border p-3">
-            <summary class="cursor-pointer text-sm font-medium">Advanced settings</summary>
-            <div class="mt-4 space-y-4">
-              <div class="space-y-2">
-                <label class="block text-sm"
-                  >Model<select
-                    v-model="selectedProvider"
-                    aria-label="Registered model"
+            <h2 class="text-base font-semibold">Resources</h2>
+            <p class="text-sm">
+              CPU {{ numberLabel(resources?.cpu_percent) }} · GPU
+              {{ numberLabel(resources?.gpu_percent) }} · RAM {{ numberLabel(ramUsage) }}
+            </p>
+            <p
+              v-if="original?.generation !== status.settings.generation"
+              role="status"
+              class="text-sm"
+            >
+              The server configuration changed. Your draft is preserved; reload saved settings
+              before editing again.
+            </p>
+            <form class="space-y-4" @submit.prevent="save">
+              <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <label
+                  v-for="key in ['cpu_pause_percent', 'gpu_pause_percent', 'ram_max_percent']"
+                  :key="key"
+                  class="text-sm"
+                  >{{ labels[key] }}
+                  <input
+                    :value="fieldValue(key)"
+                    :aria-label="labels[key]"
+                    type="number"
+                    step="1"
+                    :min="key === 'ram_max_percent' ? 6 : 11"
+                    max="100"
+                    :disabled="key === 'gpu_pause_percent' && draft.device !== 'cuda'"
                     :class="inputClass"
+                    @input="setResource(key, $event)"
+                  />
+                </label>
+                <label class="text-sm"
+                  >Device<select
+                    :value="draft.device"
+                    aria-label="Inference device"
+                    :disabled="loadedModel"
+                    :class="inputClass"
+                    @change="chooseDevice"
                   >
-                    <option value="">Current model / default SigLIP2</option>
                     <option
-                      v-for="spec in profiles.registry"
-                      :key="spec.provider"
-                      :value="spec.provider"
+                      v-for="device in capabilities.devices"
+                      :key="device.device"
+                      :value="device.device"
+                      :disabled="device.available !== true"
                     >
-                      {{ spec.model_id }}
+                      {{
+                        device.device === 'mps'
+                          ? 'Apple Silicon GPU (MPS)'
+                          : device.device.toUpperCase()
+                      }}{{ device.available !== true ? ' — unavailable or unknown' : '' }}
                     </option>
                   </select></label
                 >
-                <Button
-                  v-if="status.settings.enabled"
-                  type="button"
-                  variant="outline"
-                  :disabled="locked || !selectedProvider"
-                  @click="enableAi"
-                  >Apply model</Button
-                >
-                <p class="text-xs text-muted-foreground">
-                  {{
-                    status.settings.enabled
-                      ? 'Applying a model temporarily pauses search while the new model is prepared. Old indexes are retained.'
-                      : 'Your selection will be used when you Enable AI.'
-                  }}
-                </p>
-                <p class="text-sm">
-                  Current model:
-                  {{
-                    profiles.profiles.find(
-                      (p) =>
-                        p.profileId ===
-                        (status?.settings.loaded_profile_id ?? status?.settings.search_profile_id),
-                    )?.spec.model_id ?? 'Not selected'
-                  }}
-                </p>
               </div>
-              <div class="grid gap-3 sm:grid-cols-2">
-                <label v-for="[key, rule] in numericFields" :key="key" class="text-sm"
-                  >{{ labels[key] ?? key
-                  }}<input
-                    :value="fieldValue(key)"
-                    :aria-label="labels[key] ?? key"
-                    type="number"
-                    step="1"
-                    :min="rule.minimum"
-                    :max="rule.maximum"
-                    :disabled="key === 'cpu_threads' && loadedModel"
-                    :class="inputClass"
-                    @input="setNumber(key, $event)"
-                /></label>
-                <label class="text-sm"
-                  >Embedding budget (GiB)<input
-                    v-model.number="budgetGiB"
-                    aria-label="Embedding budget (GiB)"
-                    type="number"
-                    step="any"
-                    min="0.0009765625"
-                    max="102400"
-                    :class="inputClass"
-                /></label>
-              </div>
-              <div class="space-y-2">
-                <label class="block text-sm" for="similarity-threshold"
-                  >Similarity threshold (optional)</label
-                >
-                <input
-                  id="similarity-threshold"
-                  :value="draft.similarity_threshold ?? ''"
-                  type="number"
-                  step="any"
-                  min="-1"
-                  max="1"
-                  placeholder="No threshold"
-                  :class="inputClass"
-                  @input="setThreshold"
-                />
-                <Button type="button" variant="outline" @click="draft.similarity_threshold = null"
-                  >No threshold</Button
-                >
-                <p class="text-xs text-muted-foreground">
-                  Blank disables filtering. Cosine similarity (-1 to 1) applies to similar media and
-                  image queries; natural language search is unchanged.
-                </p>
-              </div>
-              <label class="flex items-center gap-2 text-sm"
-                ><input
-                  v-model="draft.new_user_default"
-                  class="accent-primary size-4"
-                  type="checkbox"
-                  aria-label="Enable AI for new users"
-                />Enable AI for new users</label
-              >
               <p class="text-xs text-muted-foreground">
-                New-user defaults affect future accounts only. Pause AI before changing compute
-                threads. Disk and VRAM guards remain active.
+                Background tasks wait above these limits. Changing a CPU/GPU limit sets recovery 10
+                percentage points below; RAM recovers 5 points below. Existing custom CPU/GPU
+                recovery values are preserved until changed. Limits are admission thresholds, not
+                hard resource caps. Pause AI before changing Device.
+              </p>
+              <p v-if="draft.ram_policy === 'free' && !ramEdited" class="text-sm">
+                Legacy RAM protection is active: pause below {{ draft.memory_pause_free_mib }} MiB
+                free; resume above {{ draft.memory_resume_free_mib }} MiB. Save a RAM max value to
+                use percentage limits.
+              </p>
+              <p v-if="draft.device === 'mps'" class="text-sm">
+                Apple Silicon uses unified memory. GPU utilization is unavailable; CPU and RAM
+                thresholds apply.
+              </p>
+              <Button type="button" variant="outline" @click="recommended"
+                >Use recommended thresholds</Button
+              >
+              <details class="rounded-lg border p-3">
+                <summary class="cursor-pointer text-sm font-medium">Advanced settings</summary>
+                <div class="mt-4 space-y-4">
+                  <div class="space-y-2">
+                    <label class="block text-sm"
+                      >Model<select
+                        v-model="selectedProvider"
+                        aria-label="Registered model"
+                        :class="inputClass"
+                      >
+                        <option value="">Current model / default SigLIP2</option>
+                        <option
+                          v-for="spec in profiles.registry"
+                          :key="spec.provider"
+                          :value="spec.provider"
+                        >
+                          {{ spec.model_id }}
+                        </option>
+                      </select></label
+                    >
+                    <Button
+                      v-if="status.settings.enabled"
+                      type="button"
+                      variant="outline"
+                      :disabled="locked || !selectedProvider"
+                      @click="enableAi"
+                      >Apply model</Button
+                    >
+                    <p class="text-xs text-muted-foreground">
+                      {{
+                        status.settings.enabled
+                          ? 'Applying a model temporarily pauses search while the new model is prepared. Old indexes are retained.'
+                          : 'Your selection will be used when you Enable AI.'
+                      }}
+                    </p>
+                    <p class="text-sm">
+                      Current model:
+                      {{
+                        profiles.profiles.find(
+                          (p) =>
+                            p.profileId ===
+                            (status?.settings.loaded_profile_id ??
+                              status?.settings.search_profile_id),
+                        )?.spec.model_id ?? 'Not selected'
+                      }}
+                    </p>
+                  </div>
+                  <div class="grid gap-3 sm:grid-cols-2">
+                    <label v-for="[key, rule] in numericFields" :key="key" class="text-sm"
+                      >{{ labels[key] ?? key
+                      }}<input
+                        :value="fieldValue(key)"
+                        :aria-label="labels[key] ?? key"
+                        type="number"
+                        step="1"
+                        :min="rule.minimum"
+                        :max="rule.maximum"
+                        :disabled="key === 'cpu_threads' && loadedModel"
+                        :class="inputClass"
+                        @input="setNumber(key, $event)"
+                    /></label>
+                    <label class="text-sm"
+                      >Embedding budget (GiB)<input
+                        v-model.number="budgetGiB"
+                        aria-label="Embedding budget (GiB)"
+                        type="number"
+                        step="any"
+                        min="0.0009765625"
+                        max="102400"
+                        :class="inputClass"
+                    /></label>
+                  </div>
+                  <div class="space-y-2">
+                    <label class="block text-sm" for="similarity-threshold"
+                      >Similarity threshold (optional)</label
+                    >
+                    <input
+                      id="similarity-threshold"
+                      :value="draft.similarity_threshold ?? ''"
+                      type="number"
+                      step="any"
+                      min="-1"
+                      max="1"
+                      placeholder="No threshold"
+                      :class="inputClass"
+                      @input="setThreshold"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      @click="draft.similarity_threshold = null"
+                      >No threshold</Button
+                    >
+                    <p class="text-xs text-muted-foreground">
+                      Blank disables filtering. Cosine similarity (-1 to 1) applies to similar media
+                      and image queries; natural language search is unchanged.
+                    </p>
+                  </div>
+                  <label class="flex items-center gap-2 text-sm"
+                    ><input
+                      v-model="draft.new_user_default"
+                      class="accent-primary size-4"
+                      type="checkbox"
+                      aria-label="Enable AI for new users"
+                    />Enable AI for new users</label
+                  >
+                  <p class="text-xs text-muted-foreground">
+                    New-user defaults affect future accounts only. Pause AI before changing compute
+                    threads. Disk and VRAM guards remain active.
+                  </p>
+                </div>
+              </details>
+              <div
+                role="region"
+                aria-label="Unsaved changes"
+                class="bg-card/95 sticky bottom-0 -mx-5 -mb-5 flex flex-wrap items-center gap-2 rounded-b-xl border-t px-5 py-3 backdrop-blur"
+              >
+                <span class="text-muted-foreground flex items-center gap-2 text-sm">
+                  <span
+                    :class="[
+                      'size-1.5 rounded-full',
+                      unsavedCount ? 'bg-amber-500' : 'bg-muted-foreground/40',
+                    ]"
+                    aria-hidden="true"
+                  />
+                  {{
+                    unsavedCount
+                      ? `${unsavedCount} unsaved ${unsavedCount === 1 ? 'change' : 'changes'}`
+                      : 'No unsaved changes'
+                  }}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  class="ml-auto"
+                  :disabled="saving"
+                  @click="resetDraft"
+                  >Discard</Button
+                >
+                <Button
+                  type="submit"
+                  :disabled="locked || original?.generation !== status.settings.generation"
+                  >Save AI settings</Button
+                >
+              </div>
+            </form>
+          </section>
+        </div>
+        <div class="flex min-w-0 flex-col gap-6">
+          <section class="space-y-4 rounded-xl border bg-card p-5 shadow-xs" aria-label="Scheduler">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 class="text-base font-semibold">Background scheduler</h2>
+                <p class="text-sm text-muted-foreground">
+                  {{
+                    status.settings.scheduler === 'running'
+                      ? status.settings.enabled
+                        ? 'Enabled'
+                        : 'Enabled · waiting for AI'
+                      : 'Paused'
+                  }}
+                </p>
+              </div>
+              <Button
+                :disabled="locked"
+                :variant="status.settings.scheduler === 'running' ? 'outline' : 'default'"
+                @click="
+                  admin.operate(
+                    status.settings.scheduler === 'running' ? 'scheduler.pause' : 'scheduler.start',
+                  )
+                "
+                >{{
+                  status.settings.scheduler === 'running' ? 'Pause Scheduler' : 'Enable Scheduler'
+                }}</Button
+              >
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Pausing stops new background tasks. The current item may finish; search remains
+              available for indexed media.
+            </p>
+            <p v-if="!status.services.scheduler?.online" role="status" class="text-sm">
+              Scheduler service offline. Restore the service to continue processing.
+            </p>
+            <p v-if="status.services.scheduler?.observed.reason" role="status" class="text-sm">
+              Waiting:
+              {{
+                Array.isArray(status.services.scheduler.observed.reason)
+                  ? status.services.scheduler.observed.reason.map(aiMessage).join(', ')
+                  : aiMessage(status.services.scheduler.observed.reason)
+              }}
+            </p>
+            <p v-if="status.backgroundLimits.reason" role="status" class="text-sm">
+              Waiting: {{ aiMessage(status.backgroundLimits.reason) }}
+            </p>
+            <div v-if="indexCoverage" class="space-y-2">
+              <p class="text-sm font-medium">
+                Photo and video index · {{ indexCoverage.ready }} /
+                {{ indexCoverage.supported }} ready
+              </p>
+              <progress
+                aria-label="Media indexing progress"
+                class="w-full h-2 accent-primary"
+                :value="indexCoverage.ready"
+                :max="Math.max(indexCoverage.supported, 1)"
+              ></progress>
+              <p class="text-xs text-muted-foreground">
+                {{ indexCoverage.pending }} pending · {{ indexCoverage.failed }} failed ·
+                {{ indexCoverage.unsupported }} unsupported. Search includes indexed content as it
+                becomes ready.
               </p>
             </div>
+            <div v-if="status.smartTag" class="text-sm" aria-label="Smart Tag progress">
+              <p>
+                Smart Tag: {{ status.smartTag.processed }} / {{ status.smartTag.total }} media
+                inspected · {{ status.smartTag.failed }} failed
+              </p>
+              <p v-if="status.smartTag.reason">{{ smartReason(status.smartTag.reason) }}</p>
+            </div>
+          </section>
+          <details class="rounded-xl border bg-card p-4 shadow-xs">
+            <summary class="cursor-pointer text-sm font-medium">
+              Diagnostics and operation history
+            </summary>
+            <div class="mt-4 space-y-3 text-sm">
+              <p>
+                Configuration generation {{ status.settings.generation }} · Search profile
+                {{ status.settings.search_profile_id ?? 'None' }}
+              </p>
+              <div v-for="(service, name) in status.services" :key="name">
+                <h3 class="font-medium">
+                  {{ name === 'maintenance' ? 'Index maintenance service' : name }}
+                </h3>
+                <p>
+                  {{ service.online ? service.observed.state : 'Offline / unknown' }} ·
+                  {{ time(service.heartbeatAt) }}
+                </p>
+              </div>
+              <p>
+                Concurrency {{ status.backgroundLimits.maxConcurrency }} · Batch
+                {{ status.backgroundLimits.batchSize }} (read-only)
+              </p>
+              <p>
+                Estimated vectors: {{ bytesLabel(status.quota.estimated_bytes) }} · Actual
+                tables/indexes: {{ bytesLabel(status.quota.physical_bytes) }}
+              </p>
+              <p>
+                Available RAM:
+                {{ staleResources ? 'Unknown' : bytesLabel(resources?.memory_available) }} · VRAM:
+                {{ staleResources ? 'Unknown' : bytesLabel(resources?.vram_available) }}
+              </p>
+              <p>
+                Resource sample: {{ time(resources?.sampled_at) }}
+                {{ staleResources ? '(unknown or stale)' : '' }}
+              </p>
+              <p v-if="active.length" role="status">{{ active.length }} operation(s) pending.</p>
+              <p v-if="!allJobs.length">No operations yet.</p>
+              <div v-for="job in allJobs" :key="job.operationId" class="rounded-lg border p-3">
+                <p>#{{ job.operationId }} {{ job.command }} · {{ job.status }} · {{ job.stage }}</p>
+                <p>{{ time(job.createdAt) }}</p>
+                <p v-if="job.result.reason">{{ aiMessage(job.result.reason) }}</p>
+              </div>
+              <Button v-if="nextBefore" variant="outline" @click="admin.older"
+                >Older operations</Button
+              >
+            </div>
           </details>
-          <div class="flex flex-wrap gap-2">
-            <Button
-              type="submit"
-              :disabled="locked || original?.generation !== status.settings.generation"
-              >Save AI settings</Button
-            >
-            <Button type="button" variant="outline" :disabled="saving" @click="resetDraft"
-              >Reload saved settings (discard draft)</Button
-            >
-          </div>
-        </form>
-      </section>
-      <details class="rounded-xl border bg-card p-4 shadow-xs">
-        <summary class="cursor-pointer text-sm font-medium">
-          Diagnostics and operation history
-        </summary>
-        <div class="mt-4 space-y-3 text-sm">
-          <p>
-            Configuration generation {{ status.settings.generation }} · Search profile
-            {{ status.settings.search_profile_id ?? 'None' }}
-          </p>
-          <div v-for="(service, name) in status.services" :key="name">
-            <h3 class="font-medium">
-              {{ name === 'maintenance' ? 'Index maintenance service' : name }}
-            </h3>
-            <p>
-              {{ service.online ? service.observed.state : 'Offline / unknown' }} ·
-              {{ time(service.heartbeatAt) }}
-            </p>
-          </div>
-          <p>
-            Concurrency {{ status.backgroundLimits.maxConcurrency }} · Batch
-            {{ status.backgroundLimits.batchSize }} (read-only)
-          </p>
-          <p>
-            Estimated vectors: {{ bytesLabel(status.quota.estimated_bytes) }} · Actual
-            tables/indexes: {{ bytesLabel(status.quota.physical_bytes) }}
-          </p>
-          <p>
-            Available RAM:
-            {{ staleResources ? 'Unknown' : bytesLabel(resources?.memory_available) }} · VRAM:
-            {{ staleResources ? 'Unknown' : bytesLabel(resources?.vram_available) }}
-          </p>
-          <p>
-            Resource sample: {{ time(resources?.sampled_at) }}
-            {{ staleResources ? '(unknown or stale)' : '' }}
-          </p>
-          <p v-if="active.length" role="status">{{ active.length }} operation(s) pending.</p>
-          <p v-if="!allJobs.length">No operations yet.</p>
-          <div v-for="job in allJobs" :key="job.operationId" class="rounded-lg border p-3">
-            <p>#{{ job.operationId }} {{ job.command }} · {{ job.status }} · {{ job.stage }}</p>
-            <p>{{ time(job.createdAt) }}</p>
-            <p v-if="job.result.reason">{{ aiMessage(job.result.reason) }}</p>
-          </div>
-          <Button v-if="nextBefore" variant="outline" @click="admin.older">Older operations</Button>
         </div>
-      </details>
+      </div>
     </template>
   </AdminLayout>
 </template>

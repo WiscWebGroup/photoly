@@ -76,6 +76,26 @@ const pageCount = ref(1)
 const activeSearch = ref<string | null>(null)
 const searchText = ref('')
 
+// A steady color and initials per person, so rows are easy to tell apart.
+const tints = [
+  '#16827d',
+  '#7c3aed',
+  '#d97706',
+  '#db2777',
+  '#2563eb',
+  '#0891b2',
+  '#4d7c0f',
+  '#9333ea',
+]
+const tint = (id: number) => tints[Math.abs(id) % tints.length]
+const initials = (name = '') =>
+  name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+
 const passwordUser = ref<User | null>(null)
 const newPassword = ref('')
 const deleteUser = ref<User | null>(null)
@@ -247,9 +267,10 @@ onMounted(() =>
               <td class="px-4 py-2.5">
                 <div class="flex items-center gap-3">
                   <span
-                    class="bg-accent text-accent-foreground grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold uppercase"
+                    class="grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold text-white uppercase"
+                    :style="{ background: tint(u.userId) }"
                     aria-hidden="true"
-                    >{{ u.userName?.slice(0, 1) }}</span
+                    >{{ initials(u.userName) }}</span
                   >
                   <div class="flex min-w-0 flex-1 flex-col">
                     <input

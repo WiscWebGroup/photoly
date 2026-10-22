@@ -25,8 +25,10 @@ describe('TagPart', () => {
     mockTags()
     mountWithApp(TagPart)
     await vi.waitFor(() => byText('Sunset'))
-    const photoQueries = () =>
-      calls.filter((c) => c.path === '/photo/getByTags').map((c) => c.query.tagIds)
+    const all = () => calls.filter((c) => c.path === '/photo/getByTags').map((c) => c.query.tagIds)
+    // The list first fetches each tag's photos for its count; count only what follows.
+    await vi.waitFor(() => expect(all()).toEqual(['3', '4']))
+    const photoQueries = () => all().slice(2)
 
     byText('Sunset').click()
     await vi.waitFor(() => expect(photoQueries()).toEqual(['3']))

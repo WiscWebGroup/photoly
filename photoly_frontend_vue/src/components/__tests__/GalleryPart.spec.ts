@@ -39,8 +39,10 @@ describe('GalleryPart', () => {
     mockGalleries()
     mountWithApp(GalleryPart)
     await vi.waitFor(() => byText('Summer'))
-    const queries = () =>
-      calls.filter((c) => c.path === '/photo/getByGallery').map((c) => c.query.gaId)
+    const all = () => calls.filter((c) => c.path === '/photo/getByGallery').map((c) => c.query.gaId)
+    // The list first fetches each gallery's photos for its cover; count only what follows.
+    await vi.waitFor(() => expect(all()).toEqual(['7']))
+    const queries = () => all().slice(1)
 
     byText('Summer').click()
     await vi.waitFor(() => expect(queries()).toEqual(['7']))
@@ -48,7 +50,9 @@ describe('GalleryPart', () => {
     expect(document.querySelector('[aria-current=page]')?.textContent).toBe('Summer')
 
     byText('Galleries').click()
-    await vi.waitFor(() => expect(document.querySelector('h1')?.textContent).toContain('Galleries'))
+    // Phones also get the shared "Albums" heading, so look at every heading.
+    const headings = () => [...document.querySelectorAll('h1')].map((h) => h.textContent).join()
+    await vi.waitFor(() => expect(headings()).toContain('Galleries'))
     expect(queries()).toEqual(['7'])
   })
 })

@@ -2,17 +2,19 @@
 import SmartBasis from '@/components/SmartBasis.vue'
 import SmartBadge from '@/components/SmartBadge.vue'
 import type { SmartSource } from '@/lib/smartOrganization'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import {
   Album,
   Archive,
   Check,
+  ChevronDown,
   ChevronRight,
   Dog,
   Download,
   Ellipsis,
   Flag,
+  Folder,
   Globe,
   Heart,
   Images,
@@ -57,12 +59,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { Photo } from '@/composables/usePhotos'
+import { useCovers } from '@/composables/useCovers'
+import { photoUrl } from '@/lib/photoUrl'
 import { download } from '@/lib/download'
 import { call } from '@/lib/http'
 import { cn } from '@/lib/utils'
@@ -115,7 +121,7 @@ const tabs = computed(() => [
   { value: 'all' as const, label: 'All', count: galleries.value.length },
   {
     value: 'yours' as const,
-    label: 'Yours',
+    label: 'Created by you',
     count: galleries.value.filter((g) => !g.smart).length,
   },
   {
@@ -124,11 +130,26 @@ const tabs = computed(() => [
     count: galleries.value.filter((g) => g.smart).length,
   },
 ])
+const sorts = { newest: 'Newest first', oldest: 'Oldest first', name: 'Name' } as const
+const sort = ref<keyof typeof sorts>('newest')
 const shown = computed(() =>
-  galleries.value.filter((g) =>
-    tab.value === 'all' ? true : tab.value === 'smart' ? !!g.smart : !g.smart,
-  ),
+  galleries.value
+    .filter((g) => (tab.value === 'all' ? true : tab.value === 'smart' ? !!g.smart : !g.smart))
+    .sort((a, b) =>
+      sort.value === 'name'
+        ? a.gaName.localeCompare(b.gaName, undefined, { numeric: true })
+        : (sort.value === 'oldest' ? 1 : -1) * a.createDate.localeCompare(b.createDate),
+    ),
 )
+
+// Cards show a mosaic of the gallery's latest photos and how many items it holds.
+const { covers: cardCovers, refresh: refreshCovers } = useCovers('gallery')
+watch(galleries, (list) => refreshCovers(list.map((g) => g.gaId)))
+const cardMeta = (g: Gallery) => {
+  const n = cardCovers.get(g.gaId)?.count
+  const created = `Created ${formatDate(g.createDate)}`
+  return n === undefined ? created : `${n} item${n === 1 ? '' : 's'} · ${created}`
+}
 const current = computed(() => galleries.value.find((g) => g.gaId === selectedGaId.value))
 
 const iconFor = (g: { coverId: number | null }) => covers[g.coverId ?? 0]?.icon ?? Album
@@ -165,18 +186,52 @@ const loadGalleries = async () =>
     params: { includeSmart: true },
   }))
 
+const galleryPhotos = ref<Photo[]>([])
+const selecting = ref(false)
+
 async function queryPhotos() {
   try {
-    mediaList.value?.updatePhotoList(
-      await call<Photo[]>({ url: '/photo/getByGallery', params: { gaId: selectedGaId.value } }),
-    )
+    const list = await call<Photo[]>({
+      url: '/photo/getByGallery',
+      params: { gaId: selectedGaId.value },
+    })
+    galleryPhotos.value = list
+    mediaList.value?.updatePhotoList(list)
   } catch {
     toast.error('query photo Response Error!')
   }
 }
 
+// "Pulls from": the folders this gallery's photos live in, named on demand.
+const folderNames = ref(new Map<number, string>())
+const sourceFolders = computed(() => [
+  ...new Set(galleryPhotos.value.map((p) => p.nsId).filter((id): id is number => id !== undefined)),
+])
+watch(sourceFolders, (ids) =>
+  ids
+    .filter((id) => !folderNames.value.has(id))
+    .forEach((id) =>
+      call<string>({ url: '/namespace/getNameById', params: { nsId: id } })
+        .then((name) => folderNames.value.set(id, name))
+        .catch(() => {}),
+    ),
+)
+const detailMeta = computed(() => {
+  const n = galleryPhotos.value.length
+  const k = sourceFolders.value.length
+  return [
+    `${n} item${n === 1 ? '' : 's'}`,
+    k && `from ${k} folder${k === 1 ? '' : 's'}`,
+    current.value && `Created ${formatDate(current.value.createDate)}`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+})
+
 function openGallery(gallery: Gallery) {
   selectedGaId.value = gallery.gaId
+  galleryPhotos.value = []
+  selecting.value = false
   mediaList.value?.updatePhotoList([])
   queryPhotos()
 }
@@ -260,29 +315,60 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
     class="flex w-full max-w-[1280px] flex-col gap-6 px-4 pt-5 pb-32 md:px-10 md:pt-10"
     @contextmenu.prevent.stop
   >
-    <AlbumSwitch class="md:hidden" />
+    <AlbumSwitch
+      class="md:hidden"
+      :add-label="current ? undefined : 'New Gallery'"
+      @add="startCreate"
+    />
 
     <!-- Overview: every gallery as a card. -->
     <template v-if="!current">
-      <PageHeader title="Galleries" description="Curated sets that can pull from any folder.">
+      <PageHeader
+        class="max-md:hidden"
+        title="Galleries"
+        description="Curated sets that can pull from any folder."
+      >
         <Button @click="startCreate"><Plus /> New Gallery</Button>
       </PageHeader>
 
-      <div role="tablist" aria-label="Filter galleries" class="-mt-1 flex gap-6 border-b">
-        <template v-for="t in tabs" :key="t.value">
-          <button
-            v-if="t.value !== 'smart' || t.count"
-            type="button"
-            role="tab"
-            :aria-selected="tab === t.value"
-            class="text-muted-foreground aria-selected:text-foreground aria-selected:border-foreground -mb-px flex h-10 items-center gap-1.5 border-b-2 border-transparent text-sm font-medium transition-colors hover:text-foreground"
-            @click="tab = t.value"
-          >
-            <Sparkles v-if="t.value === 'smart'" class="text-primary size-3.5" aria-hidden="true" />
-            {{ t.label }}
-            <span class="font-normal opacity-70 tabular-nums">{{ t.count }}</span>
-          </button>
-        </template>
+      <div class="-mt-1 flex items-center gap-2 border-b">
+        <div
+          role="tablist"
+          aria-label="Filter galleries"
+          class="flex gap-5 overflow-x-auto [scrollbar-width:none]"
+        >
+          <template v-for="t in tabs" :key="t.value">
+            <button
+              v-if="t.value !== 'smart' || t.count"
+              type="button"
+              role="tab"
+              :aria-selected="tab === t.value"
+              class="text-muted-foreground aria-selected:text-foreground aria-selected:border-foreground -mb-px flex h-10 items-center gap-1.5 border-b-2 border-transparent text-sm font-medium transition-colors hover:text-foreground"
+              @click="tab = t.value"
+            >
+              <Sparkles
+                v-if="t.value === 'smart'"
+                class="text-primary size-3.5"
+                aria-hidden="true"
+              />
+              {{ t.label }}
+              <span class="font-normal opacity-70 tabular-nums">{{ t.count }}</span>
+            </button>
+          </template>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            class="hover:bg-accent ml-auto hidden h-8 shrink-0 items-center gap-1 rounded-md px-2 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:flex"
+            >{{ sorts[sort] }}<ChevronDown class="size-3.5" aria-hidden="true"
+          /></DropdownMenuTrigger>
+          <DropdownMenuContent align="end" class="w-40">
+            <DropdownMenuRadioGroup v-model="sort">
+              <DropdownMenuRadioItem v-for="(label, key) in sorts" :key="key" :value="key">{{
+                label
+              }}</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <EmptyState
@@ -293,7 +379,10 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
       >
         <Button variant="outline" @click="startCreate"><Plus /> New Gallery</Button>
       </EmptyState>
-      <ul v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+      <ul
+        v-else
+        class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 2xl:grid-cols-4"
+      >
         <li
           v-for="(g, i) in shown"
           :key="g.gaId"
@@ -303,7 +392,7 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
           <ContextMenu>
             <ContextMenuTrigger as-child>
               <article
-                class="group bg-card hover:border-primary relative overflow-hidden rounded-xl border shadow-xs transition-[border-color,box-shadow,translate] duration-200 hover:-translate-y-0.5 hover:shadow-sm"
+                class="group bg-card hover:border-primary relative overflow-hidden rounded-[14px] border shadow-xs transition-[border-color,box-shadow,translate] duration-200 hover:-translate-y-0.5 hover:shadow-sm"
               >
                 <button
                   type="button"
@@ -311,7 +400,26 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
                   @click="openGallery(g)"
                 >
                   <span
-                    class="relative grid h-28 place-items-center sm:h-36"
+                    v-if="cardCovers.get(g.gaId)?.ids.length"
+                    class="bg-muted grid aspect-[16/10] grid-cols-[3fr_2fr] grid-rows-2 gap-0.5 overflow-hidden"
+                    aria-hidden="true"
+                  >
+                    <img
+                      v-for="(id, k) in cardCovers.get(g.gaId)!.ids"
+                      :key="id"
+                      :src="photoUrl(id, 'renderThumbnail')"
+                      alt=""
+                      loading="lazy"
+                      :class="[
+                        'size-full object-cover transition-transform duration-500 ease-(--ease-out-quart) group-hover:scale-[1.03]',
+                        k === 0 && 'row-span-2',
+                        cardCovers.get(g.gaId)!.ids.length === 1 && 'col-span-2',
+                      ]"
+                    />
+                  </span>
+                  <span
+                    v-else
+                    class="relative grid aspect-[16/10] place-items-center"
                     :style="{ background: tint(g.coverColor) }"
                     aria-hidden="true"
                   >
@@ -321,20 +429,30 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
                       :style="{ color: g.coverColor || undefined }"
                     />
                   </span>
-                  <span class="flex flex-col gap-0.5 py-3 pr-12 pl-4">
-                    <span class="truncate font-medium" :title="g.gaName">{{ g.gaName }}</span>
-                    <span class="text-muted-foreground text-xs"
-                      >Created {{ formatDate(g.createDate) }}</span
+                  <span class="flex items-center gap-3 py-3.5 pr-14 pl-4">
+                    <span
+                      class="grid size-8 shrink-0 place-items-center rounded-lg text-white"
+                      :style="{ background: g.coverColor || '#16827d' }"
+                      aria-hidden="true"
                     >
+                      <component :is="iconFor(g)" class="size-4" />
+                    </span>
+                    <span class="flex min-w-0 flex-col">
+                      <span class="truncate font-semibold" :title="g.gaName">{{ g.gaName }}</span>
+                      <span class="text-muted-foreground text-xs">{{ cardMeta(g) }}</span>
+                    </span>
                   </span>
-                  <SmartBadge :smart="g.smart" class="bg-card absolute top-3 left-3" />
+                  <SmartBadge
+                    :smart="g.smart"
+                    class="absolute top-3 left-3 border-0 bg-white/90 text-[#033633] shadow-xs"
+                  />
                 </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger as-child>
                     <button
                       type="button"
                       :aria-label="`More for ${g.gaName}`"
-                      class="text-muted-foreground hover:bg-accent hover:text-foreground absolute right-2 bottom-3 grid size-8 place-items-center rounded-md transition-colors"
+                      class="text-muted-foreground hover:bg-accent hover:text-foreground absolute right-3 bottom-3.5 grid size-8 place-items-center rounded-md transition-colors"
                     >
                       <Ellipsis class="size-4" aria-hidden="true" />
                     </button>
@@ -390,10 +508,17 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
         <PageHeader :title="current.gaName" class="min-w-0 flex-1 !items-center">
           <template #description>
             <span class="flex flex-wrap items-center gap-2">
-              Created {{ formatDate(current.createDate) }}
+              {{ detailMeta }}
               <SmartBadge :smart="current.smart" />
             </span>
           </template>
+          <Button
+            v-if="galleryPhotos.length"
+            variant="ghost"
+            :aria-pressed="selecting"
+            @click="selecting = !selecting"
+            >{{ selecting ? 'Cancel' : 'Select' }}</Button
+          >
           <Button variant="outline" @click="startEdit(current)"><Pencil /> Edit</Button>
           <Button variant="outline" @click="downloadGallery(current)"><Download /> Download</Button>
           <DropdownMenu>
@@ -407,6 +532,23 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
             </DropdownMenuContent>
           </DropdownMenu>
         </PageHeader>
+      </div>
+      <div
+        v-if="sourceFolders.length"
+        class="bg-card animate-fade flex flex-wrap items-center gap-2 rounded-[10px] border px-3.5 py-2.5 text-sm"
+      >
+        <span class="text-muted-foreground">Pulls from</span>
+        <span
+          v-for="id in sourceFolders.slice(0, 3)"
+          :key="id"
+          class="inline-flex h-[26px] items-center gap-1.5 rounded-full border px-2.5"
+        >
+          <Folder class="text-muted-foreground size-3.5" aria-hidden="true" />
+          {{ folderNames.get(id) === 'root' ? 'Library' : (folderNames.get(id) ?? 'Folder') }}
+        </span>
+        <span v-if="sourceFolders.length > 3" class="text-muted-foreground"
+          >+{{ sourceFolders.length - 3 }} more</span
+        >
       </div>
       <SmartBasis
         v-if="current.smart"
@@ -423,6 +565,8 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
       :ns-or-not="false"
       :detach-enabled="true"
       detach-str="Gallery"
+      group-by-month
+      v-model:select-mode="selecting"
       @query-photos="queryPhotos"
       @do-detach="detach"
     />

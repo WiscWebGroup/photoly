@@ -212,7 +212,7 @@ test('generation conflict preserves the draft until explicitly reloaded', async 
   await expect(
     page.getByLabel('Minimum background interval (seconds)', { exact: true }),
   ).toHaveValue('12')
-  await page.getByRole('button', { name: 'Reload saved settings (discard draft)' }).click()
+  await page.getByRole('button', { name: 'Discard', exact: true }).click()
   await expect(
     page.getByLabel('Minimum background interval (seconds)', { exact: true }),
   ).toHaveValue('7')

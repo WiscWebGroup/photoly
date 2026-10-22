@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import {
   Check,
+  ChevronDown,
   Download,
   Eye,
   File,
@@ -28,6 +29,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -57,6 +65,8 @@ const props = withDefaults(
     heading?: string
     /** Split the grid into days by upload date (the library); search keeps its ranking. */
     groupByDay?: boolean
+    /** Group by month instead (galleries); day grouping wins when both are set. */
+    groupByMonth?: boolean
     /** The parent shows the grid / list switch in its own header instead. */
     hideToggle?: boolean
     emptyTitle?: string
@@ -121,16 +131,41 @@ function formatDay(iso?: string) {
   })
 }
 
+/** Day-grouped lists can be sorted newest or oldest first, or flat by name. */
+const sorts = { newest: 'Newest first', oldest: 'Oldest first', name: 'Name' } as const
+const sort = ref<keyof typeof sorts>('newest')
+const grouped = computed(() => props.groupByDay || props.groupByMonth)
+const byDay = computed(() => grouped.value && sort.value !== 'name')
+const keyLength = computed(() => (props.groupByDay ? 10 : 7))
+function formatMonth(key: string) {
+  const [y, m] = key.split('-').map(Number)
+  return y && m
+    ? new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+    : ''
+}
+
 const groups = computed(() => {
-  if (!props.groupByDay) return [{ key: 'all', label: '', items: photos.value }]
-  const byDay = new Map<string, Photo[]>()
-  for (const p of photos.value) {
-    const key = (p.uploadDate ?? '').slice(0, 10)
-    byDay.set(key, [...(byDay.get(key) ?? []), p])
+  if (!byDay.value) {
+    const items = grouped.value
+      ? [...photos.value].sort((a, b) =>
+          a.photoName.localeCompare(b.photoName, undefined, { numeric: true }),
+        )
+      : photos.value
+    return [{ key: 'all', label: '', items }]
   }
-  return [...byDay.entries()]
-    .sort(([a], [b]) => b.localeCompare(a))
-    .map(([key, items]) => ({ key, label: formatDay(key) || 'Undated', items }))
+  const days = new Map<string, Photo[]>()
+  for (const p of photos.value) {
+    const key = (p.uploadDate ?? '').slice(0, keyLength.value)
+    days.set(key, [...(days.get(key) ?? []), p])
+  }
+  const dir = sort.value === 'oldest' ? -1 : 1
+  return [...days.entries()]
+    .sort(([a], [b]) => dir * b.localeCompare(a))
+    .map(([key, items]) => ({
+      key,
+      label: (props.groupByDay ? formatDay(key) : formatMonth(key)) || 'Undated',
+      items,
+    }))
 })
 
 /** Selects a whole day, or clears it when it's already all selected. */
@@ -277,6 +312,11 @@ const downloadPhoto = (p: Photo) =>
     params: { photoId: p.photoId },
   }).catch(() => toast.error('Download failed'))
 
+/** Saves each checked photo, one after another so the browser doesn't drop any. */
+async function downloadChecked() {
+  for (const p of [...checked.value]) await downloadPhoto(p)
+}
+
 defineExpose({
   checkedCount: computed(() => checked.value.length),
   setChecked,
@@ -284,6 +324,19 @@ defineExpose({
   moveChecked(targetNsId: number) {
     moving.value = [...checked.value]
     return moveChosen(targetNsId)
+  },
+  downloadChecked,
+  addCheckedToGallery(gaId: number, name: string) {
+    const targets = [...checked.value]
+    selectMode.value = false
+    setChecked(false)
+    return applyToAll(
+      targets,
+      (p) =>
+        call({ method: 'post', url: '/photo/addToGallery', params: { photoId: p.photoId, gaId } }),
+      `Added to ${name}`,
+      'add gallery Response Error!',
+    )
   },
   /** Photos checked in select mode (empty when it's off). */
   checkedIds: () => (selectMode.value ? checked.value.map((p) => p.photoId) : []),
@@ -304,8 +357,24 @@ defineExpose({
         photos.length
       }}</span>
       <div class="ml-auto flex items-center gap-1 self-center">
+        <template v-if="grouped && photos.length">
+          <span class="text-muted-foreground text-sm">Sort</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              class="hover:bg-accent flex h-8 items-center gap-1 rounded-md px-2 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              >{{ sorts[sort] }}<ChevronDown class="size-3.5" aria-hidden="true"
+            /></DropdownMenuTrigger>
+            <DropdownMenuContent align="end" class="w-40">
+              <DropdownMenuRadioGroup v-model="sort">
+                <DropdownMenuRadioItem v-for="(label, key) in sorts" :key="key" :value="key">{{
+                  label
+                }}</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </template>
         <button
-          v-if="photos.length && !groupByDay"
+          v-if="photos.length && !byDay"
           type="button"
           class="text-primary hover:bg-accent h-8 rounded-md px-2 text-sm font-medium transition-colors"
           :aria-pressed="selectMode"
@@ -324,7 +393,7 @@ defineExpose({
       class="py-10"
     />
     <div v-for="group in groups" :key="group.key" class="flex flex-col gap-2.5">
-      <div v-if="groupByDay" class="flex items-baseline gap-2">
+      <div v-if="byDay" class="flex items-baseline gap-2">
         <h3 class="text-sm font-medium">{{ group.label }}</h3>
         <span class="text-muted-foreground text-xs tabular-nums">{{ group.items.length }}</span>
         <button
@@ -472,6 +541,7 @@ defineExpose({
     >
       <button type="button" @click="setChecked(true)">Select All</button>
       <button type="button" :disabled="!checked.length" @click="askMove([...checked])">Move</button>
+      <button type="button" :disabled="!checked.length" @click="downloadChecked">Download</button>
       <button
         v-if="detachEnabled"
         type="button"
@@ -486,7 +556,7 @@ defineExpose({
         :disabled="!checked.length"
         @click="confirmDelete = true"
       >
-        Delete Selected
+        Delete
       </button>
     </SelectionBar>
 

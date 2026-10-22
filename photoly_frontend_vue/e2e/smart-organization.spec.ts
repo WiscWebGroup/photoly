@@ -54,7 +54,7 @@ test('opt in, refresh and restore smart items', async ({ page }) => {
       return ok({ restored: true })
     },
   })
-  await page.goto('/home/ManagePart')
+  await page.goto('/home/ManagePart#smart')
   const toggle = page.getByRole('checkbox', { name: 'Enable my Smart Tag' })
   await expect(toggle).not.toBeChecked()
   await toggle.check()

@@ -1,9 +1,22 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useColorMode } from '@vueuse/core'
-import { useRouter } from 'vue-router'
+import { useColorMode, useMediaQuery } from '@vueuse/core'
+import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
-import { ChevronRight, Copy, LogOut, Pencil, Plus, Shield, Trash2 } from '@lucide/vue'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Key,
+  KeyRound,
+  LogOut,
+  Pencil,
+  Plus,
+  Shield,
+  Sparkles,
+  SunMoon,
+  Trash2,
+} from '@lucide/vue'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -57,6 +70,23 @@ function jump(id: string) {
   activeSection.value = id
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
+
+// Phones get a settings list instead; each row opens one section, kept in the URL hash so the
+// system back gesture returns to the list.
+const phone = useMediaQuery('(max-width: 767px)')
+const route = useRoute()
+const phoneSection = computed(() => {
+  const id = route.hash.slice(1)
+  return sections.some((s) => s.id === id) ? id : null
+})
+const showSection = (id: string) => !phone.value || phoneSection.value === id
+const openSection = (id: string) => router.push({ hash: `#${id}` })
+function backToList() {
+  const back = (window.history.state as { back?: string } | null)?.back
+  if (back === route.path) router.back()
+  else router.replace({ hash: '' })
+}
+const themeLabels = { auto: 'System', light: 'Light', dark: 'Dark' }
 
 const docs = [
   {
@@ -286,13 +316,104 @@ onMounted(() => {
 
 <template>
   <div class="flex w-full max-w-[1040px] flex-col gap-6 px-4 pt-5 pb-24 md:px-10 md:pt-10">
-    <PageHeader title="Account" description="Your profile, password and API access.">
+    <!-- Phones: the settings list. -->
+    <template v-if="phone && !phoneSection">
+      <h1 class="text-2xl leading-8 font-semibold tracking-[-0.01em]">Account</h1>
+      <button
+        type="button"
+        class="bg-card flex items-center gap-3.5 rounded-[14px] border p-4 text-left"
+        @click="openSection('profile')"
+      >
+        <Avatar class="size-14"><AvatarImage :src="avatarSrc" alt="" /></Avatar>
+        <span class="flex min-w-0 flex-1 flex-col">
+          <span class="truncate text-base font-semibold">{{ user?.userName }}</span>
+          <span class="text-muted-foreground truncate text-sm">{{ user?.email }}</span>
+        </span>
+        <span class="text-primary text-sm font-medium">Edit</span>
+      </button>
+      <section aria-labelledby="acc-settings-h" class="flex flex-col gap-2">
+        <h2
+          id="acc-settings-h"
+          class="text-muted-foreground px-1 text-xs font-semibold tracking-[0.025em] uppercase"
+        >
+          Settings
+        </h2>
+        <ul class="bg-card divide-border/60 divide-y overflow-hidden rounded-[14px] border text-sm">
+          <li
+            v-for="row in [
+              { id: 'password', label: 'Password', icon: KeyRound, meta: '' },
+              { id: 'smart', label: 'Smart Tag', icon: Sparkles, meta: '' },
+              { id: 'api', label: 'API tokens', icon: Key, meta: String(credentials.length || '') },
+            ]"
+            :key="row.id"
+          >
+            <button
+              type="button"
+              class="active:bg-accent flex h-13 w-full items-center gap-3 px-3.5 text-left"
+              @click="openSection(row.id)"
+            >
+              <component
+                :is="row.icon"
+                class="text-muted-foreground size-[18px]"
+                aria-hidden="true"
+              />
+              <span class="flex-1">{{ row.label }}</span>
+              <span class="text-muted-foreground">{{ row.meta }}</span>
+              <ChevronRight class="text-muted-foreground size-4" aria-hidden="true" />
+            </button>
+          </li>
+          <li class="flex h-13 items-center gap-3 px-3.5">
+            <SunMoon class="text-muted-foreground size-[18px]" aria-hidden="true" />
+            <label for="acc-theme" class="flex-1">Appearance</label>
+            <select
+              id="acc-theme"
+              v-model="mode"
+              class="text-muted-foreground h-8 bg-transparent text-right"
+            >
+              <option v-for="(label, value) in themeLabels" :key="value" :value="value">
+                {{ label }}
+              </option>
+            </select>
+          </li>
+          <li v-if="user?.role === 'admin'">
+            <button
+              type="button"
+              class="active:bg-accent flex h-13 w-full items-center gap-3 px-3.5 text-left"
+              @click="goToAdminPanel"
+            >
+              <Shield class="text-muted-foreground size-[18px]" aria-hidden="true" />
+              <span class="flex-1">Admin Panel</span>
+              <span class="text-muted-foreground text-xs">Best on desktop</span>
+              <ChevronRight class="text-muted-foreground size-4" aria-hidden="true" />
+            </button>
+          </li>
+        </ul>
+      </section>
+      <button
+        type="button"
+        class="bg-card text-destructive flex h-12 items-center justify-center gap-2 rounded-[14px] border text-sm font-medium"
+        @click="signOut"
+      >
+        <LogOut class="size-4" aria-hidden="true" /> Sign Out
+      </button>
+    </template>
+    <button
+      v-else-if="phone"
+      type="button"
+      class="text-muted-foreground -mb-3 -ml-1 flex h-8 items-center gap-0.5 self-start text-sm"
+      @click="backToList"
+    >
+      <ChevronLeft class="size-4" aria-hidden="true" /> Account
+    </button>
+
+    <PageHeader v-if="!phone" title="Account" description="Your profile, password and API access.">
       <Button v-if="user?.role === 'admin'" variant="outline" @click="goToAdminPanel"
         ><Shield /> Admin Panel</Button
       >
     </PageHeader>
 
     <nav
+      v-if="!phone"
       aria-label="Account sections"
       class="bg-background/95 sticky top-0 z-10 -mx-4 flex gap-6 overflow-x-auto border-b px-4 backdrop-blur [scrollbar-width:none] md:mx-0 md:px-0"
     >
@@ -308,12 +429,18 @@ onMounted(() => {
     </nav>
 
     <section
+      v-show="showSection('profile')"
       id="profile"
       aria-labelledby="profile-h"
-      class="grid scroll-mt-14 gap-x-12 gap-y-5 border-b pb-8 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]"
+      class="grid scroll-mt-14 gap-x-12 gap-y-5 border-b pb-8 max-md:border-b-0 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]"
     >
       <div>
-        <h2 id="profile-h" class="mb-1 text-base font-semibold">Profile</h2>
+        <h2
+          id="profile-h"
+          class="mb-1 text-base font-semibold max-md:text-2xl max-md:leading-8 max-md:tracking-[-0.01em]"
+        >
+          Profile
+        </h2>
         <p class="text-muted-foreground text-sm">
           How you appear across Photoly.
           <template v-if="createdOn">Member since {{ createdOn }}.</template>
@@ -344,12 +471,18 @@ onMounted(() => {
     </section>
 
     <section
+      v-show="showSection('password')"
       id="password"
       aria-labelledby="password-h"
-      class="grid scroll-mt-14 gap-x-12 gap-y-5 border-b pb-8 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]"
+      class="grid scroll-mt-14 gap-x-12 gap-y-5 border-b pb-8 max-md:border-b-0 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]"
     >
       <div>
-        <h2 id="password-h" class="mb-1 text-base font-semibold">Password</h2>
+        <h2
+          id="password-h"
+          class="mb-1 text-base font-semibold max-md:text-2xl max-md:leading-8 max-md:tracking-[-0.01em]"
+        >
+          Password
+        </h2>
         <p class="text-muted-foreground text-sm">
           You stay signed in on this device after changing it.
         </p>
@@ -400,12 +533,18 @@ onMounted(() => {
     </section>
 
     <section
+      v-show="showSection('smart')"
       id="smart"
       aria-labelledby="smart-h"
-      class="grid scroll-mt-14 gap-x-12 gap-y-5 border-b pb-8 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]"
+      class="grid scroll-mt-14 gap-x-12 gap-y-5 border-b pb-8 max-md:border-b-0 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]"
     >
       <div>
-        <h2 id="smart-h" class="mb-1 text-base font-semibold">Smart Tag</h2>
+        <h2
+          id="smart-h"
+          class="mb-1 text-base font-semibold max-md:text-2xl max-md:leading-8 max-md:tracking-[-0.01em]"
+        >
+          Smart Tag
+        </h2>
         <p class="text-muted-foreground text-sm">
           Sorts photos and videos into camera and lens tags, and trip galleries from time and place.
         </p>
@@ -413,10 +552,20 @@ onMounted(() => {
       <SmartOrganizationSettings class="max-w-[560px]" />
     </section>
 
-    <section id="api" aria-labelledby="api-h" class="flex scroll-mt-14 flex-col gap-4">
+    <section
+      v-show="showSection('api')"
+      id="api"
+      aria-labelledby="api-h"
+      class="flex scroll-mt-14 flex-col gap-4"
+    >
       <div class="flex flex-wrap items-end gap-4">
         <div>
-          <h2 id="api-h" class="mb-1 text-base font-semibold">API tokens</h2>
+          <h2
+            id="api-h"
+            class="mb-1 text-base font-semibold max-md:text-2xl max-md:leading-8 max-md:tracking-[-0.01em]"
+          >
+            API tokens
+          </h2>
           <p class="text-muted-foreground text-sm">
             Each token can upload, read or delete media for your integrations.
           </p>
@@ -537,29 +686,6 @@ onMounted(() => {
           </section>
         </div>
       </details>
-    </section>
-
-    <!-- On phones the shell has no footer, so appearance and sign out live here. -->
-    <section aria-label="Device" class="flex flex-col gap-3 md:hidden">
-      <div class="bg-card flex h-13 items-center gap-3 rounded-xl border px-4 text-sm">
-        <label for="acc-theme" class="flex-1 font-medium">Appearance</label>
-        <select
-          id="acc-theme"
-          v-model="mode"
-          class="text-muted-foreground h-9 bg-transparent text-right"
-        >
-          <option value="auto">System</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-      </div>
-      <button
-        type="button"
-        class="bg-card text-destructive flex h-12 items-center justify-center gap-2 rounded-xl border text-sm font-medium"
-        @click="signOut"
-      >
-        <LogOut class="size-4" aria-hidden="true" /> Sign Out
-      </button>
     </section>
 
     <Dialog

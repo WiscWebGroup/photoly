@@ -87,9 +87,9 @@ describe('HomePart', () => {
     byText('Select').click()
     await vi.waitFor(() => button('Select All'))
     button('Select All').click()
-    button('Delete Selected').click()
+    button('Delete', document.querySelector('[role=toolbar]')!).click()
     await vi.waitFor(() => expect(pageText()).toContain('Delete 2 items?'))
-    button('Delete').click()
+    button('Delete', document.querySelector('[role=alertdialog]')!).click()
 
     await vi.waitFor(() =>
       expect(calls.filter((c) => c.path === '/namespace/delete')).toHaveLength(2),

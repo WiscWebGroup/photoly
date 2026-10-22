@@ -58,7 +58,7 @@ test('browse a gallery', async ({ page }) => {
     '/photo/getByGallery': ok([photo(10, 'beach')]),
   })
   await page.goto('/home/GalleryPart')
-  await expect(page.getByText(/^Created Jun 1, 2024$/)).toBeVisible()
+  await expect(page.getByText(/^1 item · Created Jun 1, 2024$/)).toBeVisible()
   await page.getByText('Summer', { exact: true }).click()
 
   await expect(page.getByText('beach.jpg')).toBeVisible()

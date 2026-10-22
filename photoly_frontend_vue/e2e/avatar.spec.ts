@@ -54,7 +54,7 @@ async function setup(page: Page) {
       role: 'user',
     }),
   })
-  await page.goto('/home/ManagePart')
+  await page.goto('/home/ManagePart#profile')
   await page.getByRole('button', { name: 'Change Picture', exact: true }).click()
   await expect(page.getByTestId('avatar-crop')).toBeVisible()
 }

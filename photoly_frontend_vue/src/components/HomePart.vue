@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { watchDebounced } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import {
   Check,
@@ -9,6 +10,7 @@ import {
   Film,
   Folder,
   FolderInput,
+  Images,
   FolderOpen,
   FolderPlus,
   LayoutGrid,
@@ -64,8 +66,10 @@ import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { isValidFolderName, useFolders, type Folder as FolderInfo } from '@/composables/useFolders'
 import { usePhotos } from '@/composables/usePhotos'
+import { useCovers } from '@/composables/useCovers'
 import { viewMode } from '@/composables/useViewMode'
 import { download } from '@/lib/download'
+import { photoUrl } from '@/lib/photoUrl'
 import { call, http } from '@/lib/http'
 import { mediaKind } from '@/lib/media'
 import { cn } from '@/lib/utils'
@@ -103,6 +107,15 @@ const summary = computed(() => {
     .filter(Boolean)
     .join(' · ')
 })
+
+// Folder cards show a mosaic of what's inside and how many items; refetched when the folder's
+// children change or photos move in or out of it.
+const { covers, refresh: refreshCovers } = useCovers('folder')
+watchDebounced(
+  [folders.children, library.photos],
+  () => refreshCovers(folders.children.value.map((f) => f.nsId)),
+  { debounce: 60 },
+)
 
 // --- Navigation ---------------------------------------------------------------------------------
 async function queryPhotos() {
@@ -192,6 +205,32 @@ async function deleteSelected() {
     ids.length &&
       mutate(() => Promise.all(ids.map(folders.remove)), 'Folder deleted!', 'Delete Error!'),
   ])
+}
+
+/** Galleries a selection can be added to; smart galleries fill themselves. */
+const galleries = ref<{ gaId: number; gaName: string }[]>([])
+async function loadGalleries() {
+  try {
+    galleries.value = await call<{ gaId: number; gaName: string }[]>({ url: '/gallery/getAll' })
+  } catch {
+    toast.error('get galleries Response Error!')
+  }
+}
+
+async function addSelectedTo(gaId: number, name: string) {
+  selected.value = []
+  await mediaList.value?.addCheckedToGallery(gaId, name)
+}
+
+/** Selected photos download one by one; selected folders download as zips. */
+async function downloadSelected() {
+  const ids = selected.value
+  const photos = mediaList.value?.downloadChecked()
+  for (const id of ids) {
+    const folder = folders.children.value.find((f) => f.nsId === id)
+    if (folder) await downloadFolder(folder)
+  }
+  await photos
 }
 
 // --- Create / rename / delete / move one folder ---------------------------------------------------
@@ -525,7 +564,7 @@ async function upload() {
                           'group bg-card relative flex w-full text-left text-sm shadow-xs transition-[border-color,box-shadow,translate] duration-200 outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
                           viewMode === 'list'
                             ? 'hover:bg-accent h-11 items-center gap-3 rounded-lg border px-3'
-                            : 'hover:border-primary flex-col overflow-hidden rounded-xl border hover:-translate-y-0.5 hover:shadow-sm',
+                            : 'hover:border-primary flex-col overflow-hidden rounded-[14px] border hover:-translate-y-0.5 hover:shadow-sm',
                           (selected.includes(folder.nsId) || dragOver === folder.nsId) &&
                             'border-primary ring-primary ring-1',
                         )
@@ -537,8 +576,25 @@ async function upload() {
                       @contextmenu.stop
                     >
                       <span
-                        v-if="viewMode === 'grid'"
-                        class="bg-accent/60 text-primary grid h-24 place-items-center sm:h-28"
+                        v-if="viewMode === 'grid' && covers.get(folder.nsId)?.ids.length"
+                        class="bg-muted grid h-24 grid-cols-[2fr_1fr] grid-rows-2 gap-0.5 sm:h-32"
+                        aria-hidden="true"
+                      >
+                        <img
+                          v-for="(id, k) in covers.get(folder.nsId)!.ids"
+                          :key="id"
+                          :src="photoUrl(id, 'renderThumbnail')"
+                          alt=""
+                          loading="lazy"
+                          :class="[
+                            'size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]',
+                            k === 0 && 'row-span-2',
+                          ]"
+                        />
+                      </span>
+                      <span
+                        v-else-if="viewMode === 'grid'"
+                        class="bg-accent/60 text-primary grid h-24 place-items-center sm:h-32"
                         aria-hidden="true"
                       >
                         <Folder
@@ -552,13 +608,26 @@ async function upload() {
                       <span
                         :class="
                           viewMode === 'grid'
-                            ? 'flex items-center gap-2 border-t px-3.5 py-3'
+                            ? 'flex items-center gap-2 px-3.5 py-3'
                             : 'flex min-w-0 flex-1 items-center gap-2'
                         "
                       >
-                        <span class="truncate font-medium" :title="folder.nsName">{{
-                          folder.nsName
-                        }}</span>
+                        <span
+                          :class="
+                            viewMode === 'grid'
+                              ? 'flex min-w-0 flex-col'
+                              : 'flex min-w-0 flex-1 items-baseline gap-2'
+                          "
+                        >
+                          <span class="truncate font-medium" :title="folder.nsName">{{
+                            folder.nsName
+                          }}</span>
+                          <span
+                            v-if="covers.get(folder.nsId)"
+                            class="text-muted-foreground text-xs"
+                            >{{ plural(covers.get(folder.nsId)!.count, 'item') }}</span
+                          >
+                        </span>
                         <span
                           v-if="selectMode"
                           role="checkbox"
@@ -608,11 +677,11 @@ async function upload() {
               >
                 <button
                   type="button"
-                  class="text-muted-foreground hover:border-primary hover:text-primary flex size-full min-h-[149px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-sm transition-colors sm:min-h-[163px]"
+                  class="text-muted-foreground hover:border-primary hover:text-primary flex size-full min-h-[158px] flex-col items-center justify-center gap-2 rounded-[14px] border border-dashed text-sm transition-colors sm:min-h-[194px]"
                   @click="startCreate"
                 >
                   <Plus class="size-5" aria-hidden="true" />
-                  Add Folder
+                  New Folder
                 </button>
               </li>
             </ul>
@@ -669,13 +738,30 @@ async function upload() {
     <SelectionBar :open="selectMode" :count="selectedCount" @close="selectMode = false">
       <button type="button" @click="selectAll">Select All</button>
       <button type="button" :disabled="!selectedCount" @click="startMoveSelected">Move</button>
+      <DropdownMenu @update:open="(o: boolean) => o && loadGalleries()">
+        <DropdownMenuTrigger as-child>
+          <button type="button" :disabled="!mediaList?.checkedCount">Add to Gallery</button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="top" align="center" class="max-h-72 w-56 overflow-y-auto">
+          <DropdownMenuItem
+            v-for="g in galleries"
+            :key="g.gaId"
+            @select="addSelectedTo(g.gaId, g.gaName)"
+            ><Images /> <span class="truncate">{{ g.gaName }}</span></DropdownMenuItem
+          >
+          <p v-if="!galleries.length" class="text-muted-foreground px-2 py-1.5 text-sm">
+            No galleries yet
+          </p>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <button type="button" :disabled="!selectedCount" @click="downloadSelected">Download</button>
       <button
         type="button"
         class="text-red-300 dark:text-red-700"
         :disabled="!selectedCount"
         @click="confirmDeleteSelected = true"
       >
-        Delete Selected
+        Delete
       </button>
     </SelectionBar>
 

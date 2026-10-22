@@ -3,7 +3,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import MediaList from '@/components/MediaList.vue'
 import AiSearchPanel from '@/components/ai/AiSearchPanel.vue'
-import { Search, Sparkles } from '@lucide/vue'
+import { ArrowLeft, ImageIcon, Search, Sparkles } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { Photo } from '@/composables/usePhotos'
@@ -84,8 +84,16 @@ async function queryPhotos() {
   <div class="flex min-h-full flex-col" @contextmenu.prevent.stop>
     <div class="bg-card flex flex-col gap-4 border-b px-4 pt-5 pb-5 md:px-10 md:pt-10">
       <h1 class="text-2xl leading-8 font-semibold tracking-[-0.01em]">Search</h1>
+      <button
+        v-if="searchType === 'image'"
+        type="button"
+        class="text-muted-foreground hover:text-foreground -mt-2 flex items-center gap-1.5 self-start text-sm transition-colors"
+        @click="searchType = 'smart'"
+      >
+        <ArrowLeft class="size-4" aria-hidden="true" /> Back to text search
+      </button>
       <form
-        v-if="searchType !== 'text'"
+        v-if="searchType !== 'text' && searchType !== 'image'"
         class="flex max-w-[880px] gap-2"
         role="search"
         @submit.prevent="queryPhotos"
@@ -104,12 +112,22 @@ async function queryPhotos() {
             :maxlength="searchType === 'smart' ? 512 : undefined"
             :placeholder="placeholder()"
             aria-label="Search query"
-            class="bg-background placeholder:text-muted-foreground h-12 w-full rounded-xl border pr-4 pl-11 text-base shadow-xs transition-[border-color,box-shadow] outline-none focus:border-primary focus:ring-3 focus:ring-ring/25"
+            class="bg-background placeholder:text-muted-foreground h-[52px] w-full rounded-xl border pr-12 pl-11 text-base shadow-xs transition-[border-color,box-shadow] outline-none focus:border-primary focus:ring-3 focus:ring-ring/25"
           />
+          <button
+            type="button"
+            aria-label="Search by image"
+            title="Search by image"
+            class="text-muted-foreground hover:bg-accent hover:text-foreground absolute top-1/2 right-2 grid size-9 -translate-y-1/2 place-items-center rounded-lg transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            @click="searchType = 'image'"
+          >
+            <ImageIcon class="size-[18px]" aria-hidden="true" />
+          </button>
         </label>
-        <Button type="submit" class="h-12 rounded-xl px-6 text-base">Search</Button>
+        <Button type="submit" class="h-[52px] rounded-xl px-[22px] text-base">Search</Button>
       </form>
       <div
+        v-if="searchType !== 'image'"
         role="radiogroup"
         aria-label="Search by"
         class="bg-muted flex max-w-full gap-0.5 self-start overflow-x-auto rounded-lg p-0.5 [scrollbar-width:none]"
@@ -161,7 +179,7 @@ async function queryPhotos() {
           v-if="smart.submitted.value && (!smart.busy.value || smart.results.value.length)"
           role="status"
         >
-          <span class="font-semibold">{{
+          <span class="text-base font-semibold">{{
             smart.limited.value
               ? 'Showing top 100 results'
               : `${smart.results.value.length} result(s) found`
@@ -169,7 +187,7 @@ async function queryPhotos() {
           <span class="text-muted-foreground"> · Ranked by visual match, then names and tags</span>
         </p>
       </div>
-      <AiSearchPanel v-if="searchType === 'text'" :mode="searchType" />
+      <AiSearchPanel v-if="searchType === 'text' || searchType === 'image'" :mode="searchType" />
       <MediaList
         v-else
         ref="mediaList"

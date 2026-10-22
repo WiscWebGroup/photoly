@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import SmartBadge from '@/components/SmartBadge.vue'
 import type { SmartSource } from '@/lib/smartOrganization'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
-import { Check, Hash, Pencil, Plus, Search, Sparkles, Tag as TagIcon, Trash2, X } from '@lucide/vue'
+import { Hash, Pencil, Plus, Search, Sparkles, Tag as TagIcon, Trash2, X } from '@lucide/vue'
 import AlbumSwitch from '@/components/AlbumSwitch.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -35,6 +35,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { Photo } from '@/composables/usePhotos'
+import { useCovers } from '@/composables/useCovers'
+import { mediaKind } from '@/lib/media'
 import { call } from '@/lib/http'
 import { cn } from '@/lib/utils'
 
@@ -77,13 +79,30 @@ const fail = (message: string) => () => toast.error(message)
 const loadTags = async () =>
   (tags.value = await call<Tag[]>({ url: '/tag/getAll', params: { includeSmart: true } }))
 
+// How many items carry each tag, shown beside it in the list.
+const { covers: counts, refresh: refreshCounts } = useCovers('tag')
+watch(tags, (list) => refreshCounts(list.map((t) => t.tagId)))
+
+const tagPhotos = ref<Photo[]>([])
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
+const tagMeta = computed(() => {
+  const videos = tagPhotos.value.filter((p) => mediaKind(p.format) === 'video').length
+  return [plural(tagPhotos.value.length - videos, 'photo'), videos && plural(videos, 'video')]
+    .filter(Boolean)
+    .join(' · ')
+})
+
 async function queryPhotos() {
-  if (!selectedTagIds.value.length) return mediaList.value?.updatePhotoList([])
+  if (!selectedTagIds.value.length) {
+    tagPhotos.value = []
+    return mediaList.value?.updatePhotoList([])
+  }
   try {
     const photos = await call<Photo[]>({
       url: '/photo/getByTags',
       params: { tagIds: selectedTagIds.value.join(',') },
     })
+    tagPhotos.value = photos
     mediaList.value?.updatePhotoList(photos)
   } catch {
     toast.error('query photo Response Error!')
@@ -164,6 +183,7 @@ async function detach(photos: (Photo & { checked?: boolean })[]) {
         ),
     )
     toast.success('Tag detached!')
+    void refreshCounts([tagId!])
   } catch {
     toast.error('removeTag Response Error!')
   }
@@ -179,9 +199,9 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
     <aside
       class="bg-card flex shrink-0 flex-col gap-4 border-b px-4 pt-5 pb-4 md:sticky md:top-0 md:h-[100dvh] md:w-80 md:overflow-y-auto md:border-r md:border-b-0 md:px-6 md:pt-8"
     >
-      <AlbumSwitch class="md:hidden" />
-      <div class="flex items-center gap-2">
-        <h1 class="text-2xl leading-8 font-semibold tracking-[-0.01em]">Tags</h1>
+      <AlbumSwitch class="md:hidden" add-label="Add New Tag" @add="creating = true" />
+      <div :class="['flex items-center gap-2', !selectedTagIds.length && 'max-md:hidden']">
+        <h1 class="text-2xl leading-8 font-semibold tracking-[-0.01em] max-md:hidden">Tags</h1>
         <Transition name="reveal">
           <button
             v-if="selectedTagIds.length"
@@ -196,7 +216,7 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
           variant="outline"
           size="icon-sm"
           aria-label="Add New Tag"
-          :class="!selectedTagIds.length && 'ml-auto'"
+          :class="['max-md:hidden', !selectedTagIds.length && 'ml-auto']"
           @click="creating = true"
           ><Plus
         /></Button>
@@ -224,6 +244,9 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
                   type="button"
                   :aria-pressed="selectedTagIds.includes(tag.tagId)"
                   :title="tag.tagName"
+                  :aria-description="
+                    counts.get(tag.tagId) ? plural(counts.get(tag.tagId)!.count, 'item') : undefined
+                  "
                   :class="
                     cn(
                       'hover:bg-accent hover:text-accent-foreground flex h-9 min-w-0 items-center gap-1.5 rounded-lg px-2.5 text-left text-sm transition-colors select-none max-md:rounded-full max-md:border max-md:h-8',
@@ -235,7 +258,7 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
                 >
                   <Hash
                     v-if="!section.smart"
-                    class="text-muted-foreground size-3.5 shrink-0"
+                    class="text-muted-foreground/70 size-3.5 shrink-0"
                     aria-hidden="true"
                   />
                   <span class="truncate">{{ tag.tagName }}</span>
@@ -243,11 +266,12 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
                   <span v-if="tag.smart" class="sr-only">{{
                     ` Smart · ${tag.smart.source === 'lens' ? 'Lens' : 'Camera'}`
                   }}</span>
-                  <Check
-                    v-if="selectedTagIds.includes(tag.tagId)"
-                    class="text-primary animate-in zoom-in-50 ml-auto size-4 shrink-0"
+                  <span
+                    v-if="counts.get(tag.tagId)"
                     aria-hidden="true"
-                  />
+                    class="text-muted-foreground text-xs font-normal tabular-nums md:ml-auto"
+                    >{{ counts.get(tag.tagId)!.count }}</span
+                  >
                 </button>
               </ContextMenuTrigger>
               <ContextMenuContent>
@@ -281,7 +305,11 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
               ><span class="text-muted-foreground font-normal">#</span>{{ t.tagName }}</span
             >
           </template>
-          <template v-if="onlyTag" #description><SmartBadge :smart="onlyTag.smart" /></template>
+          <template #description>
+            <span class="flex flex-wrap items-center gap-2"
+              >{{ tagMeta }} <SmartBadge v-if="onlyTag" :smart="onlyTag.smart"
+            /></span>
+          </template>
           <template v-if="onlyTag">
             <Button variant="outline" @click="startEdit(onlyTag)"><Pencil /> Rename</Button>
             <Button
