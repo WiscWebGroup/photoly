@@ -74,10 +74,7 @@ test('Dates navigation, server ordering, paging, viewer folder link, and URL per
   await expect(page).toHaveURL(/HomePart\?folder=1/)
 })
 
-test('folder Details supports right-click, touch menu, paging, missing files and Escape', async ({
-  page,
-  isMobile,
-}) => {
+test('folder Details supports right-click, paging, missing files and Escape', async ({ page }) => {
   await signIn(page)
   await mockApi(page, {
     '/namespace/getChildren': ok([{ nsId: 5, nsName: 'Trips', nsParentId: 1 }]),
@@ -85,8 +82,8 @@ test('folder Details supports right-click, touch menu, paging, missing files and
   })
   await page.goto('/home/HomePart')
   const folder = page.locator('[data-folder-id="5"]')
-  if (isMobile) await page.getByRole('button', { name: 'Actions for Trips' }).click()
-  else await folder.click({ button: 'right' })
+  await expect(page.getByRole('button', { name: 'Actions for Trips' })).toHaveCount(0)
+  await folder.click({ button: 'right' })
   await page.getByRole('menuitem', { name: 'Details', exact: true }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByRole('heading', { name: 'Trips — Details' })).toBeVisible()
@@ -101,7 +98,7 @@ test('folder Details supports right-click, touch menu, paging, missing files and
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)
   await expect(folder).toBeFocused()
-  await page.getByRole('button', { name: 'Actions for Trips' }).click()
+  await page.locator('[data-folder-id="5"]').click({ button: 'right' })
   await page.getByRole('menuitem', { name: 'Details', exact: true }).click()
   await expect(page.getByRole('dialog').getByText('Camera 1', { exact: true })).toBeVisible()
 })
@@ -134,7 +131,7 @@ test('Dates and folder Details offer retry after a failed request', async ({ pag
   await page.getByRole('button', { name: 'Retry', exact: true }).click()
   await expect(page.locator('[data-photo-id="1"]')).toBeVisible()
   await page.goto('/home/HomePart')
-  await page.getByRole('button', { name: 'Actions for Trips' }).click()
+  await page.locator('[data-folder-id="5"]').click({ button: 'right' })
   await page.getByRole('menuitem', { name: 'Details', exact: true }).click()
   const dialog = page.getByRole('dialog')
   await dialog.getByRole('button', { name: 'Retry', exact: true }).click()

@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { toast } from 'vue-sonner'
 import { http, type Envelope } from '@/lib/http'
 import { useAuthStore } from '@/stores/auth'
+import { newUuid } from '@/lib/uuid'
 
 export interface PickedFile {
   file: File
@@ -219,7 +220,7 @@ export const useUploadsStore = defineStore('uploads', () => {
     const gen = generation
     const signal = sessionController.signal
     try {
-      const batchId = resumeBatch.value ?? crypto.randomUUID()
+      const batchId = resumeBatch.value ?? newUuid()
       let jobs: LocalItem[]
       if (resumeBatch.value) {
         const pending = (await allItems(batchId)).filter(
@@ -238,7 +239,7 @@ export const useUploadsStore = defineStore('uploads', () => {
         await uploadCall('/uploads', 'post', { id: batchId, nsId: target.value.nsId, name }, signal)
         jobs = picked.map((p) => ({
           ...p,
-          id: crypto.randomUUID(),
+          id: newUuid(),
           batchId,
           state: 'pending',
           sent: 0,

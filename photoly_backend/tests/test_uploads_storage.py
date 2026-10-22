@@ -292,3 +292,40 @@ def test_concurrent_workers_share_the_same_imported_folder(world):
     out=results(world,bid)
     assert {r['state'] for r in out}=={'done'}
     assert len({r['nsId'] for r in out})==1
+
+
+@pytest.mark.parametrize('archive', [False, True])
+def test_complete_media_directory_layout_and_duplicate_filenames(world, archive):
+    from app.services.namespace import NamespaceService
+    files = [('旅行/北京/故宫/same.jpg', world.jpeg), ('旅行/上海/same.jpg', world.jpeg),
+             ('旅行/仅文档/readme.txt', b'unsupported')]
+    entries = [('Archive.zip', zip_bytes(files))] if archive else files
+    bid, rows = batch(world, entries)
+    for row, (_, content) in zip(rows, entries):
+        if row['path'].endswith('.txt'):
+            continue
+        assert receive(world, bid, row, content)['msgCode'] == 200
+    drain(world)
+    imported = [item for item in results(world, bid) if item['state'] == 'done']
+    assert len(imported) == 2
+    with world.app.app_context():
+        service = NamespaceService(db.session, world.app.extensions['photoly'])
+        paths = {tuple(node['nsName'] for node in service.trace(2, item['nsId'])[1:]) for item in imported}
+        prefix = ('Archive',) if archive else ()
+        assert paths == {prefix + ('旅行', '北京', '故宫'), prefix + ('旅行', '上海')}
+        assert db.session.scalar(select(func.count()).select_from(Namespace).where(
+            Namespace.user_id == 2, Namespace.ns_name == '仅文档')) == 0
+        photos = [db.session.get(Photo, item['photoId']) for item in imported]
+        assert {photo.photo_name for photo in photos} == {'same'}
+        assert len({photo.ns_id for photo in photos}) == 2
+    # A second import gets one new top folder; it must not merge either subtree.
+    second, rows = batch(world, entries)
+    for row, (_, content) in zip(rows, entries):
+        if not row['path'].endswith('.txt'):
+            receive(world, second, row, content)
+    drain(world)
+    with world.app.app_context():
+        service = NamespaceService(db.session, world.app.extensions['photoly'])
+        top_names = {service.trace(2, item['nsId'])[1]['nsName']
+                     for item in results(world, second) if item['state'] == 'done'}
+        assert top_names == {'Archive (1)' if archive else '旅行 (1)'}

@@ -11,7 +11,6 @@ import {
   FolderInput,
   Images,
   Info,
-  MoreHorizontal,
   FolderOpen,
   FolderPlus,
   LayoutGrid,
@@ -511,7 +510,7 @@ watch(
               <li
                 v-for="(folder, i) in folders.children.value"
                 :key="folder.nsId"
-                :class="['animate-rise relative', viewMode === 'grid' && 'w-36 shrink-0 sm:w-auto']"
+                :class="['animate-rise', viewMode === 'grid' && 'w-36 shrink-0 sm:w-auto']"
                 :style="{ animationDelay: `${Math.min(i, 12) * 30}ms` }"
               >
                 <ContextMenu>
@@ -524,7 +523,7 @@ watch(
                         cn(
                           'group bg-card relative flex w-full text-left text-sm shadow-xs transition-[border-color,box-shadow,translate] duration-200 outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
                           viewMode === 'list'
-                            ? 'hover:bg-accent h-11 items-center gap-3 rounded-lg border pl-3 pr-12'
+                            ? 'hover:bg-accent h-11 items-center gap-3 rounded-lg border px-3'
                             : 'hover:border-primary flex-col overflow-hidden rounded-[14px] border hover:-translate-y-0.5 hover:shadow-sm',
                           (selected.includes(folder.nsId) || dragOver === folder.nsId) &&
                             'border-primary ring-primary ring-1',
@@ -633,22 +632,6 @@ watch(
                     >
                   </ContextMenuContent>
                 </ContextMenu>
-                <DropdownMenu>
-                  <DropdownMenuTrigger as-child>
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      class="absolute right-1 top-1 size-8"
-                      :aria-label="`Actions for ${folder.nsName}`"
-                      ><MoreHorizontal class="size-4"
-                    /></Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem @select="showDetails(folder)"
-                      ><Info /> Details</DropdownMenuItem
-                    >
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </li>
               <li
                 v-if="viewMode === 'grid'"

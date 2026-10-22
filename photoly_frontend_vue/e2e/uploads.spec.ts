@@ -2,6 +2,16 @@ import { test, expect } from '@playwright/test'
 import { mockApi, signIn, PNG, ok } from './mockApi'
 import { mockUploads } from './uploadsMock'
 
+test.beforeEach(async ({ page }) => {
+  // Localhost exposes randomUUID; deliberately remove it to reproduce LAN HTTP.
+  await page.addInitScript(() =>
+    Object.defineProperty(globalThis.crypto, 'randomUUID', {
+      value: undefined,
+      configurable: true,
+    }),
+  )
+})
+
 test('bulk uploads survive closing the panel, navigation, and history reload', async ({ page }) => {
   await signIn(page)
   await mockApi(page)
@@ -111,8 +121,10 @@ test('directory picker preserves nested relative paths for more than 15 files', 
   const { join, basename } = await import('node:path')
   const directory = await mkdtemp(join(tmpdir(), 'photoly-directory-'))
   try {
-    await mkdir(join(directory, '旅行'))
-    for (let i = 0; i < 18; i++) await writeFile(join(directory, '旅行', `${i}.jpg`), PNG)
+    await mkdir(join(directory, '旅行', '北京'), { recursive: true })
+    await mkdir(join(directory, '旅行', '上海'))
+    for (let i = 0; i < 18; i++) await writeFile(join(directory, '旅行', '北京', `${i}.jpg`), PNG)
+    await writeFile(join(directory, '旅行', '上海', '0.jpg'), PNG)
     await signIn(page)
     await mockApi(page)
     const server = await mockUploads(page)
@@ -121,12 +133,32 @@ test('directory picker preserves nested relative paths for more than 15 files', 
     await page.getByRole('button', { name: 'New upload', exact: true }).click()
     await page.getByLabel('Choose folder', { exact: true }).setInputFiles(directory)
     await expect(
-      page.getByText(`${basename(directory)}/旅行/17.jpg`, { exact: true }),
+      page.getByText(`${basename(directory)}/旅行/北京/17.jpg`, { exact: true }),
     ).toBeVisible()
     await page.getByRole('dialog').getByRole('button', { name: 'Upload', exact: true }).click()
-    await expect.poll(() => server.items.filter((i) => i.state === 'done').length).toBe(18)
+    await expect.poll(() => server.items.filter((i) => i.state === 'done').length).toBe(19)
     expect(server.items.every((i) => i.path.startsWith(`${basename(directory)}/旅行/`))).toBe(true)
+    expect(server.items.map((i) => i.path)).toContain(`${basename(directory)}/旅行/北京/0.jpg`)
+    expect(server.items.map((i) => i.path)).toContain(`${basename(directory)}/旅行/上海/0.jpg`)
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
+})
+
+test('ZIP can be queued without randomUUID', async ({ page }) => {
+  await signIn(page)
+  await mockApi(page)
+  const server = await mockUploads(page)
+  await page.goto('/home/HomePart')
+  await page.getByRole('button', { name: 'Upload activity' }).filter({ visible: true }).click()
+  await page.getByRole('button', { name: 'New upload', exact: true }).click()
+  await page
+    .getByLabel('Choose files or ZIP')
+    .setInputFiles({ name: '旅行.zip', mimeType: 'application/zip', buffer: Buffer.from('PK') })
+  await page.getByRole('dialog').getByRole('button', { name: 'Upload', exact: true }).click()
+  await expect.poll(() => server.items.filter((i) => i.state === 'done').length).toBe(1)
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+  expect(server.batches[0]!.id).toMatch(uuid)
+  expect(server.items[0]!.id).toMatch(uuid)
+  expect(server.items[0]!.path).toBe('旅行.zip')
 })

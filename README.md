@@ -126,7 +126,7 @@ uses EXIF capture time, falling back to upload time; records with neither appear
 Dates loads 100 photos per page. Changing the sort, editing a photo or completing an upload refreshes
 the feed. The photo viewer's **Open folder** link returns to the containing folder.
 
-Right-click a folder, or use its **Actions → Details** menu on touch devices, to view recursive photo,
+Right-click a folder and choose **Details** to view recursive photo,
 video and subfolder counts. Storage separates original files from thumbnails and excludes avatars
 and temporary files. Missing expected files are reported as incomplete totals. Places are approximate
 nearby towns derived from GPS; cameras and lenses come from photo metadata, with counts per photo.

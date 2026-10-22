@@ -1,11 +1,18 @@
-import { describe, expect, it, vi } from 'vitest'
-import { http, delay } from 'msw'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { webcrypto } from 'node:crypto'
+import { http, delay, HttpResponse } from 'msw'
 import { API, ok, recordRequests, server } from '@/test/server'
 import { button, mountWithApp, pageText } from '@/test/utils'
 import { useUploadsStore } from '@/stores/uploads'
 import { useAuthStore } from '@/stores/auth'
 import UploadCenter from '../UploadCenter.vue'
 import { droppedFiles } from '@/lib/uploadFiles'
+
+// Exercise all queue scenarios under the same API availability as ordinary LAN HTTP.
+beforeEach(() =>
+  vi.stubGlobal('crypto', { getRandomValues: webcrypto.getRandomValues.bind(webcrypto) }),
+)
+afterEach(() => vi.unstubAllGlobals())
 
 function fixtures() {
   const manifest: { id: string; path: string; size: number }[] = []
@@ -132,26 +139,83 @@ it('renders a bounded picker and keeps the dialog closable', async () => {
   await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull())
 })
 
+it.each(['single.jpg', 'archive.zip'])('queues %s without randomUUID', async (name) => {
+  const { uploads, manifest } = fixtures()
+  const calls = recordRequests()
+  await uploads.enqueue([{ file: new File(['content'], name), path: name }])
+  await vi.waitFor(() => expect(uploads.local).toHaveLength(0))
+  expect(manifest).toHaveLength(1)
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+  expect(manifest[0]!.id).toMatch(uuid)
+  const create = calls.find((c) => c.path === '/uploads' && c.method === 'POST')!
+  expect((create.body as { id: string }).id).toMatch(uuid)
+  expect((create.body as { id: string }).id).not.toBe(manifest[0]!.id)
+})
+
+it('retries a failed transmission with the same batch and item IDs', async () => {
+  const { uploads, manifest } = fixtures()
+  const sent: string[] = []
+  server.use(
+    http.put(`${API}/uploads/:bid/items/:id/content`, ({ request, params }) => {
+      sent.push(new URL(request.url).pathname)
+      return sent.length === 1
+        ? HttpResponse.json({ msgCode: 503, t: 'transient failure' })
+        : ok({ id: params.id, state: 'ready' })
+    }),
+    http.post(`${API}/uploads/:bid/retry`, () => ok(1)),
+    http.get(`${API}/uploads/:bid/items`, () =>
+      ok({ items: manifest.map((i) => ({ ...i, state: 'pending' })), total: manifest.length }),
+    ),
+  )
+  await uploads.enqueue([{ file: new File(['jpeg'], 'a.jpg'), path: '旅行/北京/a.jpg' }])
+  await vi.waitFor(() => expect(uploads.local[0]?.state).toBe('failed'))
+  const batchId = uploads.local[0]!.batchId
+  await uploads.action(batchId, 'retry')
+  await vi.waitFor(() => expect(sent).toHaveLength(2))
+  expect(sent[0]).toBe(`/uploads/${batchId}/items/${manifest[0]!.id}/content`)
+  expect(sent[1]).toBe(sent[0])
+  expect(manifest).toHaveLength(1)
+  await vi.waitFor(() => expect(uploads.local).toHaveLength(0))
+})
+
 describe('directory drag and drop', () => {
-  it('reads every directory-reader batch and preserves nested relative paths', async () => {
-    let calls = 0
-    const file = {
+  it('reads more than 100 entries and retains the outer folder and nested same-name files', async () => {
+    const file = (name: string) => ({
       isFile: true,
-      name: 'a.jpg',
-      file: (resolve: (f: File) => void) => resolve(new File(['x'], 'a.jpg')),
+      name,
+      file: (resolve: (f: File) => void) => resolve(new File(['x'], name)),
+    })
+    let rootReads = 0
+    function directory(name: string, entries: unknown[]) {
+      return {
+        isFile: false,
+        name,
+        createReader: () => {
+          let offset = 0
+          return {
+            readEntries: (resolve: (entries: unknown[]) => void) => {
+              if (name === '旅行') rootReads++
+              resolve(entries.slice(offset, (offset += 100)))
+            },
+          }
+        },
+      }
     }
-    const directory = {
-      isFile: false,
-      name: 'Folder',
-      createReader: () => ({
-        readEntries: (resolve: (entries: unknown[]) => void) => resolve(calls++ < 2 ? [file] : []),
-      }),
-    }
+    const root = directory('旅行', [
+      ...Array.from({ length: 150 }, (_, i) => file(`${i}.jpg`)),
+      directory('北京', [directory('故宫', [file('same.jpg')])]),
+      directory('上海', [file('same.jpg')]),
+      directory('空目录', []),
+    ])
     const result = await droppedFiles({
-      items: [{ webkitGetAsEntry: () => directory }],
+      items: [{ webkitGetAsEntry: () => root }],
       files: [],
     } as unknown as DataTransfer)
-    expect(result.map((i) => i.path)).toEqual(['Folder/a.jpg', 'Folder/a.jpg'])
-    expect(calls).toBe(3)
+    expect(result).toHaveLength(152)
+    expect(new Set(result.map((i) => i.path)).size).toBe(152)
+    expect(result.every((i) => i.path.startsWith('旅行/'))).toBe(true)
+    expect(result.map((i) => i.path)).toContain('旅行/北京/故宫/same.jpg')
+    expect(result.map((i) => i.path)).toContain('旅行/上海/same.jpg')
+    expect(rootReads).toBe(3)
   })
 })
