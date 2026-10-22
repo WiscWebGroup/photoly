@@ -36,7 +36,7 @@ The Vue source was not changed. Existing unrelated frontend defects (for example
 
 - PostgreSQL 17 / pgvector 0.8.7 replaces MySQL; no MySQL data import is provided. Eleven business tables retain names and fields, plus an Alembic revision table.
 - Keys use generated-by-default identity. Nullable/date/response semantics are preserved. A unique lower(email) index enforces case-insensitive login identity while preserving spelling. ILIKE does not emulate MySQL accent-insensitive collation.
-- GET /admin/pingDatabase and GET /admin/databaseInfo are explicit additions. /admin/pingMySQL is a SELECT 1 compatibility alias. /admin/getAddress retains its mysql field for the PostgreSQL address.
+- GET /admin/pingDatabase and GET /admin/databaseInfo are explicit additions. GET /user/getStorage, GET /photo/getCovers, GET /photo-extra/getMapPlaces and GET /admin/getUsers are read-only additions for the web app (storage meter, card covers, map place names, and the user table's media counts, role filter and total); the legacy page routes keep their exact response shape. Place names come from bundled GeoNames data (CC BY 4.0, `app/places/`). /admin/pingMySQL is a SELECT 1 compatibility alias. /admin/getAddress retains its mysql field for the PostgreSQL address.
 - Only the migration service upgrades schema; init-db is now a seed-only alias requiring a migrated database.
 - Frontend code is unchanged; its old database label will be corrected in phase 3.
 

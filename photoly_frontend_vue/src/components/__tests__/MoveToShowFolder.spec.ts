@@ -21,14 +21,14 @@ function mockFolders() {
 async function open(props = {}) {
   const wrapper = mountWithApp<{ openModal(): void }>(MoveToShowFolder, props)
   wrapper.vm.openModal()
-  await vi.waitFor(() => expect(pageText()).toContain('Move to a New Location'))
-  await vi.waitFor(() => byText('root'))
+  await vi.waitFor(() => expect(pageText()).toContain('Move to a Folder'))
+  await vi.waitFor(() => byText('Library'))
   return wrapper
 }
 
 async function openAndExpandRoot(props = {}) {
   const wrapper = await open(props)
-  byText('root').click()
+  byText('Library').click()
   await vi.waitFor(() => byText('Trips'))
   return wrapper
 }
@@ -40,10 +40,10 @@ describe('MoveToShowFolder', () => {
     mountWithApp(MoveToShowFolder)
     await vi.waitFor(() => expect(calls.map((c) => c.path)).toContain('/namespace/getRoot'))
 
-    expect(pageText()).not.toContain('Move to a New Location')
+    expect(pageText()).not.toContain('Move to a Folder')
   })
 
-  it('lazy-loads children and emits the selected folder on Update', async () => {
+  it('lazy-loads children and emits the selected folder on confirm', async () => {
     const calls = recordRequests()
     mockFolders()
     const wrapper = await openAndExpandRoot()
@@ -52,19 +52,20 @@ describe('MoveToShowFolder', () => {
     )
 
     byText('Trips').click()
-    await vi.waitFor(() => expect(pageText()).toContain('Currently Selected: Trips'))
-    button('Update').click()
+    await vi.waitFor(() => button('Move to Trips'))
+    button('Move to Trips').click()
 
     expect(wrapper.emitted('moveToUpdate')).toEqual([[5]])
-    await vi.waitFor(() => expect(pageText()).not.toContain('Move to a New Location'))
+    await vi.waitFor(() => expect(pageText()).not.toContain('Move to a Folder'))
   })
 
-  it('emits -1 when nothing is selected', async () => {
+  it('cannot confirm until a folder is picked', async () => {
     mockFolders()
     const wrapper = await open()
-    button('Update').click()
+    expect(button('Move').disabled).toBe(true)
+    button('Move').click()
 
-    expect(wrapper.emitted('moveToUpdate')).toEqual([[-1]])
+    expect(wrapper.emitted('moveToUpdate')).toBeUndefined()
   })
 
   it('Cancel closes without emitting', async () => {
@@ -72,7 +73,7 @@ describe('MoveToShowFolder', () => {
     const wrapper = await open()
     button('Cancel').click()
 
-    await vi.waitFor(() => expect(pageText()).not.toContain('Move to a New Location'))
+    await vi.waitFor(() => expect(pageText()).not.toContain('Move to a Folder'))
     expect(wrapper.emitted('moveToUpdate')).toBeUndefined()
   })
 
@@ -81,9 +82,9 @@ describe('MoveToShowFolder', () => {
     const wrapper = await openAndExpandRoot({ originalNsId: 5, disableOrgNsId: true })
 
     byText('Pets').click()
-    await vi.waitFor(() => expect(pageText()).toContain('Currently Selected: Pets'))
+    await vi.waitFor(() => button('Move to Pets'))
     byText('Trips').click()
-    button('Update').click()
+    button('Move to Pets').click()
 
     expect(wrapper.emitted('moveToUpdate')).toEqual([[6]])
   })

@@ -156,13 +156,13 @@ defineExpose({ requestLeave, reset })
 </script>
 
 <template>
-  <details v-collapse class="group rounded-lg border bg-card" @toggle="opened">
+  <details v-collapse class="group" @toggle="opened">
     <summary
-      class="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden after:text-muted-foreground after:transition-transform after:content-['›'] group-open:after:rotate-90"
+      class="text-muted-foreground hover:text-foreground flex cursor-pointer list-none items-center justify-between rounded-sm text-xs font-semibold tracking-[0.025em] uppercase transition-colors outline-none [&::-webkit-details-marker]:hidden focus-visible:ring-3 focus-visible:ring-ring/50 after:text-base after:leading-none after:transition-transform after:content-['›'] group-open:after:rotate-90"
     >
       Extract Text
     </summary>
-    <div class="space-y-3 border-t p-3 text-sm" :aria-busy="busy">
+    <div class="space-y-3 pt-3 text-sm" :aria-busy="busy">
       <p class="text-muted-foreground">
         Recognize Simplified Chinese, Traditional Chinese, English and Japanese. Animated and
         multi-page images use the first frame or page.
@@ -180,7 +180,7 @@ defineExpose({ requestLeave, reset })
           rows="10"
           maxlength="100000"
           :disabled="busy"
-          class="w-full resize-y rounded-md border bg-background p-2"
+          class="border-input focus-visible:border-ring focus-visible:ring-ring/50 w-full resize-y rounded-lg border bg-white/4 p-2.5 outline-none focus-visible:ring-3"
           placeholder="Recognized text will appear here."
         />
         <p v-if="result.text === '' && !dirty" role="status">
@@ -218,7 +218,7 @@ defineExpose({ requestLeave, reset })
         }
       "
     >
-      <AlertDialogContent>
+      <AlertDialogContent class="dark text-foreground">
         <AlertDialogHeader>
           <AlertDialogTitle>Recognize this image again?</AlertDialogTitle>
           <AlertDialogDescription
@@ -240,7 +240,7 @@ defineExpose({ requestLeave, reset })
         }
       "
     >
-      <AlertDialogContent>
+      <AlertDialogContent class="dark text-foreground">
         <AlertDialogHeader>
           <AlertDialogTitle>Save text changes?</AlertDialogTitle>
           <AlertDialogDescription

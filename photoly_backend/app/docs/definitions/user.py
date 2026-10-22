@@ -1,8 +1,11 @@
 """Account and login-session contracts."""
 from ..builders import operation as op, parameter as p, token_parameter, json_body, upload_body
-from ..schemas import STRING, PASSWORD, EMAIL, ref, EXAMPLES
+from ..schemas import INTEGER, STRING, PASSWORD, EMAIL, obj, ref, EXAMPLES
 
 OPERATIONS = [
+    op('User', 'get_storage', 'GET', '/user/getStorage', 'Read storage used by the current account',
+       obj({'usedBytes': INTEGER, 'capacityBytes': INTEGER}), {'usedBytes': 51754511974, 'capacityBytes': 214748364800},
+       failure=None, description='usedBytes counts the account\'s originals, thumbnails and avatar. capacityBytes is the size of the disk that holds all media; there are no per-account quotas.'),
     op('User', 'sign_up', 'POST', '/user/signUp', 'Register an account', STRING, 'Succeed', auth=None, shape='token',
        body=json_body(ref('SignUp'), {'email': 'reader@example.com', 'password': 'example-password', 'userName': 'Reader'}),
        description='Creates a root namespace and favorite gallery. Registration must be enabled by an administrator.',

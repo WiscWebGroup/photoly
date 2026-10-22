@@ -46,9 +46,8 @@ const findSimilar = (page: Page) => page.getByRole('button', { name: 'Find simil
 test('Search retains text but removes image upload mode', async ({ page }) => {
   await setup(page)
   await page.goto('/home/SearchPart')
-  await page.getByRole('combobox', { name: 'Search by' }).click()
-  await expect(page.getByRole('option', { name: 'Natural language', exact: true })).toBeVisible()
-  await expect(page.getByRole('option', { name: 'Image search', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('radio', { name: 'Natural language', exact: true })).toBeVisible()
+  await expect(page.getByRole('radio', { name: 'Image search', exact: true })).toHaveCount(0)
 })
 test('pages beyond 100 only after Find similar, preserves order and ends', async ({ page }) => {
   const calls = await setup(page)
@@ -68,11 +67,12 @@ test('pages beyond 100 only after Find similar, preserves order and ends', async
   const names = await page
     .getByRole('list', { name: 'Similar photos and videos results' })
     .getByRole('button')
-    .allTextContents()
-  expect(names.map((x) => x.trim())).toEqual(items.map((x) => `${x.photo.photoName}.jpg`))
+    .evaluateAll((buttons) => buttons.map((b) => b.getAttribute('aria-label')))
+  expect(names).toEqual(items.map((x) => `View ${x.photo.photoName}.jpg`))
 })
 test('same dialog navigation updates metadata and back restores recommendations and scroll', async ({
   page,
+  isMobile,
 }) => {
   const calls = await setup(page)
   await open(page)
@@ -83,11 +83,16 @@ test('same dialog navigation updates metadata and back restores recommendations 
   await thumb.click()
   await expect(page.getByRole('dialog')).toHaveCount(1)
   await expect(
-    page.getByTestId('photo-viewer-scroll').getByRole('heading', { name: 'Similar 1.jpg' }),
+    page
+      .getByTestId('photo-viewer-scroll')
+      .getByRole('heading', { name: 'Similar 1', exact: true }),
   ).toBeVisible()
   await showDetails(page)
-  await expect(page.getByText('2 MB')).toBeVisible()
-  await expect(page.getByText('/root/Other folder', { exact: true })).toBeVisible()
+  // Size and folder show beside the photo on desktop; the phone sheet leaves them out.
+  if (!isMobile) {
+    await expect(page.getByText('2 MB')).toBeVisible()
+    await expect(page.getByText('Library / Other folder', { exact: true })).toBeVisible()
+  }
   expect(calls.filter((c) => c.path === '/ai/photos/100/similar/page')).toHaveLength(0)
   await page.getByRole('button', { name: 'Back to previous photo' }).click()
   await expect(
@@ -386,14 +391,16 @@ test('returning through history after expiry does not restore results or scroll'
   await findSimilar(page).click()
   await page.getByRole('button', { name: 'View Similar 1.jpg', exact: true }).click()
   await expect(
-    page.getByTestId('photo-viewer-scroll').getByRole('heading', { name: 'Similar 1.jpg' }),
+    page
+      .getByTestId('photo-viewer-scroll')
+      .getByRole('heading', { name: 'Similar 1', exact: true }),
   ).toBeVisible()
   await page.clock.fastForward(30000)
   await page.getByRole('button', { name: 'Back to previous photo' }).click()
   await expect(results(page)).toHaveCount(0)
   await expect.poll(() => scrollPosition(page)).toBe(0)
   expect(calls.filter((c) => c.path === path)).toHaveLength(1)
-  await showDetails(page) // going back collapses the details again
+  await showDetails(page)
   await findSimilar(page).click()
   await expect(results(page)).toHaveCount(24)
 })
@@ -501,7 +508,9 @@ test('video viewer loads mixed recommendations, restores history and collapses a
   await expect(results(page)).toHaveCount(2)
   await page.getByRole('button', { name: 'View Similar 2.mp4', exact: true }).click()
   await expect(
-    page.getByTestId('photo-viewer-scroll').getByRole('heading', { name: 'Similar 2.mp4' }),
+    page
+      .getByTestId('photo-viewer-scroll')
+      .getByRole('heading', { name: 'Similar 2', exact: true }),
   ).toBeVisible()
   await expect(results(page)).toHaveCount(0)
   await page.getByRole('button', { name: 'Back to previous photo' }).click()

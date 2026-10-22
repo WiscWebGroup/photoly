@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
-import { Sparkles, RefreshCw } from '@lucide/vue'
+import { RefreshCw } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import SmartBadge from '@/components/SmartBadge.vue'
 import { call } from '@/lib/http'
 import { useAuthStore } from '@/stores/auth'
@@ -120,95 +119,82 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Card aria-label="Smart Tag settings">
-    <CardHeader
-      ><CardTitle class="flex items-center gap-2"
-        ><Sparkles class="size-5" />Smart Tag</CardTitle
-      ></CardHeader
-    >
-    <CardContent class="space-y-4">
-      <p class="text-sm text-muted-foreground">
-        Automatically organize photos and videos into camera and lens tags, and galleries based on
-        capture time and location.
+  <div aria-label="Smart Tag settings" class="space-y-4 rounded-xl border bg-card p-5 shadow-xs">
+    <label class="flex items-center gap-2 text-sm font-medium">
+      <input
+        type="checkbox"
+        aria-label="Enable my Smart Tag"
+        :checked="pendingToggle ?? settings?.enabled ?? false"
+        :disabled="busy || !settings || (!settings.available && !settings.enabled)"
+        @change="change('toggle')"
+      />Enable Smart Tag for my library
+    </label>
+    <p v-if="settings?.reason || status?.reason" role="status" class="text-sm">
+      {{ smartReason(settings?.reason || status?.reason) }}
+    </p>
+    <div v-if="status" class="text-sm" aria-live="polite">
+      <p>
+        {{ status.processed }} / {{ status.total }} media inspected · {{ status.failed }} failed
       </p>
-      <label class="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          aria-label="Enable my Smart Tag"
-          :checked="pendingToggle ?? settings?.enabled ?? false"
-          :disabled="busy || !settings || (!settings.available && !settings.enabled)"
-          @change="change('toggle')"
-        />Enable Smart Tag for my library
-      </label>
-      <p v-if="settings?.reason || status?.reason" role="status" class="text-sm">
-        {{ smartReason(settings?.reason || status?.reason) }}
+      <p v-if="status.pending">
+        Organization pending<span v-if="status.phase">
+          ·
+          {{
+            {
+              metadata: 'Reading capture information',
+              anchors: 'Grouping by time and location',
+              missing: 'Matching photos and videos',
+              items: 'Updating galleries',
+              members: 'Updating members',
+            }[status.phase] ?? 'Organizing'
+          }}</span
+        >
       </p>
-      <div v-if="status" class="text-sm" aria-live="polite">
-        <p>
-          {{ status.processed }} / {{ status.total }} media inspected · {{ status.failed }} failed
-        </p>
-        <p v-if="status.pending">
-          Organization pending<span v-if="status.phase">
-            ·
-            {{
-              {
-                metadata: 'Reading capture information',
-                anchors: 'Grouping by time and location',
-                missing: 'Matching photos and videos',
-                items: 'Updating galleries',
-                members: 'Updating members',
-              }[status.phase] ?? 'Organizing'
-            }}</span
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <Button
+        variant="outline"
+        :disabled="busy || !settings?.enabled || !settings?.available"
+        @click="change('refresh')"
+        ><RefreshCw class="size-4" />Refresh and retry</Button
+      >
+      <Button v-if="error" variant="outline" :disabled="busy" @click="load()">Retry loading</Button>
+    </div>
+    <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
+    <details class="rounded-lg border p-3">
+      <summary class="cursor-pointer text-sm font-medium">Deleted smart items</summary>
+      <p class="mt-2 text-xs text-muted-foreground">
+        Deleted items stay hidden until restored. Restoring an item also restores its related merged
+        or split items.
+      </p>
+      <p v-if="!dismissed.length" class="mt-2 text-sm">No deleted smart items.</p>
+      <ul v-else class="mt-3 space-y-3">
+        <li
+          v-for="item in dismissed"
+          :key="item.id"
+          class="flex flex-wrap items-center justify-between gap-2 text-sm"
+        >
+          <span class="min-w-0 break-words">{{ item.name }} <SmartBadge :smart="item" /></span>
+          <Button
+            size="sm"
+            variant="outline"
+            :disabled="busy"
+            :aria-label="`Restore ${item.name}`"
+            @click="change('restore', item)"
+            >Restore</Button
           >
-        </p>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          :disabled="busy || !settings?.enabled || !settings?.available"
-          @click="change('refresh')"
-          ><RefreshCw class="size-4" />Refresh and retry</Button
-        >
-        <Button v-if="error" variant="outline" :disabled="busy" @click="load()"
-          >Retry loading</Button
-        >
-      </div>
-      <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
-      <details class="rounded-md border p-3">
-        <summary class="cursor-pointer text-sm font-medium">Deleted smart items</summary>
-        <p class="mt-2 text-xs text-muted-foreground">
-          Deleted items stay hidden until restored. Restoring an item also restores its related
-          merged or split items.
-        </p>
-        <p v-if="!dismissed.length" class="mt-2 text-sm">No deleted smart items.</p>
-        <ul v-else class="mt-3 space-y-3">
-          <li
-            v-for="item in dismissed"
-            :key="item.id"
-            class="flex flex-wrap items-center justify-between gap-2 text-sm"
-          >
-            <span class="min-w-0 break-words">{{ item.name }} <SmartBadge :smart="item" /></span>
-            <Button
-              size="sm"
-              variant="outline"
-              :disabled="busy"
-              :aria-label="`Restore ${item.name}`"
-              @click="change('restore', item)"
-              >Restore</Button
-            >
-          </li>
-        </ul>
-        <Button v-if="nextAfter" class="mt-2" variant="ghost" :disabled="busy" @click="load(true)"
-          >Load more deleted items</Button
-        >
-      </details>
-      <p class="text-xs text-muted-foreground">
-        Approximate city names from
-        <a href="https://www.geonames.org/" class="underline" target="_blank" rel="noreferrer"
-          >GeoNames</a
-        >
-        (CC BY 4.0). Location data stays on your server.
-      </p>
-    </CardContent>
-  </Card>
+        </li>
+      </ul>
+      <Button v-if="nextAfter" class="mt-2" variant="ghost" :disabled="busy" @click="load(true)"
+        >Load more deleted items</Button
+      >
+    </details>
+    <p class="text-xs text-muted-foreground">
+      Approximate city names from
+      <a href="https://www.geonames.org/" class="underline" target="_blank" rel="noreferrer"
+        >GeoNames</a
+      >
+      (CC BY 4.0). Location data stays on your server.
+    </p>
+  </div>
 </template>

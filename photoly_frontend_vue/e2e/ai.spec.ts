@@ -19,8 +19,7 @@ const response = {
 }
 async function mode(page: Page, name = 'Natural language') {
   await page.goto('/home/SearchPart')
-  await page.getByRole('combobox', { name: 'Search by' }).click()
-  await page.getByRole('option', { name, exact: true }).click()
+  await page.getByRole('radio', { name, exact: true }).click()
 }
 async function searchMocks(page: Page) {
   return mockApi(page, {
@@ -213,7 +212,7 @@ test('generation conflict preserves the draft until explicitly reloaded', async 
   await expect(
     page.getByLabel('Minimum background interval (seconds)', { exact: true }),
   ).toHaveValue('12')
-  await page.getByRole('button', { name: 'Reload saved settings (discard draft)' }).click()
+  await page.getByRole('button', { name: 'Discard', exact: true }).click()
   await expect(
     page.getByLabel('Minimum background interval (seconds)', { exact: true }),
   ).toHaveValue('7')
@@ -221,10 +220,19 @@ test('generation conflict preserves the draft until explicitly reloaded', async 
 test('user AI switch uses one batch read and rolls back a failed update', async ({ page }) => {
   const calls = await mockApi(page, {
     '/admin/isAdmin': ok(true),
-    '/admin/getUserPage': ok(
-      [{ userId: 3, userName: 'alice', email: 'alice@test', role: 'user', uuid: 'test-user' }],
-      { pageNum: 1 },
-    ),
+    '/admin/getUsers': ok({
+      users: [
+        {
+          userId: 3,
+          userName: 'alice',
+          email: 'alice@test',
+          role: 'user',
+          uuid: 'test-user',
+          mediaCount: 2,
+        },
+      ],
+      total: 1,
+    }),
     '/admin/ai/users': ok([{ userId: 3, enabled: false }]),
   })
   await page.route(`${API}/admin/users/3/ai`, (route) =>

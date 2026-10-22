@@ -1,6 +1,6 @@
 """Media, associations, sharing and download contracts."""
 from ..builders import operation as op, parameter as p, token_parameter, ids_parameter, upload_body, json_body
-from ..schemas import STRING, array, ref, EXAMPLES
+from ..schemas import INTEGER, STRING, array, obj, ref, EXAMPLES
 
 PHOTO_LIST = array(ref('Photo'))
 PATH = p('path', STRING, 'Relative media path: user UUID / photo UUID and original extension. Never an absolute filesystem path.', example='00000000-0000-4000-8000-000000000001/00000000-0000-4000-8000-000000000002.jpg')
@@ -24,6 +24,11 @@ OPERATIONS = [
     op('Photo', 'by_tags', 'GET', '/photo/getByTags', 'List media matching every selected tag', PHOTO_LIST, [EXAMPLES['Photo']], params=[ids_parameter()],
        description='Intersection semantics: every selected tag must be linked. Empty tagIds returns an empty list.'),
     op('Photo', 'by_gallery', 'GET', '/photo/getByGallery', 'List gallery media', PHOTO_LIST, [EXAMPLES['Photo']], params=[p('gaId')]),
+    op('Photo', 'covers', 'GET', '/photo/getCovers', 'Summarize folders, galleries or tags for their cards',
+       array(obj({'id': INTEGER, 'count': INTEGER, 'coverIds': array(INTEGER)})), [{'id': 7, 'count': 42, 'coverIds': [93, 90, 88]}],
+       params=[p('source', {'type': 'string', 'enum': ['folder', 'gallery', 'tag']}, 'What the IDs identify.', example='gallery'),
+               {**p('ids', {'type': 'array', 'items': INTEGER}, 'Owned folder, gallery or tag IDs, at most 500. Repeated or comma-separated.', example=[7, 8]), 'style': 'form', 'explode': True}],
+       description='For each ID: how many items it holds (folders count only items directly inside) and up to three of its newest still images, newest first. Any ID the user does not own fails the whole request.'),
     op('Photo', 'move', 'POST', '/photo/changeNamespace', 'Move media to another logical folder', params=[p('photoId'), p('nsId')], form=True,
        description='Both resources must be owned. Only the database folder reference changes; physical media stays in place.'),
     op('Photo', 'add_tags', 'POST', '/photo/addTags', 'Link tags to media', params=[p('photoId'), ids_parameter()], form=True,

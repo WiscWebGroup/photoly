@@ -7,15 +7,12 @@ defineProps<{ smart?: SmartSource | null }>()
 <template>
   <span
     v-if="smart"
-    :class="[
-      'inline-flex self-start shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium align-middle',
-      smart.source === 'trip'
-        ? 'border-teal-500 text-teal-700 dark:text-teal-300'
-        : 'border-violet-500 text-violet-700 dark:text-violet-300',
-    ]"
+    class="bg-accent text-accent-foreground inline-flex shrink-0 items-center gap-1 self-start rounded-full px-2 align-middle text-[11px] leading-5 font-medium"
     :title="smart.basis.method"
-    ><Sparkles class="size-3" aria-hidden="true" />Smart<span v-if="smart.source !== 'trip'"
-      >· {{ smart.source === 'camera' ? 'Camera' : 'Lens' }}</span
-    ></span
+    ><Sparkles class="text-primary size-3" aria-hidden="true" />{{
+      smart.source === 'trip'
+        ? 'Smart trip'
+        : `Smart · ${smart.source === 'camera' ? 'Camera' : 'Lens'}`
+    }}</span
   >
 </template>

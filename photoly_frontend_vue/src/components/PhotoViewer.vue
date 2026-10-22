@@ -2,29 +2,65 @@
 import SmartBadge from '@/components/SmartBadge.vue'
 import type { SmartSource } from '@/lib/smartOrganization'
 import { animate, type AnimationPlaybackControls } from 'motion'
-import { useMediaQuery } from '@vueuse/core'
+import { onKeyStroke, useFullscreen, useMediaQuery, useSwipe } from '@vueuse/core'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import {
   ArrowLeft,
   ArrowUp,
+  Aperture,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   Download,
+  Ellipsis,
   ExternalLink,
+  File as FileIcon,
+  Film,
+  Folder,
+  FolderInput,
   Info,
+  MapPin,
+  Maximize,
+  Minimize,
   Pencil,
   Plus,
   Share2,
   Sparkles,
+  Trash2,
+  Undo2,
   X,
 } from '@lucide/vue'
 import ImageEditor from '@/components/ImageEditor.vue'
+import PhotoLabelPicker from '@/components/PhotoLabelPicker.vue'
 import PhotoText from '@/components/PhotoText.vue'
-import LocationMap from '@/components/LocationMap.vue'
-import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
@@ -40,16 +76,32 @@ import SimilarRecommendations, {
   type RecommendationSnapshot,
 } from '@/components/ai/SimilarRecommendations.vue'
 
+/**
+ * `photos`: the list the photo was opened from, for prev/next and the filmstrip.
+ * `context`: what the back button returns to ("Library", a gallery name…).
+ * `locate`: where a photo's thumbnail sits now, so closing can shrink back into it.
+ * `manage`: offer Move and Delete (the parent handles both).
+ */
 const props = withDefaults(
   defineProps<{
     photo: Photo | null
     nsPath: string
     allowSimilar?: boolean
     origin?: DOMRect | null
+    photos?: Photo[]
+    context?: string
+    locate?: (photo: Photo) => DOMRect | null
+    manage?: boolean
   }>(),
-  { allowSimilar: true },
+  { allowSimilar: true, photos: () => [], manage: false },
 )
-const emit = defineEmits<{ close: []; changed: [change?: { type: string; photo: Photo }] }>()
+const emit = defineEmits<{
+  close: []
+  changed: [change?: { type: string; photo: Photo }]
+  navigate: [photo: Photo]
+  move: [photo: Photo]
+  delete: [photo: Photo]
+}>()
 
 interface Tag {
   smart?: SmartSource | null
@@ -63,6 +115,7 @@ interface Gallery {
 }
 
 const auth = useAuthStore()
+const desktop = useMediaQuery('(min-width: 768px)')
 const selected = ref<Photo | null>(null)
 const acceptedPhoto = ref<Photo | null>(props.photo)
 const photoText = ref<InstanceType<typeof PhotoText>>()
@@ -79,6 +132,7 @@ async function closeViewer() {
   try {
     if (!(await leaveText())) return
     recommendations.value?.cancel() // a query landing mid-animation must not be retained
+    if (isFullscreen.value) await exitFullscreen().catch(() => {})
     await playClose()
     acceptedPhoto.value = null
     emit('close')
@@ -89,8 +143,26 @@ async function closeViewer() {
 async function editImage() {
   if (await leaveText()) editing.value = true
 }
-const viewerBody = ref<HTMLElement>()
-const scrollRoot = computed(() => viewerBody.value ?? null)
+
+// --- Layout refs -------------------------------------------------------------------------------
+const root = ref<HTMLElement>()
+const panelScroll = ref<HTMLElement>()
+const stage = ref<HTMLElement>()
+const mediaEl = ref<HTMLElement>()
+const backdrop = ref<HTMLElement>()
+/** The panel scrolls on its own beside the photo; on phones the whole viewer scrolls. */
+const scrollRoot = computed(() => (desktop.value ? panelScroll.value : root.value) ?? null)
+const content = computed(
+  () => root.value?.closest<HTMLElement>('[data-slot=dialog-content]') ?? null,
+)
+const {
+  isSupported: canFullscreen,
+  isFullscreen,
+  toggle: toggleFullscreen,
+  exit: exitFullscreen,
+} = useFullscreen(content)
+
+// --- Similar photos, and the trail of photos opened from them -------------------------------------
 const recommendations = ref<InstanceType<typeof SimilarRecommendations>>()
 const restoredRecommendations = ref<RecommendationSnapshot>()
 const currentPath = ref(props.nsPath)
@@ -182,6 +254,7 @@ watch(
 )
 async function navigate(photo: Photo) {
   if (!info.value || photo.photoId === info.value.photoId || !(await leaveText())) return
+  direction.value = 'fade'
   history.value.push({ photo: { ...info.value }, path: currentPath.value })
   selected.value = { ...photo }
 }
@@ -189,10 +262,62 @@ async function previous() {
   if (!(await leaveText())) return
   const item = history.value.pop()
   if (!item) return
+  direction.value = 'fade'
   selected.value = { ...item.photo }
   currentPath.value = item.path
 }
 
+// --- Prev / next through the list the photo came from -------------------------------------------
+const direction = ref<'next' | 'prev' | 'fade'>('fade')
+const index = computed(() =>
+  selected.value || !acceptedPhoto.value
+    ? -1
+    : props.photos.findIndex((p) => p.photoId === acceptedPhoto.value!.photoId),
+)
+const prevPhoto = computed(() => (index.value > 0 ? props.photos[index.value - 1] : undefined))
+const nextPhoto = computed(() => (index.value >= 0 ? props.photos[index.value + 1] : undefined))
+async function step(delta: 1 | -1) {
+  const target = delta > 0 ? nextPhoto.value : prevPhoto.value
+  if (!target || editing.value || !(await leaveText())) return
+  direction.value = delta > 0 ? 'next' : 'prev'
+  emit('navigate', target)
+}
+/** Seven thumbnails around the current photo. */
+const strip = computed(() => {
+  const n = props.photos.length
+  if (index.value < 0 || n < 2) return []
+  const start = Math.max(0, Math.min(index.value - 3, n - 7))
+  return props.photos.slice(start, start + 7).map((p, i) => ({ photo: p, n: start + i + 1 }))
+})
+function jump(target: Photo) {
+  const to = props.photos.indexOf(target)
+  if (to === index.value) return
+  direction.value = to > index.value ? 'next' : 'prev'
+  void leaveText().then((ok) => ok && emit('navigate', target))
+}
+
+const isTyping = (el: EventTarget | null) =>
+  el instanceof HTMLElement &&
+  !!el.closest('input, textarea, select, video, [contenteditable="true"]')
+/** Only when the viewer is the top layer: no menu, popover or confirmation open over it. */
+const onTop = () =>
+  document.querySelectorAll('[role=dialog], [role=alertdialog], [role=menu]').length <= 1
+onKeyStroke(['ArrowLeft', 'ArrowRight', 'i'], (e) => {
+  if (!acceptedPhoto.value || editing.value || isTyping(e.target) || !onTop()) return
+  if (e.metaKey || e.ctrlKey || e.altKey) return
+  e.preventDefault()
+  if (e.key === 'i') showDetails.value = !showDetails.value
+  else void step(e.key === 'ArrowRight' ? 1 : -1)
+})
+useSwipe(stage, {
+  threshold: 48,
+  onSwipeEnd(_, dir) {
+    if (dir === 'left') void step(1)
+    else if (dir === 'right') void step(-1)
+  },
+})
+
+// --- Photo metadata ------------------------------------------------------------------------------
 /** A copy, so renames and visibility changes show here without mutating the parent's list. */
 const info = ref<Photo>()
 const exif = ref<Record<string, string | undefined>>({})
@@ -200,326 +325,15 @@ const tags = ref<{ tag_id: number; tag_name: string; smart?: SmartSource | null 
 const galleries = ref<{ ga_id: number; ga_name: string; smart?: SmartSource | null }[]>([])
 const tagOptions = ref<Tag[]>([])
 const galleryOptions = ref<Gallery[]>([])
-const newTag = ref('')
-const newGallery = ref('')
 const tagOpen = ref(false)
 const galleryOpen = ref(false)
-const freeTags = computed(() =>
-  tagOptions.value.filter((o) => !tags.value.some((t) => t.tag_id === o.tagId)),
-)
-const freeGalleries = computed(() =>
-  galleryOptions.value.filter((o) => !galleries.value.some((g) => g.ga_id === o.gaId)),
-)
 const loaded = ref(false)
 const editing = ref(false)
-/** Hidden by default and again for every photo; kept mounted (v-show) so a text draft survives toggling. */
-const showDetails = ref(false)
-const detailsLabel = ref<HTMLElement | null>(null)
-// GSAP-equivalent eases (powerN = easeIn/Out of degree N+1).
-const EASE = {
-  p1Out: [0.25, 0.46, 0.45, 0.94],
-  p1In: [0.55, 0.085, 0.68, 0.53],
-  p1InOut: [0.455, 0.03, 0.515, 0.955],
-  p2In: [0.55, 0.055, 0.675, 0.19],
-  p3Out: [0.165, 0.84, 0.44, 1],
-  p3InOut: [0.77, 0, 0.175, 1],
-} as const satisfies Record<string, [number, number, number, number]>
-let labelAnim: AnimationPlaybackControls | null = null
-/** Expand the "Details" label on hover/focus, collapse back to the round "i". */
-function expandDetails(open: boolean) {
-  const el = detailsLabel.value
-  if (!el) return
-  labelAnim?.stop()
-  // Animate between measured px widths, then settle on `auto` so the label can change text.
-  const anim = (labelAnim = animate(
-    el,
-    { width: [el.offsetWidth, open ? el.scrollWidth : 0], opacity: open ? 1 : 0 },
-    { duration: reducedMotion() ? 0 : 0.35, ease: EASE.p3Out },
-  ))
-  void anim.finished.then(() => open && labelAnim === anim && (el.style.width = 'auto'))
-}
-// Stay expanded while the panel is open; collapse when it closes (click or photo change).
-watch(showDetails, expandDetails)
-/** Details pane enter/leave: fade + slide, plus a height reveal when it stacks under the media. */
-/** Opening: the viewer zooms in while the backdrop fades to dark. Runs once per open, not per photo. */
-let openPlayed = false
-const reducedMotion = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-// `animation: none` stays on while open (clearing it would replay the stock CSS open animation);
-// hand it back right as the dialog closes so the stock close animation still plays.
-watch(acceptedPhoto, (photo) => {
-  if (photo) return
-  for (const el of document.querySelectorAll<HTMLElement>(
-    '[data-slot=dialog-content], [data-slot=dialog-overlay]',
-  ))
-    el.style.removeProperty('animation')
-})
-// The backdrop mounts as soon as the dialog opens but stays clear until the viewer is ready
-// (`showBackdrop`, called when the card-to-modal animation starts), so it never darkens the screen
-// while the photo is still decoding. Falls back after 2s in case the viewer never mounts.
-let showBackdrop: (() => void) | null = null
-watch(
-  acceptedPhoto,
-  (photo) => {
-    if (!photo) return void ((openPlayed = false), (showBackdrop = null))
-    const overlay = document.querySelector<HTMLElement>('[data-slot=dialog-overlay]')
-    if (!overlay) return
-    overlay.style.animation = 'none'
-    overlay.style.opacity = '0'
-    const timer = setTimeout(() => showBackdrop?.(), 2000)
-    showBackdrop = () => {
-      showBackdrop = null
-      clearTimeout(timer)
-      void animate(
-        overlay,
-        { opacity: 1 },
-        { duration: reducedMotion() ? 0 : 0.6, ease: EASE.p1Out },
-      ).finished.then(() => overlay.style.removeProperty('opacity'))
-    }
-  },
-  { flush: 'post' },
-)
-/**
- * Card ↔ modal: where the clicked thumbnail sits relative to the open viewer. The viewer is placed
- * there (scaled down) and animated to its real position, and back again on dismiss. Driven by a
- * 0→1 progress value written to `transform` by hand: Motion's x/y/scale would land in the same
- * `transform` property and wipe out Tailwind's centering `translate`.
- */
-let openAnims: AnimationPlaybackControls[] | null = null
-function cardOffset(content: HTMLElement) {
-  const box = content.getBoundingClientRect()
-  const o = selected.value ? null : props.origin // navigated to another photo: no card to return to
-  return o && box.width
-    ? {
-        s: Math.min(1, o.width / box.width),
-        dx: o.left + o.width / 2 - (box.left + box.width / 2),
-        dy: o.top + o.height / 2 - (box.top + box.height / 2),
-      }
-    : { s: 0.8, dx: 0, dy: 0 }
-}
-function placeCard(content: HTMLElement, from: { s: number; dx: number; dy: number }, v: number) {
-  const k = 1 - v
-  content.style.transform = `translate(${from.dx * k}px, ${from.dy * k}px) scale(${from.s + (1 - from.s) * v})`
-}
-/** Shrink the viewer back into its card while the backdrop fades out. Resolves when done. */
-function playClose() {
-  const content = viewerBody.value?.closest<HTMLElement>('[data-slot=dialog-content]')
-  const overlay = document.querySelector<HTMLElement>('[data-slot=dialog-overlay]')
-  if (!content || reducedMotion()) return Promise.resolve()
-  startOpen = null
-  if (openAnims) {
-    openAnims.forEach((a) => a.stop())
-    openAnims = null
-    for (const prop of ['transform', 'opacity']) content.style.removeProperty(prop)
-  }
-  if (!content.getBoundingClientRect().width) return Promise.resolve() // not laid out (e.g. jsdom)
-  content.style.animation = 'none'
-  content.style.transition = 'none'
-  content.style.willChange = 'transform, opacity'
-  const from = cardOffset(content)
-  // Not awaited: same length as the shrink, and the dialog unmounts the overlay anyway.
-  if (overlay) animate(overlay, { opacity: 0 }, { duration: 0.4, ease: EASE.p1InOut })
-  return Promise.all([
-    animate(1, 0, {
-      duration: 0.4,
-      ease: EASE.p3InOut,
-      onUpdate: (v) => placeCard(content, from, v),
-    }).finished,
-    animate(1, 0, {
-      duration: 0.2,
-      delay: 0.2,
-      ease: EASE.p1In,
-      onUpdate: (v) => (content.style.opacity = String(v)),
-    }).finished,
-  ]).then(() => {})
-}
-/** Set while the open animation waits for the media size, so the viewer doesn't resize mid-grow. */
-let startOpen: (() => void) | null = null
-const mediaReady = () => startOpen?.()
-watch(
-  viewerBody,
-  (body) => {
-    const content = body?.closest<HTMLElement>('[data-slot=dialog-content]')
-    if (!content || openPlayed) return
-    openPlayed = true
-    // Silence the stock CSS open animation, then hand `animation` back so the close one still plays.
-    // Plain style writes on `content`: a Motion tween on it would overwrite our inline transform.
-    content.style.animation = 'none'
-    content.style.transition = 'none' // the dialog's stock CSS transition would lag behind our frames
-    content.style.opacity = '0'
-    content.style.willChange = 'transform, opacity' // own compositor layer: no re-raster per frame
-    const run = () => {
-      if (!content.isConnected) return
-      const duration = reducedMotion() ? 0 : 0.55
-      // With a thumbnail rect the viewer grows out of it; otherwise it just zooms from the centre.
-      showBackdrop?.()
-      const from = cardOffset(content)
-      placeCard(content, from, 0)
-      const anims = (openAnims = [
-        animate(0, 1, {
-          duration: duration / 3,
-          ease: EASE.p1Out,
-          onUpdate: (v) => (content.style.opacity = String(v)),
-        }),
-        animate(0, 1, { duration, ease: EASE.p3Out, onUpdate: (v) => placeCard(content, from, v) }),
-      ])
-      void Promise.all(anims.map((a) => a.finished)).then(() => {
-        if (openAnims !== anims) return // interrupted by a close
-        openAnims = null
-        for (const prop of ['transform', 'transition', 'opacity', 'will-change'])
-          content.style.removeProperty(prop)
-      })
-    }
-    // Wait for the photo/video size (layout depends on it); fall back if it never loads.
-    const timer = setTimeout(() => startOpen?.(), 800)
-    startOpen = () => {
-      startOpen = null
-      clearTimeout(timer)
-      void nextTick(run)
-    }
-  },
-  { flush: 'post' }, // after the DOM patch but before paint, so no full-size frame shows first
-)
-
-const paneOpen = ref(false) // keeps the side-by-side grid until the leave animation ends
-/**
- * Textarea-style resize (desktop only): drag the corner grip to scale the viewer, locked to the
- * media's aspect ratio. Landscape sizes the dialog (the media fills it); tall media sizes the picture.
- */
-const RESIZE_MIN = 280
-const PANE_WIDTH = 336 // 21rem details column beside tall media
-const canResize = useMediaQuery('(min-width: 768px)')
-const mediaWidth = ref<number | null>(null)
-const ratio = ref(1) // media width / height
-const resizeActive = computed(() => canResize.value && mediaWidth.value !== null)
-const resizeMax = () => {
-  const pane = !landscape.value && paneOpen.value ? PANE_WIDTH : 0
-  return Math.max(RESIZE_MIN, Math.min(innerWidth - 32 - pane, innerHeight * 0.9 * ratio.value))
-}
-// Opening the details column beside tall media must not push a big picture off-screen.
-const effectiveWidth = () => Math.min(mediaWidth.value ?? 0, resizeMax())
-/** Default size scales with the screen: ~75% of its width, ~70% (wide) or 90% (tall) of its height. */
-function setDefaultWidth() {
-  mediaWidth.value = canResize.value
-    ? Math.round(
-        Math.max(
-          RESIZE_MIN,
-          Math.min(
-            innerWidth * 0.75,
-            innerHeight * (landscape.value ? 0.7 : 0.9) * ratio.value,
-            resizeMax(),
-          ),
-        ),
-      )
-    : null
-}
-// A fixed, centred dialog can only shrink-wrap to the space right of its left edge (half the screen),
-// so tall media needs an explicit width too: picture + the details column as it animates open.
-const panePx = ref(0)
-watch(paneOpen, (open) => open || (panePx.value = 0))
-const dialogStyle = computed(() =>
-  resizeActive.value && !editing.value
-    ? {
-        width: `${effectiveWidth() + (landscape.value ? 0 : panePx.value + 2)}px`,
-        maxWidth: 'calc(100vw - 2rem)',
-        transition: 'none',
-      }
-    : undefined,
-)
-const mediaStyle = computed(() =>
-  !resizeActive.value
-    ? undefined
-    : landscape.value
-      ? { width: '100%', height: 'auto', maxHeight: 'none' }
-      : { width: `${effectiveWidth()}px`, height: 'auto', maxWidth: 'none', maxHeight: 'none' },
-)
-function startResize(e: PointerEvent) {
-  const grip = e.currentTarget as HTMLElement
-  const media = grip.parentElement?.querySelector<HTMLElement>('img:not([hidden]), video')
-  const dialog = grip.closest<HTMLElement>('[data-slot=dialog-content]')
-  const start = landscape.value ? dialog?.offsetWidth : media?.offsetWidth
-  if (!start) return
-  const x0 = e.clientX
-  grip.setPointerCapture(e.pointerId)
-  // The dialog is centred, so it grows on both sides: 2× keeps the grip under the pointer.
-  const move = (m: PointerEvent) =>
-    (mediaWidth.value = Math.round(
-      Math.min(resizeMax(), Math.max(RESIZE_MIN, start + 2 * (m.clientX - x0))),
-    ))
-  const stop = () => {
-    grip.removeEventListener('pointermove', move)
-    grip.removeEventListener('pointerup', stop)
-    grip.removeEventListener('pointercancel', stop)
-  }
-  grip.addEventListener('pointermove', move)
-  grip.addEventListener('pointerup', stop)
-  grip.addEventListener('pointercancel', stop)
-  e.preventDefault()
-}
-// A new photo has its own aspect ratio, so start from the default size again.
-watch(currentPhoto, () => (mediaWidth.value = null))
-
-watch(showDetails, (v) => v && (paneOpen.value = true))
-/** On phones the open details take the whole screen; FLIP the dialog between its two sizes. */
-const fullscreen = computed(() => showDetails.value && !canResize.value && !editing.value)
-watch(
-  fullscreen,
-  async () => {
-    const content = viewerBody.value?.closest<HTMLElement>('[data-slot=dialog-content]')
-    if (!content) return
-    const from = content.getBoundingClientRect()
-    await nextTick()
-    const to = content.getBoundingClientRect()
-    if (reducedMotion() || !from.width || !to.width) return
-    content.style.maxWidth = content.style.maxHeight = 'none'
-    await animate(
-      content,
-      { width: [from.width, to.width], height: [from.height, to.height] },
-      { duration: 0.4, ease: EASE.p3InOut },
-    ).finished
-    for (const prop of ['width', 'height', 'maxWidth', 'maxHeight'])
-      content.style.removeProperty(prop)
-  },
-  { flush: 'sync' },
-)
-let paneAnims: AnimationPlaybackControls[] = []
-function paneTween(el: Element, show: boolean, done: () => void) {
-  paneAnims.forEach((a) => a.stop()) // a quick re-toggle must not fight the previous tween
-  const node = el as HTMLElement
-  const duration = reducedMotion() ? 0 : 0.4
-  const ease = show ? EASE.p3Out : EASE.p2In
-  // Tall media on md+ puts the pane beside the picture, so reveal it by width; otherwise by height.
-  const side = !landscape.value && !!window.matchMedia?.('(min-width: 768px)').matches
-  const prop = side ? 'width' : 'height'
-  const axis = side ? 'x' : 'y'
-  node.style.overflow = 'hidden'
-  // Explicit px sizes: opening ends at the content size ("auto"), closing starts from the measured one.
-  const size = side ? PANE_WIDTH : node.scrollHeight
-  const current = side ? node.offsetWidth : node.offsetHeight
-  const anims = (paneAnims = [
-    animate(
-      node,
-      show
-        ? { opacity: [0, 1], [prop]: [0, size], [axis]: [-12, 0] }
-        : { opacity: 0, [prop]: [current, 0], [axis]: -12 },
-      { duration, ease },
-    ),
-  ])
-  if (side)
-    anims.push(
-      animate(panePx.value, show ? PANE_WIDTH : 0, {
-        duration,
-        ease,
-        onUpdate: (v) => (panePx.value = v),
-      }),
-    )
-  void anims[0]!.finished.then(() => {
-    if (paneAnims !== anims) return // superseded by a re-toggle
-    if (show) node.style.cssText = ''
-    else paneOpen.value = false
-    done()
-  })
-}
-onBeforeUnmount(() => labelAnim?.stop())
+/** Beside the photo on desktop; it stays as the user left it from photo to photo. */
+const showDetails = ref(true)
+const sharing = ref(false)
+const confirmingDelete = ref(false)
+const shareLink = ref('')
 /** Bumped after an overwrite so the browser refetches the image under the same URL. */
 const version = ref(0)
 
@@ -540,6 +354,74 @@ const qrUrl = computed(
   () =>
     `${import.meta.env.VITE_APP_BASE_URL}/photo/getQR2?token=${auth.token}&photoId=${info.value?.photoId}`,
 )
+
+const fileName = computed(() => (info.value ? `${info.value.photoName}.${info.value.format}` : ''))
+const dimensions = computed(() => {
+  const w = exif.value.Image_Width?.split(' ')[0]
+  const h = exif.value.Image_Height?.split(' ')[0]
+  return w && h ? `${w} × ${h}` : ''
+})
+const fileMeta = computed(() =>
+  [fileName.value, exif.value.File_Size, dimensions.value].filter(Boolean).join(' · '),
+)
+
+/** EXIF stamps read "2026:06:14 21:48:00"; upload dates are ISO. */
+function parseStamp(value?: string) {
+  const m = value?.match(/^(\d{4})[:-](\d{2})[:-](\d{2})(?:[ T](\d{2}):(\d{2}))?/)
+  if (!m) return null
+  const date = new Date(+m[1]!, +m[2]! - 1, +m[3]!, +(m[4] ?? 0), +(m[5] ?? 0))
+  return { date, hasTime: m[4] !== undefined }
+}
+const when = computed(() => {
+  const taken = parseStamp(exif.value.Time)
+  const stamp = taken ?? parseStamp(info.value?.uploadDate)
+  if (!stamp) return null
+  const day = stamp.date.toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+  const time = stamp.hasTime
+    ? stamp.date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+    : ''
+  const short = stamp.date.toLocaleDateString(undefined, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+  return {
+    day,
+    detail: [taken ? 'Taken' : 'Uploaded', time].filter(Boolean).join(' · '),
+    short: [short, time].filter(Boolean).join(', '),
+  }
+})
+/** "Model" usually repeats the make ("Sony" + "Sony α7 IV"), so show it once. */
+function joinOnce(first?: string, second?: string) {
+  const a = first?.trim() ?? ''
+  const b = second?.trim() ?? ''
+  if (a && b && b.toLowerCase().startsWith(a.toLowerCase())) return b
+  return [a, b].filter(Boolean).join(' ')
+}
+const camera = computed(() => joinOnce(exif.value.Make, exif.value.Model))
+const lens = computed(() => exif.value.Lens_Model?.trim() || exif.value.Lens_Make?.trim() || '')
+const exposure = computed(() => {
+  const shutter = exif.value.Shutter_Speed_Value?.replace(/\s*sec$/, '')
+  return [
+    { label: 'Aperture', value: exif.value.Aperture_Value },
+    { label: 'Shutter', value: shutter && (shutter.includes('/') ? shutter : `${shutter}s`) },
+    { label: 'ISO', value: exif.value.ISO_Speed_Ratings },
+    { label: 'Focal', value: exif.value.Focal_Length?.replace(/\s+mm$/, 'mm') },
+  ].filter((x) => x.value)
+})
+/** "/root/Trips/2024" reads as "Library / Trips / 2024". */
+const folder = computed(() => {
+  const path = currentPath.value
+  if (!path) return ''
+  if (!path.startsWith('/root')) return path
+  return ['Library', ...path.slice(5).split('/').filter(Boolean)].join(' / ')
+})
 
 const quiet = (message: string) => () => void toast.error(message)
 
@@ -574,18 +456,29 @@ const loadGalleryOptions = () =>
     (g) => (galleryOptions.value = g),
     quiet('get galleries Response Error!'),
   )
+/** Options load on first open so the viewer doesn't fetch everything up front. */
+function openPicker(open: boolean) {
+  if (open) void Promise.all([loadTagOptions(), loadGalleryOptions()])
+}
 
 const loadExif = () =>
   currentCall<typeof exif.value>('/photo/getPhotoExif', (value) => {
     exif.value = value
   }).catch(quiet('Exif Info Response Error!'))
 
+function loadShareLink() {
+  const seq = metadataSequence
+  shareLink.value = ''
+  if (info.value?.visibility !== 1) return
+  void call<string>({ url: '/photo/getPath', params: params.value })
+    .then((link) => seq === metadataSequence && (shareLink.value = link))
+    .catch(() => {})
+}
+
 watch(
   () => currentPhoto.value,
   (photo, previousPhoto) => {
     if (previousPhoto) rememberRecommendations(previousPhoto.photoId)
-    showDetails.value = false
-    paneOpen.value = false // the pane may unmount mid-leave, so its onComplete cannot be relied on
     recommendations.value?.collapse()
     restoredRecommendations.value = undefined
     restoreScroll = null
@@ -605,6 +498,7 @@ watch(
     exif.value = {}
     tags.value = []
     galleries.value = []
+    loadShareLink()
     currentPath.value = selected.value ? 'Loading…' : props.nsPath
     if (selected.value)
       void call<{ nsName: string }[]>({ url: '/namespace/trace', params: { nsId: photo.nsId } })
@@ -627,6 +521,8 @@ watch(
         void restorePosition()
       }
     })
+    // Anything that isn't a photo or video has nothing to wait for.
+    if (mediaKind(photo.format) === 'other') void nextTick(mediaReady)
   },
   { immediate: true },
 )
@@ -640,15 +536,8 @@ async function restorePosition() {
   restoreScroll = null
   scrollRoot.value?.scrollTo({ top, behavior: 'instant' })
 }
-/** Wide media gets a stacked layout so the picture can use the full width; tall or square sits beside the details. */
-const landscape = ref(true)
 function imageLoaded(e: Event) {
   const img = e.target as HTMLImageElement
-  if (img.naturalWidth) {
-    landscape.value = img.naturalWidth > img.naturalHeight * 1.05
-    ratio.value = img.naturalWidth / img.naturalHeight
-    setDefaultWidth()
-  }
   loaded.value = true
   // Decode first: decoding a big image mid-animation is what drops frames.
   void (img.decode?.() ?? Promise.resolve()).catch(() => {}).then(mediaReady)
@@ -656,12 +545,12 @@ function imageLoaded(e: Event) {
 }
 
 async function findSimilar() {
+  showDetails.value = true
   recommendations.value?.start()
   await nextTick()
-  // Phones jump: a smooth scroll still running would fight a quick back-to-top.
   ;(recommendations.value?.$el as HTMLElement | undefined)?.scrollIntoView?.({
     block: 'start',
-    behavior: canResize.value ? 'smooth' : 'instant',
+    behavior: desktop.value ? 'smooth' : 'instant',
   })
 }
 
@@ -698,46 +587,11 @@ async function run(
 
 const addTag = (tagId: number) =>
   run(
-    call({
-      method: 'post',
-      url: '/photo/addTags',
-      params: { ...params.value, tagIds: tagId },
-    }),
+    call({ method: 'post', url: '/photo/addTags', params: { ...params.value, tagIds: tagId } }),
     'added to tag!',
     'add tag Response Error!',
-    () => ((tagOpen.value = false), loadTags()),
+    loadTags,
   )
-/** Create a tag, then attach it (the insert response carries no id, so look it up by name). */
-async function createTag() {
-  const tagName = newTag.value.trim()
-  if (!tagName) return
-  try {
-    await call({ method: 'post', url: '/tag/insert', data: { tagName } })
-    await loadTagOptions()
-    const created = tagOptions.value.find((t) => t.tagName === tagName)
-    newTag.value = ''
-    if (created) await addTag(created.tagId)
-  } catch {
-    toast.error('create tag Response Error!')
-  }
-}
-async function createGallery() {
-  const gaName = newGallery.value.trim()
-  if (!gaName) return
-  try {
-    await call({
-      method: 'post',
-      url: '/gallery/insert',
-      data: { gaName, coverId: 0, coverColor: '#000000' },
-    })
-    await loadGalleryOptions()
-    const created = galleryOptions.value.find((g) => g.gaName === gaName)
-    newGallery.value = ''
-    if (created) await addGallery(created.gaId)
-  } catch {
-    toast.error('create gallery Response Error!')
-  }
-}
 const removeTag = (tagId: number) =>
   run(
     call({ method: 'post', url: '/photo/deleteTag', params: { ...params.value, tagId } }),
@@ -747,14 +601,10 @@ const removeTag = (tagId: number) =>
   )
 const addGallery = (gaId: number) =>
   run(
-    call({
-      method: 'post',
-      url: '/photo/addToGallery',
-      params: { ...params.value, gaId },
-    }),
+    call({ method: 'post', url: '/photo/addToGallery', params: { ...params.value, gaId } }),
     'added to gallery!',
     'add gallery Response Error!',
-    () => ((galleryOpen.value = false), loadGalleries()),
+    loadGalleries,
   )
 const removeGallery = (gaId: number) =>
   run(
@@ -763,6 +613,36 @@ const removeGallery = (gaId: number) =>
     'remove gallery Response Error!',
     loadGalleries,
   )
+/** Create a tag or gallery, then attach it (the insert response carries no id, so look it up by name). */
+async function create(kind: 'tag' | 'gallery', name: string) {
+  try {
+    if (kind === 'tag') {
+      await call({ method: 'post', url: '/tag/insert', data: { tagName: name } })
+      await loadTagOptions()
+      const created = tagOptions.value.find((t) => t.tagName === name)
+      if (created) await addTag(created.tagId)
+    } else {
+      await call({
+        method: 'post',
+        url: '/gallery/insert',
+        data: { gaName: name, coverId: 0, coverColor: '#000000' },
+      })
+      await loadGalleryOptions()
+      const created = galleryOptions.value.find((g) => g.gaName === name)
+      if (created) await addGallery(created.gaId)
+    }
+  } catch {
+    toast.error(`create ${kind} Response Error!`)
+  }
+}
+const pickerTags = computed(() =>
+  tagOptions.value.map((t) => ({ id: t.tagId, name: t.tagName, smart: t.smart })),
+)
+const pickerGalleries = computed(() =>
+  galleryOptions.value.map((g) => ({ id: g.gaId, name: g.gaName, smart: g.smart })),
+)
+const attachedTags = computed(() => tags.value.map((t) => t.tag_id))
+const attachedGalleries = computed(() => galleries.value.map((g) => g.ga_id))
 
 function changeVisibility(on: boolean) {
   const visibility = on ? 1 : 0
@@ -774,7 +654,10 @@ function changeVisibility(on: boolean) {
     }),
     'visibility changed!',
     'change visibility Response Error!',
-    () => (info.value!.visibility = visibility),
+    () => {
+      info.value!.visibility = visibility
+      loadShareLink()
+    },
   )
 }
 
@@ -785,9 +668,9 @@ function renamed(name: string) {
 
 async function copyShareAddr() {
   try {
-    await navigator.clipboard.writeText(
-      await call<string>({ url: '/photo/getPath', params: params.value }),
-    )
+    const link =
+      shareLink.value || (await call<string>({ url: '/photo/getPath', params: params.value }))
+    await navigator.clipboard.writeText(link)
     toast.success('Successful copied to clipboard!')
   } catch {
     toast.error('get share addr Response Error!')
@@ -795,491 +678,856 @@ async function copyShareAddr() {
 }
 
 const downloadPhoto = () =>
-  download(`/photo/download/${auth.token}`, `${info.value!.photoName}.${info.value!.format}`, {
-    params: params.value,
+  download(`/photo/download/${auth.token}`, fileName.value, { params: params.value }).catch(
+    quiet('Download failed'),
+  )
+const saveQr = () =>
+  download('/photo/getQR2', `${info.value!.photoName}-qr.png`, {
+    params: { token: auth.token, photoId: info.value!.photoId },
   }).catch(quiet('Download failed'))
 
-const section = 'group rounded-lg border bg-card'
-const summary =
-  'flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden after:text-muted-foreground after:transition-transform after:content-["›"] group-open:after:rotate-90'
-const body = 'space-y-3 border-t p-3 text-sm'
-const label = 'text-xs font-medium text-muted-foreground'
+function deletePhoto() {
+  confirmingDelete.value = false
+  emit('delete', info.value!)
+}
+
+// --- Motion ----------------------------------------------------------------------------------------
+// GSAP-equivalent eases (powerN = easeIn/Out of degree N+1).
+const EASE = {
+  p1Out: [0.25, 0.46, 0.45, 0.94],
+  p1InOut: [0.455, 0.03, 0.515, 0.955],
+  p3Out: [0.165, 0.84, 0.44, 1],
+  p3InOut: [0.77, 0, 0.175, 1],
+} as const satisfies Record<string, [number, number, number, number]>
+const reducedMotion = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+const chrome = () => [...(content.value?.querySelectorAll<HTMLElement>('[data-chrome]') ?? [])]
+const visible = (r: DOMRect | null | undefined): r is DOMRect =>
+  !!r && r.width > 0 && r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth
+
+/**
+ * Morph the photo between its thumbnail and its place in the viewer. The thumbnail is a centred
+ * square crop, so the photo is scaled to cover that square and clipped to it, then both relax.
+ * `v` runs 0 (thumbnail) → 1 (in place).
+ */
+function morph(media: HTMLElement, from: DOMRect, to: 0 | 1, duration: number) {
+  media.style.transform = media.style.clipPath = ''
+  const box = media.getBoundingClientRect()
+  if (!box.width || !box.height) return null
+  const s = Math.max(from.width / box.width, from.height / box.height)
+  const dx = from.left + from.width / 2 - (box.left + box.width / 2)
+  const dy = from.top + from.height / 2 - (box.top + box.height / 2)
+  const ix = Math.max(0, (box.width - from.width / s) / 2)
+  const iy = Math.max(0, (box.height - from.height / s) / 2)
+  const set = (v: number) => {
+    const k = 1 - v
+    media.style.transform = `translate(${dx * k}px, ${dy * k}px) scale(${s + (1 - s) * v})`
+    media.style.clipPath = `inset(${iy * k}px ${ix * k}px round ${(4 / s) * k + 2 * v}px)`
+  }
+  set(1 - to)
+  media.style.willChange = 'transform, clip-path'
+  return animate(1 - to, to, {
+    duration,
+    ease: to ? EASE.p3Out : EASE.p3InOut,
+    onUpdate: set,
+  })
+}
+let openAnims: AnimationPlaybackControls[] | null = null
+let openPlayed = false
+/** Set while the open animation waits for the media size. */
+let startOpen: (() => void) | null = null
+const mediaReady = () => startOpen?.()
+watch(
+  root,
+  (el) => {
+    if (!el || openPlayed) return
+    openPlayed = true
+    const fast = reducedMotion()
+    const media = () => mediaEl.value
+    const items = chrome()
+    if (backdrop.value) backdrop.value.style.opacity = '0'
+    for (const item of items) item.style.opacity = '0'
+    if (media()) media()!.style.opacity = '0'
+    if (backdrop.value)
+      animate(backdrop.value, { opacity: 1 }, { duration: fast ? 0 : 0.3, ease: EASE.p1Out })
+    const run = () => {
+      if (!el.isConnected) return
+      const m = media()
+      const anims: AnimationPlaybackControls[] = items.map((item, i) =>
+        animate(
+          item,
+          { opacity: [0, 1], y: item.dataset.chrome === 'panel' ? 0 : [-4, 0] },
+          { duration: fast ? 0 : 0.35, delay: fast ? 0 : 0.12 + i * 0.03, ease: EASE.p1Out },
+        ),
+      )
+      if (m) {
+        m.style.opacity = '1'
+        const from = props.origin
+        const grow = !fast && visible(from) ? morph(m, from, 1, 0.5) : null
+        if (grow) anims.push(grow)
+        else if (!fast)
+          anims.push(
+            animate(m, { opacity: [0, 1], scale: [0.96, 1] }, { duration: 0.3, ease: EASE.p1Out }),
+          )
+      }
+      openAnims = anims
+      void Promise.all(anims.map((a) => a.finished)).then(() => {
+        if (openAnims !== anims) return // interrupted by a close
+        openAnims = null
+        if (m)
+          for (const prop of ['transform', 'clip-path', 'will-change']) m.style.removeProperty(prop)
+      })
+    }
+    // Wait for the photo/video size (layout depends on it); fall back if it never loads.
+    const timer = setTimeout(() => startOpen?.(), 800)
+    startOpen = () => {
+      startOpen = null
+      clearTimeout(timer)
+      void nextTick(run)
+    }
+  },
+  { flush: 'post' },
+)
+watch(acceptedPhoto, (photo) => photo || ((openPlayed = false), (startOpen = null)))
+
+/** Shrink the photo back into its thumbnail while everything else fades. Resolves when done. */
+function playClose() {
+  if (reducedMotion() || !root.value?.getBoundingClientRect().width) return Promise.resolve()
+  startOpen = null
+  openAnims?.forEach((a) => a.stop())
+  openAnims = null
+  const m = mediaEl.value
+  const photo = currentPhoto.value
+  const target = photo && props.locate?.(photo)
+  const anims: Promise<unknown>[] = chrome().map(
+    (item) => animate(item, { opacity: 0 }, { duration: 0.18, ease: EASE.p1Out }).finished,
+  )
+  if (backdrop.value)
+    anims.push(
+      animate(backdrop.value, { opacity: 0 }, { duration: 0.4, ease: EASE.p1InOut }).finished,
+    )
+  if (m) {
+    const shrink = !editing.value && visible(target) ? morph(m, target, 0, 0.4) : null
+    anims.push(
+      shrink?.finished ??
+        animate(m, { opacity: 0, scale: 0.96 }, { duration: 0.25, ease: EASE.p1InOut }).finished,
+    )
+  }
+  // Never let a stalled animation keep the viewer open.
+  const cap = new Promise<void>((resolve) => setTimeout(resolve, 600))
+  return Promise.race([Promise.all(anims).then(() => {}), cap])
+}
+
+const iconButton =
+  'grid size-10 shrink-0 place-items-center rounded-lg text-foreground transition-colors outline-none hover:bg-white/10 focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-[18px]'
+const section = 'flex flex-col gap-4 border-b px-5 py-5 md:px-6'
+const heading = 'text-muted-foreground text-xs font-semibold tracking-[0.025em] uppercase'
+const chip =
+  'inline-flex h-7 max-w-full items-center gap-1 rounded-full border border-white/16 pr-1.5 pl-2.5 text-sm transition-colors hover:border-primary max-md:h-8 max-md:px-3'
+const addChip =
+  'text-muted-foreground inline-flex h-7 items-center gap-1 rounded-full border border-white/16 px-2.5 text-sm transition-colors outline-none hover:border-primary hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 max-md:border-dashed max-md:border-primary/50 max-md:text-primary'
+const removeButton =
+  'text-muted-foreground hover:text-foreground grid size-5 shrink-0 place-items-center rounded-full transition-colors'
+const overlay = 'dark text-foreground'
 </script>
 
 <template>
   <Dialog :open="!!acceptedPhoto" @update:open="closeViewer">
     <DialogContent
       v-if="currentPhoto && info"
-      :style="dialogStyle"
-      :class="[
-        'max-h-[95dvh] w-full overflow-hidden p-0',
-        fullscreen &&
-          'max-md:!h-dvh max-md:!max-h-dvh max-md:!w-screen max-md:!max-w-none max-md:!rounded-none max-md:!border-0',
-        landscape || editing ? 'sm:max-w-4xl' : 'sm:w-fit sm:max-w-[calc(100%-2rem)]',
-      ]"
+      data-photo-viewer
+      :show-close-button="false"
+      class="dark text-foreground fixed inset-0 top-0 left-0 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-none border-0 bg-transparent p-0 shadow-none outline-none data-[state=closed]:animate-none data-[state=open]:animate-none sm:max-w-none"
+      @open-auto-focus="
+        (e: Event) => {
+          e.preventDefault()
+          root?.focus({ preventScroll: true })
+        }
+      "
     >
-      <DialogTitle class="sr-only">{{ info.photoName }}.{{ info.format }}</DialogTitle>
+      <DialogTitle class="sr-only">{{ fileName }}</DialogTitle>
       <DialogDescription class="sr-only"
         >Photo details and similar photos and videos</DialogDescription
       >
+      <div ref="backdrop" class="bg-background absolute inset-0" aria-hidden="true" />
+
       <div
-        ref="viewerBody"
-        data-testid="photo-viewer-scroll"
+        ref="root"
         tabindex="-1"
+        :data-testid="desktop ? undefined : 'photo-viewer-scroll'"
         :class="[
-          fullscreen ? 'max-h-dvh' : 'max-h-[95dvh]',
-          'min-h-0 overflow-y-auto overscroll-contain outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-          recommendations?.expanded && 'pb-20',
+          'relative flex min-h-0 w-full flex-col overflow-y-auto overscroll-contain outline-none [scrollbar-width:none] md:flex-row md:overflow-hidden [&::-webkit-scrollbar]:hidden',
+          !desktop && recommendations?.expanded && 'pb-20',
         ]"
       >
-        <div v-if="history.length" class="px-4 pt-4">
-          <Button variant="ghost" size="sm" @click="previous"
-            ><ArrowLeft aria-hidden="true" /> Back to previous photo</Button
-          >
-        </div>
-        <div v-if="editing" class="p-6">
-          <ImageEditor :photo="info" @cancel="editing = false" @saved="edited" @renamed="renamed" />
-        </div>
-        <div v-else :class="!landscape && paneOpen ? 'grid md:grid-cols-[auto_auto]' : ''">
-          <!-- Portrait media stays in view while the details scroll. -->
+        <!-- The photo, its toolbar and the strip of neighbours -->
+        <section
+          aria-label="Photo"
+          :class="[
+            'relative flex shrink-0 flex-col md:min-w-0 md:flex-1 md:shrink',
+            editing ? 'min-h-dvh md:min-h-0' : 'h-[52dvh] md:h-auto',
+          ]"
+        >
           <div
-            :class="[
-              'relative flex items-center justify-center',
-              landscape ? 'min-h-48 md:bg-muted' : '',
-            ]"
+            data-chrome
+            class="flex h-14 shrink-0 items-center gap-1 pt-[env(safe-area-inset-top)] pr-2 pl-1 md:h-16 md:gap-2 md:pr-4 md:pl-3"
           >
-            <Button
-              variant="secondary"
-              size="sm"
-              class="absolute top-3 left-3 z-10 gap-0 rounded-full bg-secondary/70 px-2 shadow backdrop-blur-sm hover:bg-secondary/90"
-              :aria-pressed="showDetails"
-              :aria-label="showDetails ? 'Hide details' : 'Details'"
-              @click="showDetails = !showDetails"
-              @mouseenter="expandDetails(true)"
-              @mouseleave="expandDetails(showDetails)"
-              @focus="expandDetails(($event.target as HTMLElement).matches(':focus-visible'))"
-              @blur="expandDetails(showDetails)"
-              ><Info aria-hidden="true" /><span
-                ref="detailsLabel"
-                class="overflow-hidden whitespace-nowrap"
-                style="width: 0; opacity: 0"
-                aria-hidden="true"
-                ><span class="pr-1 pl-1.5">{{
-                  showDetails ? 'Hide details' : 'Details'
-                }}</span></span
-              ></Button
-            >
-            <template v-if="kind === 'photo'">
-              <Skeleton
-                v-show="!loaded"
-                :class="
-                  landscape
-                    ? 'h-[50vh] w-full rounded-none'
-                    : 'h-[60vh] w-full rounded-none md:w-80'
-                "
-              />
-              <img
-                v-show="loaded"
-                :src="imageUrl"
-                :alt="info.photoName"
-                :class="[
-                  'animate-fade h-auto w-full object-contain [animation-duration:300ms] md:w-auto md:max-w-full',
-                  landscape ? 'md:max-h-[62dvh]' : 'md:max-h-[90dvh] md:max-w-[34rem]',
-                ]"
-                :style="mediaStyle"
-                @load="imageLoaded"
-              />
-            </template>
-            <video
-              v-else-if="kind === 'video'"
-              :key="info.photoId"
-              controls
-              :style="mediaStyle"
+            <button
+              type="button"
               :class="[
-                'w-full',
-                landscape ? 'md:max-h-[62dvh]' : 'md:max-h-[90dvh] md:max-w-[34rem]',
+                iconButton,
+                'md:flex md:w-auto md:gap-1.5 md:pr-3 md:pl-2 md:text-sm md:font-medium',
               ]"
-              @loadedmetadata="
-                (e) => {
-                  const v = e.target as HTMLVideoElement
-                  if (v.videoWidth) {
-                    landscape = v.videoWidth > v.videoHeight * 1.05
-                    ratio = v.videoWidth / v.videoHeight
-                    setDefaultWidth()
-                  }
-                  mediaReady()
-                }
-              "
+              @click="closeViewer"
             >
-              <source :src="photoUrl(info.photoId, 'renderV')" :type="`video/${info.format}`" />
-            </video>
-            <!-- Textarea-style grip; desktop only. Raised on video to clear the player controls. -->
-            <div
-              v-if="canResize && (kind === 'photo' ? loaded : kind === 'video')"
-              data-testid="viewer-resize"
-              aria-hidden="true"
-              :class="[
-                'absolute right-0 z-10 hidden size-5 cursor-nwse-resize touch-none items-end justify-end p-1 text-white/80 mix-blend-difference md:flex',
-                kind === 'video' ? 'bottom-12' : 'bottom-0',
-              ]"
-              @pointerdown="startResize"
+              <ChevronLeft class="md:hidden" aria-hidden="true" />
+              <ArrowLeft class="max-md:hidden" aria-hidden="true" />
+              <span v-if="context" class="sr-only">Back to </span
+              ><span class="max-md:sr-only">{{ context ?? 'Back' }}</span>
+            </button>
+            <button
+              v-if="history.length"
+              type="button"
+              :class="[iconButton, 'md:flex md:w-auto md:gap-1.5 md:px-3 md:text-sm']"
+              @click="previous"
             >
-              <svg
-                viewBox="0 0 10 10"
-                class="size-3"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.2"
+              <Undo2 aria-hidden="true" /><span class="max-md:sr-only">Back to previous photo</span>
+            </button>
+            <span
+              v-if="index >= 0"
+              class="text-muted-foreground pl-1 text-sm whitespace-nowrap tabular-nums"
+              aria-live="polite"
+              >{{ index + 1 }} of {{ photos.length }}</span
+            >
+
+            <div v-if="!editing" class="ml-auto flex items-center gap-0.5 md:gap-1">
+              <button type="button" aria-label="Share" :class="iconButton" @click="sharing = true">
+                <Share2 aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                aria-label="Download"
+                :class="iconButton"
+                @click="downloadPhoto"
               >
-                <path d="M9 1 1 9M9 5 5 9" />
-              </svg>
+                <Download aria-hidden="true" />
+              </button>
+              <button
+                v-if="canEdit"
+                type="button"
+                aria-label="Edit image"
+                :class="[iconButton, 'max-md:hidden']"
+                @click="editImage"
+              >
+                <Pencil aria-hidden="true" />
+              </button>
+              <button
+                v-if="canFullscreen"
+                type="button"
+                :aria-label="isFullscreen ? 'Exit full screen' : 'Full screen'"
+                :class="[iconButton, 'max-md:hidden']"
+                @click="toggleFullscreen"
+              >
+                <component :is="isFullscreen ? Minimize : Maximize" aria-hidden="true" />
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                  <button
+                    type="button"
+                    aria-label="More"
+                    :class="[iconButton, 'data-[state=open]:bg-white/10']"
+                  >
+                    <Ellipsis aria-hidden="true" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" :class="[overlay, 'w-64']">
+                  <DropdownMenuItem v-if="canEdit" class="md:hidden" @select="editImage"
+                    ><Pencil /> Edit Image</DropdownMenuItem
+                  >
+                  <DropdownMenuItem v-if="canSimilar" @select="findSimilar"
+                    ><Sparkles /> Find Similar</DropdownMenuItem
+                  >
+                  <DropdownMenuItem v-if="kind === 'photo'" as-child>
+                    <a :href="imageUrl" target="_blank" rel="noopener"
+                      ><ExternalLink /> Open Original</a
+                    >
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem v-if="manage" @select="emit('move', info!)"
+                    ><FolderInput /> Move to Folder…</DropdownMenuItem
+                  >
+                  <DropdownMenuItem @select="downloadPhoto"
+                    ><Download /> Download Original
+                    <DropdownMenuShortcut v-if="exif.File_Size">{{
+                      exif.File_Size
+                    }}</DropdownMenuShortcut></DropdownMenuItem
+                  >
+                  <template v-if="manage">
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" @select="confirmingDelete = true"
+                      ><Trash2 /> Delete Photo</DropdownMenuItem
+                    >
+                  </template>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <span aria-hidden="true" class="mx-1 h-6 w-px bg-white/16 max-md:hidden" />
+              <button
+                type="button"
+                :aria-label="showDetails ? 'Hide details' : 'Details'"
+                :aria-pressed="showDetails"
+                :class="[
+                  iconButton,
+                  'max-md:hidden',
+                  showDetails && 'bg-primary/18 text-primary hover:bg-primary/25',
+                ]"
+                @click="showDetails = !showDetails"
+              >
+                <Info aria-hidden="true" />
+              </button>
             </div>
           </div>
 
-          <Transition
-            :css="false"
-            @enter="(el, done) => paneTween(el, true, done)"
-            @leave="(el, done) => paneTween(el, false, done)"
-          >
-            <div v-show="showDetails" :class="landscape ? '' : 'md:relative md:w-[21rem]'">
-              <div
-                :class="[
-                  'min-w-0 p-4 md:p-5',
-                  !landscape &&
-                    'md:absolute md:top-0 md:bottom-0 md:left-0 md:w-[21rem] md:overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-                ]"
-              >
-                <div
-                  :class="[
-                    'mb-4 flex flex-col gap-3',
-                    landscape && 'md:flex-row md:items-start md:justify-between',
-                  ]"
-                >
-                  <header class="min-w-0 space-y-1 pr-6">
-                    <h2 class="break-all text-lg font-semibold leading-snug">
-                      {{ info.photoName }}.{{ info.format }}
-                    </h2>
-                    <p class="text-sm text-muted-foreground">
-                      Uploaded {{ info.uploadDate
-                      }}<template v-if="exif.File_Size">, {{ exif.File_Size }}</template>
-                    </p>
-                    <p class="break-all text-xs text-muted-foreground">{{ currentPath }}</p>
-                  </header>
+          <div v-if="editing" class="flex-1 overflow-y-auto px-4 pb-8 md:px-8">
+            <div class="mx-auto max-w-5xl">
+              <ImageEditor
+                :photo="info"
+                @cancel="editing = false"
+                @saved="edited"
+                @renamed="renamed"
+              />
+            </div>
+          </div>
 
-                  <div class="flex flex-wrap gap-2 md:shrink-0">
-                    <Button size="sm" @click="downloadPhoto"
+          <template v-else>
+            <div ref="stage" class="relative min-h-0 flex-1">
+              <Transition :name="`slide-${direction}`">
+                <div
+                  :key="`${info.photoId}:${version}`"
+                  class="absolute inset-0 flex items-center justify-center md:px-[72px] md:pt-2 md:pb-6"
+                >
+                  <template v-if="kind === 'photo'">
+                    <Skeleton
+                      v-show="!loaded"
+                      class="aspect-[4/3] w-[min(100%,40rem)] rounded-sm bg-white/5"
+                    />
+                    <img
+                      v-show="loaded"
+                      ref="mediaEl"
+                      :src="imageUrl"
+                      :alt="info.photoName"
+                      draggable="false"
+                      class="max-h-full max-w-full rounded-[2px] object-contain select-none"
+                      @load="imageLoaded"
+                    />
+                  </template>
+                  <video
+                    v-else-if="kind === 'video'"
+                    ref="mediaEl"
+                    controls
+                    class="max-h-full max-w-full"
+                    @loadedmetadata="mediaReady"
+                  >
+                    <source
+                      :src="photoUrl(info.photoId, 'renderV')"
+                      :type="`video/${info.format}`"
+                    />
+                  </video>
+                  <div v-else ref="mediaEl" class="flex flex-col items-center gap-3 text-center">
+                    <FileIcon class="text-muted-foreground size-14" aria-hidden="true" />
+                    <p class="text-sm">{{ fileName }}</p>
+                    <Button size="sm" variant="secondary" @click="downloadPhoto"
                       ><Download aria-hidden="true" /> Download</Button
-                    >
-                    <Button v-if="canEdit" variant="secondary" size="sm" @click="editImage"
-                      ><Pencil aria-hidden="true" /> Edit Image</Button
-                    >
-                    <Button v-if="kind === 'photo'" variant="secondary" size="sm" as-child>
-                      <a :href="imageUrl" target="_blank" rel="noopener"
-                        ><ExternalLink aria-hidden="true" /> Full size</a
-                      >
-                    </Button>
-                    <Popover>
-                      <PopoverTrigger as-child
-                        ><Button variant="secondary" size="sm"
-                          ><Share2 aria-hidden="true" /> Share</Button
-                        ></PopoverTrigger
-                      >
-                      <PopoverContent class="w-56 space-y-3">
-                        <label class="flex items-center justify-between gap-3 text-sm">
-                          <span>
-                            <span class="block font-medium">Shared</span>
-                            <span class="block text-xs text-muted-foreground">{{
-                              info.visibility === 0
-                                ? 'Only you can see this'
-                                : 'Anyone with the link can see this'
-                            }}</span>
-                          </span>
-                          <Switch
-                            aria-label="Visibility"
-                            :model-value="info.visibility === 1"
-                            @update:model-value="changeVisibility"
-                          />
-                        </label>
-                        <template v-if="info.visibility === 1">
-                          <Button variant="outline" size="sm" class="w-full" @click="copyShareAddr"
-                            ><Copy aria-hidden="true" /> Copy link</Button
-                          >
-                          <img :src="qrUrl" alt="QR code" class="mx-auto w-40" />
-                        </template>
-                      </PopoverContent>
-                    </Popover>
-                    <Button
-                      v-if="canSimilar && !recommendations?.expanded"
-                      variant="secondary"
-                      size="sm"
-                      :disabled="!recommendations?.allowed"
-                      :title="recommendations?.allowed ? undefined : recommendations?.unavailable"
-                      @click="findSimilar"
-                      ><Sparkles aria-hidden="true" /> Find similar</Button
                     >
                   </div>
                 </div>
+              </Transition>
+              <button
+                v-if="prevPhoto"
+                data-chrome
+                type="button"
+                aria-label="Previous photo"
+                class="absolute top-1/2 left-4 z-10 -mt-[22px] hidden size-11 place-items-center rounded-full bg-white/6 transition-colors outline-none hover:bg-white/12 focus-visible:ring-3 focus-visible:ring-ring/50 md:grid"
+                @click="step(-1)"
+              >
+                <ChevronLeft class="size-5" aria-hidden="true" />
+              </button>
+              <button
+                v-if="nextPhoto"
+                data-chrome
+                type="button"
+                aria-label="Next photo"
+                class="absolute top-1/2 right-4 z-10 -mt-[22px] hidden size-11 place-items-center rounded-full bg-white/6 transition-colors outline-none hover:bg-white/12 focus-visible:ring-3 focus-visible:ring-ring/50 md:grid"
+                @click="step(1)"
+              >
+                <ChevronRight class="size-5" aria-hidden="true" />
+              </button>
+            </div>
 
-                <div
-                  :class="
-                    landscape
-                      ? 'space-y-4 md:columns-2 md:gap-5 md:space-y-0 md:[&>*]:mb-4 md:[&>*]:break-inside-avoid'
-                      : 'space-y-4'
-                  "
+            <nav
+              v-if="strip.length"
+              data-chrome
+              aria-label="Nearby photos"
+              class="hidden shrink-0 justify-center gap-1 overflow-x-auto px-4 pt-1 pb-5 md:flex"
+            >
+              <button
+                v-for="item in strip"
+                :key="item.photo.photoId"
+                type="button"
+                :aria-label="`Photo ${item.n}`"
+                :aria-current="item.n === index + 1 ? 'true' : undefined"
+                class="group size-12 shrink-0 overflow-hidden rounded-[4px] outline-offset-2 transition-[outline-color] aria-[current=true]:outline-2 aria-[current=true]:outline-primary"
+                @click="jump(item.photo)"
+              >
+                <img
+                  v-if="mediaKind(item.photo.format) === 'photo'"
+                  :src="photoUrl(item.photo.photoId, 'renderThumbnail')"
+                  alt=""
+                  loading="lazy"
+                  draggable="false"
+                  class="size-full object-cover opacity-55 transition-opacity duration-200 group-hover:opacity-100 group-aria-[current=true]:opacity-100"
+                />
+                <span
+                  v-else
+                  class="text-muted-foreground grid size-full place-items-center bg-white/8"
                 >
-                  <PhotoText
-                    v-if="kind === 'photo'"
-                    :key="`${info.photoId}:${version}`"
-                    ref="photoText"
-                    :photo-id="info.photoId"
+                  <component
+                    :is="mediaKind(item.photo.format) === 'video' ? Film : FileIcon"
+                    class="size-4"
+                    aria-hidden="true"
                   />
+                </span>
+              </button>
+            </nav>
+          </template>
+        </section>
 
-                  <details v-collapse open :class="section">
-                    <summary :class="summary">Tags and galleries</summary>
-                    <div :class="body">
-                      <div class="space-y-2">
-                        <p :class="label">Tags</p>
-                        <div class="flex flex-wrap gap-1">
-                          <Badge
-                            v-for="t in tags"
-                            :key="t.tag_id"
-                            variant="secondary"
-                            class="max-w-full gap-1"
-                          >
-                            <span class="min-w-0 truncate" :title="t.tag_name">{{
-                              t.tag_name
-                            }}</span>
-                            <SmartBadge :smart="t.smart" />
-                            <button
-                              type="button"
-                              class="shrink-0 rounded-full opacity-70 transition-opacity hover:opacity-100"
-                              :aria-label="`Remove ${t.tag_name}`"
-                              @click="removeTag(t.tag_id)"
-                            >
-                              <X class="size-3" />
-                            </button>
-                          </Badge>
-                          <span v-if="!tags.length" class="text-muted-foreground">No tags yet</span>
-                          <!-- Options load on first open so the viewer doesn't fetch everything up front. -->
-                          <Popover
-                            v-model:open="tagOpen"
-                            @update:open="(o) => o && loadTagOptions()"
-                          >
-                            <PopoverTrigger as-child
-                              ><button
-                                type="button"
-                                class="inline-flex size-6 items-center justify-center rounded-full border border-dashed text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                                aria-label="Add tag"
-                              >
-                                <Plus class="size-3.5" /></button
-                            ></PopoverTrigger>
-                            <PopoverContent class="max-h-60 w-56 overflow-y-auto p-1">
-                              <form class="flex gap-1 p-1" @submit.prevent="createTag">
-                                <Input
-                                  v-model="newTag"
-                                  class="h-8"
-                                  placeholder="New tag"
-                                  aria-label="New tag"
-                                />
-                                <Button type="submit" size="sm" :disabled="!newTag.trim()"
-                                  >Add</Button
-                                >
-                              </form>
-                              <button
-                                v-for="o in freeTags"
-                                :key="o.tagId"
-                                type="button"
-                                class="flex w-full items-center gap-1 rounded-sm px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-                                @click="addTag(o.tagId)"
-                              >
-                                {{ o.tagName }} <SmartBadge :smart="o.smart" />
-                              </button>
-                              <p
-                                v-if="!freeTags.length"
-                                class="px-2 py-1.5 text-sm text-muted-foreground"
-                              >
-                                No more tags
-                              </p>
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                      </div>
-                      <div class="space-y-2">
-                        <p :class="label">Galleries</p>
-                        <div class="flex flex-wrap gap-1">
-                          <Badge
-                            v-for="g in galleries"
-                            :key="g.ga_id"
-                            variant="secondary"
-                            class="max-w-full gap-1"
-                          >
-                            <span class="min-w-0 truncate" :title="g.ga_name">{{ g.ga_name }}</span>
-                            <SmartBadge :smart="g.smart" />
-                            <button
-                              type="button"
-                              class="shrink-0 rounded-full opacity-70 transition-opacity hover:opacity-100"
-                              :aria-label="`Remove ${g.ga_name}`"
-                              @click="removeGallery(g.ga_id)"
-                            >
-                              <X class="size-3" />
-                            </button>
-                          </Badge>
-                          <span v-if="!galleries.length" class="text-muted-foreground"
-                            >Not in a gallery</span
-                          >
-                          <!-- Options load on first open so the viewer doesn't fetch everything up front. -->
-                          <Popover
-                            v-model:open="galleryOpen"
-                            @update:open="(o) => o && loadGalleryOptions()"
-                          >
-                            <PopoverTrigger as-child
-                              ><button
-                                type="button"
-                                class="inline-flex size-6 items-center justify-center rounded-full border border-dashed text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                                aria-label="Add gallery"
-                              >
-                                <Plus class="size-3.5" /></button
-                            ></PopoverTrigger>
-                            <PopoverContent class="max-h-60 w-56 overflow-y-auto p-1">
-                              <form class="flex gap-1 p-1" @submit.prevent="createGallery">
-                                <Input
-                                  v-model="newGallery"
-                                  class="h-8"
-                                  placeholder="New gallery"
-                                  aria-label="New gallery"
-                                />
-                                <Button type="submit" size="sm" :disabled="!newGallery.trim()"
-                                  >Add</Button
-                                >
-                              </form>
-                              <button
-                                v-for="o in freeGalleries"
-                                :key="o.gaId"
-                                type="button"
-                                class="flex w-full items-center gap-1 rounded-sm px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-                                @click="addGallery(o.gaId)"
-                              >
-                                {{ o.gaName }} <SmartBadge :smart="o.smart" />
-                              </button>
-                              <p
-                                v-if="!freeGalleries.length"
-                                class="px-2 py-1.5 text-sm text-muted-foreground"
-                              >
-                                No more galleries
-                              </p>
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                      </div>
+        <!-- Details: beside the photo on desktop, a sheet under it on phones -->
+        <aside
+          v-if="!editing"
+          data-chrome="panel"
+          aria-label="Photo details"
+          :class="[
+            'bg-card relative z-10 -mt-4 shrink-0 rounded-t-2xl md:mt-0 md:rounded-none md:transition-[width] md:duration-350 md:ease-(--ease-out-quart)',
+            showDetails ? 'md:w-[360px] md:border-l' : 'md:w-0',
+            'md:overflow-hidden',
+          ]"
+        >
+          <div
+            ref="panelScroll"
+            tabindex="-1"
+            :data-testid="desktop ? 'photo-viewer-scroll' : undefined"
+            :class="[
+              'outline-none md:absolute md:inset-y-0 md:left-0 md:w-[360px] md:overflow-y-auto md:overscroll-contain md:[scrollbar-width:thin]',
+              desktop && recommendations?.expanded && 'pb-20',
+            ]"
+          >
+            <div
+              class="mx-auto mt-2 h-1 w-9 rounded-full bg-white/20 md:hidden"
+              aria-hidden="true"
+            />
+            <header class="flex flex-col gap-1 px-5 pt-4 md:border-b md:px-6 md:pt-6 md:pb-5">
+              <h2 class="text-lg leading-7 font-semibold break-words">{{ info.photoName }}</h2>
+              <p class="text-muted-foreground text-sm break-all max-md:hidden">{{ fileMeta }}</p>
+              <p v-if="when" class="text-muted-foreground text-sm md:hidden">{{ when.short }}</p>
+            </header>
+
+            <div
+              class="grid grid-cols-[20px_minmax(0,1fr)] gap-x-3 gap-y-4 px-5 py-4 text-sm md:border-b md:px-6 md:py-5 [&>svg]:mt-px [&>svg]:size-[18px] [&>svg]:text-muted-foreground"
+            >
+              <template v-if="when">
+                <CalendarDays class="max-md:hidden" aria-hidden="true" />
+                <div class="max-md:hidden">
+                  <div>{{ when.day }}</div>
+                  <div class="text-muted-foreground">{{ when.detail }}</div>
+                </div>
+              </template>
+              <template v-if="hasGps">
+                <MapPin aria-hidden="true" />
+                <div>
+                  <div class="tabular-nums">{{ exif.GPS_Latitude }}, {{ exif.GPS_Longitude }}</div>
+                  <div class="flex flex-wrap gap-x-3">
+                    <router-link
+                      :to="{ path: '/home/MapPart', query: { photo: info.photoId } }"
+                      class="text-primary font-medium hover:underline"
+                      >Open in Map</router-link
+                    >
+                    <a
+                      :href="`https://maps.google.com/?q=${exif.GPS_Latitude},${exif.GPS_Longitude}`"
+                      target="_blank"
+                      rel="noopener"
+                      class="text-muted-foreground hover:text-foreground"
+                      >Google Maps</a
+                    >
+                  </div>
+                </div>
+              </template>
+              <template v-if="folder">
+                <Folder class="max-md:hidden" aria-hidden="true" />
+                <div class="break-words max-md:hidden">{{ folder }}</div>
+              </template>
+              <template v-if="camera || lens || exposure.length">
+                <Aperture class="max-md:hidden" aria-hidden="true" />
+                <!-- Phones: the exposure grid first, then "camera · lens" on one line. -->
+                <div
+                  class="flex flex-col gap-2.5 max-md:order-first max-md:col-span-2 max-md:flex-col-reverse"
+                >
+                  <div v-if="camera || lens" class="max-md:text-muted-foreground">
+                    <span v-if="camera" class="md:block">{{ camera }}</span
+                    ><span v-if="camera && lens" class="md:hidden"> · </span
+                    ><span v-if="lens" class="md:text-muted-foreground md:block">{{ lens }}</span>
+                  </div>
+                  <dl
+                    v-if="exposure.length"
+                    class="m-0 grid gap-px overflow-hidden rounded-lg border bg-border"
+                    :style="{ gridTemplateColumns: `repeat(${exposure.length}, minmax(0, 1fr))` }"
+                  >
+                    <div v-for="x in exposure" :key="x.label" class="bg-card px-2 py-1.5">
+                      <dt class="text-muted-foreground text-[11px] leading-[14px]">
+                        {{ x.label }}
+                      </dt>
+                      <dd class="m-0 truncate font-medium">{{ x.value }}</dd>
                     </div>
-                  </details>
+                  </dl>
+                </div>
+              </template>
+            </div>
 
-                  <details v-if="hasGps" v-collapse :class="section">
-                    <summary :class="summary">Location</summary>
-                    <div :class="body">
-                      <LocationMap
-                        :key="info.photoId"
-                        :lat="exif.GPS_Latitude!"
-                        :lon="exif.GPS_Longitude!"
+            <!-- Phones run tags and galleries together as one row of chips. -->
+            <div
+              :class="[
+                section,
+                'max-md:flex-row max-md:flex-wrap max-md:gap-1.5 max-md:border-b-0 max-md:py-2',
+              ]"
+            >
+              <h3 :class="[heading, 'w-full pb-0.5 md:hidden']">Tags and galleries</h3>
+              <div class="flex flex-col gap-2 max-md:contents">
+                <h3 :class="[heading, 'max-md:hidden']">Tags</h3>
+                <div class="flex flex-wrap gap-1.5 max-md:contents">
+                  <span
+                    v-for="t in tags"
+                    :key="t.tag_id"
+                    :class="[
+                      chip,
+                      t.smart &&
+                        'text-primary border-dashed border-primary/50 hover:border-primary',
+                    ]"
+                    :title="t.smart?.basis.method"
+                  >
+                    <Sparkles v-if="t.smart" class="size-3 shrink-0" aria-hidden="true" />
+                    <span class="min-w-0 truncate">{{ t.tag_name }}</span>
+                    <span v-if="t.smart" class="sr-only"><SmartBadge :smart="t.smart" /></span>
+                    <button
+                      type="button"
+                      :class="[removeButton, 'max-md:hidden']"
+                      :aria-label="`Remove ${t.tag_name}`"
+                      @click="removeTag(t.tag_id)"
+                    >
+                      <X class="size-3" aria-hidden="true" />
+                    </button>
+                  </span>
+                  <Popover v-model:open="tagOpen" @update:open="openPicker">
+                    <PopoverTrigger as-child>
+                      <button
+                        type="button"
+                        aria-label="Add tag"
+                        :class="[addChip, 'max-md:order-last']"
+                      >
+                        <Plus class="size-3" aria-hidden="true" />Add
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" :class="[overlay, 'w-80 p-0']">
+                      <PhotoLabelPicker
+                        mode="tag"
+                        :tags="pickerTags"
+                        :galleries="pickerGalleries"
+                        :attached-tags="attachedTags"
+                        :attached-galleries="attachedGalleries"
+                        @toggle-tag="(id, on) => (on ? removeTag(id) : addTag(id))"
+                        @toggle-gallery="(id, on) => (on ? removeGallery(id) : addGallery(id))"
+                        @create="create"
+                        @done="tagOpen = false"
                       />
-                      <Button variant="secondary" size="sm" as-child>
-                        <a
-                          :href="`https://maps.google.com/?q=${exif.GPS_Latitude},${exif.GPS_Longitude}`"
-                          target="_blank"
-                          rel="noopener"
-                          >Open in Maps</a
-                        >
-                      </Button>
-                    </div>
-                  </details>
-
-                  <details v-collapse :class="section">
-                    <summary :class="summary">Camera and EXIF</summary>
-                    <dl :class="[body, 'grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5']">
-                      <template v-if="exif.Time"
-                        ><dt :class="label">Taken</dt>
-                        <dd>{{ exif.Time }}</dd></template
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              <div class="flex flex-col gap-2 max-md:contents">
+                <h3 :class="[heading, 'max-md:hidden']">Galleries</h3>
+                <div class="flex flex-wrap gap-1.5 max-md:contents">
+                  <span
+                    v-for="g in galleries"
+                    :key="g.ga_id"
+                    :class="chip"
+                    :title="g.smart?.basis.method"
+                  >
+                    <span
+                      class="bg-primary mr-0.5 size-2 shrink-0 rounded-full"
+                      aria-hidden="true"
+                    />
+                    <span class="min-w-0 truncate">{{ g.ga_name }}</span>
+                    <SmartBadge :smart="g.smart" />
+                    <button
+                      type="button"
+                      :class="[removeButton, 'max-md:hidden']"
+                      :aria-label="`Remove ${g.ga_name}`"
+                      @click="removeGallery(g.ga_id)"
+                    >
+                      <X class="size-3" aria-hidden="true" />
+                    </button>
+                  </span>
+                  <Popover v-model:open="galleryOpen" @update:open="openPicker">
+                    <PopoverTrigger as-child>
+                      <button
+                        type="button"
+                        aria-label="Add gallery"
+                        :class="[addChip, 'max-md:hidden']"
                       >
-                      <template v-if="exif.Image_Height && exif.Image_Width"
-                        ><dt :class="label">Dimensions</dt>
-                        <dd>
-                          {{ exif.Image_Width.split(' ')[0] }} ×
-                          {{ exif.Image_Height.split(' ')[0] }}
-                        </dd></template
-                      >
-                      <template v-if="exif.Model"
-                        ><dt :class="label">Camera</dt>
-                        <dd>{{ exif.Make }} {{ exif.Model }}</dd></template
-                      >
-                      <template v-if="exif.Lens_Make || exif.Lens_Model"
-                        ><dt :class="label">Lens</dt>
-                        <dd>{{ exif.Lens_Make }} {{ exif.Lens_Model }}</dd></template
-                      >
-                      <template v-if="exif.Focal_Length"
-                        ><dt :class="label">Focal length</dt>
-                        <dd>{{ exif.Focal_Length }}</dd></template
-                      >
-                      <template v-if="exif.Aperture_Value"
-                        ><dt :class="label">Aperture</dt>
-                        <dd>{{ exif.Aperture_Value }}</dd></template
-                      >
-                      <template v-if="exif.Shutter_Speed_Value"
-                        ><dt :class="label">Shutter</dt>
-                        <dd>{{ exif.Shutter_Speed_Value }}</dd></template
-                      >
-                      <template v-if="exif.ISO_Speed_Ratings"
-                        ><dt :class="label">ISO</dt>
-                        <dd>{{ exif.ISO_Speed_Ratings }}</dd></template
-                      >
-                      <template v-if="exif.GPS_Latitude"
-                        ><dt :class="label">GPS</dt>
-                        <dd>{{ exif.GPS_Latitude }}, {{ exif.GPS_Longitude }}</dd></template
-                      >
-                      <p
-                        v-if="!Object.values(exif).some(Boolean)"
-                        class="col-span-2 text-muted-foreground"
-                      >
-                        No EXIF data for this file.
-                      </p>
-                    </dl>
-                  </details>
-
-                  <details v-collapse :class="section">
-                    <summary :class="summary">Technical IDs</summary>
-                    <dl :class="[body, 'space-y-1']">
-                      <dt :class="label">Token</dt>
-                      <dd class="break-all">{{ info.token }}</dd>
-                      <dt :class="label">UUID</dt>
-                      <dd class="break-all">{{ info.photoUuid }}</dd>
-                    </dl>
-                  </details>
+                        <Plus class="size-3" aria-hidden="true" />Add
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" :class="[overlay, 'w-80 p-0']">
+                      <PhotoLabelPicker
+                        mode="gallery"
+                        :tags="pickerTags"
+                        :galleries="pickerGalleries"
+                        :attached-tags="attachedTags"
+                        :attached-galleries="attachedGalleries"
+                        @toggle-tag="(id, on) => (on ? removeTag(id) : addTag(id))"
+                        @toggle-gallery="(id, on) => (on ? removeGallery(id) : addGallery(id))"
+                        @create="create"
+                        @done="galleryOpen = false"
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </div>
-          </Transition>
-        </div>
-        <div :class="recommendations?.expanded && 'px-4 md:px-6'">
-          <SimilarRecommendations
-            v-if="canSimilar"
-            :key="`${info.photoId}:${version}:${recommendationSession}`"
-            ref="recommendations"
-            :photo="info"
-            :resume="restoredRecommendations"
-            @navigate="navigate"
-            @invalidated="invalidateHistory"
-          />
-        </div>
+
+            <div v-if="kind === 'photo'" class="border-b px-5 py-4 md:px-6">
+              <PhotoText
+                :key="`${info.photoId}:${version}`"
+                ref="photoText"
+                :photo-id="info.photoId"
+              />
+            </div>
+
+            <div v-if="canSimilar" :class="[section, 'gap-3']">
+              <div class="flex items-center gap-2">
+                <h3 :class="heading">Similar</h3>
+                <Sparkles class="text-primary size-3.5" aria-label="Smart" role="img" />
+                <button
+                  v-if="!recommendations?.expanded"
+                  type="button"
+                  class="text-primary ml-auto rounded-sm text-[13px] font-medium transition-colors outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 disabled:text-muted-foreground disabled:no-underline"
+                  :disabled="!recommendations?.allowed"
+                  :title="recommendations?.allowed ? undefined : recommendations?.unavailable"
+                  @click="findSimilar"
+                >
+                  Find similar
+                </button>
+              </div>
+              <p v-if="!recommendations?.expanded" class="text-muted-foreground text-sm">
+                Photos and videos that look like this one.
+              </p>
+              <SimilarRecommendations
+                :key="`${info.photoId}:${version}:${recommendationSession}`"
+                ref="recommendations"
+                :photo="info"
+                :resume="restoredRecommendations"
+                @navigate="navigate"
+                @invalidated="invalidateHistory"
+              />
+            </div>
+
+            <div class="flex flex-col gap-3 px-5 py-5 md:px-6">
+              <label class="flex items-center gap-3 text-sm">
+                <span class="flex flex-1 flex-col">
+                  <span class="font-medium">Share link</span>
+                  <span class="text-muted-foreground">{{
+                    info.visibility === 1
+                      ? 'Anyone with the link can view'
+                      : 'Only you can see this'
+                  }}</span>
+                </span>
+                <Switch
+                  aria-label="Visibility"
+                  :model-value="info.visibility === 1"
+                  @update:model-value="changeVisibility"
+                />
+              </label>
+              <div v-if="info.visibility === 1" class="flex gap-2">
+                <input
+                  :value="shareLink"
+                  readonly
+                  aria-label="Share link"
+                  class="h-9 min-w-0 flex-1 rounded-lg border border-white/16 bg-white/4 px-2.5 font-mono text-xs outline-none"
+                  @focus="($event.target as HTMLInputElement).select()"
+                />
+                <Button variant="secondary" @click="copyShareAddr"
+                  ><Copy aria-hidden="true" /> Copy</Button
+                >
+              </div>
+              <details v-collapse class="group text-sm">
+                <summary
+                  class="text-muted-foreground hover:text-foreground flex cursor-pointer list-none items-center gap-1 text-xs transition-colors [&::-webkit-details-marker]:hidden"
+                >
+                  Technical details
+                  <ChevronRight
+                    class="size-3 transition-transform group-open:rotate-90"
+                    aria-hidden="true"
+                  />
+                </summary>
+                <dl class="text-muted-foreground mt-2 space-y-1 text-xs">
+                  <dt class="text-foreground font-medium">Token</dt>
+                  <dd class="break-all">{{ info.token }}</dd>
+                  <dt class="text-foreground font-medium">UUID</dt>
+                  <dd class="break-all">{{ info.photoUuid }}</dd>
+                </dl>
+              </details>
+            </div>
+          </div>
+        </aside>
       </div>
+
       <Transition name="reveal">
         <Button
           v-if="!editing && recommendations?.expanded"
-          class="absolute bottom-4 right-4 z-10 shadow-lg"
+          class="absolute right-4 bottom-4 z-20 shadow-lg"
           aria-label="Back to top and close similar photos and videos"
           @click="backToTop"
         >
           <ArrowUp aria-hidden="true" /> Back to top
         </Button>
       </Transition>
+
+      <!-- Share -->
+      <Dialog v-model:open="sharing">
+        <DialogContent :class="[overlay, 'sm:max-w-[480px]']">
+          <DialogHeader>
+            <DialogTitle>Share Photo</DialogTitle>
+            <DialogDescription class="sr-only">Share a link to {{ fileName }}</DialogDescription>
+          </DialogHeader>
+          <div class="flex items-center gap-3 rounded-lg border bg-white/4 p-2.5">
+            <img
+              v-if="kind === 'photo'"
+              :src="photoUrl(info.photoId, 'renderThumbnail')"
+              alt=""
+              class="size-12 shrink-0 rounded-md object-cover"
+            />
+            <span v-else class="grid size-12 shrink-0 place-items-center rounded-md bg-white/8"
+              ><FileIcon class="size-5" aria-hidden="true"
+            /></span>
+            <span class="flex min-w-0 flex-col text-sm">
+              <span class="truncate font-medium">{{ info.photoName }}</span>
+              <span class="text-muted-foreground truncate">{{
+                [fileName, exif.File_Size].filter(Boolean).join(' · ')
+              }}</span>
+            </span>
+          </div>
+          <label class="flex items-center gap-3 text-sm">
+            <span class="flex flex-1 flex-col">
+              <span class="font-medium">Share link</span>
+              <span class="text-muted-foreground">{{
+                info.visibility === 1 ? 'Anyone with the link can view it' : 'Only you can see it'
+              }}</span>
+            </span>
+            <Switch
+              aria-label="Visibility"
+              :model-value="info.visibility === 1"
+              @update:model-value="changeVisibility"
+            />
+          </label>
+          <template v-if="info.visibility === 1">
+            <div class="flex flex-col gap-1.5">
+              <span class="text-sm font-medium">Link</span>
+              <div class="flex gap-2">
+                <input
+                  :value="shareLink"
+                  readonly
+                  aria-label="Link"
+                  class="h-9 min-w-0 flex-1 rounded-lg border border-white/16 bg-white/4 px-2.5 font-mono text-xs outline-none"
+                  @focus="($event.target as HTMLInputElement).select()"
+                />
+                <Button @click="copyShareAddr"><Copy aria-hidden="true" /> Copy Link</Button>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 rounded-lg border p-3">
+              <img :src="qrUrl" alt="QR code" class="size-28 shrink-0 rounded-md bg-white p-1.5" />
+              <div class="flex flex-col items-start gap-2 text-sm">
+                <span>
+                  <span class="block font-medium">Open on a phone</span>
+                  <span class="text-muted-foreground block"
+                    >Scan the code with the camera app.</span
+                  >
+                </span>
+                <Button size="sm" variant="outline" @click="saveQr"
+                  ><Download aria-hidden="true" /> Save QR Code</Button
+                >
+              </div>
+            </div>
+          </template>
+          <p class="text-muted-foreground text-xs">
+            Turning the link off stops it working for everyone who has it.
+          </p>
+          <DialogFooter>
+            <Button @click="sharing = false">Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog v-model:open="confirmingDelete">
+        <AlertDialogContent :class="overlay">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {{ fileName }}?</AlertDialogTitle>
+            <AlertDialogDescription
+              >It's deleted for good, along with its tags and gallery places. This can't be
+              undone.</AlertDialogDescription
+            >
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button variant="destructive" @click="deletePhoto">Delete</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DialogContent>
   </Dialog>
 </template>
+
+<style scoped>
+.slide-next-enter-active,
+.slide-next-leave-active,
+.slide-prev-enter-active,
+.slide-prev-leave-active,
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition:
+    opacity 0.22s ease,
+    transform 0.32s var(--ease-out-quart);
+}
+.slide-next-enter-from,
+.slide-prev-leave-to {
+  opacity: 0;
+  transform: translateX(40px);
+}
+.slide-next-leave-to,
+.slide-prev-enter-from {
+  opacity: 0;
+  transform: translateX(-40px);
+}
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*='slide-'] {
+    transition: none !important;
+  }
+}
+</style>
+
+<style>
+/* The viewer brings its own backdrop; the stock dialog overlay would flash under it. */
+[data-slot='dialog-overlay']:has(+ [data-photo-viewer]) {
+  display: none;
+}
+</style>

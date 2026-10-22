@@ -34,7 +34,7 @@ async function setup(
     ...extra,
   })
   await page.goto('/home/HomePart')
-  await page.locator('p[title="first.jpg"]').click()
+  await page.getByRole('button', { name: 'first.jpg', exact: true }).click()
   return calls
 }
 async function expand(page: import('@playwright/test').Page) {
@@ -72,12 +72,12 @@ test('recognize, edit, copy and reopen persisted text; other photos stay indepen
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByText('Text saved', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
-  await page.getByRole('button', { name: 'Close', exact: true }).click()
-  await page.locator('p[title="first.jpg"]').click()
+  await page.getByRole('button', { name: 'Back to Library', exact: true }).click()
+  await page.getByRole('button', { name: 'first.jpg', exact: true }).click()
   await expand(page)
   await expect(page.getByLabel('Image text')).toHaveValue('corrected 中文 日本語')
-  await page.getByRole('button', { name: 'Close', exact: true }).click()
-  await page.locator('p[title="second.jpg"]').click()
+  await page.getByRole('button', { name: 'Back to Library', exact: true }).click()
+  await page.getByRole('button', { name: 'second.jpg', exact: true }).click()
   await expand(page)
   await expect(page.getByLabel('Image text')).toHaveValue('')
 })
@@ -88,14 +88,14 @@ test('cancel, save or discard before closing; re-recognition requires confirmati
   await setup(page)
   await expand(page)
   await page.getByLabel('Image text').fill('draft')
-  await page.getByRole('button', { name: 'Close', exact: true }).click()
+  await page.getByRole('button', { name: 'Back to Library', exact: true }).click()
   await expect(page.getByRole('alertdialog')).toBeVisible()
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(page.getByLabel('Image text')).toHaveValue('draft')
-  await page.getByRole('button', { name: 'Close', exact: true }).click()
+  await page.getByRole('button', { name: 'Back to Library', exact: true }).click()
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(page.getByRole('dialog')).not.toBeVisible()
-  await page.locator('p[title="first.jpg"]').click()
+  await page.getByRole('button', { name: 'first.jpg', exact: true }).click()
   await expand(page)
   await expect(page.getByLabel('Image text')).toHaveValue('draft')
   await page.getByRole('button', { name: 'Recognize Again' }).click()
@@ -103,7 +103,7 @@ test('cancel, save or discard before closing; re-recognition requires confirmati
   await page.getByRole('button', { name: 'Recognize and replace' }).click()
   await expect(page.getByLabel('Image text')).toHaveValue('Hello 中文 日本語')
   await page.getByLabel('Image text').fill('discard this')
-  await page.getByRole('button', { name: 'Close', exact: true }).click()
+  await page.getByRole('button', { name: 'Back to Library', exact: true }).click()
   await page.getByRole('button', { name: 'Discard', exact: true }).click()
   await expect(page.getByRole('dialog')).not.toBeVisible()
 })
@@ -134,7 +134,7 @@ test('similar-image navigation and history protect each image draft', async ({ p
   await page.getByRole('button', { name: 'View second.jpg', exact: true }).click()
   await page.getByRole('button', { name: 'Discard', exact: true }).click()
   await expect(
-    page.getByTestId('photo-viewer-scroll').getByRole('heading', { name: 'second.jpg' }),
+    page.getByTestId('photo-viewer-scroll').getByRole('heading', { name: 'second', exact: true }),
   ).toBeVisible()
   await expand(page)
   await expect(page.getByLabel('Image text')).toHaveValue('')
@@ -142,7 +142,7 @@ test('similar-image navigation and history protect each image draft', async ({ p
   await page.getByRole('button', { name: 'Back to previous photo' }).click()
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(
-    page.getByTestId('photo-viewer-scroll').getByRole('heading', { name: 'first.jpg' }),
+    page.getByTestId('photo-viewer-scroll').getByRole('heading', { name: 'first', exact: true }),
   ).toBeVisible()
   await expand(page)
   await expect(page.getByLabel('Image text')).toHaveValue('')

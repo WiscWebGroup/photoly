@@ -15,18 +15,13 @@ const parts = {
   MapPart: defineAsyncComponent(() => import('@/components/MapPart.vue')),
 }
 const current = computed(() => parts[props.part as keyof typeof parts])
-// These two lay themselves out edge to edge.
-const fullBleed = computed(() => ['ManagePart', 'MapPart'].includes(props.part))
 </script>
 
 <template>
   <AppShell>
     <!-- Each part mounts fresh, so the entry animation replays on every switch. -->
-    <component
-      :is="current"
-      v-if="current"
-      :class="['animate-rise', fullBleed ? '' : 'p-4 md:p-6']"
-    />
+    <!-- Each part lays out its own page: padding, header and any side panes. -->
+    <component :is="current" v-if="current" class="animate-rise" />
     <EmptyState
       v-else
       :icon="SearchX"

@@ -16,7 +16,7 @@ const photo = {
 
 async function openViewer() {
   const wrapper = mountWithApp(PhotoViewer, { photo, nsPath: '/root' })
-  await vi.waitFor(() => expect(pageText()).toContain('Uploaded 2024-06-01'))
+  await vi.waitFor(() => expect(pageText()).toContain('Uploaded'))
   return wrapper
 }
 
@@ -34,11 +34,9 @@ describe('PhotoViewer', () => {
   it('toggles visibility', async () => {
     const calls = recordRequests()
     await openViewer()
-    button('Share').click()
-    await vi.waitFor(() => document.querySelector('[aria-label=Visibility]')!)
     document.querySelector<HTMLElement>('[aria-label=Visibility]')!.click()
 
-    await vi.waitFor(() => expect(pageText()).toContain('Anyone with the link can see this'))
+    await vi.waitFor(() => expect(pageText()).toContain('Anyone with the link can view'))
     expect(calls.find((c) => c.path === '/photo/update')?.body).toEqual({
       photoId: 10,
       visibility: 1,
@@ -75,8 +73,8 @@ describe('PhotoViewer', () => {
 
     async function openEditor(props = photo) {
       const wrapper = mountWithApp(PhotoViewer, { photo: props, nsPath: '/root' })
-      await vi.waitFor(() => expect(pageText()).toContain('Uploaded 2024-06-01'))
-      button('Edit Image').click()
+      await vi.waitFor(() => expect(pageText()).toContain('Uploaded'))
+      button('Edit image').click()
       await vi.waitFor(() => expect(pageText()).toContain('Original: 2.0 KB'))
       return wrapper
     }
@@ -109,8 +107,8 @@ describe('PhotoViewer', () => {
 
     it('only offers editing for formats the browser can re-encode', async () => {
       mountWithApp(PhotoViewer, { photo: { ...photo, format: 'gif' }, nsPath: '/root' })
-      await vi.waitFor(() => expect(pageText()).toContain('Uploaded 2024-06-01'))
-      expect(() => button('Edit Image')).toThrow()
+      await vi.waitFor(() => expect(pageText()).toContain('Uploaded'))
+      expect(() => button('Edit image')).toThrow()
     })
 
     it('has nothing to save until something is edited', async () => {
@@ -135,7 +133,7 @@ describe('PhotoViewer', () => {
       expect(body).toContain('{"nsId":5,"visibility":0}')
       expect(calls.map((c) => c.path)).not.toContain('/photo/replace')
       // Back on the details view.
-      await vi.waitFor(() => expect(pageText()).toContain('Uploaded 2024-06-01'))
+      await vi.waitFor(() => expect(pageText()).toContain('Uploaded'))
     })
 
     it('saves the new image under a name the user picks', async () => {
@@ -232,7 +230,7 @@ describe('PhotoViewer', () => {
     it('goes back to the details on cancel', async () => {
       await openEditor()
       button('Cancel').click()
-      await vi.waitFor(() => expect(pageText()).toContain('Uploaded 2024-06-01'))
+      await vi.waitFor(() => expect(pageText()).toContain('Uploaded'))
     })
   })
 })

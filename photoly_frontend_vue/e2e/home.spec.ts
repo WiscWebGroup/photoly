@@ -11,7 +11,8 @@ const skipMobile = (isMobile: boolean) =>
   test.skip(isMobile, 'right-click menus / modal layout unusable on mobile (pre-existing)')
 
 // The empty area of the folder view opens the upload / create-folder menu.
-const openBlankMenu = (page: Page) => page.getByText('Folders').click({ button: 'right' })
+const openBlankMenu = (page: Page) =>
+  page.getByText('Folders', { exact: true }).click({ button: 'right' })
 
 test.beforeEach(async ({ page }) => {
   await signIn(page)
@@ -31,7 +32,7 @@ test('upload a photo into the current folder', async ({ page, isMobile }) => {
   await openBlankMenu(page)
   await menuItem(page, 'Upload Photo').click()
 
-  const upload = dialog(page, 'Upload Photo or Video')
+  const upload = dialog(page, 'Upload to Library')
   await upload
     .locator('input[type=file]')
     .setInputFiles({ name: 'beach.jpg', mimeType: 'image/jpeg', buffer: PNG })
@@ -58,7 +59,7 @@ test('create a folder', async ({ page, isMobile }) => {
   await page.goto('/home/HomePart')
   await openBlankMenu(page)
   await menuItem(page, 'Create Folder').click()
-  const create = dialog(page, 'Create a New Folder')
+  const create = dialog(page, 'New Folder')
   await create.getByPlaceholder('Folder Name').fill('Trips')
   await create.getByRole('button', { name: 'Create' }).click()
 
@@ -83,7 +84,7 @@ test('delete a folder', async ({ page, isMobile }) => {
   await page.goto('/home/HomePart')
   await page.getByRole('button', { name: 'Trips' }).click({ button: 'right' })
   await menuItem(page, 'Delete').click()
-  await dialog(page, 'Confirm to Delete').getByRole('button', { name: 'Delete' }).click()
+  await dialog(page, 'Delete Trips?').getByRole('button', { name: 'Delete' }).click()
 
   await expect(page.getByText('Folder deleted!')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Trips' })).toBeHidden()
@@ -115,8 +116,8 @@ test('open a folder', async ({ page }) => {
     expect.objectContaining({ path: '/namespace/getChildren', query: { parentId: '5' } }),
   )
 
-  // Breadcrumb back to root.
-  await page.getByText('root', { exact: true }).click()
+  // Breadcrumb (or the phone back link) to the library root.
+  await page.getByRole('button', { name: 'Library' }).filter({ visible: true }).click()
   await expect(page.getByRole('button', { name: 'Trips' })).toBeVisible()
 })
 
@@ -132,11 +133,10 @@ test('move a photo to another folder', async ({ page, isMobile }) => {
   await page.getByText('beach.jpg').click({ button: 'right' })
   await menuItem(page, 'Move To').click()
 
-  const move = dialog(page, 'Move to a New Location')
-  await move.getByText('root', { exact: true }).click()
+  const move = dialog(page, 'Move to a Folder')
+  await move.getByText('Library', { exact: true }).click()
   await move.getByText('Trips', { exact: true }).click()
-  await expect(move.getByText('Currently Selected: Trips')).toBeVisible()
-  await move.getByRole('button', { name: 'Update' }).click()
+  await move.getByRole('button', { name: 'Move to Trips' }).click()
 
   await expect(page.getByText('Media Location Updated!')).toBeVisible()
   await expect(move).toBeHidden()
@@ -146,7 +146,7 @@ test('move a photo to another folder', async ({ page, isMobile }) => {
   })
 })
 
-test('view photo details', async ({ page }) => {
+test('view photo details', async ({ page, isMobile }) => {
   await mockApi(page, {
     '/photo/getByNamespace': ok([photo(10, 'beach')]),
     '/photo/getPhotoExif': ok({ File_Size: '2 MB' }),
@@ -154,9 +154,15 @@ test('view photo details', async ({ page }) => {
   await page.goto('/home/HomePart')
   await page.getByText('beach.jpg').click()
 
-  await expect(page.getByRole('heading', { name: 'beach.jpg' })).toBeVisible()
-  // Details are collapsed until the Details button is pressed.
   await openDetails(page)
-  await expect(page.getByText(/Uploaded .*2 MB/)).toBeVisible()
-  await expect(page.getByText('/root', { exact: true })).toBeVisible()
+  const details = page.getByRole('complementary', { name: 'Photo details' })
+  await expect(details.getByRole('heading', { name: 'beach', exact: true })).toBeVisible()
+  if (isMobile) {
+    // The phone sheet keeps to the date; size and folder are on desktop only.
+    await expect(details.getByText('Sat, Jun 1, 2024')).toBeVisible()
+  } else {
+    await expect(details.getByText('beach.jpg · 2 MB')).toBeVisible()
+    await expect(details.getByText('Uploaded', { exact: true })).toBeVisible()
+    await expect(details.getByText('Library', { exact: true })).toBeVisible()
+  }
 })

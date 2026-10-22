@@ -8,6 +8,8 @@ import AdminUserManagement from '../AdminUserManagement.vue'
 
 const get = (path: string, body: object) => http.get(`${API}${path}`, () => json(body))
 
+const emails = () =>
+  [...document.querySelectorAll<HTMLInputElement>('input[aria-label="Email"]')].map((i) => i.value)
 const user = (userId: number, userName: string) => ({
   userId,
   userName,
@@ -15,6 +17,7 @@ const user = (userId: number, userName: string) => ({
   createDate: '2024-01-01',
   role: 'user',
   uuid: `uuid-${userName}`,
+  mediaCount: 1234,
 })
 
 beforeEach(async () => {
@@ -61,24 +64,17 @@ describe('AdminDashboard', () => {
     mountWithApp(AdminDashboard)
 
     await vi.waitFor(() => expect(pageText()).toContain('db:5432'))
-    const rings = [...document.querySelectorAll('svg[role=img]')].map((s) =>
+    await vi.waitFor(() => expect(pageText()).toContain('Redis not responding'))
+    const status = [...document.querySelectorAll('[role=status]')].map((s) =>
       s.getAttribute('aria-label'),
     )
-    expect(rings).toEqual([
-      'Total Status: 67%',
-      'PostgreSQL Status: 100%',
-      'Redis Status: 0%',
-      'Backend Status: 100%',
+    expect(status).toEqual([
+      'Backend Status: Running',
+      'PostgreSQL Status: Running',
+      'Redis Status: Down',
     ])
-    const arcs = [...document.querySelectorAll('svg[role=img] circle:nth-child(2)')].map((c) =>
-      c.getAttribute('class'),
-    )
-    expect(arcs).toEqual([
-      'stroke-primary',
-      'stroke-primary',
-      'stroke-destructive',
-      'stroke-primary',
-    ])
+    expect(pageText()).toContain('pgvector 0.8.7')
+    expect(pageText()).toContain('/up')
     expect(document.querySelector('[aria-label=Registry]')?.getAttribute('data-state')).toBe(
       'checked',
     )
@@ -102,48 +98,56 @@ describe('AdminDashboard', () => {
 })
 
 describe('AdminUserManagement', () => {
-  it('searches, then pages through users', async () => {
+  it('searches, filters by role, then pages through users', async () => {
     const calls = recordRequests()
     server.use(
       get('/admin/isAdmin', { msgCode: 200, t: true }),
-      get('/admin/getUserPage', { msgCode: 200, t: [user(1, 'alice')], pageNum: 2 }),
-      get('/admin/searchUserPage', { msgCode: 200, t: [user(2, 'bob')], pageNum: 1 }),
+      http.get(`${API}/admin/getUsers`, ({ request }) => {
+        const q = new URL(request.url).searchParams
+        if (q.get('search')) return ok({ users: [user(2, 'bob')], total: 1 })
+        const first = (Number(q.get('page')) - 1) * 8 + 1
+        return ok({ users: [user(first, `user${first}`)], total: 12 })
+      }),
     )
+    const lastQuery = () => calls.filter((c) => c.path === '/admin/getUsers').at(-1)?.query
     mountWithApp(AdminUserManagement)
-    await vi.waitFor(() => expect(pageText()).toContain('uuid-alice'))
-    expect(pageText()).toContain('Page 1 of 2')
+    await vi.waitFor(() => expect(emails()).toEqual(['user1@example.com']))
+    expect(pageText()).toContain('1–1 of 12')
+    expect(pageText()).toContain('1,234')
+    expect(lastQuery()).toEqual({ page: '1', rowsPerPage: '8' })
 
     button('Next').click()
-    await vi.waitFor(() => expect(pageText()).toContain('Page 2 of 2'))
-    expect(calls.filter((c) => c.path === '/admin/getUserPage').at(-1)).toMatchObject({
-      path: '/admin/getUserPage',
-      query: { page: '2', rowsPerPage: '10' },
-    })
+    await vi.waitFor(() => expect(pageText()).toContain('9–9 of 12'))
+    expect(lastQuery()).toEqual({ page: '2', rowsPerPage: '8' })
+
+    document.querySelector<HTMLButtonElement>('[role="radio"]:nth-child(2)')!.click()
+    await vi.waitFor(() =>
+      expect(lastQuery()).toEqual({ page: '1', rowsPerPage: '8', role: 'admin' }),
+    )
 
     const box = document.querySelector<HTMLInputElement>('input[aria-label="Search users"]')!
     box.value = 'bob'
     box.dispatchEvent(new Event('input', { bubbles: true }))
     button('Search').click()
-    await vi.waitFor(() => expect(pageText()).toContain('uuid-bob'))
-    expect(calls.filter((c) => c.path === '/admin/searchUserPage').at(-1)).toMatchObject({
-      path: '/admin/searchUserPage',
-      query: { page: '1', search: 'bob' },
-    })
+    await vi.waitFor(() => expect(emails()).toEqual(['bob@example.com']))
+    expect(lastQuery()).toEqual({ page: '1', rowsPerPage: '8', search: 'bob', role: 'admin' })
+    expect(pageText()).toContain('1–1 of 1')
   })
 
   it('deletes a user after confirmation', async () => {
     const calls = recordRequests()
     server.use(
       get('/admin/isAdmin', { msgCode: 200, t: true }),
-      get('/admin/getUserPage', { msgCode: 200, t: [user(1, 'alice')], pageNum: 1 }),
+      get('/admin/getUsers', { msgCode: 200, t: { users: [user(1, 'alice')], total: 1 } }),
       http.post(`${API}/admin/deleteUser`, () => ok()),
     )
     mountWithApp(AdminUserManagement)
-    await vi.waitFor(() => expect(pageText()).toContain('uuid-alice'))
+    await vi.waitFor(() => expect(emails()).toEqual(['alice@example.com']))
 
-    button('Delete User').click()
-    await vi.waitFor(() =>
-      expect(pageText()).toContain('Do you really want to Delete this User with ID 1'),
+    document.querySelector<HTMLButtonElement>('button[aria-label="Delete User"]')!.click()
+    await vi.waitFor(() => expect(pageText()).toContain('Delete alice?'))
+    expect(pageText()).toMatch(
+      /The account with ID 1 and its media folder\s*uuid-alice\s*are deleted\./,
     )
     button('Delete').click()
     await vi.waitFor(() => expect(calls.some((c) => c.path === '/admin/deleteUser')).toBe(true))

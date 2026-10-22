@@ -56,7 +56,8 @@ def request_options(options, jpeg):
 
 
 # Documented additions to the frozen Spring inventory (see COMPATIBILITY.md).
-EXTENSIONS = {("GET", "/photo/ocr"), ("PUT", "/photo/ocr"), ("POST", "/photo/ocr/recognize"), ("GET", "/photo/searchSmart"), ("POST", "/photo/replace"), ("GET", "/admin/pingDatabase"), ("GET", "/admin/databaseInfo")}
+EXTENSIONS = {("GET", "/photo/ocr"), ("PUT", "/photo/ocr"), ("POST", "/photo/ocr/recognize"), ("GET", "/photo/searchSmart"), ("POST", "/photo/replace"), ("GET", "/admin/pingDatabase"), ("GET", "/admin/databaseInfo"),
+              ("GET", "/user/getStorage"), ("GET", "/photo/getCovers"), ("GET", "/photo-extra/getMapPlaces"), ("GET", "/admin/getUsers")}
 
 
 def test_route_inventory_is_exact(app):

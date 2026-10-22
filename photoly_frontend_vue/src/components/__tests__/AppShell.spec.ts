@@ -8,25 +8,48 @@ import AppShell from '../AppShell.vue'
 describe('AppShell', () => {
   beforeEach(async () => {
     localStorage.setItem('HRD-Token', 'tok')
+    server.use(
+      http.get(`${API}/user/getInfo/`, () =>
+        ok({ userId: 1, userName: 'alice', email: 'a@b.c', createDate: '', role: 'user' }),
+      ),
+    )
     await router.push('/')
   })
 
-  it('links to every section, (sidebar and tab bar)', () => {
+  it('links to every section from the sidebar, and the main ones from the tab bar', () => {
     mountWithApp(AppShell)
-    for (const part of ['HomePart', 'MapPart', 'GalleryPart', 'TagPart', 'SearchPart', 'ManagePart']) {
-      expect(document.querySelectorAll(`a[href="/home/${part}"]`).length).toBeGreaterThanOrEqual(2)
-    }
+    const links = (part: string) => document.querySelectorAll(`a[href="/home/${part}"]`).length
+    // Sidebar, plus the phone tab bar (or the avatar, for the account).
+    for (const part of ['HomePart', 'MapPart', 'GalleryPart', 'SearchPart', 'ManagePart'])
+      expect(links(part)).toBeGreaterThanOrEqual(2)
+    // Phones reach tags through the Albums tab.
+    expect(links('TagPart')).toBeGreaterThanOrEqual(1)
     expect(document.querySelector('img[alt="Photoly"]')).not.toBeNull()
   })
 
-  it('logout signs out on the server, forgets the token and goes to the welcome page', async () => {
+  it('"/" jumps to search unless typing in a field', async () => {
+    await router.push('/home/HomePart')
+    mountWithApp(AppShell)
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }))
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/home/SearchPart'))
+
+    await router.push('/home/HomePart')
+    const field = document.createElement('input')
+    document.body.append(field)
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }))
+    await new Promise((r) => setTimeout(r, 20))
+    expect(router.currentRoute.value.path).toBe('/home/HomePart')
+    field.remove()
+  })
+
+  it('sign out signs out on the server, forgets the token and goes to the welcome page', async () => {
     const calls = recordRequests()
     server.use(http.post(`${API}/user/signOut/`, () => ok()))
     await router.push('/login')
     mountWithApp(AppShell)
-    document.querySelector<HTMLButtonElement>('button[aria-label="Logout"]')!.click()
+    document.querySelector<HTMLButtonElement>('button[aria-label="Sign out"]')!.click()
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/'))
-    expect(calls.map((c) => c.path)).toEqual(['/user/signOut/'])
+    expect(calls.filter((c) => c.method === 'POST').map((c) => c.path)).toEqual(['/user/signOut/'])
     expect(localStorage.getItem('HRD-Token')).toBeNull()
   })
 })

@@ -64,7 +64,13 @@ async function openEditor(
   await page.goto('/home/HomePart')
   await page.getByText('beach.png').click()
   await openDetails(page)
-  await page.getByRole('button', { name: 'Edit Image' }).click()
+  // Desktop has an Edit button in the toolbar; phones keep it in the More menu.
+  const edit = page.getByRole('button', { name: 'Edit image' })
+  if (await edit.isVisible()) await edit.click()
+  else {
+    await page.getByRole('button', { name: 'More' }).click()
+    await page.getByRole('menuitem', { name: 'Edit Image' }).click()
+  }
   await expect(page.getByText('Cropped size: 400 × 300 px')).toBeVisible()
   return calls
 }

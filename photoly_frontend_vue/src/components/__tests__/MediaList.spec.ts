@@ -52,6 +52,12 @@ async function enterSelectMode() {
   await vi.waitFor(() => button('Select All'))
 }
 
+/** Selects every photo; the bar's actions enable once something is selected. */
+async function selectAll() {
+  button('Select All').click()
+  await vi.waitFor(() => expect(pageText()).toContain('2 selected'))
+}
+
 describe('MediaList', () => {
   beforeEach(() => {
     viewMode.value = 'grid'
@@ -85,8 +91,8 @@ describe('MediaList', () => {
     await mountWithPhotos()
     byText('beach.jpg').click()
 
-    await vi.waitFor(() => expect(pageText()).toContain('/root/Holiday'))
-    expect(pageText()).toContain('Uploaded 2024-06-01')
+    await vi.waitFor(() => expect(pageText()).toContain('Library / Holiday'))
+    expect(pageText()).toContain('Uploaded')
     expect(pageText()).toContain('beach.jpg')
     expect(pageText()).toContain('2 MB')
     expect(calls).toContainEqual(
@@ -118,7 +124,7 @@ describe('MediaList', () => {
     )
 
     byText('beach.jpg').click()
-    await vi.waitFor(() => expect(pageText()).toContain('/root/Holiday'))
+    await vi.waitFor(() => expect(pageText()).toContain('Library / Holiday'))
     expect(calls.filter((c) => c.path === '/namespace/trace')).toHaveLength(1)
   })
 
@@ -126,10 +132,10 @@ describe('MediaList', () => {
     const calls = recordRequests()
     const wrapper = await mountWithPhotos()
     await enterSelectMode()
-    button('Select All').click()
-    button('Delete Selected').click()
-    await vi.waitFor(() => expect(pageText()).toContain('Confirm to Delete'))
-    button('Delete').click()
+    await selectAll()
+    button('Delete', document.querySelector('[role=toolbar]')!).click()
+    await vi.waitFor(() => expect(pageText()).toContain('Delete 2 items?'))
+    button('Delete', document.querySelector('[role=alertdialog]')!).click()
 
     // One reload after the whole batch, not one per photo.
     await vi.waitFor(() => expect(wrapper.emitted('queryPhotos')).toHaveLength(1))
@@ -144,13 +150,14 @@ describe('MediaList', () => {
     const calls = recordRequests()
     const wrapper = await mountWithPhotos()
     await enterSelectMode()
-    button('Select All').click()
+    await selectAll()
     button('Move').click()
-    await vi.waitFor(() => byText('root'))
-    byText('root').click()
+    await vi.waitFor(() => byText('Library'))
+    byText('Library').click()
     await vi.waitFor(() => byText('Trips'))
     byText('Trips').click()
-    button('Update').click()
+    await vi.waitFor(() => button('Move to Trips'))
+    button('Move to Trips').click()
 
     await vi.waitFor(() => expect(wrapper.emitted('queryPhotos')).toHaveLength(1))
     expect(calls.filter((c) => c.path === '/photo/changeNamespace').map((c) => c.query)).toEqual([
@@ -163,12 +170,27 @@ describe('MediaList', () => {
   it('emits doDetach with the photo list when detach is enabled', async () => {
     const wrapper = await mountWithPhotos({ detachEnabled: true, detachStr: 'Tag' })
     await enterSelectMode()
+    await selectAll()
     button('Remove From Tag').click()
-    await vi.waitFor(() => expect(pageText()).toContain('Confirm to Detach'))
-    button('Confirm').click()
+    await vi.waitFor(() => expect(pageText()).toContain('Remove from this tag?'))
+    button('Remove').click()
 
     const [[detached]] = wrapper.emitted('doDetach') as [[{ photoId: number }[]]]
     expect(detached.map((p) => p.photoId)).toEqual([10, 11])
+  })
+
+  it('groups photos by upload day when asked', async () => {
+    await mountWithPhotos({ groupByDay: true })
+    const day = (d: number) =>
+      new Date(2024, 5, d).toLocaleDateString(undefined, {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    // Newest day first.
+    const headings = [...document.querySelectorAll('h3')].map((h) => h.textContent)
+    expect(headings).toEqual([day(2), day(1)])
   })
 
   it('hides the detach action when detach is disabled', async () => {
@@ -190,7 +212,7 @@ describe('MediaList', () => {
     ])
   })
 
-  it('lays photos out as a list when list view is chosen, and hides the toggle with hideBar', async () => {
+  it('lays photos out as a list with dates when list view is chosen', async () => {
     await mountWithPhotos()
     const photoList = () => byText('beach.jpg').closest('ul')!
     expect(photoList().className).toContain('grid')
@@ -198,7 +220,6 @@ describe('MediaList', () => {
     document.querySelector<HTMLButtonElement>('button[aria-label="List view"]')!.click()
     await vi.waitFor(() => expect(photoList().className).toContain('flex-col'))
     expect(photoList().className).not.toContain('grid')
-    expect(pageText()).toContain('Created on')
     expect(pageText()).toContain(
       new Date(2024, 5, 1).toLocaleDateString(undefined, {
         year: 'numeric',
@@ -208,8 +229,8 @@ describe('MediaList', () => {
     )
   })
 
-  it('has no layout toggle when the parent renders the bar', async () => {
-    await mountWithPhotos({ hideBar: true })
+  it('has no layout toggle when the parent shows its own', async () => {
+    await mountWithPhotos({ hideToggle: true })
     expect(document.querySelector('button[aria-label="List view"]')).toBeNull()
   })
 })

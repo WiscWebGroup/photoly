@@ -48,6 +48,7 @@ const defaults: Record<string, Reply> = {
   '/user/pingToken': ok(),
   '/namespace/getRoot': ok({ nsId: 1, nsName: 'root' }),
   '/namespace/trace': ok([{ nsId: 1, nsName: 'root' }]),
+  '/user/getStorage': ok({ usedBytes: 48_200_000_000, capacityBytes: 200_000_000_000 }),
 }
 
 function parseBody(req: Request) {
@@ -111,9 +112,10 @@ export const photo = (photoId: number, photoName: string, extra: object = {}) =>
  */
 export const openDetails = (page: Page) =>
   expect(async () => {
+    // Desktop: the panel beside the photo can be hidden; phones always show the sheet under it.
     const details = page.getByRole('button', { name: 'Details', exact: true })
     if (await details.count()) await details.click()
-    await expect(page.getByRole('button', { name: 'Hide details', exact: true })).toBeVisible({
+    await expect(page.getByRole('complementary', { name: 'Photo details' })).toBeVisible({
       timeout: 2000,
     })
   }).toPass()

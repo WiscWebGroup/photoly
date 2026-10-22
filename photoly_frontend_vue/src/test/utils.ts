@@ -26,8 +26,12 @@ export function mountWithApp<Api = object>(
 /** Visible text anywhere on the page, including teleported modals/messages. */
 export const pageText = () => document.body.textContent ?? ''
 
-export function button(name: string) {
-  const match = [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === name)
+export function button(name: string, within: ParentNode = document) {
+  const buttons = [...within.querySelectorAll('button')]
+  // By visible text first; icon-only buttons go by their aria-label.
+  const match =
+    buttons.find((b) => b.textContent?.trim() === name) ??
+    buttons.find((b) => b.getAttribute('aria-label') === name)
   if (!match) throw new Error(`No button named "${name}"`)
   return match
 }

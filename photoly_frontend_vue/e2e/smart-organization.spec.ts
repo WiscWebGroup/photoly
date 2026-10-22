@@ -54,7 +54,7 @@ test('opt in, refresh and restore smart items', async ({ page }) => {
       return ok({ restored: true })
     },
   })
-  await page.goto('/home/ManagePart')
+  await page.goto('/home/ManagePart#smart')
   const toggle = page.getByRole('checkbox', { name: 'Enable my Smart Tag' })
   await expect(toggle).not.toBeChecked()
   await toggle.check()
@@ -98,13 +98,13 @@ test('smart tags, gallery details and viewer selectors have consistent badges', 
   await expect(page.getByRole('button', { name: /iPhone 13 Smart.*Camera/ })).toBeVisible()
   await expect(page.getByRole('button', { name: 'iPhone 13', exact: true })).toBeVisible()
   await page.goto('/home/GalleryPart')
-  await page.getByRole('button', { name: /Times in Hong Kong and Shenzhen/ }).click()
+  await page.getByRole('button', { name: /^Times in Hong Kong and Shenzhen/ }).click()
   await expect(page.getByLabel('Smart organization details')).toContainText(
     '2026-10-01 – 2026-10-07',
   )
   await expect(page.getByText('movie.mp4')).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('smart-gallery.png') })
-  await page.locator('p[title="travel.jpg"]').click()
+  await page.getByRole('button', { name: 'travel.jpg', exact: true }).click()
   const dialog = page.getByRole('dialog')
   await openDetails(page)
   // "Tags and galleries" is open by default in the details pane.
