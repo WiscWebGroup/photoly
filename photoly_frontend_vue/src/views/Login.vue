@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import AuthLayout from '@/components/AuthLayout.vue'
+import AuthField from '@/components/auth/AuthField.vue'
+import AuthSubmit from '@/components/auth/AuthSubmit.vue'
 import { useWarning } from '@/composables/useWarning'
 import { http } from '@/lib/http'
 import { useAuthStore } from '@/stores/auth'
@@ -19,6 +18,7 @@ const loading = ref(false)
 const goHome = () => router.push('/home/HomePart')
 
 async function login() {
+  if (loading.value) return
   if (!/.+@.+\..+/.test(email.value) || !password.value) {
     show('Please input correct email and password format!')
     return
@@ -55,19 +55,32 @@ onMounted(async () => {
 </script>
 
 <template>
-  <AuthLayout title="Login" :warning="warning">
-    <div class="space-y-4" @keydown.enter="login">
-      <Input v-model="email" type="email" placeholder="Email" autocomplete="email" />
-      <Input
-        v-model="password"
-        type="password"
-        placeholder="Password"
-        autocomplete="current-password"
-      />
-      <Button class="w-full" :disabled="loading" @click="login">Login</Button>
-      <Button type="button" variant="secondary" class="w-full" @click="router.push('/signup')"
-        >Signup</Button
+  <form class="flex flex-1 flex-col gap-4" novalidate @submit.prevent="login">
+    <Transition name="reveal">
+      <p
+        v-if="warning"
+        role="alert"
+        class="rounded-[10px] border border-red-400/30 bg-red-400/10 px-3.5 py-2.5 text-red-200"
       >
+        {{ warning }}
+      </p>
+    </Transition>
+    <AuthField
+      v-model="email"
+      label="Email"
+      type="email"
+      autocomplete="email"
+      placeholder="you@example.com"
+    />
+    <AuthField
+      v-model="password"
+      label="Password"
+      type="password"
+      autocomplete="current-password"
+      hint="Forgot it? Your server admin can reset it."
+    />
+    <div class="mt-auto pt-4 sm:mt-2 sm:pt-0">
+      <AuthSubmit :loading="loading">Sign In</AuthSubmit>
     </div>
-  </AuthLayout>
+  </form>
 </template>
