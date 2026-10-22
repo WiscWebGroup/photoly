@@ -225,17 +225,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section
-    v-if="expanded"
-    aria-label="Similar photos and videos"
-    class="animate-rise mt-6 space-y-3 border-t pt-5"
-  >
-    <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-      <h2 class="text-lg font-semibold">Similar photos and videos</h2>
-      <p v-if="result" class="text-sm text-muted-foreground" role="status">
-        {{ result.items.length }} found, most similar first
-      </p>
-    </div>
+  <section v-if="expanded" aria-label="Similar photos and videos" class="animate-rise space-y-3">
+    <h2 class="sr-only">Similar photos and videos</h2>
+    <p v-if="result" class="text-sm text-muted-foreground" role="status">
+      {{ result.items.length }} found, most similar first
+    </p>
     <p
       v-if="result?.coverage.pending || result?.coverage.failed"
       class="text-sm text-muted-foreground"
@@ -243,14 +237,11 @@ onBeforeUnmount(() => {
       Some photos and videos aren't indexed yet ({{ result.coverage.ready }} of
       {{ result.coverage.supported }}). Reload later to include them.
     </p>
-    <ul
-      class="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6"
-      aria-label="Similar photos and videos results"
-    >
+    <ul class="grid grid-cols-4 gap-1" aria-label="Similar photos and videos results">
       <li v-for="hit in result?.items ?? []" :key="hit.photo.photoId" class="animate-fade">
         <button
           type="button"
-          class="group w-full overflow-hidden rounded-md border text-left transition-colors hover:border-primary/50 hover:bg-accent focus-visible:ring-2"
+          class="group block w-full overflow-hidden rounded-[4px] bg-white/5 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           :aria-label="`View ${hit.photo.photoName}.${hit.photo.format}`"
           @click="emit('navigate', hit.photo)"
         >
@@ -263,29 +254,26 @@ onBeforeUnmount(() => {
             :alt="hit.photo.photoName"
             loading="lazy"
             decoding="async"
-            class="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            class="aspect-square w-full object-cover transition-[transform,opacity] duration-300 group-hover:scale-105 group-hover:opacity-90"
           />
-          <span class="block truncate px-2 py-1 text-xs"
-            >{{ hit.photo.photoName }}.{{ hit.photo.format }}</span
-          >
         </button>
       </li>
     </ul>
     <div tabindex="-1" ref="sentinel" class="flex flex-col items-center gap-3">
       <div v-if="busy" role="status" class="w-full">
         <p class="mb-2 text-sm">Loading similar photos and videos…</p>
-        <div class="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-          <Skeleton v-for="n in 6" :key="n" class="aspect-square" />
+        <div class="grid grid-cols-4 gap-1">
+          <Skeleton v-for="n in 8" :key="n" class="aspect-square rounded-[4px] bg-white/5" />
         </div>
       </div>
       <template v-else-if="error"
         ><p role="alert" class="text-sm">{{ error }}</p>
-        <Button variant="outline" @click="retry">{{
+        <Button variant="outline" size="sm" @click="retry">{{
           restartRequired ? 'Reload recommendations' : 'Retry'
         }}</Button></template
       >
       <template v-else-if="allowed"
-        ><Button v-if="hasMore" variant="outline" @click="load()">Load more</Button>
+        ><Button v-if="hasMore" variant="outline" size="sm" @click="load()">Load more</Button>
         <p v-else class="text-sm text-muted-foreground">
           No more similar photos and videos
         </p></template

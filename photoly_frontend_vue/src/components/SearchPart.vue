@@ -174,6 +174,7 @@ async function queryPhotos() {
         v-else
         ref="mediaList"
         heading="Results"
+        context="Search"
         :empty-title="submitted ? 'No matches' : 'Search your library'"
         :empty-description="
           submitted

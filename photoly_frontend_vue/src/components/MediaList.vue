@@ -61,6 +61,8 @@ const props = withDefaults(
     hideToggle?: boolean
     emptyTitle?: string
     emptyDescription?: string
+    /** What the viewer's back button names ("Library", a gallery…). */
+    context?: string
   }>(),
   { allowSimilar: true, heading: 'Media', emptyTitle: 'No photos here' },
 )
@@ -156,6 +158,39 @@ async function trace(id: number) {
   }
 }
 
+/** The photos in the order they're shown, for the viewer's prev / next. */
+const ordered = computed(() => groups.value.flatMap((g) => g.items))
+const list = ref<HTMLElement>()
+
+/** Where a photo's thumbnail is now (scrolled into view), or null when it isn't on screen. */
+function locate(photo: Photo) {
+  const img = list.value?.querySelector<HTMLElement>(`[data-photo-id="${photo.photoId}"] img`)
+  if (!img) return null
+  img.scrollIntoView?.({ block: 'nearest' })
+  const r = img.getBoundingClientRect()
+  return r.width && r.bottom > 0 && r.top < innerHeight ? r : null
+}
+
+function view(photo: Photo) {
+  viewing.value = photo
+  if (!props.nsOrNot && photo.nsId !== undefined) trace(photo.nsId)
+}
+
+/** Delete from inside the viewer: step to a neighbour, or close when it was the last one. */
+async function deleteViewed(photo: Photo) {
+  const at = ordered.value.findIndex((p) => p.photoId === photo.photoId)
+  const next = ordered.value[at + 1] ?? ordered.value[at - 1]
+  try {
+    await remove(photo.photoId)
+    toast.success('Photo deleted!')
+    if (next) view(next)
+    else viewing.value = null
+  } catch {
+    toast.error('delete photo Response Error!')
+  }
+  emit('queryPhotos')
+}
+
 function open(photo: Photo, e?: MouseEvent) {
   if (selectMode.value) {
     photo.checked = !photo.checked
@@ -163,8 +198,7 @@ function open(photo: Photo, e?: MouseEvent) {
   }
   origin.value =
     (e?.currentTarget as HTMLElement | null)?.querySelector('img')?.getBoundingClientRect() ?? null
-  viewing.value = photo
-  if (!props.nsOrNot && photo.nsId !== undefined) trace(photo.nsId)
+  view(photo)
 }
 
 /** Runs one request per photo, reports the outcome once, and asks the parent to reload. */
@@ -263,7 +297,7 @@ defineExpose({
 </script>
 
 <template>
-  <section class="flex flex-col gap-5" :aria-label="heading">
+  <section ref="list" class="flex flex-col gap-5" :aria-label="heading">
     <div class="flex flex-wrap items-baseline gap-2">
       <h2 class="text-base font-semibold">{{ heading }}</h2>
       <span v-if="photos.length" class="text-muted-foreground text-sm tabular-nums">{{
@@ -318,6 +352,7 @@ defineExpose({
             <ContextMenuTrigger as-child>
               <button
                 type="button"
+                :data-photo-id="photo.photoId"
                 :aria-pressed="selectMode ? !!photo.checked : undefined"
                 :class="
                   cn(
@@ -460,8 +495,15 @@ defineExpose({
       :photo="viewing"
       :origin="origin"
       :ns-path="nsPath"
+      :photos="ordered"
+      :context="context"
+      :locate="locate"
+      manage
       @close="viewing = null"
       @changed="(change) => emit('queryPhotos', change)"
+      @navigate="view"
+      @move="(p) => askMove([p])"
+      @delete="deleteViewed"
     />
 
     <AlertDialog v-model:open="confirmDelete">

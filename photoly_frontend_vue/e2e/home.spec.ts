@@ -146,7 +146,7 @@ test('move a photo to another folder', async ({ page, isMobile }) => {
   })
 })
 
-test('view photo details', async ({ page }) => {
+test('view photo details', async ({ page, isMobile }) => {
   await mockApi(page, {
     '/photo/getByNamespace': ok([photo(10, 'beach')]),
     '/photo/getPhotoExif': ok({ File_Size: '2 MB' }),
@@ -154,9 +154,15 @@ test('view photo details', async ({ page }) => {
   await page.goto('/home/HomePart')
   await page.getByText('beach.jpg').click()
 
-  await expect(page.getByRole('heading', { name: 'beach.jpg' })).toBeVisible()
-  // Details are collapsed until the Details button is pressed.
   await openDetails(page)
-  await expect(page.getByText(/Uploaded .*2 MB/)).toBeVisible()
-  await expect(page.getByText('/root', { exact: true })).toBeVisible()
+  const details = page.getByRole('complementary', { name: 'Photo details' })
+  await expect(details.getByRole('heading', { name: 'beach', exact: true })).toBeVisible()
+  if (isMobile) {
+    // The phone sheet keeps to the date; size and folder are on desktop only.
+    await expect(details.getByText('Sat, Jun 1, 2024')).toBeVisible()
+  } else {
+    await expect(details.getByText('beach.jpg · 2 MB')).toBeVisible()
+    await expect(details.getByText('Uploaded', { exact: true })).toBeVisible()
+    await expect(details.getByText('Library', { exact: true })).toBeVisible()
+  }
 })

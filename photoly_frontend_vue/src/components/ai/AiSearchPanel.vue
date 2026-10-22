@@ -298,6 +298,7 @@ onBeforeUnmount(removeFile)
     </div>
     <MediaList
       ref="list"
+      context="Search"
       :ns-or-not="false"
       :detach-enabled="false"
       :allow-similar="mode !== 'similar'"

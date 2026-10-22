@@ -626,6 +626,7 @@ async function upload() {
 
           <MediaList
             ref="mediaList"
+            :context="title"
             :ns-or-not="true"
             :detach-enabled="false"
             v-model:select-mode="selectMode"

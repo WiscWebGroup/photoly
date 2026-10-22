@@ -27,7 +27,11 @@ export function mountWithApp<Api = object>(
 export const pageText = () => document.body.textContent ?? ''
 
 export function button(name: string, within: ParentNode = document) {
-  const match = [...within.querySelectorAll('button')].find((b) => b.textContent?.trim() === name)
+  const buttons = [...within.querySelectorAll('button')]
+  // By visible text first; icon-only buttons go by their aria-label.
+  const match =
+    buttons.find((b) => b.textContent?.trim() === name) ??
+    buttons.find((b) => b.getAttribute('aria-label') === name)
   if (!match) throw new Error(`No button named "${name}"`)
   return match
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef } from 'vue'
+import { useRoute } from 'vue-router'
 import L from 'leaflet'
 import { toast } from 'vue-sonner'
 import '@/resources/RepeatMarker.js'
@@ -23,6 +24,7 @@ type RepeatedMarkers = L.GridLayer & { addMarker(marker: L.Marker): void }
 const repeatedMarkers = () =>
   (L.gridLayer as unknown as { repeatedMarkers(): RepeatedMarkers }).repeatedMarkers()
 
+const route = useRoute()
 const mapEl = ref<HTMLElement | null>(null)
 const map = useLeafletMap(mapEl, [19, 10], 3)
 const loading = ref(true)
@@ -124,6 +126,12 @@ onMounted(async () => {
         L.latLngBounds(located.value.map((p) => [p.extra_photo_gps_lat!, p.extra_photo_gps_lon!])),
         { padding: [64, 64], maxZoom: 11 },
       )
+    // "Open in Map" from the photo viewer lands on that photo.
+    const wanted = markers.get(Number(route.query.photo))
+    if (wanted) {
+      map.value!.setView(wanted.getLatLng(), 12, { animate: false })
+      wanted.openPopup()
+    }
     map.value!.on('moveend', updateInView)
     updateInView()
   } catch {

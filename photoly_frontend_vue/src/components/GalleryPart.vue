@@ -419,6 +419,7 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
       v-show="current"
       ref="mediaList"
       class="min-w-0"
+      :context="current?.gaName ?? 'Galleries'"
       :ns-or-not="false"
       :detach-enabled="true"
       detach-str="Gallery"

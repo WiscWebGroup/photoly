@@ -300,6 +300,7 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
         v-show="selectedTagIds.length"
         ref="mediaList"
         class="min-w-0"
+        :context="selectedTags.map((t) => `#${t.tagName}`).join(' + ') || 'Tags'"
         :ns-or-not="false"
         :detach-enabled="true"
         detach-str="Tag"

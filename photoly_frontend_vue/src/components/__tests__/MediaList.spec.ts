@@ -91,8 +91,8 @@ describe('MediaList', () => {
     await mountWithPhotos()
     byText('beach.jpg').click()
 
-    await vi.waitFor(() => expect(pageText()).toContain('/root/Holiday'))
-    expect(pageText()).toContain('Uploaded 2024-06-01')
+    await vi.waitFor(() => expect(pageText()).toContain('Library / Holiday'))
+    expect(pageText()).toContain('Uploaded')
     expect(pageText()).toContain('beach.jpg')
     expect(pageText()).toContain('2 MB')
     expect(calls).toContainEqual(
@@ -124,7 +124,7 @@ describe('MediaList', () => {
     )
 
     byText('beach.jpg').click()
-    await vi.waitFor(() => expect(pageText()).toContain('/root/Holiday'))
+    await vi.waitFor(() => expect(pageText()).toContain('Library / Holiday'))
     expect(calls.filter((c) => c.path === '/namespace/trace')).toHaveLength(1)
   })
 
