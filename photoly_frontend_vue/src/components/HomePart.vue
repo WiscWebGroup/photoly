@@ -163,6 +163,14 @@ async function mutate(action: () => Promise<unknown>, success: string, failure: 
 
 // --- Folder selection ---------------------------------------------------------------------------
 const selectMode = ref(false)
+/**
+ * The phone "+" menu. While it is open the page ignores taps, except the photo grid: its context
+ * menu trigger keeps `pointer-events: auto`. So a tap meant to close the menu (on the "+", now an
+ * "×", or beside it) would open the photo underneath. The "+" stays tappable to close its own
+ * menu, and a shield catches every other tap.
+ */
+const addOpen = ref(false)
+const addButton = ref<HTMLElement>()
 const selected = ref<number[]>([])
 watch(selectMode, (on) => on || (selected.value = []))
 const confirmDeleteSelected = ref(false)
@@ -714,18 +722,32 @@ async function upload() {
     </ContextMenu>
 
     <!-- Phones add through one floating button instead of the header actions. -->
-    <DropdownMenu>
+    <div
+      v-if="addOpen"
+      class="pointer-events-auto fixed inset-0 z-20 md:hidden"
+      aria-hidden="true"
+      data-testid="add-menu-shield"
+    />
+    <DropdownMenu v-model:open="addOpen">
       <DropdownMenuTrigger as-child>
         <button
           v-show="!selectMode"
+          ref="addButton"
           type="button"
           aria-label="Add"
-          class="bg-primary text-primary-foreground fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-2xl shadow-lg transition-transform active:scale-95 data-[state=open]:rotate-45 md:hidden"
+          class="bg-primary text-primary-foreground pointer-events-auto fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-2xl shadow-lg transition-transform active:scale-95 data-[state=open]:rotate-45 md:hidden"
         >
           <Plus class="size-6" aria-hidden="true" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="top" class="w-48">
+      <DropdownMenuContent
+        align="end"
+        side="top"
+        class="w-48"
+        @pointer-down-outside="
+          (e: Event) => addButton?.contains(e.target as Node) && e.preventDefault()
+        "
+      >
         <DropdownMenuItem @select="startUpload"><Upload /> Upload Photos</DropdownMenuItem>
         <DropdownMenuItem @select="startCreate"><FolderPlus /> New Folder</DropdownMenuItem>
         <DropdownMenuItem @select="viewMode = viewMode === 'grid' ? 'list' : 'grid'"
