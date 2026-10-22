@@ -8,6 +8,11 @@ from app.services.base import BaseService, BusinessError
 
 
 class UserService(BaseService):
+    def storage_usage(self, user_id):
+        user = self.session.get(User, user_id)
+        used, capacity = self.storage.usage(user.uuid)
+        return {"usedBytes": used, "capacityBytes": capacity}
+
     def by_email(self, email):
         return self.session.scalar(select(User).where(func.lower(User.email) == str(email).lower()))
 

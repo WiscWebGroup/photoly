@@ -39,10 +39,8 @@ describe('GalleryPart', () => {
     mockGalleries()
     mountWithApp(GalleryPart)
     await vi.waitFor(() => byText('Summer'))
-    const all = () => calls.filter((c) => c.path === '/photo/getByGallery').map((c) => c.query.gaId)
-    // The list first fetches each gallery's photos for its cover; count only what follows.
-    await vi.waitFor(() => expect(all()).toEqual(['7']))
-    const queries = () => all().slice(1)
+    const queries = () =>
+      calls.filter((c) => c.path === '/photo/getByGallery').map((c) => c.query.gaId)
 
     byText('Summer').click()
     await vi.waitFor(() => expect(queries()).toEqual(['7']))

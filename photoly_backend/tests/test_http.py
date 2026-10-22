@@ -94,7 +94,8 @@ def test_http_openapi_and_upload_contract(http, jpeg):
     from pathlib import Path
     legacy = json.loads((Path(__file__).parent / "contracts/spring_routes.json").read_text())
     expected = {r["path"] for r in legacy["routes"]} | {"/healthz", "/photo/replace", "/admin/pingDatabase", "/admin/databaseInfo",
-        "/photo/searchSmart", "/photo/ocr", "/photo/ocr/recognize"}
+        "/photo/searchSmart", "/photo/ocr", "/photo/ocr/recognize", "/user/getStorage", "/photo/getCovers",
+        "/photo-extra/getMapPlaces", "/admin/getUsers"}
     from app.docs.definitions.ai import OPERATIONS as AI_OPERATIONS
     expected |= {path for path, _, _ in AI_OPERATIONS}
     assert spec["openapi"] == "3.2.0" and set(spec["paths"]) == expected

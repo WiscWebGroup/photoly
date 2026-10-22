@@ -12,6 +12,12 @@ def all_photos(uid):
     return result(service(PhotoService).map_photos(uid))
 
 
+@bp.get("/getMapPlaces")
+@legacy()
+def places(uid):
+    return result(service(PhotoService).map_places(uid))
+
+
 @bp.get("/getGlobalMapPhotoByGallery")
 @legacy()
 def gallery_photos(uid):

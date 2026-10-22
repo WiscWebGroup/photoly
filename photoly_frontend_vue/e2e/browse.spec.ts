@@ -56,6 +56,7 @@ test('browse a gallery', async ({ page }) => {
       },
     ]),
     '/photo/getByGallery': ok([photo(10, 'beach')]),
+    '/photo/getCovers': ok([{ id: 7, count: 1, coverIds: [10] }]),
   })
   await page.goto('/home/GalleryPart')
   await expect(page.getByText(/^1 item · Created Jun 1, 2024$/)).toBeVisible()
@@ -78,6 +79,7 @@ test('map shows a marker per geotagged photo', async ({ page }) => {
       },
       { photo_id: 11, photo_name: 'no-gps' },
     ]),
+    '/photo-extra/getMapPlaces': ok([{ photoId: 10, place: 'Ghat', country: 'Libya' }]),
   })
   await page.goto('/home/MapPart')
 
@@ -87,9 +89,25 @@ test('map shows a marker per geotagged photo', async ({ page }) => {
   await expect(page.getByTitle('no-gps')).toHaveCount(0)
 
   await marker.click()
-  await expect(page.getByRole('heading', { name: 'beach' })).toBeVisible()
+  // Places are named after the nearest town.
+  await expect(page.getByRole('heading', { name: 'Ghat' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Open in Map' })).toHaveAttribute(
     'href',
     'https://maps.google.com/?q=20.5,11.5',
   )
+
+  // Heat swaps the pins for a density map.
+  await page.getByRole('radio', { name: 'Heat' }).click()
+  await expect(page.getByRole('radio', { name: 'Heat' })).toBeChecked()
+  await expect(page.getByTitle('beach')).toHaveCount(0)
+  await expect(page.getByText('Fewer')).toBeVisible()
+  const hot = await page.locator('.leaflet-overlay-pane canvas').evaluate((c: HTMLCanvasElement) =>
+    c
+      .getContext('2d')!
+      .getImageData(0, 0, c.width, c.height)
+      .data.some((v, i) => i % 4 === 3 && v > 0),
+  )
+  expect(hot).toBe(true)
+  await page.getByRole('radio', { name: 'Photos' }).click()
+  await expect(page.getByTitle('beach').last()).toBeVisible()
 })

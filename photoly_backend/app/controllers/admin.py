@@ -88,6 +88,13 @@ def search_users(uid):
     return service(AdminService).users(uid, arg("page", integer=True), arg("rowsPerPage", integer=True), arg("search"))
 
 
+@bp.get("/getUsers")
+@legacy(missing=-2)
+def user_list(uid):
+    return result(service(AdminService).user_list(uid, arg("page", integer=True), arg("rowsPerPage", integer=True),
+                                                  arg("search"), arg("role")))
+
+
 @bp.post("/addUser")
 @legacy(missing=-2)
 def add_user(uid):

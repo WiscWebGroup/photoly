@@ -254,6 +254,46 @@ class PhotoService(BaseService):
             return []
         return self.session.scalars(statement.distinct().order_by(Photo.photo_id)).all()
 
+    def covers(self, user_id, source, keys):
+        """Item count and the newest three still images for each owned folder, gallery or tag."""
+        models = {"folder": (Namespace, None), "gallery": (Gallery, GalleryPhoto), "tag": (Tag, TagPhoto)}
+        if source not in models or len(set(keys)) > 500:
+            raise BusinessError(-1)
+        model, link = models[source]
+        keys = sorted(set(keys))
+        for key in keys:
+            self.owned(model, key, user_id)
+        if not keys:
+            return []
+        if link is None:
+            group, statement = Photo.ns_id, select(Photo.ns_id, Photo.photo_id, Photo.format)
+        else:
+            group = link.ga_id if link is GalleryPhoto else link.tag_id
+            statement = select(group, Photo.photo_id, Photo.format).join(link, link.photo_id == Photo.photo_id)
+        rows = self.session.execute(statement.where(Photo.user_id == user_id, group.in_(keys)).order_by(Photo.photo_id.desc())).all()
+        found = {key: {"id": key, "count": 0, "coverIds": []} for key in keys}
+        for key, photo_id, suffix in rows:
+            item = found[key]
+            item["count"] += 1
+            if len(item["coverIds"]) < 3 and (suffix or "").lower() in IMAGE_FORMATS:
+                item["coverIds"].append(photo_id)
+        return list(found.values())
+
+    def map_places(self, user_id):
+        """The nearest town for each geotagged item, from the bundled GeoNames list."""
+        from app.places import index
+        rows = self.session.execute(select(Photo.photo_id, PhotoExtra.extra_photo_gps_lat, PhotoExtra.extra_photo_gps_lon)
+            .join(PhotoExtra, PhotoExtra.f_photo_id == Photo.photo_id)
+            .where(Photo.user_id == user_id, PhotoExtra.extra_photo_gps_lat.is_not(None), PhotoExtra.extra_photo_gps_lon.is_not(None))
+            .order_by(Photo.photo_id)).all()
+        places = index() if rows else None
+        result = []
+        for photo_id, lat, lon in rows:
+            found = places.nearest(lat, lon)
+            if found:
+                result.append({"photoId": photo_id, **found})
+        return result
+
     def map_photos(self, user_id, ga_id=None):
         statement = select(Photo, PhotoExtra).join(PhotoExtra, PhotoExtra.f_photo_id == Photo.photo_id).where(Photo.user_id == user_id)
         if ga_id is not None:

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { KeyRound, Search, Trash2, X } from '@lucide/vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { toast } from 'vue-sonner'
@@ -32,7 +32,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { assertAdmin, useAdminGuard } from '@/composables/useAdminGuard'
-import { ApiError, call, http, type Envelope } from '@/lib/http'
+import { call } from '@/lib/http'
+import { cn } from '@/lib/utils'
 import { aiCall, aiMessage } from '@/lib/ai'
 import { Switch } from '@/components/ui/switch'
 
@@ -43,6 +44,7 @@ interface User {
   createDate: string
   role: string
   uuid: string
+  mediaCount: number
 }
 
 const { guarded } = useAdminGuard()
@@ -70,8 +72,21 @@ async function changeAi(userId: number, enabled: boolean) {
   }
 }
 const page = ref(1)
-const pageSize = ref(10)
-const pageCount = ref(1)
+const pageSize = ref(8)
+const total = ref(0)
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
+const roles = [
+  { value: null, label: 'All' },
+  { value: 'admin', label: 'Admins' },
+  { value: 'user', label: 'Users' },
+] as const
+const role = ref<'admin' | 'user' | null>(null)
+/** "1–8 of 48", or "0 users" for an empty page. */
+const range = computed(() => {
+  if (!total.value) return 'No users'
+  const first = (page.value - 1) * pageSize.value + 1
+  return `${first}–${Math.min(total.value, first + users.value.length - 1)} of ${total.value}`
+})
 /** `null` browses everything; a string filters by it. */
 const activeSearch = ref<string | null>(null)
 const searchText = ref('')
@@ -103,27 +118,25 @@ const deleteUser = ref<User | null>(null)
 async function load() {
   const sequence = ++loadSequence
   const search = activeSearch.value
-  const { data } = await http.get<Envelope<User[]> & { pageNum: number }>(
-    search === null ? '/admin/getUserPage' : '/admin/searchUserPage',
-    {
-      params: {
-        rowsPerPage: pageSize.value,
-        page: page.value,
-        ...(search === null ? {} : { search }),
-      },
+  const data = await call<{ users: User[]; total: number }>({
+    url: '/admin/getUsers',
+    params: {
+      page: page.value,
+      rowsPerPage: pageSize.value,
+      ...(search === null ? {} : { search }),
+      ...(role.value === null ? {} : { role: role.value }),
     },
-  )
-  if (data.msgCode !== 200) throw new ApiError(data.msgCode)
+  })
   if (sequence !== loadSequence) return
-  users.value = data.t
-  pageCount.value = data.pageNum
+  users.value = data.users
+  total.value = data.total
   aiStates.value = {}
   aiError.value = ''
   try {
-    if (data.t.length) {
+    if (data.users.length) {
       const states = await aiCall<{ userId: number; enabled: boolean }[]>({
         url: '/admin/ai/users',
-        params: { ids: data.t.map((u) => u.userId).join(',') },
+        params: { ids: data.users.map((u) => u.userId).join(',') },
       })
       if (sequence === loadSequence)
         aiStates.value = Object.fromEntries(states.map((u) => [u.userId, u.enabled]))
@@ -143,6 +156,11 @@ function goTo(p: number, size = pageSize.value) {
 
 function search(query: string | null) {
   activeSearch.value = query
+  return goTo(1)
+}
+
+function filterRole(value: 'admin' | 'user' | null) {
+  role.value = value
   return goTo(1)
 }
 
@@ -226,6 +244,28 @@ onMounted(() =>
         @click="((searchText = ''), search(null))"
         ><X /> Clear</Button
       >
+      <div
+        role="radiogroup"
+        aria-label="Role"
+        class="bg-muted flex gap-0.5 rounded-lg p-0.5 sm:ml-auto"
+      >
+        <button
+          v-for="r in roles"
+          :key="r.label"
+          type="button"
+          role="radio"
+          :aria-checked="role === r.value"
+          :class="
+            cn(
+              'text-muted-foreground hover:text-foreground h-8 rounded-md px-3 text-sm font-medium transition-[background-color,color,box-shadow]',
+              role === r.value && 'bg-card text-foreground shadow-xs',
+            )
+          "
+          @click="filterRole(r.value)"
+        >
+          {{ r.label }}
+        </button>
+      </div>
     </form>
 
     <p class="text-muted-foreground -mt-2 text-sm">
@@ -252,8 +292,8 @@ onMounted(() =>
               <th scope="col" class="border-b px-4 py-3 font-medium">User</th>
               <th scope="col" class="border-b px-4 py-3 font-medium">Role</th>
               <th scope="col" class="border-b px-4 py-3 font-medium">AI search</th>
+              <th scope="col" class="border-b px-4 py-3 text-right font-medium">Media</th>
               <th scope="col" class="border-b px-4 py-3 font-medium">Joined</th>
-              <th scope="col" class="border-b px-4 py-3 font-medium">UUID</th>
               <th scope="col" class="border-b px-4 py-3"><span class="sr-only">Actions</span></th>
             </tr>
           </thead>
@@ -313,10 +353,12 @@ onMounted(() =>
                   >
                 </span>
               </td>
+              <td class="px-4 py-2.5 text-right tabular-nums">
+                {{ u.mediaCount.toLocaleString() }}
+              </td>
               <td class="text-muted-foreground px-4 py-2.5 whitespace-nowrap">
                 {{ u.createDate?.slice(0, 10) }}
               </td>
-              <td class="text-muted-foreground px-4 py-2.5 font-mono text-xs">{{ u.uuid }}</td>
               <td class="px-4 py-2.5 text-right whitespace-nowrap">
                 <Button variant="ghost" size="sm" @click="passwordUser = u"
                   ><KeyRound /> Reset Password</Button
@@ -335,14 +377,14 @@ onMounted(() =>
         </table>
       </div>
       <div class="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
-        <span class="text-muted-foreground">Page {{ page }} of {{ pageCount }}</span>
+        <span class="text-muted-foreground tabular-nums" aria-live="polite">{{ range }}</span>
         <span class="text-muted-foreground ml-auto">Rows</span>
         <Select :model-value="String(pageSize)" @update:model-value="goTo(1, Number($event))">
           <SelectTrigger size="sm" class="w-20" aria-label="Rows per page"
             ><SelectValue
           /></SelectTrigger>
           <SelectContent>
-            <SelectItem v-for="n in [10, 20, 30]" :key="n" :value="String(n)">{{ n }}</SelectItem>
+            <SelectItem v-for="n in [8, 20, 50]" :key="n" :value="String(n)">{{ n }}</SelectItem>
           </SelectContent>
         </Select>
         <Button variant="outline" size="sm" :disabled="page <= 1" @click="goTo(page - 1)"
@@ -379,7 +421,9 @@ onMounted(() =>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {{ deleteUser?.userName }}?</AlertDialogTitle>
           <AlertDialogDescription>
-            The account with ID {{ deleteUser?.userId }} is deleted. This can't be undone.
+            The account with ID {{ deleteUser?.userId }} and its media folder
+            <span class="font-mono text-xs">{{ deleteUser?.uuid }}</span> are deleted. This can't be
+            undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

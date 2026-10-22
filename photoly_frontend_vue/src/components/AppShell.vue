@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { onKeyStroke } from '@vueuse/core'
 import { toast } from 'vue-sonner'
@@ -7,6 +7,7 @@ import { Camera, Images, LogOut, Map, Search, Tag } from '@lucide/vue'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import { useProfile } from '@/composables/useProfile'
+import { storageLabel, useStorageUsage } from '@/composables/useStorageUsage'
 import { useAuthStore } from '@/stores/auth'
 import { cn } from '@/lib/utils'
 
@@ -15,6 +16,10 @@ const router = useRouter()
 const route = useRoute()
 const { profile, load } = useProfile()
 onMounted(() => load().catch(() => {}))
+
+// Uploads and deletions happen on other pages, so re-read usage whenever the page changes.
+const storage = useStorageUsage()
+watch(() => route.params.part, storage.refresh, { immediate: true })
 
 type NavItem = { part: string; label: string; icon: typeof Camera; key?: string }
 const groups: { label: string; items: NavItem[] }[] = [
@@ -107,32 +112,54 @@ const iconButton =
         </div>
       </nav>
 
-      <div class="mt-auto flex items-center gap-1 border-t pt-3">
-        <router-link
-          to="/home/ManagePart"
-          aria-label="Account"
-          :aria-current="onAccount ? 'page' : undefined"
-          :class="
-            cn(
-              'flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-1 transition-colors outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50',
-              onAccount && 'bg-accent text-accent-foreground',
-            )
-          "
-        >
-          <Avatar class="size-8 shrink-0"><AvatarImage :src="auth.avatarUrl" alt="" /></Avatar>
-          <span class="flex min-w-0 flex-col">
-            <span class="truncate text-sm font-medium">{{ profile?.userName ?? 'Account' }}</span>
-            <span
-              v-if="profile"
-              :class="['text-xs capitalize', !onAccount && 'text-muted-foreground']"
-              >{{ profile.role }}</span
-            >
-          </span>
-        </router-link>
-        <ThemeToggle />
-        <button type="button" aria-label="Sign out" :class="iconButton" @click="signOut">
-          <LogOut class="size-4" aria-hidden="true" />
-        </button>
+      <div class="mt-auto flex flex-col gap-4">
+        <div v-if="storage.usage.value" class="flex flex-col gap-2 px-2.5">
+          <div class="flex justify-between text-xs">
+            <span class="font-medium">Storage</span>
+            <span class="text-muted-foreground">{{ storageLabel(storage.usage.value) }}</span>
+          </div>
+          <div
+            role="progressbar"
+            aria-label="Storage used"
+            :aria-valuenow="storage.percent.value"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            :aria-valuetext="storageLabel(storage.usage.value)"
+            class="bg-muted h-1 overflow-hidden rounded-full"
+          >
+            <div
+              class="bg-primary h-full rounded-full"
+              :style="{ width: `${storage.percent.value}%` }"
+            />
+          </div>
+        </div>
+        <div class="flex items-center gap-1 border-t pt-3">
+          <router-link
+            to="/home/ManagePart"
+            aria-label="Account"
+            :aria-current="onAccount ? 'page' : undefined"
+            :class="
+              cn(
+                'flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-1 transition-colors outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50',
+                onAccount && 'bg-accent text-accent-foreground',
+              )
+            "
+          >
+            <Avatar class="size-8 shrink-0"><AvatarImage :src="auth.avatarUrl" alt="" /></Avatar>
+            <span class="flex min-w-0 flex-col">
+              <span class="truncate text-sm font-medium">{{ profile?.userName ?? 'Account' }}</span>
+              <span
+                v-if="profile"
+                :class="['text-xs capitalize', !onAccount && 'text-muted-foreground']"
+                >{{ profile.role }}</span
+              >
+            </span>
+          </router-link>
+          <ThemeToggle />
+          <button type="button" aria-label="Sign out" :class="iconButton" @click="signOut">
+            <LogOut class="size-4" aria-hidden="true" />
+          </button>
+        </div>
       </div>
     </aside>
 

@@ -57,6 +57,12 @@ def by_gallery(uid):
     return result(service(PhotoService).by_gallery(uid, arg("gaId", integer=True)))
 
 
+@bp.get("/getCovers")
+@legacy()
+def covers(uid):
+    return result(service(PhotoService).covers(uid, arg("source", required=True), ids("ids")))
+
+
 @bp.post("/changeNamespace")
 @legacy()
 def move(uid):

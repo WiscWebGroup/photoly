@@ -30,6 +30,12 @@ def info(uid):
     return result(service(UserService).info(uid))
 
 
+@bp.get("/getStorage")
+@legacy()
+def storage(uid):
+    return result(service(UserService).storage_usage(uid))
+
+
 @bp.post("/updateUsername")
 @legacy()
 def username(uid):

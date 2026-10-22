@@ -68,6 +68,19 @@ class LocalStorage:
     def mutation(self):
         return FileMutation(self.root)
 
+    def usage(self, user_uuid):
+        """Bytes in one user's media folder, and the size of the disk holding all media."""
+        used = 0
+        folder = self.root / user_uuid
+        for directory, _, names in os.walk(folder):
+            for name in names:
+                try:
+                    used += os.lstat(os.path.join(directory, name)).st_size
+                except OSError:
+                    pass  # Removed while counting.
+        self.root.mkdir(parents=True, exist_ok=True)
+        return used, shutil.disk_usage(self.root).total
+
     def path(self, user_uuid, filename):
         # Check lexical components as well as symlink resolution.
         for part in (user_uuid, filename):

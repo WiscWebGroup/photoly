@@ -48,6 +48,7 @@ const defaults: Record<string, Reply> = {
   '/user/pingToken': ok(),
   '/namespace/getRoot': ok({ nsId: 1, nsName: 'root' }),
   '/namespace/trace': ok([{ nsId: 1, nsName: 'root' }]),
+  '/user/getStorage': ok({ usedBytes: 48_200_000_000, capacityBytes: 200_000_000_000 }),
 }
 
 function parseBody(req: Request) {

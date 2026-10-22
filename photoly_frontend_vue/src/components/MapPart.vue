@@ -7,9 +7,10 @@ import { toast } from 'vue-sonner'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import MapDates, { type DateRange } from '@/components/MapDates.vue'
-import { MapPin } from '@lucide/vue'
+import { Flame, Images, MapPin } from '@lucide/vue'
 import { useLeafletMap } from '@/composables/useLeafletMap'
 import { call } from '@/lib/http'
+import { HeatLayer, heatGradient } from '@/lib/heatLayer'
 import { photoUrl } from '@/lib/photoUrl'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +20,13 @@ interface MapPhoto {
   extra_photo_gps_lat?: number
   extra_photo_gps_lon?: number
   extra_photo_taken_date?: string
+}
+
+/** The nearest town to a photo, from the server's offline place list. */
+interface PhotoPlace {
+  photoId: number
+  place: string
+  country: string
 }
 
 /** Photos close together on screen, drawn as one pin with a count. */
@@ -36,6 +44,12 @@ const map = useLeafletMap(mapEl, [19, 10], 3)
 const loading = ref(true)
 const viewing = ref<MapPhoto | null>(null)
 const all = shallowRef<MapPhoto[]>([])
+const towns = shallowRef(new Map<number, string>())
+const styles = [
+  { value: 'photos', label: 'Photos', icon: Images },
+  { value: 'heat', label: 'Heat', icon: Flame },
+] as const
+const style = ref<'photos' | 'heat'>('photos')
 const located = computed(() =>
   all.value.filter((p) => p.extra_photo_gps_lat && p.extra_photo_gps_lon),
 )
@@ -63,6 +77,7 @@ const selected = shallowRef<Place | null>(null)
 const browsing = shallowRef<Place | null>(null)
 const markers = new Map<string, L.Marker>()
 let layer: L.LayerGroup | undefined
+const heat = new HeatLayer()
 
 const latLng = (p: MapPhoto) => L.latLng(p.extra_photo_gps_lat!, p.extra_photo_gps_lon!)
 const placeOf = (photoId: number) =>
@@ -85,10 +100,20 @@ function dateSpan(photos: MapPhoto[]) {
     }),
   }).formatRange(first, last)
 }
-const placeName = (pl: Place) =>
-  pl.photos.length === 1
+/** The town most of the place's photos were taken in; else the photo's name or the coordinates. */
+function placeName(pl: Place) {
+  const counts = new Map<string, number>()
+  for (const p of pl.photos) {
+    const town = towns.value.get(p.photo_id)
+    if (town) counts.set(town, (counts.get(town) ?? 0) + 1)
+  }
+  let best: string | undefined
+  for (const [town, n] of counts) if (!best || n > counts.get(best)!) best = town
+  if (best) return best
+  return pl.photos.length === 1
     ? pl.photos[0]!.photo_name
     : `${Math.abs(pl.lat).toFixed(2)}° ${pl.lat >= 0 ? 'N' : 'S'}, ${Math.abs(pl.lng).toFixed(2)}° ${pl.lng >= 0 ? 'E' : 'W'}`
+}
 const countLabel = (pl: Place) =>
   `${pl.photos.length} ${pl.photos.length === 1 ? 'photo' : 'photos'}`
 const mapsLink = (pl: Place) =>
@@ -200,6 +225,7 @@ function rebuild() {
   const keep = selected.value?.photos[0]?.photo_id
   layer.clearLayers()
   markers.clear()
+  heat.setPoints(shown.value.map(latLng))
   places.value = group(shown.value, m)
   const reselect = keep === undefined ? null : (placeOf(keep) ?? null)
   for (const pl of places.value) {
@@ -232,6 +258,7 @@ function updateInView() {
 function focus(pl: Place) {
   const m = map.value
   if (!m) return
+  style.value = 'photos'
   const target = pl.photos[0]!.photo_id
   m.flyTo([pl.lat, pl.lng], Math.max(m.getZoom(), pl.photos.length > 1 ? m.getZoom() + 2 : 10), {
     duration: 0.6,
@@ -246,6 +273,20 @@ function openPlaceOf(photoId: number) {
 }
 
 watch(shown, rebuild)
+// Heat swaps the photo pins for a density map; picking a place brings the pins back.
+watch(style, (now) => {
+  const m = map.value
+  if (!m || !layer) return
+  if (now === 'heat') {
+    m.closePopup()
+    select(null)
+    m.removeLayer(layer)
+    heat.addTo(m)
+  } else {
+    m.removeLayer(heat)
+    layer.addTo(m)
+  }
+})
 watch(mobile, () => {
   map.value?.closePopup()
   rebuild()
@@ -258,7 +299,13 @@ onMounted(async () => {
   m.on('zoomend', rebuild)
   m.on('moveend', updateInView)
   try {
+    // Town names are a nicety: without them places show photo names or coordinates.
+    const named = call<PhotoPlace[]>({ url: '/photo-extra/getMapPlaces' }).then(
+      (list) => (towns.value = new Map(list.map((p) => [p.photoId, p.place]))),
+      () => undefined,
+    )
     all.value = await call<MapPhoto[]>({ url: '/photo-extra/getGlobalMapPhoto' })
+    await named
     // Start where the photos are.
     if (located.value.length)
       m.fitBounds(L.latLngBounds(located.value.map(latLng)), { padding: [64, 64], maxZoom: 11 })
@@ -360,6 +407,38 @@ const sheetPeers = computed(() => inView.value.slice(0, 8))
           :dates="takenDays"
           class="pointer-events-auto max-md:ml-auto max-md:h-11 max-md:rounded-xl"
         />
+        <div
+          role="radiogroup"
+          aria-label="Map style"
+          class="bg-card pointer-events-auto flex h-9 gap-0.5 rounded-lg border p-0.5 shadow-[0_2px_6px_rgb(0_0_0/0.08)] max-md:h-11 max-md:rounded-xl"
+        >
+          <button
+            v-for="s in styles"
+            :key="s.value"
+            type="button"
+            role="radio"
+            :aria-checked="style === s.value"
+            :aria-label="s.label"
+            :class="
+              cn(
+                'text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-[background-color,color] max-md:rounded-[10px]',
+                style === s.value && 'bg-muted text-foreground',
+              )
+            "
+            @click="style = s.value"
+          >
+            <component :is="s.icon" class="size-4" aria-hidden="true" />
+            <span class="max-md:sr-only">{{ s.label }}</span>
+          </button>
+        </div>
+      </div>
+      <div
+        v-if="style === 'heat'"
+        class="bg-card text-muted-foreground absolute bottom-6 left-4 z-[1000] flex items-center gap-2 rounded-lg border px-3 py-2 text-xs shadow-[0_2px_6px_rgb(0_0_0/0.08)]"
+      >
+        Fewer
+        <span class="h-1.5 w-24 rounded-full" :style="{ background: heatGradient }" />
+        More
       </div>
       <Skeleton v-if="loading" class="absolute inset-0 z-[1000] rounded-none opacity-80" />
 
