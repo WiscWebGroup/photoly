@@ -38,6 +38,20 @@ export function input(placeholder: string) {
   return match
 }
 
+/** The input a visible `<label>` with exactly this text points at. */
+export function field(label: string) {
+  const match = [...document.querySelectorAll('label')].find((l) => l.textContent?.trim() === label)
+  const el = match && document.getElementById(match.htmlFor)
+  if (!(el instanceof HTMLInputElement)) throw new Error(`No input labelled "${label}"`)
+  return el
+}
+
+export function link(name: string) {
+  const match = [...document.querySelectorAll('a')].find((a) => a.textContent?.trim() === name)
+  if (!match) throw new Error(`No link named "${name}"`)
+  return match
+}
+
 export function type(el: HTMLInputElement, value: string) {
   el.value = value
   el.dispatchEvent(new Event('input', { bubbles: true }))

@@ -4,9 +4,9 @@ import { mockApi, ok, signIn, TOKEN } from './mockApi'
 test('login lands on home with the root folder', async ({ page }) => {
   const calls = await mockApi(page, { '/user/signIn': { msgCode: 200, token: TOKEN } })
   await page.goto('/login')
-  await page.getByPlaceholder('Email').fill('alice@example.com')
-  await page.getByPlaceholder('Password').fill('secret')
-  await page.getByRole('button', { name: 'Login' }).click()
+  await page.getByLabel('Email', { exact: true }).fill('alice@example.com')
+  await page.getByLabel('Password', { exact: true }).fill('secret')
+  await page.getByRole('button', { name: 'Sign In' }).click()
 
   await expect(page).toHaveURL(/\/home\/HomePart$/)
   await expect(page.getByText('Folders')).toBeVisible()
@@ -20,9 +20,9 @@ test('login lands on home with the root folder', async ({ page }) => {
 test('login shows an error for wrong credentials', async ({ page }) => {
   await mockApi(page, { '/user/signIn': { msgCode: 401 } })
   await page.goto('/login')
-  await page.getByPlaceholder('Email').fill('alice@example.com')
-  await page.getByPlaceholder('Password').fill('wrong')
-  await page.getByPlaceholder('Password').press('Enter')
+  await page.getByLabel('Email', { exact: true }).fill('alice@example.com')
+  await page.getByLabel('Password', { exact: true }).fill('wrong')
+  await page.getByLabel('Password', { exact: true }).press('Enter')
 
   await expect(page.getByText('Wrong Email or Password!')).toBeVisible()
   await expect(page).toHaveURL(/\/login$/)
@@ -31,12 +31,13 @@ test('login shows an error for wrong credentials', async ({ page }) => {
 test('signup lands on home', async ({ page }) => {
   const calls = await mockApi(page, { '/user/signUp': { msgCode: 200, token: TOKEN } })
   await page.goto('/login')
-  await page.getByRole('button', { name: 'Signup' }).click()
+  await page.getByRole('link', { name: 'Sign Up', exact: true }).click()
   await expect(page).toHaveURL(/\/signup$/)
-  await page.getByPlaceholder('Username').fill('alice')
-  await page.getByPlaceholder('Email').fill('alice@example.com')
-  await page.getByPlaceholder('Password').fill('secret')
-  await page.getByRole('button', { name: 'Signup' }).click()
+  await page.getByLabel('Username', { exact: true }).fill('alice')
+  await page.getByLabel('Email', { exact: true }).fill('alice@example.com')
+  await page.getByLabel('Password', { exact: true }).fill('secret')
+  await page.getByLabel('Confirm Password', { exact: true }).fill('secret')
+  await page.getByRole('button', { name: 'Create Account' }).click()
 
   await expect(page).toHaveURL(/\/home\/HomePart$/)
   expect(calls.find((c) => c.path === '/user/signUp')?.body).toMatchObject({

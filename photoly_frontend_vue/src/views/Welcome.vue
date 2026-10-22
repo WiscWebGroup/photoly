@@ -1,26 +1,29 @@
 <script setup lang="ts">
-import { defineAsyncComponent } from 'vue'
-import { ExternalLink, FolderTree, Tags, Code2 } from '@lucide/vue'
-import { Button } from '@/components/ui/button'
+import { ref } from 'vue'
+import { onClickOutside, onKeyStroke, useIntersectionObserver } from '@vueuse/core'
+import { ArrowRight, ExternalLink, FolderOpen, Share2, Sparkles } from '@lucide/vue'
+import { MorphIcon } from 'morphicons/vue'
+import { Menu, X } from 'lucide'
+import NightBackdrop from '@/components/NightBackdrop.vue'
+import HeroMosaic from '@/components/welcome/HeroMosaic.vue'
 
-// Loaded lazily so the WebGPU runtime never blocks first paint of the landing page.
-const ShapeWaves = defineAsyncComponent(() => import('@/components/ShapeWaves/ShapeWaves.vue'))
+const GITHUB = 'https://github.com/WiscWebGroup/photoly'
 
 const features = [
   {
-    icon: FolderTree,
-    title: 'Effortless organizing',
-    text: 'Upload, move and sort your photos in a few clicks, with folders, galleries and namespaces.',
+    icon: FolderOpen,
+    title: 'Organize your way',
+    text: 'Folders for where things live, tags and galleries for what they mean. EXIF and GPS are read on upload.',
   },
   {
-    icon: Tags,
-    title: 'Tag everything',
-    text: 'Label photos your way and find any moment again in seconds.',
+    icon: Sparkles,
+    title: 'Search by meaning',
+    text: 'Describe a scene in English or Chinese, drop in an image, or find text inside photos.',
   },
   {
-    icon: Code2,
-    title: 'Open API',
-    text: "Plug your library into other apps through Photoly's built-in API.",
+    icon: Share2,
+    title: 'Share and integrate',
+    text: 'Share one photo by link or QR code. Scoped API tokens connect your other apps.',
   },
 ]
 
@@ -50,177 +53,177 @@ const team = [
     bio: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
   },
 ]
+
+// Phone-width navigation collapses into a menu.
+const menuOpen = ref(false)
+const menu = ref<HTMLElement>()
+onClickOutside(menu, () => (menuOpen.value = false))
+onKeyStroke('Escape', () => (menuOpen.value = false))
+
+// Sections below the fold rise in as they scroll into view.
+const featuresEl = ref<HTMLElement>()
+const teamEl = ref<HTMLElement>()
+const seen = ref(new Set<string>())
+for (const [key, el] of [
+  ['features', featuresEl],
+  ['team', teamEl],
+] as const) {
+  const { stop } = useIntersectionObserver(
+    el,
+    ([entry]) => {
+      if (!entry?.isIntersecting) return
+      seen.value = new Set(seen.value).add(key)
+      stop()
+    },
+    { threshold: 0.15 },
+  )
+}
+const revealClass = (key: string) => (seen.value.has(key) ? 'animate-rise' : 'opacity-0')
+
+const ghost =
+  'flex h-9 items-center rounded-lg px-3.5 font-medium text-white transition-colors outline-none hover:bg-white/8 focus-visible:ring-3 focus-visible:ring-teal-300/50'
+const card =
+  'rounded-2xl border border-white/10 bg-white/5 transition-[transform,border-color,background-color] duration-300 ease-(--ease-out-quart) hover:-translate-y-1 hover:border-teal-300/40'
 </script>
 
 <template>
-  <div>
-    <header
-      class="fixed inset-x-0 top-0 z-10 flex items-center justify-between bg-black/20 px-6 py-4 text-white backdrop-blur"
-    >
-      <div class="flex items-center gap-3">
-        <img src="@/assets/photoly-wordmark.svg" alt="Photoly" class="h-10" />
-      </div>
-      <nav class="flex gap-1">
-        <Button variant="ghost" class="hover:text-white" @click="$router.push('/signup')"
-          >Sign Up</Button
-        >
-        <Button variant="ghost" class="hover:text-white" @click="$router.push('/login')"
-          >Sign In</Button
-        >
-      </nav>
-    </header>
+  <div class="relative min-h-dvh overflow-hidden bg-[#031417] text-sm text-white">
+    <NightBackdrop variant="hero" />
 
-    <div class="relative overflow-hidden bg-[#031417]">
-      <!-- ShapeWaves sets its own `relative`, so position it via a wrapper. It centers its text on the
-           canvas, so this box is sized to put that center at the middle of the first screen. -->
-      <div class="absolute inset-x-0 top-0 h-dvh">
-        <ShapeWaves
-          text="Photoly"
-          :text-size="0.4"
-          shapes="mixed"
-          :cell-size="18"
-          :dot-size="0.8"
-          color="#39bab4"
-          hover-color="#83e1db"
-          background-color="#031417"
-          :speed="0.8"
-          :scale="1.2"
-          :contrast="2"
-          :brightness="1"
-          :fade="0.35"
-          :flow="1.8"
-          :glow="0.8"
-          :splash-radius="60"
-          :introDuration="2.2"
-          @error="(e: Error) => console.warn('ShapeWaves unavailable:', e.message)"
-        />
-      </div>
-      <section
-        class="relative flex min-h-dvh flex-col items-center justify-center gap-4 px-4 text-center text-white"
-      >
-        <!-- Keep the copy legible over the busiest part of the field, and melt into the next section. -->
-        <div
-          class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,#031417cc_0%,#03141740_35%,transparent_65%)]"
-        />
+    <div class="relative mx-auto flex max-w-[1200px] flex-col gap-14 px-4 pb-16 sm:px-10">
+      <header class="animate-fade relative z-10 flex h-[88px] items-center gap-2">
+        <RouterLink
+          to="/"
+          class="flex items-center rounded-md outline-none focus-visible:ring-3 focus-visible:ring-teal-300/50"
+        >
+          <img src="@/assets/photoly-wordmark.svg" alt="Photoly" class="h-8" />
+        </RouterLink>
 
-        <div class="relative flex flex-col items-center gap-4">
-          <span
-            style="animation-delay: 0ms"
-            class="animate-rise rounded-full border border-teal-300/30 bg-teal-300/10 px-4 py-1 text-sm tracking-wide text-teal-200 backdrop-blur"
+        <nav aria-label="Main" class="ml-auto hidden items-center gap-2 sm:flex">
+          <a :href="GITHUB" :class="ghost">GitHub</a>
+          <RouterLink to="/login" :class="ghost">Sign In</RouterLink>
+          <RouterLink
+            to="/signup"
+            class="flex h-9 items-center rounded-lg border border-white/20 px-3.5 font-medium text-white transition-colors outline-none hover:border-teal-300/50 hover:bg-white/5 focus-visible:ring-3 focus-visible:ring-teal-300/50"
+            >Sign Up</RouterLink
           >
-            Self-hosted photo management
+        </nav>
+
+        <div ref="menu" class="relative ml-auto sm:hidden">
+          <button
+            type="button"
+            class="flex size-11 items-center justify-center rounded-lg text-white transition-colors outline-none hover:bg-white/8 focus-visible:ring-3 focus-visible:ring-teal-300/50"
+            :aria-expanded="menuOpen"
+            aria-controls="welcome-menu"
+            aria-label="Menu"
+            @click="menuOpen = !menuOpen"
+          >
+            <MorphIcon
+              :icon="menuOpen ? X : Menu"
+              :size="22"
+              spring="bouncy"
+              reduced-motion="user"
+            />
+          </button>
+          <Transition name="reveal">
+            <nav
+              v-show="menuOpen"
+              id="welcome-menu"
+              aria-label="Main"
+              class="absolute top-12 right-0 flex w-48 flex-col gap-1 rounded-xl border border-white/12 bg-[#031417]/95 p-1.5 shadow-[0_12px_32px_rgba(0,0,0,.4)] backdrop-blur-md"
+            >
+              <RouterLink to="/login" :class="[ghost, 'h-11']">Sign In</RouterLink>
+              <RouterLink to="/signup" :class="[ghost, 'h-11']">Sign Up</RouterLink>
+              <a :href="GITHUB" :class="[ghost, 'h-11']">GitHub</a>
+            </nav>
+          </Transition>
+        </div>
+      </header>
+
+      <section
+        class="grid items-center gap-14 min-[900px]:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]"
+      >
+        <div class="flex flex-col items-start gap-6">
+          <span
+            class="animate-rise inline-flex h-7 items-center rounded-full border border-teal-300/30 bg-teal-300/10 px-3 tracking-wide text-teal-200"
+          >
+            Self-hosted photo and video library
           </span>
           <h1
             style="animation-delay: 80ms"
-            class="animate-rise max-w-3xl text-5xl leading-tight font-semibold tracking-tight md:text-7xl"
+            class="animate-rise text-5xl leading-[52px] font-semibold tracking-tight min-[900px]:text-7xl min-[900px]:leading-[76px]"
           >
-            See the Value of Photo Inside
+            Your photos, <span class="text-teal-300">on your terms</span>
           </h1>
           <p
             style="animation-delay: 160ms"
-            class="animate-rise bg-gradient-to-r from-teal-200 via-white to-teal-200 bg-clip-text text-3xl text-transparent md:text-4xl"
+            class="animate-rise max-w-[480px] text-lg leading-7 text-teal-100/75"
           >
-            The Beauty Shines Here
+            Organize with folders, tags and galleries. Find anything by describing it. Share a link,
+            or plug in through the API — all on a server you own.
           </p>
-          <p
-            style="animation-delay: 240ms"
-            class="animate-rise text-lg text-teal-100/70 md:text-xl"
-          >
-            Photoly - Share Your Inspiration
-          </p>
-          <div style="animation-delay: 320ms" class="animate-rise mt-6 flex gap-4">
-            <Button
-              size="lg"
-              class="bg-teal-400 text-teal-950 shadow-[0_0_32px_-4px] shadow-teal-400/60 hover:bg-teal-300"
-              @click="$router.push('/signup')"
-              >Get Started</Button
+          <div style="animation-delay: 240ms" class="animate-rise flex flex-wrap gap-3 pt-2">
+            <RouterLink
+              to="/signup"
+              class="group flex h-11 items-center gap-2 rounded-[10px] bg-teal-400 px-[22px] text-base font-semibold text-teal-950 shadow-[0_0_32px_-4px] shadow-teal-400/60 transition-[background-color,box-shadow,transform] duration-200 outline-none hover:bg-teal-300 hover:shadow-teal-300/70 focus-visible:ring-3 focus-visible:ring-teal-200/60 active:scale-[0.97]"
             >
-            <Button
-              variant="outline"
-              size="lg"
-              class="border-white/25 bg-white/5 text-white backdrop-blur hover:bg-white/15 hover:text-white"
-              @click="$router.push('/login')"
-              >Sign In</Button
+              Get Started
+              <ArrowRight
+                class="size-4 transition-transform duration-300 ease-(--ease-out-quart) group-hover:translate-x-1"
+              />
+            </RouterLink>
+            <a
+              :href="GITHUB"
+              class="flex h-11 items-center rounded-[10px] border border-white/16 bg-white/4 px-[18px] text-base font-medium text-white transition-colors outline-none hover:bg-white/8 focus-visible:ring-3 focus-visible:ring-teal-300/50"
+              >Star us on GitHub</a
             >
           </div>
         </div>
+
+        <HeroMosaic />
       </section>
 
-      <section class="relative flex flex-col items-center gap-12 px-4 pt-8 pb-24 text-white">
-        <div class="flex max-w-2xl flex-col items-center gap-4 text-center">
-          <span
-            class="rounded-full border border-teal-300/30 bg-teal-300/10 px-4 py-1 text-sm tracking-wide text-teal-200 backdrop-blur"
-          >
-            Why Photoly
-          </span>
-          <h2 class="text-4xl font-semibold tracking-tight md:text-5xl">
-            Your photos, <span class="text-teal-300">on your terms</span>
-          </h2>
-          <p class="text-lg text-teal-100/70">
-            Need a reliable home for your pictures that you fully control? Photoly is a self-hosted
-            photo manager that keeps your library tidy, searchable and ready to share.
-          </p>
-        </div>
-
-        <div class="grid w-full max-w-5xl gap-4 md:grid-cols-3">
-          <div
-            v-for="f in features"
-            :key="f.title"
-            class="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-teal-300/40 hover:bg-white/10"
-          >
-            <div
-              class="mb-4 flex size-11 items-center justify-center rounded-xl bg-teal-400/15 text-teal-300"
-            >
-              <component :is="f.icon" class="size-5" />
-            </div>
-            <h3 class="mb-1 text-lg font-medium">{{ f.title }}</h3>
-            <p class="text-sm text-teal-100/70">{{ f.text }}</p>
-          </div>
-        </div>
-
-        <Button
-          as="a"
-          href="https://github.com/WiscWebGroup"
-          variant="outline"
-          size="lg"
-          class="border-white/25 bg-white/5 text-white backdrop-blur hover:bg-white/15 hover:text-white"
+      <section ref="featuresEl" aria-label="Features" class="grid gap-4 min-[900px]:grid-cols-3">
+        <div
+          v-for="(f, i) in features"
+          :key="f.title"
+          :style="{ animationDelay: `${i * 90}ms` }"
+          :class="[card, revealClass('features')]"
+          class="flex flex-col gap-2.5 p-6"
         >
-          Star us on GitHub <ExternalLink class="size-4" />
-        </Button>
+          <component :is="f.icon" class="size-[22px] text-teal-300" />
+          <h2 class="text-base font-semibold">{{ f.title }}</h2>
+          <p class="text-teal-100/75">{{ f.text }}</p>
+        </div>
       </section>
 
-      <section class="relative flex flex-col items-center gap-12 px-4 pt-8 pb-32 text-white">
-        <div class="flex max-w-2xl flex-col items-center gap-4 text-center">
-          <span
-            class="rounded-full border border-teal-300/30 bg-teal-300/10 px-4 py-1 text-sm tracking-wide text-teal-200 backdrop-blur"
-          >
-            The team
-          </span>
-          <h2 class="text-4xl font-semibold tracking-tight md:text-5xl">
-            Built by <span class="text-teal-300">people who love photos</span>
-          </h2>
-        </div>
-
-        <div class="grid w-full max-w-5xl gap-4 md:grid-cols-2">
+      <section ref="teamEl" class="flex flex-col gap-6 pt-8">
+        <h2 :class="revealClass('team')" class="text-3xl font-semibold tracking-tight sm:text-4xl">
+          Built by <span class="text-teal-300">people who love photos</span>
+        </h2>
+        <div class="grid gap-4 md:grid-cols-2">
           <a
-            v-for="p in team"
+            v-for="(p, i) in team"
             :key="p.github"
             :href="`https://github.com/${p.github}`"
-            class="group flex items-start gap-5 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-teal-300/40 hover:bg-white/10"
+            :style="{ animationDelay: `${80 + i * 80}ms` }"
+            :class="[card, revealClass('team')]"
+            class="group flex items-start gap-4 p-5 outline-none focus-visible:ring-3 focus-visible:ring-teal-300/50"
           >
             <img
               :src="`https://avatars.githubusercontent.com/u/${p.avatar}`"
               alt=""
-              class="size-20 shrink-0 rounded-full ring-2 ring-teal-300/30"
+              loading="lazy"
+              class="size-14 shrink-0 rounded-full ring-2 ring-teal-300/30"
             />
-            <div>
-              <span class="flex items-center gap-1 text-lg font-medium">
+            <div class="flex flex-col gap-1">
+              <span class="flex items-center gap-1 text-base font-semibold">
                 {{ p.name }}
                 <ExternalLink
-                  class="size-4 text-teal-300 opacity-0 transition group-hover:opacity-100"
+                  class="size-3.5 text-teal-300 opacity-0 transition-opacity group-hover:opacity-100"
                 />
               </span>
-              <p class="mt-1 text-sm text-teal-100/70">{{ p.bio }}</p>
+              <p class="text-teal-100/75">{{ p.bio }}</p>
             </div>
           </a>
         </div>

@@ -5,6 +5,9 @@ declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
     requiresAdmin?: boolean
+    /** Heading and subline of the sign in / sign up card. */
+    authTitle?: string
+    authSubtitle?: string
   }
 }
 
@@ -12,8 +15,29 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'welcome', component: () => import('@/views/Welcome.vue') },
-    { path: '/login', name: 'login', component: () => import('@/views/Login.vue') },
-    { path: '/signup', name: 'signup', component: () => import('@/views/Signup.vue') },
+    // Sign in and sign up share one layout, so switching between them animates instead of reloading.
+    {
+      path: '/auth',
+      component: () => import('@/components/AuthLayout.vue'),
+      children: [
+        { path: '', redirect: { name: 'login' } },
+        {
+          path: '/login',
+          name: 'login',
+          component: () => import('@/views/Login.vue'),
+          meta: { authTitle: 'Welcome back', authSubtitle: 'Sign in to your library.' },
+        },
+        {
+          path: '/signup',
+          name: 'signup',
+          component: () => import('@/views/Signup.vue'),
+          meta: {
+            authTitle: 'Create your library',
+            authSubtitle: 'Set up an account on this server.',
+          },
+        },
+      ],
+    },
     {
       path: '/home/:part',
       name: 'home',
