@@ -314,6 +314,10 @@ useSwipe(stage, {
   onSwipeEnd(_, dir) {
     if (dir === 'left') void step(1)
     else if (dir === 'right') void step(-1)
+    // Phones: swipe up on the photo to bring the sheet back, down (from the top) to hide it.
+    else if (dir === 'up' && sheetHidden.value) showDetails.value = true
+    else if (dir === 'down' && !desktop.value && !sheetHidden.value && atTop())
+      showDetails.value = false
   },
 })
 
@@ -329,13 +333,56 @@ const tagOpen = ref(false)
 const galleryOpen = ref(false)
 const loaded = ref(false)
 const editing = ref(false)
-/** Beside the photo on desktop; it stays as the user left it from photo to photo. */
+/**
+ * Beside the photo on desktop, a sheet under it on phones; it stays as the user left it from
+ * photo to photo.
+ */
 const showDetails = ref(true)
 const sharing = ref(false)
 const confirmingDelete = ref(false)
 const shareLink = ref('')
 /** Bumped after an overwrite so the browser refetches the image under the same URL. */
 const version = ref(0)
+
+// --- Phone details sheet: pull it down to give the photo the screen, pull it back up -------------
+/** On phones the details sheet sits under the photo; hidden, only its title peeks out. */
+const sheetHidden = computed(() => !desktop.value && !showDetails.value)
+/** How far the sheet is being dragged, in px (down is positive). */
+const sheetDrag = ref(0)
+const draggingSheet = ref(false)
+const SHEET_DISMISS = 56
+const atTop = () => (root.value?.scrollTop ?? 0) <= 0
+let dragFrom: { x: number; y: number } | null = null
+function sheetTouchStart(e: TouchEvent) {
+  const t = e.touches[0]
+  dragFrom = !desktop.value && e.touches.length === 1 && t ? { x: t.clientX, y: t.clientY } : null
+}
+function sheetTouchMove(e: TouchEvent) {
+  const t = e.touches[0]
+  if (!dragFrom || !t) return
+  const dy = t.clientY - dragFrom.y
+  if (!draggingSheet.value) {
+    // Shown, only a pull down from the very top drags the sheet; anything else scrolls as usual.
+    const claim =
+      e.cancelable &&
+      Math.abs(dy) >= Math.abs(t.clientX - dragFrom.x) &&
+      (sheetHidden.value ? dy < 0 : dy > 0 && atTop())
+    if (!claim) return void (dragFrom = null)
+    draggingSheet.value = true
+  }
+  e.preventDefault()
+  sheetDrag.value = sheetHidden.value ? Math.min(0, dy) : Math.max(0, dy)
+}
+function sheetTouchEnd() {
+  if (draggingSheet.value && Math.abs(sheetDrag.value) >= SHEET_DISMISS)
+    showDetails.value = sheetHidden.value
+  draggingSheet.value = false
+  sheetDrag.value = 0
+  dragFrom = null
+}
+watch(sheetHidden, (hidden) => {
+  if (hidden) root.value?.scrollTo({ top: 0, behavior: 'instant' })
+})
 
 const kind = computed(() => mediaKind(info.value?.format))
 const canSimilar = computed(
@@ -855,7 +902,8 @@ const overlay = 'dark text-foreground'
         tabindex="-1"
         :data-testid="desktop ? undefined : 'photo-viewer-scroll'"
         :class="[
-          'relative flex min-h-0 w-full flex-col overflow-y-auto overscroll-contain outline-none [scrollbar-width:none] md:flex-row md:overflow-hidden [&::-webkit-scrollbar]:hidden',
+          'relative flex min-h-0 w-full flex-col overscroll-contain outline-none [scrollbar-width:none] md:flex-row md:overflow-hidden [&::-webkit-scrollbar]:hidden',
+          sheetHidden ? 'overflow-hidden' : 'overflow-y-auto',
           !desktop && recommendations?.expanded && 'pb-20',
         ]"
       >
@@ -864,7 +912,15 @@ const overlay = 'dark text-foreground'
           aria-label="Photo"
           :class="[
             'relative flex shrink-0 flex-col md:min-w-0 md:flex-1 md:shrink',
-            editing ? 'min-h-dvh md:min-h-0' : 'h-[52dvh] md:h-auto',
+            editing
+              ? 'min-h-dvh md:min-h-0'
+              : sheetHidden
+                ? // The whole screen but the sheet's peek (72px, less the 16px it overlaps the photo)
+                  'h-[calc(100dvh_-_3.5rem_-_env(safe-area-inset-bottom))]'
+                : 'h-[52dvh] md:h-auto',
+            !desktop &&
+              !draggingSheet &&
+              'transition-[height] duration-350 ease-(--ease-out-quart)',
           ]"
         >
           <div
@@ -1109,7 +1165,15 @@ const overlay = 'dark text-foreground'
             'bg-card relative z-10 -mt-4 shrink-0 rounded-t-2xl md:mt-0 md:rounded-none md:transition-[width] md:duration-350 md:ease-(--ease-out-quart)',
             showDetails ? 'md:w-[360px] md:border-l' : 'md:w-0',
             'md:overflow-hidden',
+            !desktop &&
+              !draggingSheet &&
+              'transition-transform duration-350 ease-(--ease-out-quart)',
           ]"
+          :style="sheetDrag ? { transform: `translateY(${sheetDrag}px)` } : undefined"
+          @touchstart.passive="sheetTouchStart"
+          @touchmove="sheetTouchMove"
+          @touchend="sheetTouchEnd"
+          @touchcancel="sheetTouchEnd"
         >
           <div
             ref="panelScroll"
@@ -1120,276 +1184,303 @@ const overlay = 'dark text-foreground'
               desktop && recommendations?.expanded && 'pb-20',
             ]"
           >
-            <div
-              class="mx-auto mt-2 h-1 w-9 rounded-full bg-white/20 md:hidden"
-              aria-hidden="true"
-            />
-            <header class="flex flex-col gap-1 px-5 pt-4 md:border-b md:px-6 md:pt-6 md:pb-5">
-              <h2 class="text-lg leading-7 font-semibold break-words">{{ info.photoName }}</h2>
+            <button
+              type="button"
+              class="flex h-5 w-full items-center justify-center outline-none focus-visible:[&>span]:bg-white/60 md:hidden"
+              :aria-label="sheetHidden ? 'Show details' : 'Hide details'"
+              :aria-expanded="!sheetHidden"
+              @click="showDetails = !showDetails"
+            >
+              <span class="h-1 w-9 rounded-full bg-white/20" />
+            </button>
+            <header
+              :class="[
+                'flex flex-col gap-1 px-5 pt-2 md:border-b md:px-6 md:pt-6 md:pb-5',
+                sheetHidden && 'pb-[calc(1rem_+_env(safe-area-inset-bottom))]',
+              ]"
+              @click="sheetHidden && (showDetails = true)"
+            >
+              <h2
+                :class="[
+                  'text-lg leading-7 font-semibold',
+                  sheetHidden ? 'truncate' : 'break-words',
+                ]"
+              >
+                {{ info.photoName }}
+              </h2>
               <p class="text-muted-foreground text-sm break-all max-md:hidden">{{ fileMeta }}</p>
-              <p v-if="when" class="text-muted-foreground text-sm md:hidden">{{ when.short }}</p>
+              <p v-if="when && !sheetHidden" class="text-muted-foreground text-sm md:hidden">
+                {{ when.short }}
+              </p>
             </header>
 
-            <div
-              class="grid grid-cols-[20px_minmax(0,1fr)] gap-x-3 gap-y-4 px-5 py-4 text-sm md:border-b md:px-6 md:py-5 [&>svg]:mt-px [&>svg]:size-[18px] [&>svg]:text-muted-foreground"
-            >
-              <template v-if="when">
-                <CalendarDays class="max-md:hidden" aria-hidden="true" />
-                <div class="max-md:hidden">
-                  <div>{{ when.day }}</div>
-                  <div class="text-muted-foreground">{{ when.detail }}</div>
-                </div>
-              </template>
-              <template v-if="hasGps">
-                <MapPin aria-hidden="true" />
-                <div>
-                  <div class="tabular-nums">{{ exif.GPS_Latitude }}, {{ exif.GPS_Longitude }}</div>
-                  <div class="flex flex-wrap gap-x-3">
-                    <router-link
-                      :to="{ path: '/home/MapPart', query: { photo: info.photoId } }"
-                      class="text-primary font-medium hover:underline"
-                      >Open in Map</router-link
-                    >
-                    <a
-                      :href="`https://maps.google.com/?q=${exif.GPS_Latitude},${exif.GPS_Longitude}`"
-                      target="_blank"
-                      rel="noopener"
-                      class="text-muted-foreground hover:text-foreground"
-                      >Google Maps</a
-                    >
+            <!-- Out of reach while the phone sheet is pulled down -->
+            <div :inert="sheetHidden || undefined">
+              <div
+                class="grid grid-cols-[20px_minmax(0,1fr)] gap-x-3 gap-y-4 px-5 py-4 text-sm md:border-b md:px-6 md:py-5 [&>svg]:mt-px [&>svg]:size-[18px] [&>svg]:text-muted-foreground"
+              >
+                <template v-if="when">
+                  <CalendarDays class="max-md:hidden" aria-hidden="true" />
+                  <div class="max-md:hidden">
+                    <div>{{ when.day }}</div>
+                    <div class="text-muted-foreground">{{ when.detail }}</div>
                   </div>
-                </div>
-              </template>
-              <template v-if="folder">
-                <Folder class="max-md:hidden" aria-hidden="true" />
-                <div class="break-words max-md:hidden">{{ folder }}</div>
-                <router-link
-                  v-if="info?.nsId !== undefined"
-                  :to="{ path: '/home/HomePart', query: { folder: info.nsId } }"
-                  class="text-primary text-sm underline"
-                  @click="emit('close')"
-                  >Open folder</router-link
-                >
-              </template>
-              <template v-if="camera || lens || exposure.length">
-                <Aperture class="max-md:hidden" aria-hidden="true" />
-                <!-- Phones: the exposure grid first, then "camera · lens" on one line. -->
-                <div
-                  class="flex flex-col gap-2.5 max-md:order-first max-md:col-span-2 max-md:flex-col-reverse"
-                >
-                  <div v-if="camera || lens" class="max-md:text-muted-foreground">
-                    <span v-if="camera" class="md:block">{{ camera }}</span
-                    ><span v-if="camera && lens" class="md:hidden"> · </span
-                    ><span v-if="lens" class="md:text-muted-foreground md:block">{{ lens }}</span>
-                  </div>
-                  <dl
-                    v-if="exposure.length"
-                    class="m-0 grid gap-px overflow-hidden rounded-lg border bg-border"
-                    :style="{ gridTemplateColumns: `repeat(${exposure.length}, minmax(0, 1fr))` }"
-                  >
-                    <div v-for="x in exposure" :key="x.label" class="bg-card px-2 py-1.5">
-                      <dt class="text-muted-foreground text-[11px] leading-[14px]">
-                        {{ x.label }}
-                      </dt>
-                      <dd class="m-0 truncate font-medium">{{ x.value }}</dd>
+                </template>
+                <template v-if="hasGps">
+                  <MapPin aria-hidden="true" />
+                  <div>
+                    <div class="tabular-nums">
+                      {{ exif.GPS_Latitude }}, {{ exif.GPS_Longitude }}
                     </div>
-                  </dl>
-                </div>
-              </template>
-            </div>
-
-            <!-- Phones run tags and galleries together as one row of chips. -->
-            <div
-              :class="[
-                section,
-                'max-md:flex-row max-md:flex-wrap max-md:gap-1.5 max-md:border-b-0 max-md:py-2',
-              ]"
-            >
-              <h3 :class="[heading, 'w-full pb-0.5 md:hidden']">Tags and galleries</h3>
-              <div class="flex flex-col gap-2 max-md:contents">
-                <h3 :class="[heading, 'max-md:hidden']">Tags</h3>
-                <div class="flex flex-wrap gap-1.5 max-md:contents">
-                  <span
-                    v-for="t in tags"
-                    :key="t.tag_id"
-                    :class="[
-                      chip,
-                      t.smart &&
-                        'text-primary border-dashed border-primary/50 hover:border-primary',
-                    ]"
-                    :title="t.smart?.basis.method"
-                  >
-                    <Sparkles v-if="t.smart" class="size-3 shrink-0" aria-hidden="true" />
-                    <span class="min-w-0 truncate">{{ t.tag_name }}</span>
-                    <span v-if="t.smart" class="sr-only"><SmartBadge :smart="t.smart" /></span>
-                    <button
-                      type="button"
-                      :class="[removeButton, 'max-md:hidden']"
-                      :aria-label="`Remove ${t.tag_name}`"
-                      @click="removeTag(t.tag_id)"
+                    <div class="flex flex-wrap gap-x-3">
+                      <router-link
+                        :to="{ path: '/home/MapPart', query: { photo: info.photoId } }"
+                        class="text-primary font-medium hover:underline"
+                        >Open in Map</router-link
+                      >
+                      <a
+                        :href="`https://maps.google.com/?q=${exif.GPS_Latitude},${exif.GPS_Longitude}`"
+                        target="_blank"
+                        rel="noopener"
+                        class="text-muted-foreground hover:text-foreground"
+                        >Google Maps</a
+                      >
+                    </div>
+                  </div>
+                </template>
+                <template v-if="folder">
+                  <Folder class="max-md:hidden" aria-hidden="true" />
+                  <div class="flex flex-col gap-1 max-md:col-span-2">
+                    <div class="break-words max-md:hidden">{{ folder }}</div>
+                    <router-link
+                      v-if="info?.nsId !== undefined"
+                      :to="{ path: '/home/HomePart', query: { folder: info.nsId } }"
+                      class="text-primary text-sm underline"
+                      @click="emit('close')"
+                      >Open folder</router-link
                     >
-                      <X class="size-3" aria-hidden="true" />
-                    </button>
-                  </span>
-                  <Popover v-model:open="tagOpen" @update:open="openPicker">
-                    <PopoverTrigger as-child>
+                  </div>
+                </template>
+                <template v-if="camera || lens || exposure.length">
+                  <Aperture class="max-md:hidden" aria-hidden="true" />
+                  <!-- Phones: the exposure grid first, then "camera · lens" on one line. -->
+                  <div
+                    class="flex flex-col gap-2.5 max-md:order-first max-md:col-span-2 max-md:flex-col-reverse"
+                  >
+                    <div v-if="camera || lens" class="max-md:text-muted-foreground">
+                      <span v-if="camera" class="md:block">{{ camera }}</span
+                      ><span v-if="camera && lens" class="md:hidden"> · </span
+                      ><span v-if="lens" class="md:text-muted-foreground md:block">{{ lens }}</span>
+                    </div>
+                    <dl
+                      v-if="exposure.length"
+                      class="m-0 grid gap-px overflow-hidden rounded-lg border bg-border"
+                      :style="{ gridTemplateColumns: `repeat(${exposure.length}, minmax(0, 1fr))` }"
+                    >
+                      <div v-for="x in exposure" :key="x.label" class="bg-card px-2 py-1.5">
+                        <dt class="text-muted-foreground text-[11px] leading-[14px]">
+                          {{ x.label }}
+                        </dt>
+                        <dd class="m-0 truncate font-medium">{{ x.value }}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Phones run tags and galleries together as one row of chips. -->
+              <div
+                :class="[
+                  section,
+                  'max-md:flex-row max-md:flex-wrap max-md:gap-1.5 max-md:border-b-0 max-md:py-2',
+                ]"
+              >
+                <h3 :class="[heading, 'w-full pb-0.5 md:hidden']">Tags and galleries</h3>
+                <div class="flex flex-col gap-2 max-md:contents">
+                  <h3 :class="[heading, 'max-md:hidden']">Tags</h3>
+                  <div class="flex flex-wrap gap-1.5 max-md:contents">
+                    <span
+                      v-for="t in tags"
+                      :key="t.tag_id"
+                      :class="[
+                        chip,
+                        t.smart &&
+                          'text-primary border-dashed border-primary/50 hover:border-primary',
+                      ]"
+                      :title="t.smart?.basis.method"
+                    >
+                      <Sparkles v-if="t.smart" class="size-3 shrink-0" aria-hidden="true" />
+                      <span class="min-w-0 truncate">{{ t.tag_name }}</span>
+                      <span v-if="t.smart" class="sr-only"><SmartBadge :smart="t.smart" /></span>
                       <button
                         type="button"
-                        aria-label="Add tag"
-                        :class="[addChip, 'max-md:order-last']"
+                        :class="[removeButton, 'max-md:hidden']"
+                        :aria-label="`Remove ${t.tag_name}`"
+                        @click="removeTag(t.tag_id)"
                       >
-                        <Plus class="size-3" aria-hidden="true" />Add
+                        <X class="size-3" aria-hidden="true" />
                       </button>
-                    </PopoverTrigger>
-                    <PopoverContent align="start" :class="[overlay, 'w-80 p-0']">
-                      <PhotoLabelPicker
-                        mode="tag"
-                        :tags="pickerTags"
-                        :galleries="pickerGalleries"
-                        :attached-tags="attachedTags"
-                        :attached-galleries="attachedGalleries"
-                        @toggle-tag="(id, on) => (on ? removeTag(id) : addTag(id))"
-                        @toggle-gallery="(id, on) => (on ? removeGallery(id) : addGallery(id))"
-                        @create="create"
-                        @done="tagOpen = false"
+                    </span>
+                    <Popover v-model:open="tagOpen" @update:open="openPicker">
+                      <PopoverTrigger as-child>
+                        <button
+                          type="button"
+                          aria-label="Add tag"
+                          :class="[addChip, 'max-md:order-last']"
+                        >
+                          <Plus class="size-3" aria-hidden="true" />Add
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" :class="[overlay, 'w-80 p-0']">
+                        <PhotoLabelPicker
+                          mode="tag"
+                          :tags="pickerTags"
+                          :galleries="pickerGalleries"
+                          :attached-tags="attachedTags"
+                          :attached-galleries="attachedGalleries"
+                          @toggle-tag="(id, on) => (on ? removeTag(id) : addTag(id))"
+                          @toggle-gallery="(id, on) => (on ? removeGallery(id) : addGallery(id))"
+                          @create="create"
+                          @done="tagOpen = false"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                <div class="flex flex-col gap-2 max-md:contents">
+                  <h3 :class="[heading, 'max-md:hidden']">Galleries</h3>
+                  <div class="flex flex-wrap gap-1.5 max-md:contents">
+                    <span
+                      v-for="g in galleries"
+                      :key="g.ga_id"
+                      :class="chip"
+                      :title="g.smart?.basis.method"
+                    >
+                      <span
+                        class="bg-primary mr-0.5 size-2 shrink-0 rounded-full"
+                        aria-hidden="true"
                       />
-                    </PopoverContent>
-                  </Popover>
+                      <span class="min-w-0 truncate">{{ g.ga_name }}</span>
+                      <SmartBadge :smart="g.smart" />
+                      <button
+                        type="button"
+                        :class="[removeButton, 'max-md:hidden']"
+                        :aria-label="`Remove ${g.ga_name}`"
+                        @click="removeGallery(g.ga_id)"
+                      >
+                        <X class="size-3" aria-hidden="true" />
+                      </button>
+                    </span>
+                    <Popover v-model:open="galleryOpen" @update:open="openPicker">
+                      <PopoverTrigger as-child>
+                        <button
+                          type="button"
+                          aria-label="Add gallery"
+                          :class="[addChip, 'max-md:hidden']"
+                        >
+                          <Plus class="size-3" aria-hidden="true" />Add
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" :class="[overlay, 'w-80 p-0']">
+                        <PhotoLabelPicker
+                          mode="gallery"
+                          :tags="pickerTags"
+                          :galleries="pickerGalleries"
+                          :attached-tags="attachedTags"
+                          :attached-galleries="attachedGalleries"
+                          @toggle-tag="(id, on) => (on ? removeTag(id) : addTag(id))"
+                          @toggle-gallery="(id, on) => (on ? removeGallery(id) : addGallery(id))"
+                          @create="create"
+                          @done="galleryOpen = false"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
               </div>
-              <div class="flex flex-col gap-2 max-md:contents">
-                <h3 :class="[heading, 'max-md:hidden']">Galleries</h3>
-                <div class="flex flex-wrap gap-1.5 max-md:contents">
-                  <span
-                    v-for="g in galleries"
-                    :key="g.ga_id"
-                    :class="chip"
-                    :title="g.smart?.basis.method"
+
+              <div v-if="kind === 'photo'" class="border-b px-5 py-4 md:px-6">
+                <PhotoText
+                  :key="`${info.photoId}:${version}`"
+                  ref="photoText"
+                  :photo-id="info.photoId"
+                />
+              </div>
+
+              <div v-if="canSimilar" :class="[section, 'gap-3']">
+                <div class="flex items-center gap-2">
+                  <h3 :class="heading">Similar</h3>
+                  <Sparkles class="text-primary size-3.5" aria-label="Smart" role="img" />
+                  <button
+                    v-if="!recommendations?.expanded"
+                    type="button"
+                    class="text-primary ml-auto rounded-sm text-[13px] font-medium transition-colors outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 disabled:text-muted-foreground disabled:no-underline"
+                    :disabled="!recommendations?.allowed"
+                    :title="recommendations?.allowed ? undefined : recommendations?.unavailable"
+                    @click="findSimilar"
                   >
-                    <span
-                      class="bg-primary mr-0.5 size-2 shrink-0 rounded-full"
+                    Find similar
+                  </button>
+                </div>
+                <p v-if="!recommendations?.expanded" class="text-muted-foreground text-sm">
+                  Photos and videos that look like this one.
+                </p>
+                <SimilarRecommendations
+                  :key="`${info.photoId}:${version}:${recommendationSession}`"
+                  ref="recommendations"
+                  :photo="info"
+                  :resume="restoredRecommendations"
+                  @navigate="navigate"
+                  @invalidated="invalidateHistory"
+                />
+              </div>
+
+              <div class="flex flex-col gap-3 px-5 py-5 md:px-6">
+                <label class="flex items-center gap-3 text-sm">
+                  <span class="flex flex-1 flex-col">
+                    <span class="font-medium">Share link</span>
+                    <span class="text-muted-foreground">{{
+                      info.visibility === 1
+                        ? 'Anyone with the link can view'
+                        : 'Only you can see this'
+                    }}</span>
+                  </span>
+                  <Switch
+                    aria-label="Visibility"
+                    :model-value="info.visibility === 1"
+                    @update:model-value="changeVisibility"
+                  />
+                </label>
+                <div v-if="info.visibility === 1" class="flex gap-2">
+                  <input
+                    :value="shareLink"
+                    readonly
+                    aria-label="Share link"
+                    class="h-9 min-w-0 flex-1 rounded-lg border border-white/16 bg-white/4 px-2.5 font-mono text-xs outline-none"
+                    @focus="($event.target as HTMLInputElement).select()"
+                  />
+                  <Button variant="secondary" @click="copyShareAddr"
+                    ><Copy aria-hidden="true" /> Copy</Button
+                  >
+                </div>
+                <details v-collapse class="group text-sm">
+                  <summary
+                    class="text-muted-foreground hover:text-foreground flex cursor-pointer list-none items-center gap-1 text-xs transition-colors [&::-webkit-details-marker]:hidden"
+                  >
+                    Technical details
+                    <ChevronRight
+                      class="size-3 transition-transform group-open:rotate-90"
                       aria-hidden="true"
                     />
-                    <span class="min-w-0 truncate">{{ g.ga_name }}</span>
-                    <SmartBadge :smart="g.smart" />
-                    <button
-                      type="button"
-                      :class="[removeButton, 'max-md:hidden']"
-                      :aria-label="`Remove ${g.ga_name}`"
-                      @click="removeGallery(g.ga_id)"
-                    >
-                      <X class="size-3" aria-hidden="true" />
-                    </button>
-                  </span>
-                  <Popover v-model:open="galleryOpen" @update:open="openPicker">
-                    <PopoverTrigger as-child>
-                      <button
-                        type="button"
-                        aria-label="Add gallery"
-                        :class="[addChip, 'max-md:hidden']"
-                      >
-                        <Plus class="size-3" aria-hidden="true" />Add
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent align="start" :class="[overlay, 'w-80 p-0']">
-                      <PhotoLabelPicker
-                        mode="gallery"
-                        :tags="pickerTags"
-                        :galleries="pickerGalleries"
-                        :attached-tags="attachedTags"
-                        :attached-galleries="attachedGalleries"
-                        @toggle-tag="(id, on) => (on ? removeTag(id) : addTag(id))"
-                        @toggle-gallery="(id, on) => (on ? removeGallery(id) : addGallery(id))"
-                        @create="create"
-                        @done="galleryOpen = false"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                  </summary>
+                  <dl class="text-muted-foreground mt-2 space-y-1 text-xs">
+                    <dt class="text-foreground font-medium">Token</dt>
+                    <dd class="break-all">{{ info.token }}</dd>
+                    <dt class="text-foreground font-medium">UUID</dt>
+                    <dd class="break-all">{{ info.photoUuid }}</dd>
+                  </dl>
+                </details>
               </div>
-            </div>
-
-            <div v-if="kind === 'photo'" class="border-b px-5 py-4 md:px-6">
-              <PhotoText
-                :key="`${info.photoId}:${version}`"
-                ref="photoText"
-                :photo-id="info.photoId"
-              />
-            </div>
-
-            <div v-if="canSimilar" :class="[section, 'gap-3']">
-              <div class="flex items-center gap-2">
-                <h3 :class="heading">Similar</h3>
-                <Sparkles class="text-primary size-3.5" aria-label="Smart" role="img" />
-                <button
-                  v-if="!recommendations?.expanded"
-                  type="button"
-                  class="text-primary ml-auto rounded-sm text-[13px] font-medium transition-colors outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 disabled:text-muted-foreground disabled:no-underline"
-                  :disabled="!recommendations?.allowed"
-                  :title="recommendations?.allowed ? undefined : recommendations?.unavailable"
-                  @click="findSimilar"
-                >
-                  Find similar
-                </button>
-              </div>
-              <p v-if="!recommendations?.expanded" class="text-muted-foreground text-sm">
-                Photos and videos that look like this one.
-              </p>
-              <SimilarRecommendations
-                :key="`${info.photoId}:${version}:${recommendationSession}`"
-                ref="recommendations"
-                :photo="info"
-                :resume="restoredRecommendations"
-                @navigate="navigate"
-                @invalidated="invalidateHistory"
-              />
-            </div>
-
-            <div class="flex flex-col gap-3 px-5 py-5 md:px-6">
-              <label class="flex items-center gap-3 text-sm">
-                <span class="flex flex-1 flex-col">
-                  <span class="font-medium">Share link</span>
-                  <span class="text-muted-foreground">{{
-                    info.visibility === 1
-                      ? 'Anyone with the link can view'
-                      : 'Only you can see this'
-                  }}</span>
-                </span>
-                <Switch
-                  aria-label="Visibility"
-                  :model-value="info.visibility === 1"
-                  @update:model-value="changeVisibility"
-                />
-              </label>
-              <div v-if="info.visibility === 1" class="flex gap-2">
-                <input
-                  :value="shareLink"
-                  readonly
-                  aria-label="Share link"
-                  class="h-9 min-w-0 flex-1 rounded-lg border border-white/16 bg-white/4 px-2.5 font-mono text-xs outline-none"
-                  @focus="($event.target as HTMLInputElement).select()"
-                />
-                <Button variant="secondary" @click="copyShareAddr"
-                  ><Copy aria-hidden="true" /> Copy</Button
-                >
-              </div>
-              <details v-collapse class="group text-sm">
-                <summary
-                  class="text-muted-foreground hover:text-foreground flex cursor-pointer list-none items-center gap-1 text-xs transition-colors [&::-webkit-details-marker]:hidden"
-                >
-                  Technical details
-                  <ChevronRight
-                    class="size-3 transition-transform group-open:rotate-90"
-                    aria-hidden="true"
-                  />
-                </summary>
-                <dl class="text-muted-foreground mt-2 space-y-1 text-xs">
-                  <dt class="text-foreground font-medium">Token</dt>
-                  <dd class="break-all">{{ info.token }}</dd>
-                  <dt class="text-foreground font-medium">UUID</dt>
-                  <dd class="break-all">{{ info.photoUuid }}</dd>
-                </dl>
-              </details>
             </div>
           </div>
         </aside>
