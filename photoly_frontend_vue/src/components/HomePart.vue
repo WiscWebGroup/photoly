@@ -559,7 +559,7 @@ async function upload() {
               <li
                 v-for="(folder, i) in folders.children.value"
                 :key="folder.nsId"
-                :class="['animate-rise', viewMode === 'grid' && 'w-36 shrink-0 sm:w-auto']"
+                :class="['animate-rise', viewMode === 'grid' && 'flex w-36 shrink-0 sm:w-auto']"
                 :style="{ animationDelay: `${Math.min(i, 12) * 30}ms` }"
               >
                 <ContextMenu>
@@ -680,12 +680,16 @@ async function upload() {
               </li>
               <li
                 v-if="viewMode === 'grid'"
-                class="animate-rise w-36 shrink-0 sm:w-auto"
+                class="animate-rise flex w-36 shrink-0 sm:w-auto"
                 :style="{ animationDelay: `${Math.min(folders.children.value.length, 12) * 30}ms` }"
               >
+                <!-- Stretches to the folder cards in its row; alone, as tall as an empty folder card. -->
                 <button
                   type="button"
-                  class="text-muted-foreground hover:border-primary hover:text-primary flex size-full min-h-[158px] flex-col items-center justify-center gap-2 rounded-[14px] border border-dashed text-sm transition-colors sm:min-h-[194px]"
+                  :class="[
+                    'text-muted-foreground hover:border-primary hover:text-primary flex w-full flex-col items-center justify-center gap-2 rounded-[14px] border border-dashed text-sm transition-colors',
+                    !folders.children.value.length && 'min-h-[142px] sm:min-h-[174px]',
+                  ]"
                   @click="startCreate"
                 >
                   <Plus class="size-5" aria-hidden="true" />
