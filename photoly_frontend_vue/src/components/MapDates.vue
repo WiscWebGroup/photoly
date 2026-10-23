@@ -8,9 +8,11 @@ import { cn } from '@/lib/utils'
 /** An inclusive range of `YYYY-MM-DD` days; `null` means all time. */
 export type DateRange = { from: string; to: string } | null
 
-// `dates` are the taken dates of the photos on the map, for the dots and the photo count.
+// Photo days, for the dots, year presets and photo count: either `dates` (one `YYYY-MM-DD` per
+// photo) or `counts` (photos per day). `total` overrides the "All time" count, e.g. to include
+// undated photos.
 defineOptions({ inheritAttrs: false })
-const props = defineProps<{ dates: string[] }>()
+const props = defineProps<{ dates?: string[]; counts?: Record<string, number>; total?: number }>()
 const range = defineModel<DateRange>({ default: null })
 const open = ref(false)
 
@@ -28,9 +30,16 @@ function label(r: DateRange) {
   }).formatRange(parse(r.from), parse(r.to))
 }
 
-const photoDays = computed(() => new Set(props.dates))
+const tally = computed(() => {
+  if (props.counts) return props.counts
+  const counts: Record<string, number> = {}
+  for (const d of props.dates ?? []) counts[d] = (counts[d] ?? 0) + 1
+  return counts
+})
+const days = computed(() => Object.keys(tally.value).sort())
+const photoDays = computed(() => new Set(days.value))
 const years = computed(() =>
-  [...new Set(props.dates.map((d) => d.slice(0, 4)))].sort().reverse().slice(0, 3),
+  [...new Set(days.value.map((d) => d.slice(0, 4)))].sort().reverse().slice(0, 3),
 )
 const yearRange = (y: string) => ({ from: `${y}-01-01`, to: `${y}-12-31` })
 
@@ -42,7 +51,7 @@ watch(open, (isOpen) => {
   if (!isOpen) return
   draft.value = range.value
   picking.value = null
-  const anchor = range.value?.to ?? [...props.dates].sort().at(-1)
+  const anchor = range.value?.to ?? days.value.at(-1)
   month.value = anchor ? parse(anchor) : new Date()
 })
 
@@ -100,10 +109,12 @@ function pick(day: string) {
 const edge = (day: string) => !!draft.value && (day === draft.value.from || day === draft.value.to)
 const inside = (day: string) => !!draft.value && day > draft.value.from && day < draft.value.to
 
+const sum = (keep: (day: string) => boolean) =>
+  days.value.reduce((n, d) => (keep(d) ? n + tally.value[d]! : n), 0)
 const draftCount = computed(() =>
   draft.value
-    ? props.dates.filter((d) => d >= draft.value!.from && d <= draft.value!.to).length
-    : props.dates.length,
+    ? sum((d) => d >= draft.value!.from && d <= draft.value!.to)
+    : (props.total ?? sum(() => true)),
 )
 function apply() {
   range.value = draft.value

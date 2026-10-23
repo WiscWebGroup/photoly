@@ -67,3 +67,46 @@ it('ignores stale responses when sort changes and retains order in the URL', asy
   expect(pageText()).not.toContain('latest.jpg')
   expect(router.currentRoute.value.query.order).toBe('oldest')
 })
+
+it('filters by a date range from the header, keeps it in the URL, and clears it', async () => {
+  const requests: URL[] = []
+  server.use(
+    http.get(`${API}/photo/getDateDays`, () =>
+      ok({
+        days: [
+          { day: '2023-05-01', count: 2 },
+          { day: '2024-07-04', count: 1 },
+        ],
+        undated: 1,
+      }),
+    ),
+    http.get(`${API}/photo/getByDate`, ({ request }) => {
+      const url = new URL(request.url)
+      requests.push(url)
+      const from = url.searchParams.get('from')
+      return ok({
+        items: [{ photoId: 1, photoName: from ? `range-${from}` : 'all', format: 'jpg' }],
+        nextCursor: null,
+      })
+    }),
+  )
+  mountWithApp(DatesPart)
+  await vi.waitFor(() => expect(pageText()).toContain('all.jpg'))
+  button('Date range: All time').click()
+  await vi.waitFor(() => expect(button('2023')).toBeTruthy())
+  expect(pageText()).toContain('Show 4 Photos')
+  button('2023').click()
+  await vi.waitFor(() => expect(pageText()).toContain('Show 2 Photos'))
+  button('Show 2 Photos').click()
+  await vi.waitFor(() => expect(pageText()).toContain('range-2023-01-01.jpg'))
+  expect(requests.at(-1)!.searchParams.get('to')).toBe('2023-12-31')
+  expect(router.currentRoute.value.query).toMatchObject({ from: '2023-01-01', to: '2023-12-31' })
+  button('Oldest').click()
+  await vi.waitFor(() => expect(requests.at(-1)!.searchParams.get('order')).toBe('oldest'))
+  expect(requests.at(-1)!.searchParams.get('from')).toBe('2023-01-01')
+  document.querySelector<HTMLButtonElement>('button[aria-label^="Date range:"]')!.click()
+  await vi.waitFor(() => expect(button('Clear')).toBeTruthy())
+  button('Clear').click()
+  await vi.waitFor(() => expect(pageText()).toContain('all.jpg'))
+  expect(router.currentRoute.value.query.from).toBeUndefined()
+})

@@ -43,7 +43,14 @@ def update(uid):
 @legacy()
 def by_date(uid):
     return result(service(PhotoService).by_date(uid, request.args.get("order", "latest"),
-        arg("limit", integer=True) if "limit" in request.args else 100, request.args.get("cursor")))
+        arg("limit", integer=True) if "limit" in request.args else 100, request.args.get("cursor"),
+        request.args.get("from"), request.args.get("to")))
+
+
+@bp.get("/getDateDays")
+@legacy()
+def date_days(uid):
+    return result(service(PhotoService).date_days(uid))
 
 
 @bp.get("/getByNamespace")

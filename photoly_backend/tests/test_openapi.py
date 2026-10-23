@@ -24,9 +24,9 @@ def test_openapi_32_is_valid_and_covers_exact_legacy_routes():
     actual = {(method, path) for path, methods in spec['paths'].items() for method in methods}
     assert len(expected) == 90
     assert actual == expected | {(method,path) for path,method,_ in AI_OPERATIONS + UPLOAD_OPERATIONS} | {('get', '/photo/ocr'), ('put', '/photo/ocr'), ('post', '/photo/ocr/recognize'), ('get', '/photo/searchSmart'), ('get', '/healthz'), ('post', '/photo/replace'), ('get', '/admin/pingDatabase'), ('get', '/admin/databaseInfo'),
-        ('get', '/user/getStorage'), ('get', '/photo/getCovers'), ('get', '/photo-extra/getMapPlaces'), ('get', '/admin/getUsers'), ('get', '/photo/getByDate'), ('get', '/namespace/getDetails')}
+        ('get', '/user/getStorage'), ('get', '/photo/getCovers'), ('get', '/photo-extra/getMapPlaces'), ('get', '/admin/getUsers'), ('get', '/photo/getByDate'), ('get', '/photo/getDateDays'), ('get', '/namespace/getDetails')}
     ids = [op['operationId'] for methods in spec['paths'].values() for op in methods.values()]
-    assert len(ids) == len(set(ids)) == 139
+    assert len(ids) == len(set(ids)) == 140
     for path, methods in spec['paths'].items():
         for op in methods.values():
             assert op['summary'] and op['description'] and op['tags']

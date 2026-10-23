@@ -131,6 +131,15 @@ OPERATIONS.append(op('Photo', 'by_date', 'GET', '/photo/getByDate', 'Page throug
     {'items': [], 'nextCursor': None}, params=[
         p('order', {'enum': ['latest', 'oldest'], 'type': 'string'}, 'Sort direction; default latest.', False, example='latest'),
         p('limit', {'type': 'integer', 'minimum': 1, 'maximum': 200}, 'Page size; default 100.', False, example=100),
-        p('cursor', STRING, 'Opaque nextCursor from the preceding page, for the same user and order.', False, example='opaque')],
+        p('cursor', STRING, 'Opaque nextCursor from the preceding page, for the same user, order and range.', False, example='opaque'),
+        p('from', {'type': 'string', 'format': 'date'}, 'First day of an inclusive range (YYYY-MM-DD).', False, example='2024-01-01'),
+        p('to', {'type': 'string', 'format': 'date'}, 'Last day of an inclusive range (YYYY-MM-DD).', False, example='2024-12-31')],
     description='Images only, across all owned folders. Capture time falls back to upload time; both absent sorts last. '
-                'Photo ID breaks ties in the same direction. Existing uploadDate is unchanged. New uploads or date edits require restarting pagination.'))
+                'Photo ID breaks ties in the same direction. Existing uploadDate is unchanged. New uploads or date edits require restarting pagination. '
+                'A from/to range filters on the same date and excludes undated images.'))
+
+OPERATIONS.append(op('Photo', 'date_days', 'GET', '/photo/getDateDays', 'Count owned images per timeline day',
+    obj({'days': array(obj({'day': {'type': 'string', 'format': 'date'}, 'count': {'type': 'integer'}})),
+         'undated': {'type': 'integer'}}),
+    {'days': [{'day': '2024-06-01', 'count': 3}], 'undated': 0},
+    description='Images only, grouped by capture date, falling back to upload date; ascending by day.'))

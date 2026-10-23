@@ -77,6 +77,45 @@ def test_cursor_is_bound_to_account_and_sort(world):
     assert get(world, '/photo/getByDate', order='oldest', cursor=cursor)['msgCode'] == 400
 
 
+def test_dates_range_filter_pages_and_binds_cursor(world):
+    seed(world)  # image-0 taken 2020-01-01; image-1,3,4 uploaded 2025-01-01; image-2 undated; fixture sunset 2024-03-04
+    data = get(world, '/photo/getByDate', **{'from': '2025-01-01', 'to': '2025-01-01'})['t']
+    assert sorted(p['photoName'] for p in data['items']) == ['image-1', 'image-3', 'image-4']
+    data = get(world, '/photo/getByDate', **{'to': '2024-12-31'})['t']
+    assert [p['photoName'] for p in data['items']] == ['sunset', 'image-0']
+    data = get(world, '/photo/getByDate', **{'from': '2024-03-04', 'to': '2024-03-04'})['t']
+    assert [p['photoName'] for p in data['items']] == ['sunset']
+    data = get(world, '/photo/getByDate', **{'from': '2020-01-02'})['t']
+    assert len(data['items']) == 4 and all(p['dateSource'] for p in data['items'])
+    cursor, records = None, []
+    while True:
+        page = get(world, '/photo/getByDate', limit=1, **{'from': '2019-01-01', 'to': '2025-12-31'},
+                   **({'cursor': cursor} if cursor else {}))['t']
+        records += page['items']
+        cursor = page['nextCursor']
+        if not cursor:
+            break
+    assert len(records) == len({p['photoId'] for p in records}) == 5
+    cursor = get(world, '/photo/getByDate', limit=1, **{'from': '2019-01-01'})['t']['nextCursor']
+    assert get(world, '/photo/getByDate', cursor=cursor)['msgCode'] == 400
+    assert get(world, '/photo/getByDate', cursor=cursor, **{'from': '2018-01-01'})['msgCode'] == 400
+
+
+@pytest.mark.parametrize('params', [{'from': 'bad'}, {'to': '2024-1-1'}, {'from': '2024-02-30'},
+    {'from': '2024-01-01T00:00'}, {'from': '2024-02-01', 'to': '2024-01-01'}])
+def test_dates_invalid_range(world, params):
+    assert get(world, '/photo/getByDate', **params)['msgCode'] == 400
+
+
+def test_date_days_counts_per_day(world):
+    seed(world)
+    data = get(world, '/photo/getDateDays')['t']
+    assert data == {'days': [{'day': '2020-01-01', 'count': 1}, {'day': '2024-03-04', 'count': 1},
+                                    {'day': '2025-01-01', 'count': 3}], 'undated': 1}
+    assert get(world, '/photo/getDateDays', world.other)['t'] == {'days': [], 'undated': 0}
+    assert get(world, '/photo/getDateDays', {})['msgCode'] == 403
+
+
 def test_details_recursive_sizes_devices_and_missing_files(world):
     with world.app.app_context():
         db.session.add_all([Namespace(ns_id=5, ns_name='Nested', ns_parent_id=3, user_id=2),

@@ -79,24 +79,45 @@ class PhotoService(BaseService):
     def all_for_user(self, user_id):
         return self.session.scalars(select(Photo).where(Photo.user_id == user_id).order_by(Photo.photo_id)).all()
 
-    def by_date(self, user_id, order="latest", limit=100, cursor=None):
-        """Owner-scoped keyset pagination; undated images always follow dated images."""
+    @staticmethod
+    def _timeline_date():
+        """Capture time, falling back to upload time."""
+        return func.coalesce(PhotoExtra.extra_photo_taken_date, Photo.upload_date)
+
+    def _timeline(self, user_id, *columns):
+        return select(*columns).select_from(Photo).outerjoin(PhotoExtra, PhotoExtra.f_photo_id == Photo.photo_id).where(
+            Photo.user_id == user_id, func.lower(Photo.format).in_(IMAGE_FORMATS))
+
+    def by_date(self, user_id, order="latest", limit=100, cursor=None, start=None, end=None):
+        """Owner-scoped keyset pagination; undated images always follow dated images.
+
+        `start` and `end` are optional inclusive `YYYY-MM-DD` days; a range excludes undated images."""
         import base64
         import json
-        from datetime import datetime
+        from datetime import date as day, datetime, timedelta
         from app.serialization import serialize
         if order not in ("latest", "oldest") or not 1 <= limit <= 200:
             raise BusinessError(-1)
-        date = func.coalesce(PhotoExtra.extra_photo_taken_date, Photo.upload_date)
-        statement = select(Photo, PhotoExtra.extra_photo_taken_date, date).outerjoin(
-            PhotoExtra, PhotoExtra.f_photo_id == Photo.photo_id).where(
-                Photo.user_id == user_id, func.lower(Photo.format).in_(IMAGE_FORMATS))
+        try:
+            bounds = [day.fromisoformat(v) if v else None for v in (start, end)]
+        except (ValueError, TypeError) as error:
+            raise BusinessError(-1) from error
+        if any(v is not None and len(v) != 10 for v in (start, end)) or (
+                all(bounds) and bounds[0] > bounds[1]):
+            raise BusinessError(-1)
+        date = self._timeline_date()
+        statement = self._timeline(user_id, Photo, PhotoExtra.extra_photo_taken_date, date)
+        if bounds[0]:
+            statement = statement.where(date >= datetime.combine(bounds[0], datetime.min.time()))
+        if bounds[1]:
+            statement = statement.where(date < datetime.combine(bounds[1] + timedelta(days=1), datetime.min.time()))
         if cursor:
             try:
                 if len(cursor) > 512:
                     raise ValueError()
                 value = json.loads(base64.b64decode(cursor, altchars=b"-_", validate=True))
-                if not isinstance(value, dict) or value.get("order") != order or value.get("user") != user_id:
+                if not isinstance(value, dict) or value.get("order") != order or value.get("user") != user_id \
+                        or value.get("from") != (start or None) or value.get("to") != (end or None):
                     raise ValueError()
                 identifier = value["id"]
                 if type(identifier) is not int or not 0 < identifier <= 2147483647:
@@ -121,9 +142,20 @@ class PhotoService(BaseService):
         next_cursor = None
         if len(rows) > limit:
             last = items[-1]
-            next_cursor = base64.urlsafe_b64encode(json.dumps({"order": order, "user": user_id,
-                "id": last["photoId"], "date": last["timelineDate"]}).encode()).decode()
+            payload = {"order": order, "user": user_id, "id": last["photoId"], "date": last["timelineDate"]}
+            if start or end:
+                payload.update({"from": start or None, "to": end or None})
+            next_cursor = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
         return {"items": items, "nextCursor": next_cursor}
+
+    def date_days(self, user_id):
+        """Image counts per timeline day (capture date, else upload date), plus the undated count."""
+        date = self._timeline_date()
+        rows = self.session.execute(self._timeline(user_id, func.date(date), func.count())
+            .group_by(func.date(date)).order_by(func.date(date))).all()
+        days = [{"day": str(d)[:10], "count": n} for d, n in rows if d is not None]
+        undated = next((n for d, n in rows if d is None), 0)
+        return {"days": days, "undated": undated}
 
     def by_namespace(self, user_id, ns_id):
         return self.session.scalars(select(Photo).where(Photo.user_id == user_id, Photo.ns_id == ns_id).order_by(Photo.photo_id)).all()

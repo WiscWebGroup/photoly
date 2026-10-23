@@ -131,7 +131,7 @@ video and subfolder counts. Storage separates original files from thumbnails and
 and temporary files. Missing expected files are reported as incomplete totals. Places are approximate
 nearby towns derived from GPS; cameras and lenses come from photo metadata, with counts per photo.
 
-The new owner-only endpoints are `GET /photo/getByDate` and `GET /namespace/getDetails`; see `/docs`
+The new owner-only endpoints are `GET /photo/getByDate` (with optional `from`/`to` day range), `GET /photo/getDateDays` and `GET /namespace/getDetails`; see `/docs`
 for parameters, pagination and response schemas. No new migration is required beyond `0006_uploads_storage`.
 When deploying with Compose overrides, mount the same media directory on `backend`, `migrate`,
 `upload-worker` and the maintenance service. Validate the merged configuration with `docker compose config --quiet`
