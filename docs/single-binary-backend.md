@@ -149,7 +149,13 @@ would mean porting the text tower to ggml ourselves. ONNX Runtime runs both halv
   - Linux CPU: ONNX Runtime shared library shipped next to the binary.
   - Linux CUDA: the CUDA provider plus the CUDA libraries in the image.
   - macOS arm64: the CoreML provider. It runs natively, so the Docker-plus-native-runtime
-    MPS setup goes away.
+    MPS setup goes away. ONNX Runtime has no "mps" device; CoreML is how it reaches the
+    Apple GPU. `onnxruntime_go` (v1.36.0) exposes `AppendExecutionProviderCoreMLV2`, which
+    takes options such as `ModelFormat: MLProgram` and `MLComputeUnits: CPUAndGPU` (Apple
+    GPU, like today's MPS) or `ALL` (also the Neural Engine). The admin device option
+    `mps/float32` would map to CoreML with GPU compute. CoreML may run some steps in
+    float16 or fall back to CPU for unsupported operations, so check speed and vector
+    agreement on a real Mac.
 
 ### Removing Qwen: what changes
 
