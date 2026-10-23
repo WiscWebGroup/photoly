@@ -125,6 +125,11 @@ already the default and the recommended model for 16 GB Macs.
   precision; an int8 export would be smaller. Still downloaded on first load, as today.
 - **No PyTorch container** in any deployment.
 
+**Why not llama.cpp:** llama.cpp (C/C++ on the ggml library) is built for large language
+models. Its SigLIP code is only the image encoder used inside multimodal chat models; there
+is no supported SigLIP2 text encoder. Text-to-image search needs both halves, so llama.cpp
+would mean porting the text tower to ggml ourselves. ONNX Runtime runs both halves as-is.
+
 ### What has to be ported
 
 - SigLIP2 image preprocessing (EXIF orientation, white background for transparency,
