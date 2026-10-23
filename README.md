@@ -44,7 +44,7 @@ PostgreSQL bootstrap installs pgvector and creates separate schema-owner and app
 
 The administrator dashboard displays PostgreSQL, pgvector and the schema revision using `/admin/pingDatabase` and `/admin/databaseInfo`.
 
-For access from another machine, set `PUBLIC_BASE_URL` to the externally reachable API URL and update the frontend `VITE_APP_BASE_URL` build setting before rebuilding. `localhost` is only appropriate for local access.
+For access from another machine, open `http://<server-address>:5200`. Docker's frontend uses its same-origin `/api` proxy, so browser API requests follow the address used to open the site. Set `PUBLIC_BASE_URL` to an externally reachable API URL for backend-generated share links (for example, `http://<server-address>:5200/api`). Standalone frontend builds or separately hosted APIs still need the appropriate `VITE_APP_BASE_URL` build setting.
 
 ### Optional AI runtimes
 

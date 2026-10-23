@@ -28,6 +28,26 @@ test('login shows an error for wrong credentials', async ({ page }) => {
   await expect(page).toHaveURL(/\/login$/)
 })
 
+test('an unresponsive login times out and allows retry', async ({ page }) => {
+  await mockApi(page, { '/user/signIn': { msgCode: 200, token: TOKEN } })
+  // Leave the request pending, as when a previously reachable LAN address goes away.
+  await page.route('**/user/signIn/', () => {})
+  await page.goto('/login')
+  await page.getByLabel('Email', { exact: true }).fill('alice@example.com')
+  await page.getByLabel('Password', { exact: true }).fill('secret')
+  const submit = page.getByRole('button', { name: 'Sign In' })
+  await submit.click()
+  await expect(submit).toBeDisabled()
+  await expect(page.getByRole('alert')).toHaveText('Could not reach the server.', {
+    timeout: 20_000,
+  })
+  await expect(submit).toBeEnabled()
+  expect(await page.evaluate(() => localStorage.getItem('HRD-Token'))).toBeNull()
+  await page.unroute('**/user/signIn/')
+  await submit.click()
+  await expect(page).toHaveURL(/\/home\/HomePart$/)
+})
+
 test('signup lands on home', async ({ page }) => {
   const calls = await mockApi(page, { '/user/signUp': { msgCode: 200, token: TOKEN } })
   await page.goto('/login')
