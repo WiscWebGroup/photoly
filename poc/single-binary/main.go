@@ -4,6 +4,7 @@
 //	photoly serve        migrate, then serve the API, web UI and model files
 //	photoly migrate      apply database migrations and exit
 //	photoly fetch-model  download and verify the model files ahead of time
+//	photoly health       exit 0 if the local server answers /healthz (for containers)
 //
 // Configuration comes from the environment; see README.md.
 package main
@@ -17,6 +18,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -45,8 +47,10 @@ func main() {
 		err = withStore(ctx, func(s *Store) error { return s.Migrate(ctx) })
 	case "fetch-model":
 		err = fetchModel(ctx)
+	case "health":
+		err = health(ctx)
 	default:
-		fmt.Fprintln(os.Stderr, "usage: photoly [serve|migrate|fetch-model]")
+		fmt.Fprintln(os.Stderr, "usage: photoly [serve|migrate|fetch-model|health]")
 		os.Exit(2)
 	}
 	if err != nil {
@@ -67,6 +71,29 @@ func withStore(ctx context.Context, fn func(*Store) error) error {
 	}
 	defer s.Close()
 	return fn(s)
+}
+
+// health lets a container check the server without curl or a shell in the image.
+func health(ctx context.Context) error {
+	addr := env("PHOTOLY_ADDR", ":8084")
+	if strings.HasPrefix(addr, ":") {
+		addr = "127.0.0.1" + addr
+	}
+	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://"+addr+"/healthz", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("healthz: HTTP %d", resp.StatusCode)
+	}
+	return nil
 }
 
 func fetchModel(ctx context.Context) error {

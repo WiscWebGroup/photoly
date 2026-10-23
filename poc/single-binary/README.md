@@ -13,6 +13,47 @@ A proof of concept for the plan in [`docs/single-binary-backend.md`](../../docs/
 It is not the Photoly API. There is no sign-in (every request acts as user 1), only images,
 and no server-side fallback indexing yet. See [What's missing](#whats-missing).
 
+## Try it with Docker
+
+From this directory:
+
+```sh
+docker compose up -d --build
+```
+
+Open <http://localhost:8084>. Then:
+
+1. Click **Load image model** and **Load text model**. The first time, the server downloads
+   the model from Hugging Face (about 1.5 GB for fp32) and verifies it, and the browser
+   caches it. Later visits load it from the browser.
+2. Choose some photos under **Upload**. Each is embedded in your browser, then uploaded with
+   its vector.
+3. Search by description ("a dog on a beach"), or click a photo to find similar ones.
+
+The status line at the top shows the route: WebGPU when the browser finds a real GPU,
+otherwise WebAssembly on the CPU. To compare, add `?device=wasm` or `?device=webgpu` to the
+URL.
+
+| Setting (in `.env` or the shell) | Default | Meaning |
+| --- | --- | --- |
+| `POC_PORT` | `8084` | Host port, bound to 127.0.0.1 only because the POC has no sign-in |
+| `PHOTOLY_MODEL_DTYPE` | `fp32` | `fp16` halves the download; needs a GPU with `shader-f16` |
+| `POC_DB_PASSWORD` | `photoly-poc` | Password of the POC's own Postgres container |
+
+- **What runs:** two containers. One is the POC image (28.8 MB: the static binary, CA
+  certificates and nothing else, running as a non-root user). The other is the same pinned
+  `pgvector/pgvector:0.8.7-pg17` image Photoly uses. Photos and the model cache live in the
+  `photoly_data` volume, and the database in `db_data`.
+- **Another machine:** WebGPU and the browser's model cache need a secure context.
+  `localhost` counts; a LAN IP over plain HTTP does not. Put an HTTPS reverse proxy (for
+  example Caddy) in front, and change the port binding. Remember that anyone who can reach
+  it can upload and delete.
+- **Behind a TLS-intercepting proxy:** pass its CA to the build with
+  `docker build --secret id=extra_ca,src=proxy-ca.crt .`. At runtime, mount it and set
+  `SSL_CERT_FILE` for the model download.
+- **Reset:** `docker compose down -v` removes the containers and both volumes. The browser
+  keeps its model copy until you click **Remove cached model**.
+
 ## Build and run
 
 Requirements: Go 1.24+, Node/npm (only to fetch the browser runtime), PostgreSQL with
@@ -36,7 +77,7 @@ Open <http://localhost:8084>. WebGPU needs a secure context: `localhost` or HTTP
 | `PHOTOLY_MODEL_DTYPE` | `fp32` | `fp32` (matches the server reference) or `fp16` (half the download, needs a GPU with `shader-f16`) |
 
 Other commands: `photoly migrate` applies migrations and exits; `photoly fetch-model`
-downloads and verifies the model ahead of time (for offline installs).
+downloads and verifies the model ahead of time (for offline installs); `photoly health` checks a running server (used by the container health check).
 
 ## How it works
 
@@ -114,7 +155,7 @@ itself.
 | | Result |
 | --- | --- |
 | Binary | 17.7 MB static ELF (`CGO_ENABLED=0`), including the 6.8 MB gzipped browser runtime |
-| Server memory | 22.5 MB peak RSS over a full test run, including streaming 1.5 GB of model files |
+| Server memory | 22.5 MB peak RSS over a full test run, including streaming 1.5 GB of model files (same in Docker; `docker stats` also counts ~1.5 GB of reclaimable file cache) |
 | First download to the browser (fp32) | 1.53 GB: vision 372 MB, text 1.13 GB, tokenizer 34 MB |
 | Browser storage afterwards | 1,563 MB in the Cache API |
 | Browser vs CPU reference (`parity.py`) | cosine 1.000000 (6 d.p.) for all 4 images and all 8 queries, WebGPU and WebAssembly |
