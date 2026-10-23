@@ -218,3 +218,25 @@ vector only affects the uploader's own results. The server should still:
 - reject anything that isn't exactly 768 finite values with unit length;
 - re-embed a random sample when idle and compare cosine similarity. If a client's
   vectors disagree, drop them and recompute on the server.
+
+### Keeping the model in the browser
+
+Download once, then load from local storage on every later visit:
+
+- **Where:** store the ONNX file in the Origin Private File System (OPFS) or the Cache API.
+  Both handle files of hundreds of MB and survive closing the tab or browser. OPFS lets the
+  download stream to disk in chunks, so it can resume after a dropped connection.
+  ONNX Runtime Web can load the model from the stored bytes.
+- **Not in the PWA precache.** The Workbox config in `photoly_frontend_vue/vite.config.ts`
+  would push the file to every visitor and has a small default size limit. Download only
+  when the user opts in.
+- **Ask for persistence.** Call `navigator.storage.persist()` so the browser doesn't clear
+  the model when disk space runs low. Installed PWAs are more likely to be granted it. On
+  iOS/macOS Safari, an ordinary website's storage can be wiped after about a week without a
+  visit; a home-screen web app is exempt. Since Photoly is already an installable PWA, the
+  UI should suggest installing it.
+- **Versioning.** Serve the model from the Photoly server under a URL containing its SHA-256
+  (matches the profile fingerprint). Check the hash after download, and delete older
+  versions when the profile changes.
+- **Space.** Check `navigator.storage.estimate()` before downloading. Show the model's size
+  in settings, with a button to remove it.
