@@ -61,3 +61,5 @@ Migration `0005_smart_organization` adds companion preferences, metadata, smart 
 ## Bulk uploads and quotas
 
 Migration 0006 adds user groups, persistent storage counters and private upload history. Legacy entity response fields remain frozen. `/user/getStorage.capacityBytes` now means effective account quota (nullable for unlimited), and its response adds group/source/over-quota information. `/admin/getUsers` adds corresponding fields and an optional groupId filter. All legacy write routes enforce quota in their file transaction; new routes are listed in OpenAPI.
+
+Media tools add the owner-only capabilities/info, conversion, online download and Live playback/download APIs documented in OpenAPI. Legacy Photo JSON fields remain unchanged. Preview MIME now matches response bytes (including `video/mp4` for MP4 playback); raw downloads retain attachment behavior. Settings includes `OnlineDownload` (default `0`). Upload items can be `waiting` while a sealed Apple Live Photo manifest is inspected. Migration `0007_media_tools` adds private resource/task metadata without changing existing Photo projections.

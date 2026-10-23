@@ -84,7 +84,7 @@ docker compose up -d
 
 For base deployments, stop only `backend`. For MPS, stop the native runtime, rerun its `install` command after dependency changes, and restart it before the final Compose command. If migration fails, resolve it before starting the new application services.
 
-Alembic `upgrade head` includes video frame vectors (`0003_video_vectors`), OCR (`0004_photo_ocr`) Smart Tag (`0005_smart_organization`), and uploads/storage groups (`0006_uploads_storage`). Existing image vectors are retained. Rebuild the application images to include FFmpeg, Tesseract language data and the offline city index. Never use `down -v` to upgrade a production deployment.
+Alembic `upgrade head` includes video frame vectors (`0003_video_vectors`), OCR (`0004_photo_ocr`) Smart Tag (`0005_smart_organization`), uploads/storage groups (`0006_uploads_storage`), and media resources/tasks (`0007_media_tools`). Existing image vectors are retained. Rebuild the application images to include FFmpeg, Tesseract language data and the offline city index. Never use `down -v` to upgrade a production deployment.
 
 ### Development and tests
 
@@ -123,16 +123,28 @@ Files, folders and ZIPs can be uploaded in unlimited-count batches. The global U
 
 **Organize → Dates** brings together the signed-in user's photos across all folders. Latest/Oldest
 uses EXIF capture time, falling back to upload time; records with neither appear last under Undated.
-Dates loads 100 photos per page. Changing the sort, editing a photo or completing an upload refreshes
-the feed. The photo viewer's **Open folder** link returns to the containing folder.
+Year and month headings show photo totals. Years start expanded; only the first month in the chosen
+sort order opens automatically. Each month card shows up to ten thumbnail previews (up to five on phones), loaded only near the viewport; collapsed months do not fetch full photo pages. Multiple months can stay open. Photos load near the viewport in
+100-image pages per day; offscreen pages retain their layout but release their rendered cards.
+The ordinary page cache is bounded (20 pages, with visible pages retained while in use).
+The floating photo calendar shows monthly and daily counts. Choose a year/month and click a day to
+jump directly to it without loading earlier photos. Hide the calendar to leave a small restore button;
+this preference is remembered on the device. Undated photos remain in a separate expandable section.
+Changing the sort, editing a photo or completing an upload refreshes the counts and loaded content.
+Selection survives page recycling; Select All applies to loaded photos, not the entire library.
+The photo viewer's **Open folder** link returns to the containing folder.
 
 Right-click a folder and choose **Details** to view recursive photo,
 video and subfolder counts. Storage separates original files from thumbnails and excludes avatars
 and temporary files. Missing expected files are reported as incomplete totals. Places are approximate
 nearby towns derived from GPS; cameras and lenses come from photo metadata, with counts per photo.
 
-The new owner-only endpoints are `GET /photo/getByDate` and `GET /namespace/getDetails`; see `/docs`
-for parameters, pagination and response schemas. No new migration is required beyond `0006_uploads_storage`.
+The new owner-only endpoints are `GET /photo/getDateSummary`, `GET /photo/getByDate`, `GET /photo/getMonthPreview` and `GET /namespace/getDetails`; see `/docs`
+for parameters, pagination and response schemas. Dates itself requires no schema changes. Media tools use migration `0007_media_tools`; persistent upload activity controls use `0008_upload_activity`.
 When deploying with Compose overrides, mount the same media directory on `backend`, `migrate`,
 `upload-worker` and the maintenance service. Validate the merged configuration with `docker compose config --quiet`
 using your deployment's existing project, environment file, overrides and AI profile before restarting it.
+
+### Media tools
+
+Right-click an image and choose **Format Convert** to save a JPEG, PNG or GIF copy in its actual folder. GIFs animate in the viewer; newly uploaded Apple Live Photo pairs have a LIVE playback control and original-pair ZIP download. Upload pickers accept pasted images with Cmd+V / Ctrl+V. Administrators can enable **Online Download** in Settings; the download icon appears immediately left of Upload. See [format support, pairing, security limits and upgrade instructions](docs/media-tools.md).

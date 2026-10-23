@@ -3,13 +3,15 @@ import io
 import warnings
 from PIL import Image, ImageOps, UnidentifiedImageError
 from .types import AIError
+from pillow_heif import register_heif_opener
+register_heif_opener(thumbnails=False)
 
 MAX_BYTES = 20 * 1024 * 1024
 MAX_PIXELS = 40_000_000
 # JPEG files with an MPF container are reported as MPO by Pillow.
 # They follow the same first-frame policy as other multi-frame images.
-FORMATS = {"MPO", "JPEG", "PNG", "WEBP", "BMP", "TIFF", "GIF", "ICO"}
-EXTENSIONS = {"jpg", "jpeg", "jfif", "png", "webp", "bmp", "tif", "tiff", "gif", "ico"}
+FORMATS = {"MPO", "JPEG", "PNG", "WEBP", "BMP", "TIFF", "GIF", "ICO", "HEIF"}
+EXTENSIONS = {"jpg", "jpeg", "jfif", "png", "webp", "bmp", "tif", "tiff", "gif", "ico", "heic", "heif"}
 
 
 def read_bounded(stream):

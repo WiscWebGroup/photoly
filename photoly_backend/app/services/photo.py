@@ -3,10 +3,10 @@ import re
 from uuid import uuid4
 from urllib.parse import urlencode
 from sqlalchemy import select, func, or_, and_
-from app.entities import Photo, PhotoExtra, Namespace, Gallery, GalleryPhoto, Tag, TagPhoto, User
+from app.entities import Photo, PhotoExtra, Namespace, Gallery, GalleryPhoto, Tag, TagPhoto, User, PhotoMedia
 from app.services.base import BaseService, BusinessError, valid_name
 
-IMAGE_FORMATS = {"jpg", "jpeg", "gif", "png", "webp", "ico", "bmp", "tif", "tiff", "svg", "psd", "raw", "arw", "pcd", "jfif"}
+IMAGE_FORMATS = {"jpg", "jpeg", "gif", "png", "webp", "ico", "bmp", "tif", "tiff", "svg", "psd", "raw", "arw", "pcd", "jfif", "heic", "heif"}
 EDITABLE_FORMATS = {"jpg", "jpeg", "png", "webp"}
 VIDEO_FORMATS = {"mp4", "avi", "wmv", "mpeg", "m4v", "mov", "flv", "asf", "f4v", "rmvb", "vob", "rm"}
 
@@ -27,7 +27,26 @@ class PhotoService(BaseService):
                 objects.append(self.install_one(user, upload, data, files))
         return objects
 
-    def install_one(self, user, upload, data, files):
+    def prepare(self, path, work):
+        """Build previews and inspect metadata before acquiring the user's write lock."""
+        from app.infrastructure.media import DECODABLE, image_info, encode_image
+        from PIL import Image, ImageOps
+        prepared = {'metadata': self.infra.metadata.read(path)}
+        if path.suffix[1:].lower() in DECODABLE:
+            prepared['info'] = image_info(path)
+            with Image.open(path) as image:
+                image = ImageOps.exif_transpose(image).convert('RGB')
+                image.thumbnail((400, 400))
+                thumbnail = work / 'thumbnail.jpg'
+                image.save(thumbnail, 'JPEG')
+                prepared['thumbnail'] = thumbnail
+            if path.suffix.lower() in {'.heic', '.heif'}:
+                preview = work / 'preview.jpg'
+                encode_image(path, preview, 'jpeg')
+                prepared['preview'] = preview
+        return prepared
+
+    def install_one(self, user, upload, data, files, prepared=None):
         user_id = user.user_id
         filename = upload.filename
         if not filename or "." not in filename:
@@ -44,10 +63,30 @@ class PhotoService(BaseService):
         path = self.storage.media(user.uuid, photo)
         photo.content_sha256 = files.install(upload.stream, path)
         photo.content_version = 1
-        self.storage.thumbnail(path, self.storage.media(user.uuid, photo, True), files)
+        if prepared is None:
+            try:
+                prepared = self.prepare(path, files.work)
+            except BusinessError as error:
+                # Preserve the legacy synchronous upload failure envelope.
+                if error.code == 415:
+                    raise BusinessError(-1) from error
+                raise
+        if prepared.get('thumbnail'):
+            with prepared['thumbnail'].open('rb') as stream:
+                files.install(stream, self.storage.media(user.uuid, photo, True))
         self.session.add(photo)
         self.session.flush()
-        metadata = self.infra.metadata.read(path)
+        from app.infrastructure.media import DECODABLE, asset_path
+        if suffix.lower() in DECODABLE:
+            info = prepared['info']
+            media = PhotoMedia(photo_id=photo.photo_id, animated=info['animated'])
+            if suffix.lower() in {'heic', 'heif'}:
+                preview = prepared['preview']
+                with preview.open('rb') as stream:
+                    files.install(stream, asset_path(self.storage, user.uuid, photo, 'preview'))
+                media.has_preview = True
+            self.session.add(media)
+        metadata = prepared['metadata']
         self.session.add(self.infra.metadata.extra(photo.photo_id, metadata))
         from app.ai.hooks import photo_changed
         photo_changed(self.session, photo)
@@ -64,6 +103,11 @@ class PhotoService(BaseService):
             if photo.format.lower() not in EDITABLE_FORMATS:
                 raise BusinessError(-1)
             user = self.session.get(User, user_id)
+            media = self.session.get(PhotoMedia, photo.photo_id)
+            if media and media.has_preview:
+                from app.infrastructure.media import asset_path
+                files.remove(asset_path(self.storage, user.uuid, photo, 'preview'))
+                media.has_preview = False
             files.remove(self.storage.media(user.uuid, photo, True))
             files.remove(self.storage.media(user.uuid, photo))
             photo.format = suffix
@@ -74,16 +118,54 @@ class PhotoService(BaseService):
             from app.ai.hooks import photo_changed
             photo_changed(self.session, photo)
             self.storage.thumbnail(path, self.storage.media(user.uuid, photo, True), files)
+            from app.infrastructure.media import image_info
+            if media is None:
+                media = PhotoMedia(photo_id=photo.photo_id)
+                self.session.add(media)
+            media.animated = image_info(path)['animated']
         return 1
 
     def all_for_user(self, user_id):
         return self.session.scalars(select(Photo).where(Photo.user_id == user_id).order_by(Photo.photo_id)).all()
 
-    def by_date(self, user_id, order="latest", limit=100, cursor=None):
+    def date_summary(self, user_id):
+        """Aggregate in SQL, never materialize the library to count calendar days."""
+        day = func.date(func.coalesce(PhotoExtra.extra_photo_taken_date, Photo.upload_date))
+        rows = self.session.execute(select(day, func.count(Photo.photo_id)).outerjoin(
+            PhotoExtra, PhotoExtra.f_photo_id == Photo.photo_id).where(
+                Photo.user_id == user_id, func.lower(Photo.format).in_(IMAGE_FORMATS)
+            ).group_by(day).order_by(day)).all()
+        return {"totalCount": sum(count for _, count in rows),
+                "undatedCount": next((count for stamp, count in rows if stamp is None), 0),
+                "days": [{"date": stamp.isoformat(), "count": count}
+                         for stamp, count in rows if stamp is not None]}
+
+    def month_preview(self, user_id, month, order='latest'):
+        from datetime import datetime
+        try:
+            if not isinstance(month, str) or not re.fullmatch(r'[0-9]{4}-[0-9]{2}', month):
+                raise ValueError()
+            start = datetime.strptime(month, '%Y-%m')
+            end = (datetime(start.year + 1, 1, 1) if start.month == 12
+                   else datetime(start.year, start.month + 1, 1)) if month != '9999-12' else None
+            if order not in ('latest', 'oldest'):
+                raise ValueError()
+        except ValueError as error:
+            raise BusinessError(-1) from error
+        date = func.coalesce(PhotoExtra.extra_photo_taken_date, Photo.upload_date)
+        query = select(Photo.photo_id).outerjoin(PhotoExtra, PhotoExtra.f_photo_id == Photo.photo_id).where(
+            Photo.user_id == user_id, func.lower(Photo.format).in_(IMAGE_FORMATS), date >= start)
+        if end is not None:
+            query = query.where(date < end)
+        query = query.order_by(date.desc() if order == 'latest' else date.asc(),
+                              Photo.photo_id.desc() if order == 'latest' else Photo.photo_id.asc()).limit(10)
+        return list(self.session.scalars(query))
+
+    def by_date(self, user_id, order="latest", limit=100, cursor=None, day=None):
         """Owner-scoped keyset pagination; undated images always follow dated images."""
         import base64
         import json
-        from datetime import datetime
+        from datetime import datetime, timedelta
         from app.serialization import serialize
         if order not in ("latest", "oldest") or not 1 <= limit <= 200:
             raise BusinessError(-1)
@@ -91,12 +173,26 @@ class PhotoService(BaseService):
         statement = select(Photo, PhotoExtra.extra_photo_taken_date, date).outerjoin(
             PhotoExtra, PhotoExtra.f_photo_id == Photo.photo_id).where(
                 Photo.user_id == user_id, func.lower(Photo.format).in_(IMAGE_FORMATS))
+        if day is not None:
+            if day == "undated":
+                statement = statement.where(date.is_(None))
+            else:
+                try:
+                    if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", day):
+                        raise ValueError()
+                    start = datetime.strptime(day, "%Y-%m-%d")
+                    end = start + timedelta(days=1) if day != "9999-12-31" else None
+                except (ValueError, TypeError) as error:
+                    raise BusinessError(-1) from error
+                statement = statement.where(date >= start)
+                if end is not None:
+                    statement = statement.where(date < end)
         if cursor:
             try:
                 if len(cursor) > 512:
                     raise ValueError()
                 value = json.loads(base64.b64decode(cursor, altchars=b"-_", validate=True))
-                if not isinstance(value, dict) or value.get("order") != order or value.get("user") != user_id:
+                if not isinstance(value, dict) or value.get("order") != order or value.get("user") != user_id or value.get("day") != day:
                     raise ValueError()
                 identifier = value["id"]
                 if type(identifier) is not int or not 0 < identifier <= 2147483647:
@@ -122,7 +218,7 @@ class PhotoService(BaseService):
         if len(rows) > limit:
             last = items[-1]
             next_cursor = base64.urlsafe_b64encode(json.dumps({"order": order, "user": user_id,
-                "id": last["photoId"], "date": last["timelineDate"]}).encode()).decode()
+                "id": last["photoId"], "date": last["timelineDate"], "day": day}).encode()).decode()
         return {"items": items, "nextCursor": next_cursor}
 
     def by_namespace(self, user_id, ns_id):
@@ -149,9 +245,30 @@ class PhotoService(BaseService):
             .group_by(TagPhoto.photo_id).having(func.count(func.distinct(TagPhoto.tag_id)) == len(ids))
         return self.session.scalars(select(Photo).where(Photo.user_id == user_id, Photo.photo_id.in_(subquery)).order_by(Photo.photo_id)).all()
 
+    def remove_assets(self, user_uuid, photo, files):
+        from app.infrastructure.media import ASSET_SUFFIXES, asset_path
+        count = sum(files.remove(asset_path(self.storage, user_uuid, photo, role)) for role in ASSET_SUFFIXES)
+        media = self.session.get(PhotoMedia, photo.photo_id)
+        if media:
+            self.session.delete(media)
+            self.session.flush()
+        return count
+
+    def preview_path(self, user_id, photo_id, thumbnail=False):
+        photo = self.owned(Photo, photo_id, user_id, None)
+        media = self.session.get(PhotoMedia, photo_id)
+        if not thumbnail and media and media.has_preview:
+            from app.infrastructure.media import asset_path
+            path = asset_path(self.storage, self.session.get(User, user_id).uuid, photo, 'preview')
+            if not path.is_file():
+                raise BusinessError(None, 404)
+            return path
+        return self.path(user_id, photo_id, thumbnail)
+
     def delete_record(self, user_id, photo, files):
         user = self.session.get(User, user_id)
-        count = files.remove(self.storage.media(user.uuid, photo))
+        count = self.remove_assets(user.uuid, photo, files)
+        count += files.remove(self.storage.media(user.uuid, photo))
         count += files.remove(self.storage.media(user.uuid, photo, True))
         self.session.delete(photo)
         return count
@@ -266,6 +383,10 @@ class PhotoService(BaseService):
             raise BusinessError(None, 403)
         if not canonical.is_file():
             raise BusinessError(None, 404)
+        media = self.session.get(PhotoMedia, photo.photo_id)
+        if not thumbnail and media and media.has_preview:
+            from app.infrastructure.media import asset_path
+            return asset_path(self.storage, user.uuid, photo, 'preview')
         return canonical
 
     def share_url(self, user_id, photo_id):

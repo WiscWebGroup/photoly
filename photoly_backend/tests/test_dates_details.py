@@ -3,6 +3,7 @@ from datetime import datetime
 import base64
 import json
 import pytest
+from sqlalchemy import select
 from app.entities import Namespace, Photo, PhotoExtra
 from app.extensions import db
 from tests.openapi_assertions import assert_documented_response
@@ -130,3 +131,107 @@ def test_details_survive_legacy_cycles_without_duplicate_counts(world):
         db.session.commit()
     data = get(world, '/namespace/getDetails', nsId=3)['t']
     assert data['folderCount'] == 1 and data['photoCount'] == 1 and data['videoCount'] == 1
+
+
+def test_date_summary_matches_feed_and_owner_scope(world):
+    seed(world)
+    summary = get(world, '/photo/getDateSummary')['t']
+    items = get(world, '/photo/getByDate')['t']['items']
+    assert summary['totalCount'] == len(items) == 6
+    assert summary['undatedCount'] == 1
+    expected = {}
+    for photo in items:
+        if photo['timelineDate']:
+            key = photo['timelineDate'][:10]
+            expected[key] = expected.get(key, 0) + 1
+    assert summary['days'] == [{'date': key, 'count': expected[key]} for key in sorted(expected)]
+    assert get(world, '/photo/getDateSummary', world.other)['t'] == {
+        'totalCount': 0, 'undatedCount': 0, 'days': []}
+    assert get(world, '/photo/getDateSummary', {})['msgCode'] == 403
+
+
+@pytest.mark.parametrize('order', ['latest', 'oldest'])
+def test_dates_filtered_pagination_and_cursor_scope(world, order):
+    seed(world, 205)
+    cursor, items = None, []
+    while True:
+        page = get(world, '/photo/getByDate', day='2025-01-01', order=order, limit=100,
+                   **({'cursor': cursor} if cursor else {}))['t']
+        items += page['items']
+        cursor = page['nextCursor']
+        if not cursor:
+            break
+        for other_day in ('2020-01-01', 'undated', None):
+            query = {'day': other_day} if other_day else {}
+            assert get(world, '/photo/getByDate', order=order, cursor=cursor, **query)['msgCode'] == 400
+    assert len(items) == len({p['photoId'] for p in items}) == 203
+    assert all(p['timelineDate'].startswith('2025-01-01') for p in items)
+    assert get(world, '/photo/getByDate', day='undated')['t']['items'][0]['photoName'] == 'image-2'
+    unfiltered = get(world, '/photo/getByDate', limit=1)['t']['nextCursor']
+    assert get(world, '/photo/getByDate', day='2025-01-01', cursor=unfiltered)['msgCode'] == 400
+
+
+@pytest.mark.parametrize('day', ['', '2024-2-01', '2023-02-29', '2024-02-30', '2024-13-01',
+                                 '0000-01-01', '2024-01-01T00:00:00', 'garbage'])
+def test_dates_reject_invalid_day(world, day):
+    assert get(world, '/photo/getByDate', day=day)['msgCode'] == 400
+
+
+def test_dates_leap_day_boundaries_and_capture_precedence(world):
+    with world.app.app_context():
+        for index, stamp in enumerate((datetime(2024, 2, 28, 23, 59, 59), datetime(2024, 2, 29),
+                                       datetime(2024, 2, 29, 23, 59, 59), datetime(2024, 3, 1))):
+            photo = Photo(photo_name=f'boundary-{index}', format='JPG', user_id=2, ns_id=2,
+                          photo_uuid=f'boundary-{index}', upload_date=datetime(2025, 1, 1))
+            db.session.add(photo)
+            db.session.flush()
+            db.session.add(PhotoExtra(f_photo_id=photo.photo_id, extra_photo_taken_date=stamp))
+        db.session.commit()
+    items = get(world, '/photo/getByDate', day='2024-02-29')['t']['items']
+    assert {p['photoName'] for p in items} == {'boundary-1', 'boundary-2'}
+    summary = get(world, '/photo/getDateSummary')['t']
+    assert {'date': '2024-02-29', 'count': 2} in summary['days']
+    assert get(world, '/photo/getByDate', day='2024-04-01')['t']['items'] == []
+
+
+def test_unfiltered_legacy_cursor_remains_compatible(world):
+    seed(world)
+    page = get(world, '/photo/getByDate', limit=1)['t']
+    value = json.loads(base64.urlsafe_b64decode(page['nextCursor']))
+    value.pop('day')
+    legacy_cursor = base64.urlsafe_b64encode(json.dumps(value).encode()).decode()
+    next_page = get(world, '/photo/getByDate', limit=1, cursor=legacy_cursor)['t']
+    assert next_page['items'][0]['photoId'] != page['items'][0]['photoId']
+    assert get(world, '/photo/getByDate', day='2025-01-01', cursor=legacy_cursor)['msgCode'] == 400
+
+
+def test_month_preview_is_bounded_ordered_and_private(world):
+    seed(world, 25)
+    latest = get(world, '/photo/getMonthPreview', month='2025-01')['t']
+    oldest = get(world, '/photo/getMonthPreview', month='2025-01', order='oldest')['t']
+    assert len(latest) == len(oldest) == 10
+    assert latest == sorted(latest, reverse=True)
+    assert oldest == sorted(oldest)
+    assert latest != oldest
+    assert get(world, '/photo/getMonthPreview', world.other, month='2025-01')['t'] == []
+    assert get(world, '/photo/getMonthPreview', {}, month='2025-01')['msgCode'] == 403
+    assert len(get(world, '/photo/getMonthPreview', month='2020-01')['t']) == 1
+    assert get(world, '/photo/getMonthPreview', month='2020-02')['t'] == []
+
+
+@pytest.mark.parametrize('params', [{}, {'month':'2025-13'}, {'month':'2025-1'},
+    {'month':'0000-01'}, {'month':'2025-01-01'}, {'month':'2025-01','order':'bad'}])
+def test_month_preview_invalid_input(world, params):
+    assert get(world, '/photo/getMonthPreview', **params)['msgCode'] == 400
+
+
+def test_month_preview_leap_day_boundary_and_video_exclusion(world):
+    with world.app.app_context():
+        db.session.add_all([
+            Photo(photo_name='leap', format='png', user_id=2, ns_id=2, photo_uuid='leap', upload_date=datetime(2024,2,29,23,59,59)),
+            Photo(photo_name='march', format='png', user_id=2, ns_id=2, photo_uuid='march', upload_date=datetime(2024,3,1)),
+            Photo(photo_name='video', format='mov', user_id=2, ns_id=2, photo_uuid='video', upload_date=datetime(2024,2,29)),
+        ])
+        db.session.commit()
+        leap = db.session.scalar(select(Photo.photo_id).where(Photo.photo_name=='leap'))
+    assert get(world, '/photo/getMonthPreview', month='2024-02')['t'] == [leap]

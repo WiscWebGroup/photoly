@@ -33,6 +33,7 @@ interface Addresses {
   config: string
 }
 interface Settings {
+  OnlineDownload: string
   SignUp: string
   SSafeUUID: string
   TokenDuration: number | string
@@ -88,6 +89,25 @@ const database = ref<{
 const loadError = ref('')
 const backendAddr = import.meta.env.VITE_APP_BASE_URL
 
+const onlineDownload = ref(false)
+const onlineSaving = ref(false)
+async function setOnlineDownload(on: boolean) {
+  onlineSaving.value = true
+  try {
+    await call({
+      method: 'post',
+      url: '/admin/setGeneralSetting',
+      params: { name: 'OnlineDownload', val: on ? 1 : 0 },
+    })
+    onlineDownload.value = on
+    window.dispatchEvent(new Event('focus'))
+    toast.success('Setting Changed!')
+  } catch {
+    toast.error('Could not update Online Download')
+  } finally {
+    onlineSaving.value = false
+  }
+}
 const userRegistry = ref(false)
 const ssafeUuid = ref(false)
 const tokenDuration = ref('')
@@ -159,6 +179,7 @@ async function loadDashboard() {
       backendStatus.value = 100
       addresses.value = addrs
       database.value = info
+      onlineDownload.value = settings.OnlineDownload === '1'
       userRegistry.value = settings.SignUp === '1'
       ssafeUuid.value = settings.SSafeUUID === '1'
       tokenDuration.value = String(settings.TokenDuration)
@@ -257,6 +278,18 @@ onMounted(loadDashboard)
     <section aria-labelledby="settings-h" class="flex flex-col gap-3">
       <h2 id="settings-h" class="text-base font-semibold">Settings</h2>
       <div class="bg-card divide-y rounded-xl border shadow-xs">
+        <label class="flex items-center gap-4 px-5 py-4"
+          ><span class="flex flex-1 flex-col"
+            ><span class="font-medium">Online Download</span
+            ><span class="text-muted-foreground text-sm"
+              >Allow users to import public image links.</span
+            ></span
+          ><Switch
+            aria-label="Online Download"
+            :model-value="onlineDownload"
+            :disabled="onlineSaving"
+            @update:model-value="setOnlineDownload"
+        /></label>
         <label class="flex items-center gap-4 px-5 py-4">
           <span class="flex flex-1 flex-col">
             <span class="font-medium">Allow sign-ups</span>

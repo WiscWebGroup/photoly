@@ -153,3 +153,4 @@ class UserGroup(db.Model):
 
 
 from .uploads import UploadBatch, UploadItem
+from .media import PhotoMedia

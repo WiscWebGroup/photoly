@@ -14,22 +14,24 @@ log = logging.getLogger(__name__)
 
 def tick(app):
     service = UploadService(db.session, app.extensions['photoly'])
-    candidates = list(db.session.scalars(select(UploadItem.id).where(
-        UploadItem.state.in_(['ready','processing'])).order_by(UploadItem.updated_at, UploadItem.id).limit(100)))
+    candidates = list(db.session.execute(select(UploadItem.id, UploadItem.batch_id).where(
+        UploadItem.state.in_(['ready','processing','waiting'])).order_by((UploadItem.state == 'waiting'), UploadItem.updated_at, UploadItem.id).limit(100)))
     db.session.rollback()
-    for item_id in candidates:
+    for item_id, batch_id in candidates:
         # A dedicated connection retains the session lock across service commits.
         with db.engine.connect() as lock:
-            acquired = lock.scalar(text('SELECT pg_try_advisory_lock(hashtextextended(:id,74831004))'), {'id': item_id})
+            acquired = lock.scalar(text('SELECT pg_try_advisory_lock(hashtextextended(:id,74831004))'), {'id': batch_id})
             lock.commit()
             if not acquired:
                 continue
             try:
                 service.process(item_id)
             finally:
-                lock.execute(text('SELECT pg_advisory_unlock(hashtextextended(:id,74831004))'), {'id': item_id})
+                lock.execute(text('SELECT pg_advisory_unlock(hashtextextended(:id,74831004))'), {'id': batch_id})
                 lock.commit()
-        return True
+        current = db.session.get(UploadItem, item_id, populate_existing=True)
+        if current is not None and current.state != 'waiting':
+            return True
     return False
 
 

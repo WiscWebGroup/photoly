@@ -16,6 +16,8 @@ dependencies = [
   "Pillow==11.3.0",
   "qrcode==8.2",
   "psutil>=7,<8",
+  "pillow-heif>=1.1,<2",
+  "urllib3>=2.6,<3",
 ]
 
 [dependency-groups]

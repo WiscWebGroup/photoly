@@ -5,6 +5,7 @@ import { onKeyStroke } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import { CalendarDays, Camera, Images, LogOut, Map, Search, Tag } from '@lucide/vue'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
+import OnlineDownloadButton from '@/components/OnlineDownloadButton.vue'
 import UploadButton from '@/components/UploadButton.vue'
 import { useUploadsStore } from '@/stores/uploads'
 import ThemeToggle from '@/components/ThemeToggle.vue'
@@ -180,7 +181,7 @@ const iconButton =
           class="h-[22px] invert dark:invert-0"
         />
       </router-link>
-      <UploadButton class="ml-auto" />
+      <div class="ml-auto flex items-center gap-1"><OnlineDownloadButton /><UploadButton /></div>
       <router-link
         to="/home/ManagePart"
         aria-label="Account"
@@ -203,6 +204,7 @@ const iconButton =
           ><Search class="size-4" /><span class="flex-1">Search photos</span
           ><kbd class="rounded border px-1 text-xs">/</kbd></router-link
         >
+        <OnlineDownloadButton />
         <UploadButton />
       </header>
       <main class="min-h-0 flex-1 overflow-auto"><slot /></main>

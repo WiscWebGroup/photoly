@@ -219,3 +219,76 @@ describe('directory drag and drop', () => {
     expect(rootReads).toBe(3)
   })
 })
+
+it('pastes images once per event, keeps text paste, and waits for Upload', async () => {
+  mountWithApp(UploadCenter)
+  const { uploads, manifest } = fixtures()
+  await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
+  const dialog = document.querySelector('[role="dialog"]')!
+  function paste(items: { kind: string; type: string; getAsFile: () => File | null }[]) {
+    const event = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', { value: { items } })
+    dialog.dispatchEvent(event)
+    return event
+  }
+  const file = new File(['png'], 'image.png', { type: 'image/png' })
+  const item = { kind: 'file', type: 'image/png', getAsFile: () => file }
+  expect(paste([item]).defaultPrevented).toBe(true)
+  expect(
+    paste([{ kind: 'string', type: 'text/plain', getAsFile: () => null }]).defaultPrevented,
+  ).toBe(false)
+  expect(paste([]).defaultPrevented).toBe(false)
+  paste([item])
+  await vi.waitFor(() => expect(pageText()).toContain('2 files'))
+  expect(manifest).toHaveLength(0)
+  button('Upload').click()
+  await vi.waitFor(() => expect(manifest).toHaveLength(2))
+  expect(new Set(manifest.map((item) => item.path)).size).toBe(2)
+  expect(manifest[0]!.path).toMatch(/^Clipboard .*\.png$/)
+  uploads.pickerOpen = false
+})
+
+it('dismisses failure alerts while retaining retryable history, then clears finished activity', async () => {
+  const { uploads } = fixtures()
+  let failedCount = 1
+  let batches = [
+    {
+      id: 'finished',
+      name: 'Failed import',
+      sealed: true,
+      cancelled: false,
+      nsId: 2,
+      createdAt: '2026-01-01',
+      counts: { failed: { count: 1, bytes: 4 } },
+    },
+  ]
+  server.use(
+    http.get(`${API}/uploads`, () =>
+      ok({ batches, total: batches.length, maxFileBytes: 1e6, failedCount }),
+    ),
+    http.post(`${API}/uploads/acknowledge-failures`, () => {
+      failedCount = 0
+      return ok(1)
+    }),
+    http.delete(`${API}/uploads`, () => {
+      batches = []
+      return ok(['finished'])
+    }),
+  )
+  await uploads.refresh()
+  expect(uploads.failed).toBe(true)
+  await uploads.manageActivity('acknowledge')
+  expect(uploads.failed).toBe(false)
+  expect(uploads.batches[0]!.counts.failed!.count).toBe(1)
+  await uploads.refresh()
+  expect(uploads.failed).toBe(false)
+  failedCount = 1
+  await uploads.refresh()
+  expect(uploads.failed).toBe(true)
+  failedCount = 0
+  uploads.page = 2
+  await uploads.manageActivity('clear')
+  expect(uploads.batches).toHaveLength(0)
+  expect(uploads.page).toBe(1)
+  expect(uploads.failed).toBe(false)
+})

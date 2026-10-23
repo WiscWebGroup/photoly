@@ -42,7 +42,7 @@ class AdminService(BaseService):
 
     def set_setting(self, user_id, name, value):
         self.require_admin(user_id)
-        if name in ("TokenDuration", "SignUp", "SSafeUUID"):
+        if name in ("TokenDuration", "SignUp", "SSafeUUID", "OnlineDownload"):
             try:
                 number = int(value)
             except (ValueError, TypeError):
@@ -51,7 +51,7 @@ class AdminService(BaseService):
                 raise BusinessError(-1, 403)
             if name != "TokenDuration" and number not in (0, 1):
                 raise BusinessError(-1)
-        with self.atomic(user_id):
+        with self.atomic(user_id, policy_write=name == "OnlineDownload"):
             item = self.session.scalar(select(Setting).where(Setting.setting_name == name))
             if item is None:
                 return 0

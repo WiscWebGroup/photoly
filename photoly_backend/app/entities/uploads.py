@@ -12,6 +12,8 @@ class UploadBatch(db.Model):
     cancelled = db.Column(db.Boolean, nullable=False, server_default=db.false())
     created_at = db.Column(db.DateTime(timezone=True), nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
+    dismissed = db.Column(db.Boolean, nullable=False, server_default=db.false())
+    failures_acknowledged_at = db.Column(db.DateTime(timezone=True))
     # Relative directory -> namespace ID, allocated only when a media item is imported.
     folders = db.Column(db.JSON, nullable=False, default=dict)
 
@@ -27,6 +29,10 @@ class UploadItem(db.Model):
     content_sha256 = db.Column(db.String(64))
     photo_id = db.Column(db.Integer, db.ForeignKey('photo.photo_id', ondelete='SET NULL'))
     ns_id = db.Column(db.Integer, db.ForeignKey('namespace.ns_id', ondelete='SET NULL'))
+    kind = db.Column(db.String(20), nullable=False, server_default='upload')
+    options = db.Column(db.JSON)
+    media_metadata = db.Column(db.JSON)
+    pair_id = db.Column(db.String(36))
     # Archive children refer to the durable source, never duplicate its compressed bytes.
     source_id = db.Column(db.String(36), index=True)
     entry_index = db.Column(db.Integer)

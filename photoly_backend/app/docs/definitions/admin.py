@@ -45,9 +45,9 @@ OPERATIONS = [
     op('Admin', 'delete_user', 'POST', '/admin/deleteUser', 'Permanently delete an account and its files', missing=-2, failure=-2,
        params=[p('userId')], form=True, description='DESTRUCTIVE: removes the target account and all of its owned data.', errors={'notFound': {'t': -5, 'msgCode': 400}}),
     op('Admin', 'get_general_setting', 'POST', '/admin/getGeneralSetting', 'Read one setting', STRING, '7', failure=None,
-       params=[p('name', STRING, 'Setting name.', example='TokenDuration')], form=True),
+       params=[p('name', STRING, 'Setting name; OnlineDownload accepts 0 (disabled, default) or 1 (enabled).', example='TokenDuration')], form=True),
     op('Admin', 'set_general_setting', 'POST', '/admin/setGeneralSetting', 'Update an existing setting', missing=-2,
-       params=[p('name', STRING, 'Setting name.', example='TokenDuration'), p('val', STRING, 'Setting value.', example='7')], form=True),
+       params=[p('name', STRING, 'Setting name; OnlineDownload accepts 0 (disabled, default) or 1 (enabled).', example='TokenDuration'), p('val', STRING, 'Setting value.', example='7')], form=True),
 ]
 for route, field, schema, example in [
     ('resetUserPassword', 'password', PASSWORD, 'example-password'),
