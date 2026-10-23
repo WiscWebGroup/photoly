@@ -96,7 +96,7 @@ services:
       retries: 30
     restart: unless-stopped
   db_redis:
-    image: redis:7.2.4
+    image: redis:8.10.1
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
     command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save '' --appendonly no"]
