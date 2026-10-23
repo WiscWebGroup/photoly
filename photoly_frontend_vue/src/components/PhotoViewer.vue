@@ -1114,6 +1114,7 @@ const overlay = 'dark text-foreground'
                 <div
                   :key="`${info.photoId}:${version}`"
                   class="absolute inset-0 flex items-center justify-center md:px-[72px] md:pt-2 md:pb-6"
+                  @click.self="closeViewer"
                 >
                   <template v-if="kind === 'photo'">
                     <Skeleton
