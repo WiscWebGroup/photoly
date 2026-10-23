@@ -1,10 +1,14 @@
 // End-to-end check of the POC in headless Chromium:
-//   1. on-device image embedding (WebGPU, or WASM with --wasm) and upload of the AI fixtures
+//   0. device choice: a software-emulated GPU must fall back to WebAssembly
+//   1. on-device image embedding and upload of the AI fixtures
 //   2. the 8 fixture queries (English + Chinese) embedded on-device; top hit must match
 //   3. the server rejects malformed vectors and wrong profiles
 //   4. after closing and reopening the browser, the model loads with zero model downloads
 //
-// usage: node e2e/e2e.mjs [--url http://localhost:8084] [--wasm] [--chrome /path/to/chrome]
+// usage: node e2e/e2e.mjs [--url http://localhost:8084] [--wasm | --force-webgpu] [--chrome /path/to/chrome]
+//   default         Chromium offers only its software GPU (SwiftShader); expect WebAssembly
+//   --wasm          no WebGPU at all; expect WebAssembly
+//   --force-webgpu  software GPU plus ?device=webgpu; exercises the WebGPU path (slow)
 //                         [--dump-text text-vectors.json]
 // Needs the `playwright` package (global install is fine) and a running `photoly serve`
 // against an empty database.
@@ -18,6 +22,9 @@ const args = process.argv.slice(2)
 const option = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback)
 const url = option('--url', 'http://localhost:8084')
 const wasm = args.includes('--wasm')
+const forceWebgpu = args.includes('--force-webgpu')
+const expected = forceWebgpu ? 'webgpu' : 'wasm'
+const pageURL = forceWebgpu ? `${url}/?device=webgpu` : url
 const executablePath = option('--chrome', process.env.CHROME_PATH)
 const dump = option('--dump-text', null) // write query -> browser text vector, for scripts/parity.py
 
@@ -50,7 +57,7 @@ async function open() {
   page.on('console', (m) => { if (m.type() === 'error') console.log('browser:', m.text()) })
   const modelRequests = []
   page.on('request', (r) => { if (r.url().includes('/models/')) modelRequests.push(r.url()) })
-  await page.goto(url)
+  await page.goto(pageURL)
   await page.evaluate(() => window.photoly.ready)
   const runtime = await page.textContent('#runtime')
   return { context, page, modelRequests, runtime }
@@ -60,8 +67,10 @@ try {
   // ---- first visit: download model, index, search ----
   let { context, page, modelRequests, runtime } = await open()
   results.device = await page.evaluate(() => window.photoly.state.device)
-  log('runtime', { runtime, crossOriginIsolated: await page.evaluate(() => crossOriginIsolated) })
-  check(results.device === (wasm ? 'wasm' : 'webgpu'), `expected ${wasm ? 'wasm' : 'webgpu'}, got ${results.device}`)
+  const reason = await page.evaluate(() => window.photoly.state.deviceReason)
+  log('runtime', { runtime, reason, crossOriginIsolated: await page.evaluate(() => crossOriginIsolated) })
+  check(results.device === expected, `expected ${expected}, got ${results.device}`)
+  if (!wasm && !forceWebgpu) check(/software-emulated/.test(reason ?? ''), `expected the software GPU to be skipped, got: ${reason}`)
 
   let started = Date.now()
   await page.evaluate(() => Promise.all([window.photoly.loadVision(), window.photoly.loadText()]))

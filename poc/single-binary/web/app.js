@@ -12,11 +12,28 @@ const state = { profile: null, device: 'wasm', adapter: null, vision: null, text
 
 // ---------- runtime setup ----------
 
+// Software renderers emulate a GPU on the CPU. They are far slower than running the model
+// directly on the CPU with WebAssembly, so they never count as a GPU here.
+const SOFTWARE_GPU = /swiftshader|llvmpipe|lavapipe|softpipe|microsoft basic render|software/i
+
+function isSoftwareAdapter(adapter) {
+  const info = adapter.info ?? {}
+  if (info.isFallbackAdapter || adapter.isFallbackAdapter) return true
+  return SOFTWARE_GPU.test([info.vendor, info.architecture, info.device, info.description].join(' '))
+}
+
+// `?device=webgpu` forces WebGPU even on a software adapter (for testing that path);
+// `?device=wasm` forces WebAssembly.
 async function detectDevice() {
+  const forced = new URL(location.href).searchParams.get('device')
+  if (forced === 'wasm') return { device: 'wasm', reason: 'forced by ?device=wasm' }
   if (!('gpu' in navigator)) return { device: 'wasm', reason: 'no WebGPU in this browser' }
   try {
     const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
-    if (!adapter) return { device: 'wasm', reason: 'no WebGPU adapter' }
+    if (!adapter) return { device: 'wasm', reason: 'no GPU available' }
+    if (isSoftwareAdapter(adapter) && forced !== 'webgpu') {
+      return { device: 'wasm', reason: 'GPU is software-emulated; the CPU is faster', adapter }
+    }
     return { device: 'webgpu', adapter }
   } catch (error) {
     return { device: 'wasm', reason: String(error) }
@@ -38,20 +55,26 @@ async function setup() {
     mjs: new URL('/vendor/ort-wasm-simd-threaded.asyncify.mjs', location.href).href,
     wasm: new URL('/vendor/ort-wasm-simd-threaded.asyncify.wasm', location.href).href,
   }
+  // ONNX Runtime Web defaults to half the cores; using all of them roughly halved image
+  // embedding time in testing (846 ms -> 492 ms on 4 cores). Threads need cross-origin
+  // isolation, which the server provides.
+  env.backends.onnx.wasm.numThreads = crossOriginIsolated ? Math.max(1, navigator.hardwareConcurrency || 1) : 1
 
   const found = await detectDevice()
   state.device = found.device
+  state.deviceReason = found.reason ?? null
   state.adapter = found.adapter ?? null
   const gpu = found.adapter?.info ? `${found.adapter.info.vendor} ${found.adapter.info.architecture}`.trim() : ''
   const f16 = found.adapter?.features.has('shader-f16')
   if (profile.dtype === 'fp16' && state.device === 'webgpu' && !f16) {
     state.device = 'wasm'
     found.reason = 'GPU lacks shader-f16, needed by the fp16 model'
+    state.deviceReason = found.reason
   }
   $('runtime').textContent = [
     state.device === 'webgpu' ? `WebGPU (${gpu || 'adapter found'})` : `WebAssembly (${found.reason})`,
     `model ${profile.dtype}`,
-    `threads ${crossOriginIsolated ? navigator.hardwareConcurrency : 1}`,
+    `threads ${env.backends.onnx.wasm.numThreads}`,
     `PostgreSQL ${database.postgres}, pgvector ${database.pgvector}`,
   ].join(' · ')
   await showStorage()

@@ -4,7 +4,9 @@ A proof of concept for the plan in [`docs/single-binary-backend.md`](../../docs/
 
 - **One static Go binary** serves the API, the web UI, the browser AI runtime and the model
   files, and migrates its own database. Its only dependency is PostgreSQL with pgvector.
-- **SigLIP2 runs in the browser** over WebGPU, with WebAssembly as the fallback. The browser
+- **SigLIP2 runs in the browser** over WebGPU when there is a real GPU, otherwise on the CPU
+  with multi-threaded WebAssembly. Software-emulated GPUs (SwiftShader, llvmpipe and so on)
+  are skipped because they are much slower than the CPU path. The browser
   embeds each photo before uploading it and embeds search text. The server runs no model:
   it validates, stores and searches the 768-number vectors.
 
@@ -77,17 +79,37 @@ GET  /api/photos/{id}/similar ────────────────�
 
 ## Measurements
 
-Measured in a Linux cloud sandbox with no GPU, using Chromium's software WebGPU
-(SwiftShader), so WebGPU timings are far slower than on real hardware.
+Measured in a Linux cloud sandbox: 4 cores (AVX2), no GPU. "WebGPU" below is Chromium's
+software GPU (SwiftShader), forced with `?device=webgpu`. The page no longer picks it by
+itself.
 
-| | WebGPU (SwiftShader, software) | WebAssembly (4 threads) |
+**Model time only, per item (fp32):**
+
+| Route | Image | Text query |
 | --- | --- | --- |
-| End-to-end test | pass | pass |
+| Native ONNX Runtime on the server CPU, 4 threads | 113 ms | 48 ms |
+| Native, 1 thread | 327 ms | 123 ms |
+| Browser WebAssembly, 4 threads (what the page uses now) | 492 ms | 284 ms |
+| Browser WebAssembly, ONNX Runtime Web's default (2 threads here) | 846 ms | 274 ms |
+| Browser WebAssembly, 1 thread | 1,662 ms | 493 ms |
+| Browser WebGPU on SwiftShader (software) | ~51,600 ms | 12,000–15,000 ms |
+
+- Without a GPU, the browser is CPU-bound like the server, but WebAssembly is about 4–5×
+  slower than native code per core. Native ONNX Runtime uses AVX2/FMA kernels; WebAssembly
+  is limited to 128-bit SIMD.
+- An emulated GPU is ~100× slower than WebAssembly, which is why the page skips it.
+- Real-GPU WebGPU timings (Apple, NVIDIA, Intel, phones) still need measuring.
+
+**End-to-end runs:**
+
+| | Default (software GPU present, so WebAssembly) | `--force-webgpu` |
+| --- | --- | --- |
+| Test | pass | pass |
 | Fixture queries, top hit correct | 8/8 (4 English, 4 Chinese) | 8/8 |
-| Image embedding, per photo | 51.6 s | 0.86 s |
-| Text query embedding | 12–15 s | 0.26–0.39 s |
-| First model load (download from the binary over localhost) | 70 s | 50 s |
-| After closing and reopening the browser | 0 model requests, ready in 19 s | 0 model requests, ready in 16 s |
+| Per photo, including preparation and upload | 0.71 s | 51.6 s |
+| Search, including tokenizing and the request | 155–250 ms | 12–15 s |
+| First model load (download from the binary over localhost) | 56 s | 70 s |
+| After closing and reopening the browser | 0 model requests, ready in 14 s | 0 model requests, ready in 19 s |
 
 | | Result |
 | --- | --- |
@@ -95,20 +117,32 @@ Measured in a Linux cloud sandbox with no GPU, using Chromium's software WebGPU
 | Server memory | 22.5 MB peak RSS over a full test run, including streaming 1.5 GB of model files |
 | First download to the browser (fp32) | 1.53 GB: vision 372 MB, text 1.13 GB, tokenizer 34 MB |
 | Browser storage afterwards | 1,563 MB in the Cache API |
-| Browser vs CPU reference (`parity.py`) | cosine 1.000000 (6 d.p.) for all 4 images and all 8 queries, on both paths |
+| Browser vs CPU reference (`parity.py`) | cosine 1.000000 (6 d.p.) for all 4 images and all 8 queries, WebGPU and WebAssembly |
 | WebGPU vs WebAssembly text vectors | cosine ≥ 0.9999999999990 |
 | Same, before the Pillow-matched resize (canvas scaling) | 0.990–0.997 for images |
 
-The software WebGPU numbers only show that the WebGPU path works; a real GPU would be
-far faster. Real-GPU timings (Apple, NVIDIA, Intel, phones) still need measuring. The first
-test run, before the preprocessing change, stalled at the browser-restart step; two later
-full runs did not reproduce it.
+The first test run, before the preprocessing change, stalled at the browser-restart step;
+later full runs did not reproduce it.
+
+### Device choice
+
+`web/app.js` picks the device once per page load:
+
+1. `?device=wasm` or `?device=webgpu` in the URL forces one, for testing.
+2. No WebGPU, or no adapter: WebAssembly.
+3. A software adapter (`isFallbackAdapter`, or SwiftShader, llvmpipe, lavapipe, softpipe,
+   Microsoft Basic Render, "software" in the adapter info): WebAssembly.
+4. The fp16 model on a GPU without `shader-f16`: WebAssembly.
+5. Otherwise: WebGPU.
+
+WebAssembly uses one thread per core (`navigator.hardwareConcurrency`). This needs
+cross-origin isolation, which the server's COOP/COEP headers provide.
 
 ## Testing
 
 ```sh
 go test ./...                                   # vectors, fingerprint, model allowlist, tamper check, gzip serving
-node e2e/e2e.mjs [--wasm] [--dump-text t.json]  # full browser run against a running server with an empty DB
+node e2e/e2e.mjs [--wasm | --force-webgpu] [--dump-text t.json]  # full browser run; needs a running server and an empty DB
 python -I scripts/parity.py --model-dir data/models/<revision> \
     --fixtures ../../photoly_backend/tests/fixtures/ai --database-url "$DATABASE_URL" [--browser-text t.json]
 ```
@@ -116,7 +150,9 @@ python -I scripts/parity.py --model-dir data/models/<revision> \
 The e2e test uses the AI fixtures from `photoly_backend/tests/fixtures/ai` and their 8
 queries (English and Chinese). It requires every query's top hit to be the right photo,
 checks that bad vectors are rejected, then restarts the browser and requires the model to
-load with zero model downloads. Headless Chromium gets software WebGPU with
+load with zero model downloads. By default it offers Chromium only its software GPU and
+requires the page to fall back to WebAssembly. `--wasm` removes WebGPU entirely, and
+`--force-webgpu` runs the whole test on the software GPU. The software GPU comes from
 `--enable-unsafe-webgpu --enable-features=Vulkan --use-vulkan=swiftshader --use-webgpu-adapter=swiftshader`.
 
 `parity.py` recomputes vectors on ONNX Runtime CPU with Pillow, following Photoly's server
@@ -129,6 +165,9 @@ path, and prints the cosine agreement with the browser's vectors.
   `preprocess.js`.
 - Sign-in, the real Photoly API and data model, videos, OCR, EXIF and everything else in
   the backend port.
+- Without a GPU, the server's native CPU is ~4× faster than the browser here (113 ms vs
+  492 ms per photo). A full design could send photos from GPU-less devices to the server for
+  indexing, once the server has ONNX Runtime (above).
 - The text model is the big download (1.13 GB fp32). Options: fp16 (565 MB), a quantized
   text model, or embedding queries on the server, which is cheap there. Photos are where the
   compute is, and the vision model is the smaller file.
