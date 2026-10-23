@@ -30,9 +30,11 @@ Open <http://localhost:8084>. Then:
    its vector.
 3. Search by description ("a dog on a beach"), or click a photo to find similar ones.
 
-The status line at the top shows the route: WebGPU when the browser finds a real GPU,
-otherwise WebAssembly on the CPU. To compare, add `?device=wasm` or `?device=webgpu` to the
-URL.
+The status line at the top shows where each model runs. Photos use WebGPU when the
+browser finds a real GPU, otherwise the CPU (WebAssembly); search text always uses the
+CPU (see [Device choice](#device-choice)). After each search, the status shows tokenizer,
+text model and server times. To compare devices on your machine, add `?textDevice=webgpu`,
+`?imageDevice=wasm`, or `?device=` (both) with `webgpu` or `wasm` to the URL.
 
 | Setting (in `.env` or the shell) | Default | Meaning |
 | --- | --- | --- |
@@ -143,7 +145,7 @@ itself.
 
 **End-to-end runs:**
 
-| | Default (software GPU present, so WebAssembly) | `--force-webgpu` |
+| | Default (software GPU present, so WebAssembly) | `--force-webgpu` (both models) |
 | --- | --- | --- |
 | Test | pass | pass |
 | Fixture queries, top hit correct | 8/8 (4 English, 4 Chinese) | 8/8 |
@@ -162,19 +164,43 @@ itself.
 | WebGPU vs WebAssembly text vectors | cosine ≥ 0.9999999999990 |
 | Same, before the Pillow-matched resize (canvas scaling) | 0.990–0.997 for images |
 
-The first test run, before the preprocessing change, stalled at the browser-restart step;
-later full runs did not reproduce it.
+**Known issue, intermittent:** in 1 of 6 full test runs, the 1.13 GB text model was fetched
+from the server again after a browser restart instead of coming from the Cache API. In
+another early run the restart step stalled. Neither reproduced in 3 dedicated restart
+cycles. transformers.js treats any Cache API error as a miss and silently downloads again,
+so results stay correct but a ~1 GB download repeats. A sturdier option is a custom cache
+on the Origin Private File System, written to a temporary name and renamed only once
+complete (`env.useCustomCache`).
 
 ### Device choice
 
-`web/app.js` picks the device once per page load:
+`web/app.js` picks a device for each model once per page load:
 
-1. `?device=wasm` or `?device=webgpu` in the URL forces one, for testing.
-2. No WebGPU, or no adapter: WebAssembly.
-3. A software adapter (`isFallbackAdapter`, or SwiftShader, llvmpipe, lavapipe, softpipe,
-   Microsoft Basic Render, "software" in the adapter info): WebAssembly.
-4. The fp16 model on a GPU without `shader-f16`: WebAssembly.
-5. Otherwise: WebGPU.
+| | Photos (vision model) | Search text (text model) |
+| --- | --- | --- |
+| Default | WebGPU on a real GPU, else CPU | CPU |
+| URL override | `?imageDevice=webgpu\|wasm` | `?textDevice=webgpu\|wasm` |
+
+`?device=` sets both. Forcing `webgpu` also allows a software GPU, for testing.
+
+WebGPU falls back to the CPU when there is no WebGPU or no adapter, when the adapter is
+software (`isFallbackAdapter`, or SwiftShader, llvmpipe, lavapipe, softpipe, Microsoft
+Basic Render or "software" in the adapter info), or for the fp16 model on a GPU without
+`shader-f16`.
+
+**Why search text stays on the CPU:** one query is 64 tokens, roughly a third of an image's
+work, and it can't be batched. On the GPU, fixed costs per step (475 GPU kernels per run,
+plus copying data in and reading the result back) take a large share of such a small job.
+WebGPU text embedding was reported slower than WebAssembly on a real GPU. ONNX Runtime's
+logs rule out silent CPU fallback: 475 of the text model's 539 nodes run on WebGPU, the 64
+CPU nodes are shape calculations, and the only copy to the GPU is the input. Keeping text on
+the CPU also keeps the 1.1 GB text model (mostly its 256k-word vocabulary table) out of GPU
+memory.
+
+**Warm-up:** right after loading, each model runs once on dummy input. The first run
+compiles GPU shaders and initialises kernels: 18.9 s cold vs 14.3 s warm for text on
+SwiftShader, and 2.0 s vs ~0.25 s on WebAssembly here. Without warm-up, that cost landed on
+the first real search or photo and made it look slow.
 
 WebAssembly uses one thread per core (`navigator.hardwareConcurrency`). This needs
 cross-origin isolation, which the server's COOP/COEP headers provide.

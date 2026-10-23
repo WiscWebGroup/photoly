@@ -1,5 +1,6 @@
 // End-to-end check of the POC in headless Chromium:
-//   0. device choice: a software-emulated GPU must fall back to WebAssembly
+//   0. device choice: a software-emulated GPU must fall back to WebAssembly, and search
+//      text uses the CPU unless forced
 //   1. on-device image embedding and upload of the AI fixtures
 //   2. the 8 fixture queries (English + Chinese) embedded on-device; top hit must match
 //   3. the server rejects malformed vectors and wrong profiles
@@ -7,8 +8,8 @@
 //
 // usage: node e2e/e2e.mjs [--url http://localhost:8084] [--wasm | --force-webgpu] [--chrome /path/to/chrome]
 //   default         Chromium offers only its software GPU (SwiftShader); expect WebAssembly
-//   --wasm          no WebGPU at all; expect WebAssembly
-//   --force-webgpu  software GPU plus ?device=webgpu; exercises the WebGPU path (slow)
+//   --wasm          no WebGPU at all; expect WebAssembly for both models
+//   --force-webgpu  software GPU plus ?device=webgpu; both models on WebGPU (slow)
 //                         [--dump-text text-vectors.json]
 // Needs the `playwright` package (global install is fine) and a running `photoly serve`
 // against an empty database.
@@ -66,15 +67,17 @@ async function open() {
 try {
   // ---- first visit: download model, index, search ----
   let { context, page, modelRequests, runtime } = await open()
-  results.device = await page.evaluate(() => window.photoly.state.device)
-  const reason = await page.evaluate(() => window.photoly.state.deviceReason)
-  log('runtime', { runtime, reason, crossOriginIsolated: await page.evaluate(() => crossOriginIsolated) })
-  check(results.device === expected, `expected ${expected}, got ${results.device}`)
-  if (!wasm && !forceWebgpu) check(/software-emulated/.test(reason ?? ''), `expected the software GPU to be skipped, got: ${reason}`)
+  const devices = await page.evaluate(() => window.photoly.state.devices)
+  results.device = `image ${devices.image.device}, text ${devices.text.device}`
+  log('runtime', { runtime, devices, crossOriginIsolated: await page.evaluate(() => crossOriginIsolated) })
+  check(devices.image.device === expected && devices.text.device === expected, `expected ${expected} for both models, got ${results.device}`)
+  if (!wasm && !forceWebgpu) check(/software-emulated/.test(devices.image.reason ?? ''), `expected the software GPU to be skipped, got: ${devices.image.reason}`)
+  if (!forceWebgpu) check(/short query/.test(devices.text.reason ?? '') || wasm, `expected text on the CPU by choice, got: ${devices.text.reason}`)
 
   let started = Date.now()
   await page.evaluate(() => Promise.all([window.photoly.loadVision(), window.photoly.loadText()]))
-  log('first model load', { seconds: (Date.now() - started) / 1000, modelRequests: modelRequests.length })
+  log('first model load', { seconds: (Date.now() - started) / 1000, modelRequests: modelRequests.length,
+    timings: await page.evaluate(() => window.photoly.state.timings) })
 
   started = Date.now()
   await page.setInputFiles('#files', manifest.samples.map((s) => join(fixtures, s.file)))
@@ -90,10 +93,12 @@ try {
       const t = Date.now()
       const hits = await page.evaluate((q) => window.photoly.search(q), query)
       textVectors[query] = await page.evaluate(() => window.photoly.state.lastQueryEmbedding)
+      const timing = await page.evaluate(() => window.photoly.state.timings.lastQuery)
       const top = hits[0]
       const ok = top?.name === sample.file
       correct += ok
-      log('search', { query, expected: sample.file, top: top?.name, score: top?.score?.toFixed(4), ms: Date.now() - t, ok })
+      log('search', { query, expected: sample.file, top: top?.name, score: top?.score?.toFixed(4), ms: Date.now() - t,
+        modelMs: Math.round(timing.modelMs), tokenizeMs: Math.round(timing.tokenizeMs), ok })
     }
   }
   if (dump) writeFileSync(dump, JSON.stringify(textVectors))

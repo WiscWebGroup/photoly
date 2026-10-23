@@ -1,4 +1,4 @@
-// Browser side of the POC: SigLIP2 runs here (WebGPU, or WebAssembly as a fallback), and
+// Browser side of the POC: SigLIP2 runs here (WebGPU or WebAssembly, chosen per model), and
 // only 768-number vectors go to the server.
 import {
   env, AutoTokenizer, SiglipTextModel, SiglipVisionModel, Tensor,
@@ -8,9 +8,9 @@ import { prepareImage } from '/preprocess.js'
 const $ = (id) => document.getElementById(id)
 const MAX_TOKENS = 64
 
-const state = { profile: null, device: 'wasm', adapter: null, vision: null, text: null }
+const state = { profile: null, devices: null, adapter: null, vision: null, text: null, timings: {} }
 
-// ---------- runtime setup ----------
+// ---------- device choice ----------
 
 // Software renderers emulate a GPU on the CPU. They are far slower than running the model
 // directly on the CPU with WebAssembly, so they never count as a GPU here.
@@ -22,23 +22,55 @@ function isSoftwareAdapter(adapter) {
   return SOFTWARE_GPU.test([info.vendor, info.architecture, info.device, info.description].join(' '))
 }
 
-// `?device=webgpu` forces WebGPU even on a software adapter (for testing that path);
-// `?device=wasm` forces WebAssembly.
-async function detectDevice() {
-  const forced = new URL(location.href).searchParams.get('device')
-  if (forced === 'wasm') return { device: 'wasm', reason: 'forced by ?device=wasm' }
-  if (!('gpu' in navigator)) return { device: 'wasm', reason: 'no WebGPU in this browser' }
+async function detectGpu() {
+  if (!('gpu' in navigator)) return { adapter: null, reason: 'no WebGPU in this browser' }
   try {
     const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
-    if (!adapter) return { device: 'wasm', reason: 'no GPU available' }
-    if (isSoftwareAdapter(adapter) && forced !== 'webgpu') {
-      return { device: 'wasm', reason: 'GPU is software-emulated; the CPU is faster', adapter }
-    }
-    return { device: 'webgpu', adapter }
+    if (!adapter) return { adapter: null, reason: 'no GPU available' }
+    if (isSoftwareAdapter(adapter)) return { adapter, software: true, reason: 'GPU is software-emulated; the CPU is faster' }
+    return { adapter, reason: null }
   } catch (error) {
-    return { device: 'wasm', reason: String(error) }
+    return { adapter: null, reason: String(error) }
   }
 }
+
+// Each model gets its own device:
+// - images use the GPU when there is a real one (a 224 x 224 image is the bigger job);
+// - search text uses the CPU. One 64-token query is too small for a GPU to pay off: fixed
+//   costs per GPU step outweigh the maths, and the 1.1 GB text model stays out of GPU memory.
+// URL overrides for comparing: ?device= (both), ?imageDevice=, ?textDevice= with webgpu|wasm.
+// Forcing webgpu also allows a software-emulated GPU, for testing.
+async function chooseDevices() {
+  const params = new URL(location.href).searchParams
+  const gpu = await detectGpu()
+  const choose = (forced, preferGpu, cpuReason) => {
+    if (forced === 'wasm') return { device: 'wasm', reason: 'forced in the URL' }
+    if (forced !== 'webgpu' && !preferGpu) return { device: 'wasm', reason: cpuReason }
+    if (!gpu.adapter) return { device: 'wasm', reason: gpu.reason }
+    if (gpu.software && forced !== 'webgpu') return { device: 'wasm', reason: gpu.reason }
+    if (state.profile.dtype === 'fp16' && !gpu.adapter.features.has('shader-f16')) {
+      return { device: 'wasm', reason: 'GPU lacks shader-f16, needed by the fp16 model' }
+    }
+    return { device: 'webgpu', reason: forced === 'webgpu' ? 'forced in the URL' : null }
+  }
+  const both = params.get('device')
+  return {
+    gpu,
+    image: choose(params.get('imageDevice') ?? both, true, null),
+    text: choose(params.get('textDevice') ?? both, false, 'a short query is faster on the CPU'),
+  }
+}
+
+function describe({ device, reason }) {
+  if (device === 'webgpu') {
+    const info = state.adapter?.info
+    const gpu = info ? `${info.vendor} ${info.architecture}`.trim() : ''
+    return `WebGPU${gpu ? ` (${gpu})` : ''}`
+  }
+  return `CPU, WebAssembly${reason ? ` (${reason})` : ''}`
+}
+
+// ---------- runtime setup ----------
 
 async function setup() {
   const response = await fetch('/api/profile')
@@ -60,21 +92,14 @@ async function setup() {
   // isolation, which the server provides.
   env.backends.onnx.wasm.numThreads = crossOriginIsolated ? Math.max(1, navigator.hardwareConcurrency || 1) : 1
 
-  const found = await detectDevice()
-  state.device = found.device
-  state.deviceReason = found.reason ?? null
-  state.adapter = found.adapter ?? null
-  const gpu = found.adapter?.info ? `${found.adapter.info.vendor} ${found.adapter.info.architecture}`.trim() : ''
-  const f16 = found.adapter?.features.has('shader-f16')
-  if (profile.dtype === 'fp16' && state.device === 'webgpu' && !f16) {
-    state.device = 'wasm'
-    found.reason = 'GPU lacks shader-f16, needed by the fp16 model'
-    state.deviceReason = found.reason
-  }
+  const choice = await chooseDevices()
+  state.adapter = choice.gpu.adapter
+  state.devices = { image: choice.image, text: choice.text }
   $('runtime').textContent = [
-    state.device === 'webgpu' ? `WebGPU (${gpu || 'adapter found'})` : `WebAssembly (${found.reason})`,
+    `Images: ${describe(state.devices.image)}`,
+    `Text: ${describe(state.devices.text)}`,
     `model ${profile.dtype}`,
-    `threads ${env.backends.onnx.wasm.numThreads}`,
+    `${env.backends.onnx.wasm.numThreads} CPU threads`,
     `PostgreSQL ${database.postgres}, pgvector ${database.pgvector}`,
   ].join(' · ')
   await showStorage()
@@ -93,16 +118,29 @@ function onProgress(event) {
   }))
 }
 
-function modelOptions() {
-  return { device: state.device, dtype: state.profile.dtype, progress_callback: onProgress }
+function modelOptions(kind) {
+  return { device: state.devices[kind].device, dtype: state.profile.dtype, progress_callback: onProgress }
 }
+
+// The first run compiles GPU shaders and sets up kernels, which can cost more than the run
+// itself. Doing it right after loading keeps that cost off the first real photo or search.
+async function warmUp(run) {
+  const started = performance.now()
+  await run()
+  return performance.now() - started
+}
+
+function seconds(ms) { return `${(ms / 1000).toFixed(1)} s` }
 
 async function loadVision() {
   if (!state.vision) {
     state.vision = (async () => {
       const started = performance.now()
-      const model = await SiglipVisionModel.from_pretrained(state.profile.modelName, modelOptions())
-      $('load-vision').textContent = `Image model ready (${((performance.now() - started) / 1000).toFixed(1)} s)`
+      const model = await SiglipVisionModel.from_pretrained(state.profile.modelName, modelOptions('image'))
+      const loadMs = performance.now() - started
+      const warmMs = await warmUp(() => model({ pixel_values: new Tensor('float32', new Float32Array(3 * 224 * 224), [1, 3, 224, 224]) }))
+      state.timings.image = { loadMs, warmMs }
+      $('load-vision').textContent = `Image model ready (load ${seconds(loadMs)}, warm-up ${seconds(warmMs)})`
       $('load-vision').disabled = true
       showStorage()
       return { model }
@@ -118,9 +156,12 @@ async function loadText() {
       const started = performance.now()
       const [tokenizer, model] = await Promise.all([
         AutoTokenizer.from_pretrained(state.profile.modelName),
-        SiglipTextModel.from_pretrained(state.profile.modelName, modelOptions()),
+        SiglipTextModel.from_pretrained(state.profile.modelName, modelOptions('text')),
       ])
-      $('load-text').textContent = `Text model ready (${((performance.now() - started) / 1000).toFixed(1)} s)`
+      const loadMs = performance.now() - started
+      const warmMs = await warmUp(() => model(tokenizer(['warm up'], { padding: 'max_length', max_length: MAX_TOKENS })))
+      state.timings.text = { loadMs, warmMs }
+      $('load-text').textContent = `Text model ready (load ${seconds(loadMs)}, warm-up ${seconds(warmMs)})`
       $('load-text').disabled = true
       showStorage()
       return { tokenizer, model }
@@ -147,12 +188,16 @@ async function embedImage(blob) {
 
 async function embedText(query) {
   const { tokenizer, model } = await loadText()
+  const t0 = performance.now()
   const text = query.toLowerCase()
   const length = tokenizer(text).input_ids.dims.at(-1)
   if (length > MAX_TOKENS) throw new Error(`Query is ${length} tokens; the limit is ${MAX_TOKENS}.`)
   const inputs = tokenizer([text], { padding: 'max_length', max_length: MAX_TOKENS, truncation: false })
+  const t1 = performance.now()
   const { pooler_output } = await model(inputs)
-  return unitVector(pooler_output)
+  const vector = unitVector(pooler_output)
+  state.timings.lastQuery = { tokenizeMs: t1 - t0, modelMs: performance.now() - t1 }
+  return vector
 }
 
 // ---------- API ----------
@@ -181,21 +226,23 @@ async function uploadFiles(files) {
     await api('/api/photos', { method: 'POST', body: form })
     done++
   }
-  status.textContent = `Uploaded ${done} photo(s); on-device embedding took ${(totalMs / done).toFixed(0)} ms per photo (${state.device}).`
+  status.textContent = `Uploaded ${done} photo(s); on-device embedding took ${(totalMs / done).toFixed(0)} ms per photo (${state.devices.image.device}).`
   await showAll()
 }
 
 async function search(query) {
-  const started = performance.now()
   const embedding = await embedText(query)
-  const embedMs = performance.now() - started
   state.lastQueryEmbedding = embedding
+  const started = performance.now()
   const hits = await api('/api/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ embedding, profile: state.profile.fingerprint, limit: 12 }),
   })
-  $('search-status').textContent = `“${query}”: text embedded in ${embedMs.toFixed(0)} ms (${state.device}), ${hits.length} result(s).`
+  const { tokenizeMs, modelMs } = state.timings.lastQuery
+  const ms = (x) => `${x.toFixed(0)} ms`
+  $('search-status').textContent = `“${query}”: ${hits.length} result(s). Tokenize ${ms(tokenizeMs)}, ` +
+    `text model ${ms(modelMs)} (${state.devices.text.device}), server search ${ms(performance.now() - started)}.`
   render(hits)
   return hits
 }
