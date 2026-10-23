@@ -109,3 +109,49 @@ A ~200-line `main.go` with subcommands `serve`, `migrate` and `verify`:
 - `verify`: checks Werkzeug scrypt hashes.
 
 It was a feasibility check and is not committed.
+
+## Follow-up: the AI runtime in the same binary
+
+The runtime serves SigLIP2 base (`google/siglip2-base-patch16-224`, 375M parameters,
+768-dim) and Qwen3-VL-Embedding-2B (2048-dim) through PyTorch on CPU, CUDA or MPS.
+
+**It is possible, but the result is not a lightweight binary.** The inference code can be
+compiled in. The parts that make AI heavy cannot:
+
+- **Model weights:** roughly 0.8–1.5 GB for SigLIP2 and ~4 GB for Qwen at 16-bit. They are
+  downloaded on first load, as they are today.
+- **GPU libraries:** the CUDA libraries are several GB and cannot be statically linked.
+  Go would also need cgo, so each platform gets its own build (Linux CPU, Linux CUDA,
+  macOS Metal) instead of one universal file.
+
+### Engine options
+
+| Model | Engine | Notes |
+| --- | --- | --- |
+| SigLIP2 | ONNX Runtime via cgo (`yalue/onnxruntime_go`) | Standard encoder that exports cleanly to ONNX. CPU, CUDA and CoreML providers. Needs the Gemma tokenizer and SigLIP preprocessing ported to Go. |
+| Qwen3-VL-Embedding-2B | llama.cpp / ggml via cgo | Qwen3-VL is supported upstream and community GGUF builds of the embedding model exist. The embedding path (last-token pooling, chat template, image patching) is unverified and would need testing. Quantizing would cut memory a lot, at some cost to accuracy. |
+
+Running two native engines in one binary adds real build and maintenance cost.
+
+### Consequences
+
+- **Vectors change.** A different engine (or quantization) won't produce identical
+  embeddings, so this would be a new search profile and the library would be re-indexed.
+  The existing profile/fingerprint design already handles that. `scripts/ai_model_smoke.py`
+  and `tests/fixtures/ai` can check cosine agreement with the PyTorch reference.
+- **Crash isolation.** Today a model that runs out of memory while loading only takes down
+  the runtime. In-process, it would take down the API. Fix: ship one binary but run AI as a
+  child process (`photoly ai-worker`) started and restarted by `photoly serve`.
+- **macOS gets simpler.** Docker on a Mac cannot use the GPU, which is why MPS needs a
+  native runtime today. A native binary with Metal could run everything outside Docker
+  (Postgres aside).
+
+### Recommendation
+
+1. Port the backend first. Keep the Python AI runtime as is; it is already a separate HTTP
+   service.
+2. Then, optionally, build SigLIP2 into the binary with ONNX Runtime as a built-in "light AI"
+   (CPU by default, child process), so basic smart search works without the PyTorch
+   container.
+3. Leave Qwen3-VL in the Python runtime unless the llama.cpp embedding path is shown to
+   match quality.
