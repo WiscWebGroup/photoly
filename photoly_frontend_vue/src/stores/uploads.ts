@@ -35,9 +35,10 @@ interface LocalItem extends PickedFile {
   state: string
   sent: number
   error?: string
+  acknowledged?: boolean
 }
 const media = new Set(
-  'jpg jpeg gif png webp ico bmp tif tiff svg psd raw arw pcd jfif mp4 avi wmv mpeg m4v mov flv asf f4v rmvb vob rm zip'.split(
+  'jpg jpeg gif png webp ico bmp tif tiff svg psd raw arw pcd jfif heic heif mp4 avi wmv mpeg m4v mov flv asf f4v rmvb vob rm zip'.split(
     ' ',
   ),
 )
@@ -51,6 +52,7 @@ export const bytesLabel = (bytes: number) =>
       : `${Math.ceil(bytes / 1000)} KB`
 export const uploadError = (reason: string | null) =>
   ({
+    upload_still_active: 'Cancel remaining work before clearing this activity',
     source_changed: 'The selected file differs from the original upload',
     source_expired: 'Source expired. Reselect the original file or ZIP.',
     unsupported_file_type: 'Skipped: not a supported photo or video',
@@ -62,6 +64,19 @@ export const uploadError = (reason: string | null) =>
     zip_expansion_limit: 'ZIP exceeds the extraction budget',
     invalid_zip: 'Invalid or damaged ZIP',
     processing_failed: 'Could not process this file',
+    online_download_disabled: 'Online Download is disabled by the administrator',
+    non_public_image_url: 'Only public HTTP or HTTPS image links are allowed',
+    invalid_image_url: 'Enter a public HTTP or HTTPS image link',
+    invalid_image: 'The source is not a supported image',
+    download_timeout: 'The image download timed out',
+    download_too_large: 'The source image exceeds the download limit',
+    download_failed: 'Could not download the image',
+    download_http_error: 'The image server did not return a successful response',
+    too_many_redirects: 'The image link redirects too many times',
+    conversion_failed: 'Could not convert the image',
+    video_conversion_failed: 'Could not generate the Live Photo playback copy',
+    conversion_timeout: 'Image conversion timed out',
+    animation_too_large: 'This animation exceeds the conversion budget',
     insufficient_disk_space: 'Server disk space is low',
     transmission_expired: 'Transmission expired. Reselect files to retry.',
     file_size_mismatch: 'File size did not match',
@@ -84,6 +99,7 @@ export const useUploadsStore = defineStore('uploads', () => {
   const auth = useAuthStore()
   const open = ref(false)
   const pickerOpen = ref(false)
+  const currentFolder = ref<{ nsId: number; name: string } | null>(null)
   const target = ref<{ nsId: number; name: string } | null>(null)
   const resumeBatch = ref<string | null>(null)
   const batches = ref<UploadBatch[]>([])
@@ -94,6 +110,7 @@ export const useUploadsStore = defineStore('uploads', () => {
   const revision = ref(0)
   const error = ref('')
   const submitting = ref(false)
+  const managing = ref(false)
   let generation = 0
   let refreshing = false
   let running = 0
@@ -108,16 +125,18 @@ export const useUploadsStore = defineStore('uploads', () => {
       serverActive.value,
       batches.value.reduce(
         (n, b) =>
-          n + ['pending', 'ready', 'processing'].reduce((s, k) => s + (b.counts[k]?.count ?? 0), 0),
+          n +
+          ['pending', 'ready', 'processing', 'waiting'].reduce(
+            (s, k) => s + (b.counts[k]?.count ?? 0),
+            0,
+          ),
         0,
       ),
     ),
   )
   const failed = computed(
     () =>
-      serverFailed.value > 0 ||
-      local.value.some((i) => i.state === 'failed') ||
-      batches.value.some((b) => b.counts.failed?.count),
+      serverFailed.value > 0 || local.value.some((i) => i.state === 'failed' && !i.acknowledged),
   )
   const progress = computed(() => {
     const bytes = local.value.reduce((n, i) => n + i.file.size, 0)
@@ -136,6 +155,7 @@ export const useUploadsStore = defineStore('uploads', () => {
       running = 0
       refreshing = false
       submitting.value = false
+      managing.value = false
       local.value = []
       batches.value = []
       serverActive.value = 0
@@ -145,6 +165,7 @@ export const useUploadsStore = defineStore('uploads', () => {
       open.value = false
       pickerOpen.value = false
       target.value = null
+      currentFolder.value = null
       error.value = ''
     },
     { flush: 'sync' },
@@ -168,6 +189,16 @@ export const useUploadsStore = defineStore('uploads', () => {
         (data.activeCount ?? 0) !== serverActive.value
       )
         revision.value++
+      for (const batch of data.batches) {
+        const old = batches.value.find((b) => b.id === batch.id)
+        const pending = (b: UploadBatch) =>
+          ['pending', 'ready', 'processing', 'waiting'].some((state) => b.counts[state]?.count)
+        if (old && pending(old) && !pending(batch) && !batch.cancelled) {
+          if (batch.counts.failed?.count)
+            toast.error(`${batch.name}: some items failed. Open Upload activity to retry.`)
+          else toast.success(`${batch.name} complete`)
+        }
+      }
       serverActive.value = data.activeCount ?? 0
       serverFailed.value = data.failedCount ?? 0
       batches.value = data.batches
@@ -311,6 +342,7 @@ export const useUploadsStore = defineStore('uploads', () => {
     } catch (e) {
       if (gen === generation && item.state !== 'cancelled') {
         item.state = 'failed'
+        item.acknowledged = false
         item.error = e instanceof Error ? e.message : 'Transmission failed'
       }
     } finally {
@@ -347,10 +379,50 @@ export const useUploadsStore = defineStore('uploads', () => {
       toast.error(e instanceof Error ? e.message : 'Could not update upload')
     }
   }
+  async function manageActivity(kind: 'clear' | 'acknowledge', batchId?: string) {
+    if (managing.value) return false
+    managing.value = true
+    const gen = generation
+    // Only acknowledge failures that were already visible when the action started.
+    const failures = local.value.filter((i) => i.state === 'failed')
+    try {
+      const removed = await uploadCall<string[]>(
+        kind === 'clear'
+          ? `/uploads${batchId ? `/${batchId}` : ''}`
+          : '/uploads/acknowledge-failures',
+        kind === 'clear' ? 'delete' : 'post',
+        undefined,
+        sessionController.signal,
+      )
+      if (gen !== generation) return false
+      if (kind === 'clear') {
+        local.value = local.value.filter((i) => !removed.includes(i.batchId))
+        page.value = 1
+      } else {
+        failures.forEach((i) => {
+          if (i.state === 'failed') i.acknowledged = true
+        })
+      }
+      // Invalidate an older poll so it cannot restore a cleared badge/history row.
+      refreshSequence++
+      refreshing = false
+      await refresh()
+      return true
+    } catch (e) {
+      if (gen === generation)
+        toast.error(e instanceof Error ? e.message : 'Could not update activity')
+      return false
+    } finally {
+      if (gen === generation) managing.value = false
+    }
+  }
   return {
+    manageActivity,
+    managing,
     open,
     pickerOpen,
     target,
+    currentFolder,
     resumeBatch,
     batches,
     total,

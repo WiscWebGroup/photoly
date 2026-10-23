@@ -131,6 +131,41 @@ OPERATIONS.append(op('Photo', 'by_date', 'GET', '/photo/getByDate', 'Page throug
     {'items': [], 'nextCursor': None}, params=[
         p('order', {'enum': ['latest', 'oldest'], 'type': 'string'}, 'Sort direction; default latest.', False, example='latest'),
         p('limit', {'type': 'integer', 'minimum': 1, 'maximum': 200}, 'Page size; default 100.', False, example=100),
-        p('cursor', STRING, 'Opaque nextCursor from the preceding page, for the same user and order.', False, example='opaque')],
+        p('day', STRING, 'Optional YYYY-MM-DD calendar date, or undated; omitted includes all dates.', False, example='2024-02-29'),
+        p('cursor', STRING, 'Opaque nextCursor from the preceding page, for the same user, order and day.', False, example='opaque')],
     description='Images only, across all owned folders. Capture time falls back to upload time; both absent sorts last. '
                 'Photo ID breaks ties in the same direction. Existing uploadDate is unchanged. New uploads or date edits require restarting pagination.'))
+
+
+OPERATIONS.append(op('Photo', 'date_summary', 'GET', '/photo/getDateSummary', 'Count owned images by calendar day',
+    obj({'totalCount': {'type': 'integer'}, 'undatedCount': {'type': 'integer'},
+         'days': array(obj({'date': {'type': 'string', 'format': 'date'}, 'count': {'type': 'integer'}}))}),
+    {'totalCount': 0, 'undatedCount': 0, 'days': []},
+    description='Images only across all owned folders. SQL aggregation uses capture date with upload date fallback, '
+                'without timezone conversion. Days are ascending; missing dates are counted separately.'))
+
+# Preview MIME follows the encoded bytes, including PNG/GIF originals and JPEG HEIC previews.
+for path, method, operation in OPERATIONS:
+    if path in ('/photo/render/{token}', '/photo/renderThumbnail/{token}', '/photo/renderToken', '/photo/renderToken/Thumbnail'):
+        content = operation['responses']['200']['content']
+        schema = next(iter(content.values()))
+        for mime_type in ('image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/tiff', 'image/x-icon'):
+            content[mime_type] = schema
+        operation['description'] += ' MIME matches the response bytes. HEIC/HEIF render as JPEG; original download retains the source. Thumbnails are static.'
+
+for path, method, operation in OPERATIONS:
+    if path in ('/photo/renderV/{token}', '/photo/renderVToken'):
+        for status in ('200', '206'):
+            if status not in operation['responses']:
+                continue
+            content = operation['responses'][status]['content']
+            schema = next(iter(content.values()))
+            for mime_type in ('video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv', 'video/mpeg', 'video/x-flv'):
+                content[mime_type] = schema
+        operation['description'] += ' Video MIME follows its stored format; raw original downloads remain attachments.'
+
+OPERATIONS.append(op('Photo', 'month_preview', 'GET', '/photo/getMonthPreview',
+    'Read up to ten photo IDs for a month preview', {'type':'array','maxItems':10,'items':{'type':'integer'}}, [1],
+    params=[p('month', {'type':'string','pattern':r'^[0-9]{4}-[0-9]{2}$'}, 'Calendar month YYYY-MM.'),
+            p('order', {'enum':['latest','oldest']}, 'Preview order; defaults to latest.', False)],
+    description='Owner-only image thumbnails. Capture date takes priority over upload date, without timezone conversion. Videos and undated photos are excluded.'))

@@ -9,7 +9,7 @@ STORAGE_EXAMPLE = {'usedBytes':1200,'capacityBytes':50000000000,'groupId':1,'gro
                    'storageOverride':False,'maxStorageBytes':None,'quotaSource':'group','overQuota':False}
 GROUP = obj({'id':INTEGER,'name':STRING,'maxStorageBytes':LIMIT,'isDefault':BOOLEAN,'memberCount':INTEGER})
 GROUP_EXAMPLE = {'id':1,'name':'Default','maxStorageBytes':50000000000,'isDefault':True,'memberCount':3}
-ITEM = obj({'id':STRING,'batchId':STRING,'path':STRING,'size':INTEGER,'state':{'enum':['pending','ready','processing','done','failed','skipped','cancelled','expanded']},
+ITEM = obj({'id':STRING,'batchId':STRING,'path':STRING,'size':INTEGER,'state':{'enum':['pending','ready','processing','waiting','done','failed','skipped','cancelled','expanded']},
             'error':nullable(STRING),'photoId':nullable(INTEGER),'nsId':nullable(INTEGER),'sourceId':nullable(STRING)})
 KEY = '00000000-0000-4000-8000-000000000001'
 ITEM_EXAMPLE = {'id':KEY,'batchId':KEY,'path':'Trip/photo.jpg','size':1200,'state':'pending','error':None,'photoId':None,'nsId':None,'sourceId':None}
@@ -22,10 +22,10 @@ GROUP_BODY = json_body(obj({'name':STRING,'maxStorageBytes':LIMIT}),{'name':'Fam
 OPERATIONS = [
     op('Uploads','create_upload','POST','/uploads','Create an idempotent upload batch',STRING,KEY,
        body=json_body(obj({'id':STRING,'nsId':INTEGER,'name':STRING}),{'id':KEY,'nsId':1,'name':'Trip'}),
-       description='Batch UUID is supplied by the client. Destination must be owned. There is no batch file-count or total-byte limit.'),
+       description='Batch UUID is supplied by the client. Destination must be owned. There is no batch file-count or total-byte limit. Apple Live Photo components must share one sealed batch and relative directory. The waiting state means metadata or another candidate file is still pending. Pairing uses ContentIdentifier, never filenames.'),
     op('Uploads','list_uploads','GET','/uploads','List recent private uploads',
        obj({'batches':array(BATCH),'total':INTEGER,'maxFileBytes':INTEGER,'activeCount':INTEGER,'failedCount':INTEGER}),{'batches':[],'total':0,'maxFileBytes':629145600,'activeCount':0,'failedCount':0},params=PAGE,
-       description='20 batches per page; default retention 30 days. Counts separate transmission, processing, failures and skipped files.'),
+       description='20 batches per page; default retention 30 days. Counts separate transmission, processing, failures and skipped files. Cleared batches are excluded. failedCount counts only unacknowledged failures; per-batch counts still include all failures.'),
     op('Uploads','register_upload_items','POST','/uploads/{batch_id}/items','Register a page of upload entries',params=BATCH_PATH,
        body=json_body(obj({'items':{'type':'array','minItems':1,'maxItems':500,'items':obj({'id':STRING,'path':STRING,'size':INTEGER})}}),
                       {'items':[{'id':KEY,'path':'Trip/photo.jpg','size':1200}]}),
@@ -53,4 +53,13 @@ OPERATIONS = [
        params=[p('user_id',INTEGER,'Target user ID.',where='path')],
        body=json_body(obj({'groupId':INTEGER,'storageOverride':BOOLEAN,'maxStorageBytes':LIMIT}),{'groupId':1,'storageOverride':False,'maxStorageBytes':None}),
        description='storageOverride=false inherits the group. With override=true, a null limit is unlimited. Originals, thumbnails and avatars count toward usage.'),
+]
+
+OPERATIONS += [
+    op('Uploads', 'clear_upload_activity', 'DELETE', '/uploads', 'Clear finished upload activity', array(STRING), [KEY],
+       description='Hides sealed batches without pending work, including failed and cancelled imports, and returns cleared IDs. Photos, idempotency records and normal temporary-file expiry are preserved. Active uploads stay visible.'),
+    op('Uploads', 'clear_upload_batch', 'DELETE', '/uploads/{batch_id}', 'Clear one finished upload activity', array(STRING), [KEY], params=BATCH_PATH,
+       description='Owner-only and idempotent. Active or unsealed batches return msgCode 409. Does not delete photos.'),
+    op('Uploads', 'acknowledge_upload_failures', 'POST', '/uploads/acknowledge-failures', 'Dismiss existing failure alerts',
+       description='Acknowledges current failures across all pages for this user. Keeps activity and retries available. Later failures raise the alert again.'),
 ]

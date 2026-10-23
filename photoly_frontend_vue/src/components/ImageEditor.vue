@@ -113,7 +113,11 @@ const outputSize = computed(() => {
 
 onMounted(async () => {
   try {
-    const { data } = await http.get<Blob>(photoUrl(props.photo.photoId), { responseType: 'blob' })
+    const { data } = await http.get<Blob>(photoUrl(props.photo.photoId), {
+      // photoUrl already includes the API prefix, including relative /api deployments.
+      baseURL: '',
+      responseType: 'blob',
+    })
     originalBytes.value = data.size
     const url = URL.createObjectURL(data)
     const img = new Image()
@@ -331,7 +335,7 @@ const label = 'text-sm font-medium'
 </script>
 
 <template>
-  <div class="grid gap-4 md:grid-cols-[1fr_20rem]">
+  <div class="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_20rem]">
     <div class="flex min-h-64 items-start justify-center">
       <p v-if="loadFailed" class="text-muted-foreground self-center text-sm">
         This image can't be edited.

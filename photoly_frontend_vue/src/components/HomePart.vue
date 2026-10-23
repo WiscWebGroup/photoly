@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import {
@@ -103,6 +103,16 @@ const folderName = (f: FolderInfo, i: number) => (i === 0 ? 'Library' : f.nsName
 const title = computed(() =>
   isRoot.value ? 'Library' : (folders.current.value?.nsName ?? 'Library'),
 )
+watch(
+  [nsId, title],
+  ([id, name]) => {
+    uploads.currentFolder = id > 0 ? { nsId: id, name } : null
+  },
+  { immediate: true },
+)
+onUnmounted(() => {
+  uploads.currentFolder = null
+})
 const parent = computed(() => {
   const path = folders.path.value
   return path.length > 1 ? { folder: path[path.length - 2]!, i: path.length - 2 } : null

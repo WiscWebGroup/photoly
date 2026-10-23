@@ -233,4 +233,31 @@ describe('MediaList', () => {
     await mountWithPhotos({ hideToggle: true })
     expect(document.querySelector('button[aria-label="List view"]')).toBeNull()
   })
+
+  it('retains selection when virtual pages are evicted and restores it on reload', async () => {
+    const wrapper = await mountWithPhotos({ retainState: true })
+    await enterSelectMode()
+    await selectAll()
+    wrapper.vm.updatePhotoList([])
+    await vi.waitFor(() => expect(pageText()).toContain('2 selected'))
+    wrapper.vm.updatePhotoList(photos())
+    await vi.waitFor(() =>
+      expect(document.querySelectorAll('[data-photo-id][aria-pressed="true"]')).toHaveLength(2),
+    )
+    button('Done').click()
+    wrapper.vm.updatePhotoList([])
+    await vi.waitFor(() => expect(document.querySelector('[data-photo-id]')).toBeNull())
+  })
+
+  it('keeps the viewer navigation snapshot while virtual pages are evicted', async () => {
+    const wrapper = await mountWithPhotos({ retainState: true })
+    byText('beach.jpg').click()
+    await vi.waitFor(() => expect(document.querySelector('[data-photo-viewer]')).toBeTruthy())
+    wrapper.vm.updatePhotoList([])
+    await vi.waitFor(() => expect(button('Next photo').disabled).toBe(false))
+    button('Next photo').click()
+    await vi.waitFor(() =>
+      expect(document.querySelector('[role="dialog"]')?.textContent).toContain('dog'),
+    )
+  })
 })

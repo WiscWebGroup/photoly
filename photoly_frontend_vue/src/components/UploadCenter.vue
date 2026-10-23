@@ -25,6 +25,7 @@ import {
   type UploadItem,
 } from '@/stores/uploads'
 import { droppedFiles } from '@/lib/uploadFiles'
+import { newUuid } from '@/lib/uuid'
 import { photoUrl } from '@/lib/photoUrl'
 
 const uploads = useUploadsStore()
@@ -57,6 +58,34 @@ watch(
     }
   },
 )
+function paste(event: ClipboardEvent) {
+  if (!uploads.pickerOpen || uploads.submitting) return
+  const images = [...(event.clipboardData?.items ?? [])]
+    .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => !!file)
+  if (!images.length) return
+  event.preventDefault()
+  picked.value = picked.value.concat(
+    images.map((file) => {
+      const ext =
+        (
+          {
+            'image/png': 'png',
+            'image/jpeg': 'jpg',
+            'image/gif': 'gif',
+            'image/webp': 'webp',
+          } as Record<string, string>
+        )[file.type] ?? 'png'
+      const name =
+        /^.+\.[a-z0-9]+$/i.test(file.name) && file.name !== `image.${ext}`
+          ? file.name
+          : `Clipboard ${new Date().toISOString().replace(/[:.]/g, '-')}-${newUuid().slice(0, 8)}.${ext}`
+      const named = new File([file], name, { type: file.type, lastModified: file.lastModified })
+      return { file: named, path: name }
+    }),
+  )
+}
 function choose(event: Event) {
   const input = event.target as HTMLInputElement
   picked.value = picked.value.concat(
@@ -114,7 +143,7 @@ function count(batch: UploadBatch, state: string) {
   return batch.counts[state]?.count ?? 0
 }
 function pending(batch: UploadBatch) {
-  return ['pending', 'ready', 'processing'].reduce((n, s) => n + count(batch, s), 0)
+  return ['pending', 'ready', 'processing', 'waiting'].reduce((n, s) => n + count(batch, s), 0)
 }
 function completion(batch: UploadBatch) {
   const finished = ['done', 'failed', 'skipped', 'cancelled'].reduce(
@@ -137,6 +166,13 @@ function resume(batch: UploadBatch) {
   if (batch.nsId === null) return toast.error('Destination folder was deleted')
   uploads.start(batch.nsId, batch.name, batch.id)
 }
+async function clearActivity(batchId?: string) {
+  if (await uploads.manageActivity('clear', batchId)) {
+    detailSeq++
+    selected.value = null
+    items.value = []
+  }
+}
 let timer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   void uploads.refresh()
@@ -153,14 +189,14 @@ watch(
 
 <template>
   <Dialog v-model:open="uploads.pickerOpen">
-    <DialogContent class="sm:max-w-xl">
+    <DialogContent class="sm:max-w-xl" @paste="paste">
       <DialogHeader
         ><DialogTitle>{{
           uploads.resumeBatch ? 'Reselect pending files' : `Upload to ${uploads.target?.name}`
         }}</DialogTitle
         ><DialogDescription
-          >Choose files, a folder, or a ZIP. Folder structure is preserved. You can keep browsing
-          after starting.</DialogDescription
+          >Choose files, a folder, or a ZIP, or paste an image with Cmd+V / Ctrl+V. Folder structure
+          is preserved. You can keep browsing after starting.</DialogDescription
         ></DialogHeader
       >
       <div
@@ -268,6 +304,26 @@ watch(
           >Refresh</Button
         >
       </div>
+      <div class="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          :disabled="uploads.managing || !uploads.total"
+          @click="clearActivity()"
+          >Clear finished</Button
+        >
+        <Button
+          v-if="uploads.failed"
+          size="sm"
+          variant="ghost"
+          :disabled="uploads.managing"
+          @click="uploads.manageActivity('acknowledge')"
+          >Dismiss failure alerts</Button
+        >
+      </div>
+      <p class="text-muted-foreground text-xs">
+        Clearing finished activity keeps your photos. Active uploads stay here.
+      </p>
       <p v-if="uploads.error" role="alert" class="text-destructive text-sm">{{ uploads.error }}</p>
       <div v-if="uploads.local.some((i) => i.state === 'sending')" class="space-y-1">
         <p class="text-muted-foreground text-xs">
@@ -276,7 +332,7 @@ watch(
         <Progress :model-value="uploads.progress" aria-label="Upload progress" />
       </div>
       <p
-        v-if="uploads.local.some((i) => i.state === 'failed')"
+        v-if="uploads.local.some((i) => i.state === 'failed' && !i.acknowledged)"
         role="alert"
         class="text-destructive text-sm"
       >
@@ -395,11 +451,18 @@ watch(
                 @click="resume(batch)"
                 >Reselect files</Button
               ><Button
-                v-if="pending(batch)"
+                v-if="pending(batch) || !batch.sealed"
                 variant="ghost"
                 size="sm"
                 @click="uploads.action(batch.id, 'cancel')"
                 >Cancel remaining</Button
+              ><Button
+                v-if="batch.sealed && !pending(batch)"
+                variant="ghost"
+                size="sm"
+                :disabled="uploads.managing"
+                @click="clearActivity(batch.id)"
+                >Clear activity</Button
               >
             </div>
           </article>

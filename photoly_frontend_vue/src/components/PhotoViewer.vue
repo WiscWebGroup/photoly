@@ -26,6 +26,9 @@ import {
   Minimize,
   Pencil,
   Plus,
+  Play,
+  Volume2,
+  VolumeX,
   Share2,
   Sparkles,
   Trash2,
@@ -70,6 +73,8 @@ import { download } from '@/lib/download'
 import { isEditable } from '@/lib/imageEdit'
 import { call } from '@/lib/http'
 import { mediaKind } from '@/lib/media'
+import { uploadCall, useUploadsStore } from '@/stores/uploads'
+import { newUuid } from '@/lib/uuid'
 import { photoUrl } from '@/lib/photoUrl'
 import { useAuthStore } from '@/stores/auth'
 import SimilarRecommendations, {
@@ -115,6 +120,37 @@ interface Gallery {
 }
 
 const auth = useAuthStore()
+const uploads = useUploadsStore()
+const liveInfo = ref<{ live: boolean; liveStatus: string | null } | null>(null)
+const livePlaying = ref(false)
+const liveMuted = ref(true)
+const liveVideo = ref<HTMLVideoElement>()
+function stopPlayback() {
+  liveVideo.value?.pause()
+  root.value?.querySelectorAll('video').forEach((video) => video.pause())
+  livePlaying.value = false
+  liveMuted.value = true
+}
+async function retryLive() {
+  if (!info.value) return
+  try {
+    await uploadCall('/photo/retryLivePreview', 'post', {
+      id: newUuid(),
+      photoId: info.value.photoId,
+    })
+    uploads.open = true
+    await uploads.refresh()
+    toast.success('Live preview queued')
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'Could not queue preview')
+  }
+}
+function downloadLive() {
+  if (!info.value) return
+  void download(`/photo/downloadLive/${auth.token}`, `${info.value.photoName}.zip`, {
+    params: { photoId: info.value.photoId },
+  }).catch(() => toast.error('Download failed'))
+}
 const desktop = useMediaQuery('(min-width: 768px)')
 const selected = ref<Photo | null>(null)
 const acceptedPhoto = ref<Photo | null>(props.photo)
@@ -133,6 +169,7 @@ async function closeViewer() {
     if (!(await leaveText())) return
     recommendations.value?.cancel() // a query landing mid-animation must not be retained
     if (isFullscreen.value) await exitFullscreen().catch(() => {})
+    stopPlayback()
     await playClose()
     acceptedPhoto.value = null
     emit('close')
@@ -217,7 +254,10 @@ function backToTop() {
   scrollRoot.value?.focus({ preventScroll: true })
   scrollRoot.value?.scrollTo({ top: 0, behavior: 'instant' })
 }
-onBeforeUnmount(invalidateHistory)
+onBeforeUnmount(() => {
+  stopPlayback()
+  invalidateHistory()
+})
 let metadataSequence = 0
 let restoreScroll: number | null = null
 let metadataLoaded = false
@@ -525,6 +565,8 @@ function loadShareLink() {
 watch(
   () => currentPhoto.value,
   (photo, previousPhoto) => {
+    stopPlayback()
+    liveInfo.value = null
     if (previousPhoto) rememberRecommendations(previousPhoto.photoId)
     recommendations.value?.collapse()
     restoredRecommendations.value = undefined
@@ -545,6 +587,9 @@ watch(
     exif.value = {}
     tags.value = []
     galleries.value = []
+    void currentCall<typeof liveInfo.value>('/photo/mediaInfo', (value) => {
+      liveInfo.value = value
+    }).catch(() => {})
     loadShareLink()
     currentPath.value = selected.value ? 'Loading…' : props.nsPath
     if (selected.value)
@@ -572,6 +617,16 @@ watch(
     if (mediaKind(photo.format) === 'other') void nextTick(mediaReady)
   },
   { immediate: true },
+)
+
+watch(
+  () => uploads.revision,
+  () => {
+    if (info.value && currentPhoto.value)
+      void currentCall<typeof liveInfo.value>('/photo/mediaInfo', (value) => {
+        liveInfo.value = value
+      }).catch(() => {})
+  },
 )
 
 async function restorePosition() {
@@ -1067,7 +1122,7 @@ const overlay = 'dark text-foreground'
                       class="aspect-[4/3] w-[min(100%,40rem)] rounded-sm bg-white/5"
                     />
                     <img
-                      v-show="loaded"
+                      v-show="loaded && !livePlaying"
                       ref="mediaEl"
                       :src="imageUrl"
                       :alt="info.photoName"
@@ -1075,6 +1130,58 @@ const overlay = 'dark text-foreground'
                       class="max-h-full max-w-full rounded-[2px] object-contain select-none"
                       @load="imageLoaded"
                     />
+                    <video
+                      v-if="livePlaying && liveInfo?.live"
+                      ref="liveVideo"
+                      :key="info.photoId"
+                      :src="photoUrl(info.photoId, 'renderLive')"
+                      :muted="liveMuted"
+                      autoplay
+                      playsinline
+                      class="max-h-full max-w-full"
+                      @ended="livePlaying = false"
+                      @error="livePlaying = false"
+                    />
+                    <div
+                      v-if="liveInfo?.live"
+                      class="absolute top-3 left-3 z-10 flex flex-wrap items-center gap-2 rounded-lg bg-black/70 p-2 text-white"
+                    >
+                      <span class="text-xs font-semibold">LIVE</span>
+                      <button
+                        v-if="liveInfo.liveStatus === 'ready'"
+                        type="button"
+                        :aria-label="livePlaying ? 'Stop Live Photo' : 'Play Live Photo'"
+                        class="rounded p-1 hover:bg-white/20"
+                        @click="livePlaying ? stopPlayback() : (livePlaying = true)"
+                      >
+                        <Play class="size-4" />
+                      </button>
+                      <button
+                        v-if="livePlaying"
+                        type="button"
+                        :aria-label="liveMuted ? 'Enable sound' : 'Mute sound'"
+                        class="rounded p-1 hover:bg-white/20"
+                        @click="liveMuted = !liveMuted"
+                      >
+                        <component :is="liveMuted ? VolumeX : Volume2" class="size-4" />
+                      </button>
+                      <button
+                        v-if="liveInfo.liveStatus === 'failed'"
+                        type="button"
+                        class="text-xs underline"
+                        @click="retryLive"
+                      >
+                        Retry playback preview
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Download Live Photo originals"
+                        class="rounded p-1 hover:bg-white/20"
+                        @click="downloadLive"
+                      >
+                        <Download class="size-4" />
+                      </button>
+                    </div>
                   </template>
                   <video
                     v-else-if="kind === 'video'"
@@ -1549,7 +1656,7 @@ const overlay = 'dark text-foreground'
                 <Button @click="copyShareAddr"><Copy aria-hidden="true" /> Copy Link</Button>
               </div>
             </div>
-            <div class="flex items-center gap-4 rounded-lg border p-3">
+            <div class="flex flex-wrap items-center gap-4 rounded-lg border p-3">
               <img :src="qrUrl" alt="QR code" class="size-28 shrink-0 rounded-md bg-white p-1.5" />
               <div class="flex flex-col items-start gap-2 text-sm">
                 <span>

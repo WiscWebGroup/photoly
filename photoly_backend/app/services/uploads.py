@@ -8,7 +8,7 @@ from pathlib import PurePosixPath
 from uuid import UUID, uuid4, uuid5
 from zipfile import ZipFile, BadZipFile
 from werkzeug.datastructures import FileStorage
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func, delete, or_
 from app.entities import UploadBatch, UploadItem, Namespace, User
 from app.services.base import BaseService, BusinessError, valid_name
 from app.services.photo import PhotoService, IMAGE_FORMATS, VIDEO_FORMATS
@@ -175,7 +175,7 @@ class UploadService(BaseService):
             count = self.session.scalar(select(func.count()).select_from(query.subquery()))
             items = self.session.scalars(query.order_by(UploadItem.path, UploadItem.id).offset((page-1)*50).limit(50))
             return {'items': [item_json(i) for i in items], 'total': count}
-        query = select(UploadBatch).where(UploadBatch.user_id == uid)
+        query = select(UploadBatch).where(UploadBatch.user_id == uid, UploadBatch.dismissed.is_(False))
         total = self.session.scalar(select(func.count()).select_from(query.subquery()))
         batches = self.session.scalars(query.order_by(UploadBatch.created_at.desc(), UploadBatch.id).offset((page-1)*20).limit(20)).all()
         counts = {}
@@ -184,20 +184,49 @@ class UploadService(BaseService):
                     .where(UploadItem.batch_id.in_([b.id for b in batches])).group_by(UploadItem.batch_id, UploadItem.state)):
                 counts.setdefault(bid, {})[state] = {'count': count, 'bytes': size}
         active_count = self.session.scalar(select(func.count()).select_from(UploadItem).join(UploadBatch)
-            .where(UploadBatch.user_id == uid, UploadItem.state.in_(['pending','ready','processing'])))
+            .where(UploadBatch.user_id == uid, UploadItem.state.in_(['pending','ready','processing','waiting'])))
         failed_count = self.session.scalar(select(func.count()).select_from(UploadItem).join(UploadBatch)
-            .where(UploadBatch.user_id == uid, UploadItem.state == 'failed'))
+            .where(UploadBatch.user_id == uid, UploadBatch.dismissed.is_(False), UploadItem.state == 'failed',
+                   or_(UploadBatch.failures_acknowledged_at.is_(None),
+                       UploadItem.updated_at > UploadBatch.failures_acknowledged_at)))
         return {'activeCount': active_count, 'failedCount': failed_count, 'batches': [{'id': b.id, 'name': b.name, 'nsId': b.ns_id, 'sealed': b.sealed,
                              'cancelled': b.cancelled, 'createdAt': b.created_at.isoformat(),
                              'counts': counts.get(b.id, {})} for b in batches], 'total': total,
                 'maxFileBytes': self.infra.config['MAX_CONTENT_LENGTH']}
+
+    def clear_activity(self, uid, batch_id=None):
+        # Keep idempotency records and source files until normal expiry. Never delete photos.
+        with self.atomic(uid):
+            if batch_id is not None:
+                self.batch(uid, batch_id)
+            active = select(UploadItem.id).where(UploadItem.batch_id == UploadBatch.id,
+                UploadItem.state.not_in(TERMINAL)).exists()
+            query = select(UploadBatch).where(UploadBatch.user_id == uid,
+                UploadBatch.dismissed.is_(False), UploadBatch.sealed.is_(True), ~active)
+            if batch_id is not None:
+                query = query.where(UploadBatch.id == batch_id)
+            batches = self.session.scalars(query).all()
+            if batch_id is not None and not batches:
+                if not self.batch(uid, batch_id).dismissed:
+                    raise BusinessError('upload_still_active', 409)
+            ids = [batch.id for batch in batches]
+            for batch in batches:
+                batch.dismissed = True
+        return ids
+
+    def acknowledge_failures(self, uid):
+        with self.atomic(uid):
+            self.session.query(UploadBatch).filter(UploadBatch.user_id == uid,
+                UploadBatch.dismissed.is_(False)).update(
+                    {'failures_acknowledged_at': now()}, synchronize_session=False)
+        return 1
 
     def cancel(self, uid, batch_id):
         with self.atomic(uid):
             batch = self.batch(uid, batch_id)
             batch.cancelled, batch.sealed, batch.updated_at = True, True, now()
             self.session.query(UploadItem).filter(UploadItem.batch_id == batch.id,
-                UploadItem.state.in_(['pending', 'ready', 'processing'])).update(
+                UploadItem.state.in_(['pending', 'ready', 'processing', 'waiting'])).update(
                     {'state': 'cancelled', 'updated_at': now()}, synchronize_session=False)
         return 1
 
@@ -205,11 +234,12 @@ class UploadService(BaseService):
         with self.atomic(uid):
             batch = self.batch(uid, batch_id)
             batch.cancelled, batch.updated_at = False, now()
+            batch.dismissed = False
             for item in self.session.scalars(select(UploadItem).where(UploadItem.batch_id == batch.id,
                     UploadItem.state.in_(['failed', 'cancelled']))):
                 if item.error == 'file_too_large':
                     continue
-                available = self.source(item.source_id or item.id).is_file()
+                available = item.kind != 'upload' or self.source(item.source_id or item.id).is_file()
                 item.state = 'ready' if available else 'pending'
                 item.error, item.updated_at = (None if available else 'source_expired'), now()
                 if not available and item.source_id:
@@ -277,17 +307,24 @@ class UploadService(BaseService):
 
     def process(self, item_id):
         item = self.session.get(UploadItem, item_id)
-        if item is None or item.state not in ('ready', 'processing'):
+        if item is None or item.state not in ('ready', 'processing', 'waiting'):
             return
         batch = self.session.get(UploadBatch, item.batch_id)
         uid = batch.user_id
         with self.atomic(uid):
             item = self.session.get(UploadItem, item_id, populate_existing=True)
             batch = self.batch(uid, item.batch_id)
-            if batch.cancelled or item.state not in ('ready', 'processing'):
+            if batch.cancelled or item.state not in ('ready', 'processing', 'waiting'):
                 return
             item.state, item.updated_at = 'processing', now()
         try:
+            if item.kind != 'upload':
+                from app.services.media import MediaService
+                MediaService(self.session, self.infra).process(item_id)
+                return
+            from app.services.live_import import process_import
+            if process_import(self, item_id):
+                return
             with self.atomic(uid) as files:
                 item = self.session.get(UploadItem, item_id, populate_existing=True)
                 batch = self.batch(uid, item.batch_id)
@@ -315,14 +352,18 @@ class UploadService(BaseService):
                     item.error = str(error.value) if isinstance(error, BusinessError) else (
                         'invalid_zip' if isinstance(error, BadZipFile) else 'processing_failed')
                     item.updated_at = now()
+                    if item.pair_id:
+                        paired = self.session.get(UploadItem, item.pair_id)
+                        if paired and paired.state == 'processing':
+                            paired.state, paired.error, paired.updated_at = 'failed', item.error, now()
             if not isinstance(error, (BusinessError, BadZipFile)):
                 import logging
                 logging.getLogger(__name__).exception('Import failed: %s', item_id)
 
-    def install(self, item, uid, ns_id, stream, files):
+    def install(self, item, uid, ns_id, stream, files, prepared=None):
         checked = CheckedStream(stream, item.size, self.storage.root, self.infra.config['UPLOAD_DISK_RESERVE_BYTES'])
         photo = PhotoService(self.session, self.infra).install_one(self.session.get(User, uid),
-            FileStorage(checked, filename=PurePosixPath(item.path).name), {'nsId': ns_id}, files)
+            FileStorage(checked, filename=PurePosixPath(item.path).name), {'nsId': ns_id}, files, prepared)
         item.photo_id, item.ns_id, item.state, item.error = photo.photo_id, ns_id, 'done', None
 
     def cleanup(self):
@@ -342,6 +383,12 @@ class UploadService(BaseService):
                 self.session.query(UploadItem).filter(UploadItem.batch_id == bid, UploadItem.state == 'pending').update(
                     {'state': 'failed', 'error': 'transmission_expired', 'updated_at': now()}, synchronize_session=False)
                 batch.sealed = True
+                waiting = self.session.scalars(select(UploadItem).where(UploadItem.batch_id == bid, UploadItem.state == 'waiting')).all()
+                if waiting:
+                    for item in waiting:
+                        item.state, item.updated_at = 'ready', now()
+                    batch.updated_at = now()
+                    continue
                 for key in self.session.scalars(select(UploadItem.id).where(UploadItem.batch_id == bid, UploadItem.source_id.is_(None))):
                     files.remove(self.source(key))
                 if batch.updated_at < history:

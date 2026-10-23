@@ -6,6 +6,10 @@ The browser keeps an application-wide queue with two concurrent raw-file request
 
 The Upload button beside the desktop search control (and in mobile/admin headers) opens private activity and history. Counts distinguish pending transmission, received work, processing, completion, skips and failures. Details page through results and link to their library folders. Retry retains successful imports; Cancel remaining does not delete imported photos. Sign-out/account change aborts local sending and clears account-specific UI state.
 
+**Clear activity** removes one finished batch from the list; **Clear finished** clears finished, failed, skipped and cancelled batches across all pages. Active uploads remain visible: use **Cancel remaining** first if you want to stop one. Clearing activity does not delete imported photos. Idempotency records and temporary sources follow normal retention, so repeat submissions cannot recreate copies merely because history was cleared.
+
+**Dismiss failure alerts** clears the red failure indicator while leaving failed items available for inspection and retry. Acknowledgements are stored per account on the server and survive reloads and other devices. New failures raise the indicator again. Browser transmission errors can also be dismissed without cancelling the upload.
+
 ## Deployment and upgrades
 
 Back up PostgreSQL and media together. Stop writers before migrating and reconciling existing usage:
@@ -16,6 +20,8 @@ docker compose build
 docker compose run --rm migrate
 docker compose up -d
 ```
+
+Migration `0008_upload_activity` adds history visibility and failure-acknowledgement fields; existing activity remains visible and failures initially remain unacknowledged.
 
 Migration `0006_uploads_storage` creates the default group, assigns existing accounts, and adds durable batch/item tables. `migrate.sh` then initializes usage counters from originals, thumbnails and avatars. The one-time scan can take time on a large existing library. Restarted migrations preserve administrator changes and do not recount initialized accounts. The `upload-worker` service starts by default without any AI profile. Its database credentials have only application DML grants.
 

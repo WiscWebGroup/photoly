@@ -124,6 +124,7 @@ describe('AdminUserManagement', () => {
     expect(lastQuery()).toEqual({ page: '1', rowsPerPage: '8' })
 
     button('Next').click()
+    await vi.waitFor(() => expect(emails()).toEqual(['user9@example.com']))
     await vi.waitFor(() => expect(pageText()).toContain('9–9 of 12'))
     expect(lastQuery()).toEqual({ page: '2', rowsPerPage: '8' })
 
