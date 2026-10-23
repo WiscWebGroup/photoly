@@ -184,3 +184,37 @@ retired.
 2. Port the backend to Go, still calling the Python runtime over HTTP for SigLIP2.
 3. Add `photoly ai-worker` with SigLIP2 on ONNX Runtime behind the same HTTP contract,
    validate it against the PyTorch output, then retire the Python runtime and its images.
+
+## Idea: compute image vectors in the browser
+
+Possible, as an optional helper, not as a replacement for server-side indexing.
+
+**How:** run the same SigLIP2 ONNX file in the browser with ONNX Runtime Web (WebGPU
+where available, WASM otherwise). Compile the Go preprocessing code (EXIF orientation,
+white background, RGB, resize, normalize) to WebAssembly, so browser and server prepare
+images identically. The browser sends the 768-dim vector with the upload.
+
+**What it is good for:** image embedding is the expensive part of indexing. Text queries
+(64 tokens through the text encoder) are cheap on a server CPU. Offloading image vectors
+lets small servers (NAS, Raspberry Pi, no GPU) keep up with large uploads.
+
+**Limits:**
+
+- **Model download.** The browser downloads the model once, then keeps it in browser
+  storage: hundreds of MB even quantized. Phones, especially iOS Safari with its per-tab
+  memory limit, may not cope. Opt-in, desktop-first.
+- **Coverage.** Only photos uploaded from an open tab get browser vectors. The existing
+  library, ZIP imports, API uploads and videos (frame sampling has to match ffmpeg) still
+  need the server path, so the server keeps SigLIP2 on CPU as the fallback.
+- **One model file for both sides.** Mixing a quantized browser model with an fp32 server
+  model in the same index blurs results. Use the same ONNX file, or make browser vectors
+  a separate profile.
+
+**Trust:** the server cannot prove a vector came from the model. The damage is limited:
+vector search filters on `Photo.user_id` (`app/ai/vector_store_pgvector.py`), so a bad
+vector only affects the uploader's own results. The server should still:
+
+- accept vectors only for the user's own new photos, tagged with the profile fingerprint;
+- reject anything that isn't exactly 768 finite values with unit length;
+- re-embed a random sample when idle and compare cosine similarity. If a client's
+  vectors disagree, drop them and recompute on the server.
