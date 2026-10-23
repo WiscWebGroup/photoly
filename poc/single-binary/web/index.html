@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Photoly POC</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>Photoly <span>single-binary POC</span></h1>
+    <p id="runtime" class="muted">Checking browser…</p>
+  </header>
+
+  <section class="panel" id="model-panel">
+    <h2>On-device model</h2>
+    <p class="muted">SigLIP2 runs in this browser. The server never runs the model; it stores and searches the vectors.</p>
+    <div class="row">
+      <button id="load-vision">Load image model</button>
+      <button id="load-text">Load text model</button>
+      <button id="persist" class="secondary">Keep model on this device</button>
+      <button id="clear-cache" class="secondary">Remove cached model</button>
+    </div>
+    <div id="progress"></div>
+    <p id="storage" class="muted"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Upload</h2>
+    <label class="drop">
+      <input id="files" type="file" accept="image/*" multiple>
+      <span>Choose photos. Each is embedded here, then uploaded with its vector.</span>
+    </label>
+    <p id="upload-status" class="muted"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Search</h2>
+    <form id="search-form" class="row">
+      <input id="query" type="search" placeholder="Describe a photo, e.g. a cup of coffee" autocomplete="off" required>
+      <button type="submit">Search</button>
+      <button type="button" id="show-all" class="secondary">Show all</button>
+    </form>
+    <p id="search-status" class="muted"></p>
+  </section>
+
+  <section id="grid" class="grid" aria-live="polite"></section>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

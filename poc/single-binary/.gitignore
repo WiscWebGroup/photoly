@@ -1,0 +1,5 @@
+/photoly
+/data/
+/web/vendor/
+/e2e/node_modules/
+__pycache__/

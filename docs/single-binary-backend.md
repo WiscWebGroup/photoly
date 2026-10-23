@@ -109,6 +109,16 @@ A ~200-line `main.go` with subcommands `serve`, `migrate` and `verify`:
 
 It was a feasibility check and is not committed.
 
+### Second proof of concept: Go binary + WebGPU in the browser
+
+[`poc/single-binary/`](../poc/single-binary/README.md) is committed and tested. One
+17.7 MB static Go binary serves the API, the UI, the embedded browser AI runtime and the
+SigLIP2 model files, and migrates PostgreSQL/pgvector itself. The browser computes every
+vector over WebGPU (or WebAssembly), and the server only validates, stores and searches
+them. Headline results are in its README: 8/8 fixture queries correct, browser vectors
+matching the CPU reference, the model reloading after a browser restart with zero
+downloads, and ~22 MB of server memory.
+
 ## AI runtime in the same binary (SigLIP2 only)
 
 Decision: **Qwen3-VL-Embedding-2B is dropped.** SigLIP2 base

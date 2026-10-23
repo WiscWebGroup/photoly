@@ -1,0 +1,92 @@
+:root {
+  --bg: #f7f8f8;
+  --surface: #ffffff;
+  --text: #17201f;
+  --muted: #5b6766;
+  --border: #dde3e2;
+  --accent: #2a9d9d;
+  --accent-text: #ffffff;
+  --error: #b42318;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111615;
+    --surface: #1a2120;
+    --text: #e6eceb;
+    --muted: #9aa8a6;
+    --border: #2c3634;
+    --accent: #4cc2c2;
+    --accent-text: #0b1212;
+    --error: #ff8a80;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0 auto;
+  max-width: 1100px;
+  padding: 24px 16px 48px;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+h1 { margin: 0; font-size: 1.5rem; }
+h1 span { color: var(--muted); font-weight: 400; font-size: 1rem; }
+h2 { margin: 0 0 4px; font-size: 1.05rem; }
+.muted { color: var(--muted); margin: 4px 0; }
+.error { color: var(--error); }
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 16px 0;
+}
+.row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font: inherit;
+  cursor: pointer;
+}
+button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+button:disabled { opacity: .5; cursor: default; }
+input[type=search] {
+  flex: 1 1 240px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.drop {
+  display: block;
+  margin-top: 8px;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.drop input { display: block; margin-bottom: 8px; max-width: 100%; }
+#progress div { font-variant-numeric: tabular-nums; color: var(--muted); }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.card img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--border); }
+.card div { padding: 6px 8px; font-size: .85rem; overflow-wrap: anywhere; }
+.card .score { color: var(--muted); font-variant-numeric: tabular-nums; }
