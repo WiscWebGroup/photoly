@@ -1,0 +1,78 @@
+//go:build cgo
+
+package ai
+
+// Copied into internal/ai as zz_onnx_dump_test.go by onnx_vs_pytorch.sh (never committed there).
+// Reads DUMP_IN ({"images": [paths], "queries": [strings]}) and writes unit vectors from the Go
+// worker's own code path (prepareImage + EmbedImage, EmbedText) to DUMP_OUT.
+
+import (
+	"context"
+	"encoding/json"
+	"os"
+	"testing"
+)
+
+func TestDumpVectors(t *testing.T) {
+	in := os.Getenv("DUMP_IN")
+	if in == "" {
+		t.Skip("DUMP_IN not set")
+	}
+	var req struct {
+		Images  []string `json:"images"`
+		Queries []string `json:"queries"`
+	}
+	raw, err := os.ReadFile(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &req); err != nil {
+		t.Fatal(err)
+	}
+	profile, _ := newProfile("fp32")
+	cache := newModelCache(modelDir(t))
+	cache.baseURL = "http://127.0.0.1:1/" // never download
+	ai, err := newEmbedder(cache, profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ai.Close()
+	ctx := context.Background()
+	out := struct {
+		Fingerprint string               `json:"fingerprint"`
+		Images      map[string][]float32 `json:"images"`
+		Queries     map[string][]float32 `json:"queries"`
+	}{profile.Fingerprint, map[string][]float32{}, map[string][]float32{}}
+
+	if _, err := ai.Load(ctx, "text", "fp32"); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range req.Queries {
+		v, _, _, err := ai.EmbedText(q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out.Queries[q] = v
+	}
+	_ = ai.Unload("text")
+	if _, err := ai.Load(ctx, "image", "fp32"); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range req.Images {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		px, err := prepareImage(data)
+		if err != nil {
+			t.Fatalf("%s: %v", p, err)
+		}
+		if out.Images[p], err = ai.EmbedImage(px); err != nil {
+			t.Fatal(err)
+		}
+	}
+	b, _ := json.Marshal(out)
+	if err := os.WriteFile(os.Getenv("DUMP_OUT"), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
