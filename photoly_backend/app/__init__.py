@@ -32,6 +32,13 @@ def _engine(app):
         return db.engine
 
 
+def _sessions(app):
+    # Redis stays in use for AI locks/cursors even when login sessions live in Postgres.
+    redis = app.config.get("REDIS_CLIENT") or Redis.from_url(app.config["REDIS_URL"], decode_responses=True,
+                                                             socket_timeout=5, socket_connect_timeout=5)
+    return PostgresSessionStore(_engine(app), redis) if os.getenv("SESSION_BACKEND") == "postgres" else SessionStore(redis)
+
+
 def create_app(config=None):
     app = Flask(__name__, static_folder=None)
     app.config.from_mapping(environment_config())
@@ -46,9 +53,7 @@ def create_app(config=None):
     db.init_app(app)
     app.extensions["photoly"] = Infrastructure(
         app.config,
-        (PostgresSessionStore(_engine(app)) if os.getenv("SESSION_BACKEND") == "postgres" and not app.config.get("REDIS_CLIENT") else
-         SessionStore(app.config.get("REDIS_CLIENT") or Redis.from_url(app.config["REDIS_URL"], decode_responses=True,
-                                                                      socket_timeout=5, socket_connect_timeout=5))),
+        _sessions(app),
         app.config.get("STORAGE") or LocalStorage(app.config["UPLOAD_FOLDER"]),
         app.config.get("METADATA_READER") or MetadataReader(app.config["EXIFTOOL_PATH"]),
         app.config.get("LIFECYCLE") or ServerLifecycle(app.config["GUNICORN_PID_FILE"]),

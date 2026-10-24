@@ -59,9 +59,15 @@ def test_settings_expiry_and_closed_registration(world):
     assert response.json == {"t": "Register is closed by Admin", "token": None, "msgCode": 400}
     world.client.post("/admin/setTokenDuration", headers=world.admin, data={"days": 2})
     token = world.client.post("/user/signIn", json={"email": "alice@test.local", "password": "password123"}).json["token"]
-    client = world.app.extensions["photoly"].sessions.client
-    assert 172790 <= client.ttl("photoly:session:" + token) <= 172800
-    client.expire("photoly:session:" + token, 0)
+    sessions = world.app.extensions["photoly"].sessions
+    if hasattr(sessions, "engine"):
+        with sessions.engine.begin() as c:
+            left = c.exec_driver_sql("SELECT extract(epoch FROM expires_at - now()) FROM photoly_session WHERE token=%s", (token,)).scalar()
+            assert 172790 <= left <= 172800
+            c.exec_driver_sql("UPDATE photoly_session SET expires_at=now() WHERE token=%s", (token,))
+    else:
+        assert 172790 <= sessions.client.ttl("photoly:session:" + token) <= 172800
+        sessions.client.expire("photoly:session:" + token, 0)
     assert world.client.post("/user/pingToken", headers={"HRD-Token": token}).json["msgCode"] == 403
     assert world.client.post("/admin/setTokenDuration", headers=world.admin, data={"days": 366}).json == {"t": -1, "msgCode": 403}
 

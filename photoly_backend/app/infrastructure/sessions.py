@@ -35,13 +35,9 @@ class SessionStore:
 class PostgresSessionStore(SessionStore):
     """Sessions in the photoly_session table shared with the Go binary (SESSION_BACKEND=postgres)."""
 
-    def __init__(self, engine):
+    def __init__(self, engine, redis):
         self.engine = engine
-        self.client = self  # health checks call sessions.client.ping()
-
-    def ping(self):
-        with self.engine.connect() as conn:
-            conn.exec_driver_sql("SELECT 1")
+        self.client = redis  # AI locks/cursors and health checks still use Redis
 
     def create(self, user_id, days):
         token = str(uuid4())

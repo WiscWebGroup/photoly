@@ -57,8 +57,9 @@ def test_reuse_ready_source_and_invalid_cursor_bindings(ai):
     cursor=first["nextCursor"]
     assert page(ai,{"cursor":cursor},ai.other).status_code==400
     with ai.app.app_context():
+        from tests.conftest import add_session
         redis=ai.app.extensions["photoly"].sessions.client
-        redis.setex("photoly:session:second-alice",60,2)
+        add_session(ai.app.extensions["photoly"].sessions,"second-alice",2)
     assert page(ai,{"cursor":cursor},{"HRD-Token":"second-alice"}).status_code==400
     assert ai.client.post('/ai/photos/2/similar/page',json={"cursor":cursor},headers=ai.headers).status_code==400
     assert page(ai,{"cursor":"not-a-cursor"}).status_code==400

@@ -1,4 +1,5 @@
 import io
+from tests.conftest import SESSION_TABLES
 import json
 import re
 from pathlib import Path
@@ -84,7 +85,7 @@ def test_table_columns_types_and_primary_keys_match_postgresql_schema(app):
         assert [column.name for column in table.primary_key] == expected["primary_key"]
     with app.app_context():
         inspector = inspect(db.engine)
-        assert set(inspector.get_table_names()) == set(source) | ADDITIONAL_TABLES | {"alembic_version"}
+        assert set(inspector.get_table_names()) == set(source) | ADDITIONAL_TABLES | {"alembic_version"} | SESSION_TABLES
         for name, expected in source.items():
             actual = {c["name"]: {"type": c["type"].compile(dialect=postgresql.dialect()),
                                    "nullable": c["nullable"]} for c in inspector.get_columns(name)}

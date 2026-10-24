@@ -58,6 +58,12 @@ def migration_engine():
         config = migration_config()
         config.attributes["connection"] = connection
         command.upgrade(config, "head")
+    if os.getenv("SESSION_BACKEND") == "postgres":
+        # Owned by the Go migrations (00002_session.sql); schema tests ignore it via SESSION_TABLES.
+        with engine.begin() as connection:
+            connection.exec_driver_sql("CREATE UNLOGGED TABLE IF NOT EXISTS photoly_session (token text PRIMARY KEY, "
+                "user_id integer NOT NULL REFERENCES \"user\" (user_id) ON DELETE CASCADE, expires_at timestamptz NOT NULL)")
+            connection.exec_driver_sql("GRANT SELECT, INSERT, UPDATE, DELETE ON photoly_session TO photoly")
     yield engine
     engine.dispose()
 
@@ -94,6 +100,19 @@ def app(tmp_path, migration_engine):
         db.session.remove()
         db.engine.dispose()
     redis.close()
+
+
+SESSION_TABLES = {"photoly_session"} if os.getenv("SESSION_BACKEND") == "postgres" else set()
+
+
+def add_session(sessions, token, user_id, seconds=60):
+    """Insert a login session on whichever backend the app uses."""
+    if hasattr(sessions, "engine"):
+        with sessions.engine.begin() as connection:
+            connection.exec_driver_sql("INSERT INTO photoly_session VALUES (%s,%s, now() + make_interval(secs => %s))",
+                                       (token, user_id, seconds))
+    else:
+        sessions.client.setex("photoly:session:" + token, seconds, user_id)
 
 
 @pytest.fixture
@@ -148,6 +167,11 @@ def world(app, client, password_hash, jpeg, video_bytes, migration_engine):
             infra.storage.thumbnail(path, infra.storage.media("user-alice", photo, True), files)
             files.install(io.BytesIO(video_bytes), infra.storage.media("user-alice", video))
         for name, identifier in (("admin", 1), ("alice", 2), ("bob", 3)):
-            infra.sessions.client.setex("photoly:session:token-" + name, 86400, identifier)
+            if os.getenv("SESSION_BACKEND") == "postgres":
+                with infra.sessions.engine.begin() as connection:
+                    connection.exec_driver_sql("INSERT INTO photoly_session VALUES (%s,%s, now() + interval '1 day')",
+                                               ("token-" + name, identifier))
+            else:
+                infra.sessions.client.setex("photoly:session:token-" + name, 86400, identifier)
     return SimpleNamespace(app=app, client=client, jpeg=jpeg, video=video_bytes,
         headers={"HRD-Token": "token-alice"}, admin={"HRD-Token": "token-admin"}, other={"HRD-Token": "token-bob"})

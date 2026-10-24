@@ -1,6 +1,7 @@
 """PostgreSQL behavior exercised against real migrations and restricted app grants."""
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
+from tests.conftest import SESSION_TABLES
 import numpy as np
 import pytest
 from alembic import command
@@ -39,7 +40,7 @@ def test_repeated_migration_preserves_data_and_schema(world, migration_engine):
         require_schema(db.session)
         assert db.session.get(User, 2).email == "alice@test.local"
         inspector = inspect(db.engine)
-        assert len(inspector.get_table_names()) == 27
+        assert len(inspector.get_table_names()) == 27 + len(SESSION_TABLES)
         assert inspector.get_columns("user")[0]["identity"]["always"] is False
         assert any(i["name"] == "uq_user_email_lower" and i["unique"] for i in inspector.get_indexes("user"))
         assert db.session.scalar(text("SHOW transaction_isolation")) == "read committed"
@@ -159,7 +160,9 @@ def test_migrated_schema_matches_orm_including_constraints(app, migration_engine
     with migration_engine.connect() as connection:
         context = MigrationContext.configure(connection, opts={"compare_type": True,
             "include_object": lambda obj, name, kind, reflected, compare_to: not (kind == "index" and
-                name.startswith(("ix_embedding_profile_", "ix_video_frame_profile_")) and name.endswith("_hnsw"))})
+                name.startswith(("ix_embedding_profile_", "ix_video_frame_profile_")) and name.endswith("_hnsw"))
+                and not (kind == "table" and name in SESSION_TABLES)
+                and getattr(getattr(obj, "table", None), "name", None) not in SESSION_TABLES})
         assert compare_metadata(context, db.metadata) == []
 
 
