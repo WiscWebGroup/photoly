@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from importlib import import_module
 from flask import Flask, jsonify, request
@@ -8,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from werkzeug.exceptions import HTTPException
 from app.config import environment_config
 from app.extensions import db
-from app.infrastructure.sessions import SessionStore
+from app.infrastructure.sessions import SessionStore, PostgresSessionStore
 from app.infrastructure.storage import LocalStorage
 from app.infrastructure.metadata import MetadataReader
 from app.infrastructure.lifecycle import ServerLifecycle
@@ -26,6 +27,11 @@ class Infrastructure:
     qr: QRCodeEncoder
 
 
+def _engine(app):
+    with app.app_context():
+        return db.engine
+
+
 def create_app(config=None):
     app = Flask(__name__, static_folder=None)
     app.config.from_mapping(environment_config())
@@ -40,8 +46,9 @@ def create_app(config=None):
     db.init_app(app)
     app.extensions["photoly"] = Infrastructure(
         app.config,
-        SessionStore(app.config.get("REDIS_CLIENT") or Redis.from_url(app.config["REDIS_URL"], decode_responses=True,
-                                                                     socket_timeout=5, socket_connect_timeout=5)),
+        (PostgresSessionStore(_engine(app)) if os.getenv("SESSION_BACKEND") == "postgres" and not app.config.get("REDIS_CLIENT") else
+         SessionStore(app.config.get("REDIS_CLIENT") or Redis.from_url(app.config["REDIS_URL"], decode_responses=True,
+                                                                      socket_timeout=5, socket_connect_timeout=5))),
         app.config.get("STORAGE") or LocalStorage(app.config["UPLOAD_FOLDER"]),
         app.config.get("METADATA_READER") or MetadataReader(app.config["EXIFTOOL_PATH"]),
         app.config.get("LIFECYCLE") or ServerLifecycle(app.config["GUNICORN_PID_FILE"]),

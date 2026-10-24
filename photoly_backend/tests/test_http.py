@@ -14,11 +14,11 @@ pytestmark = pytest.mark.http
 
 @pytest.fixture
 def http():
-    base = os.getenv("PHOTOLY_TEST_HTTP_URL")
+    base = os.getenv("PHOTOLY_BASE_URL") or os.getenv("PHOTOLY_TEST_HTTP_URL")
     if not base:
         pytest.skip("Run through compose.test.yml smoke service")
     # There is intentionally no default production URL for these destructive tests.
-    assert base == "http://backend:8084"
+    assert base in ("http://backend:8084", "http://photoly:8084")  # Flask or Go stack
     def call(method, path, **kwargs):
         return requests.request(method, base + path, timeout=30, **kwargs)
     return call
