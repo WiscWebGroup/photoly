@@ -29,7 +29,7 @@
     "reka-ui": "^2.11.0",
     "tailwind-merge": "^3.7.0",
     "vgpu": "^0.5.0",
-    "vue": "^3.5.43",
+    "vue": "^3.5.44",
     "vue-router": "^5.4.0",
     "vue-sonner": "^2.0.9"
   },
