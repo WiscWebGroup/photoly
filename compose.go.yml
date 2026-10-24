@@ -1,0 +1,98 @@
+# Go single-binary stack (docs/go-rewrite-plan.md phase 6): web + photoly + PostgreSQL.
+#   docker compose -f compose.go.yml up --build
+# The `backend` service name is kept so photoly_frontend_vue/nginx.conf works unchanged.
+# Strangler mode (routes not yet ported go to Flask): add `--profile strangler` and set
+# FLASK_URL=http://flask:8084 in .env. NOTE Flask must read sessions from the photoly_session
+# table (Go issues the tokens); see docs/go-rewrite-plan.md.
+# AI: the photoly image bundles the ONNX Runtime library; no separate ai-* containers.
+x-photoly-environment: &photoly-environment
+  POSTGRES_HOST: db_postgres
+  POSTGRES_DB: photoly
+  POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?Set POSTGRES_APP_PASSWORD in .env}
+  POSTGRES_MIGRATION_PASSWORD: ${POSTGRES_MIGRATION_PASSWORD:?Set POSTGRES_MIGRATION_PASSWORD in .env}
+  ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@a.com}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+  UPLOAD_FOLDER: /photoly
+  PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8384}
+  TIMEZONE: ${TIMEZONE:-America/New_York}
+  MAX_CONTENT_LENGTH: ${MAX_CONTENT_LENGTH:-629145600}
+  UPLOAD_ZIP_MAX_BYTES: ${UPLOAD_ZIP_MAX_BYTES:-50000000000}
+  UPLOAD_DISK_RESERVE_BYTES: ${UPLOAD_DISK_RESERVE_BYTES:-536870912}
+  UPLOAD_TEMP_HOURS: ${UPLOAD_TEMP_HOURS:-24}
+  UPLOAD_HISTORY_DAYS: ${UPLOAD_HISTORY_DAYS:-30}
+  ONLINE_DOWNLOAD_MAX_BYTES: ${ONLINE_DOWNLOAD_MAX_BYTES:-52428800}
+  ONLINE_DOWNLOAD_CONNECT_TIMEOUT: ${ONLINE_DOWNLOAD_CONNECT_TIMEOUT:-5}
+  ONLINE_DOWNLOAD_TIMEOUT: ${ONLINE_DOWNLOAD_TIMEOUT:-60}
+  MEDIA_PROCESS_TIMEOUT: ${MEDIA_PROCESS_TIMEOUT:-60}
+  FLASK_URL: ${FLASK_URL:-}
+
+services:
+  web:
+    depends_on:
+      backend:
+        condition: service_healthy
+    build: ./photoly_frontend_vue
+    ports:
+      - "5200:80"
+  backend:
+    build: ./photoly_server
+    depends_on:
+      db_postgres:
+        condition: service_healthy
+    ports:
+      - "8384:8084"
+    environment: *photoly-environment
+    volumes:
+      - ./upload_data:/photoly
+    restart: unless-stopped
+  db_postgres:
+    image: pgvector/pgvector:0.8.7-pg17-bookworm@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: photoly
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_ADMIN_PASSWORD in .env}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?Set POSTGRES_APP_PASSWORD in .env}
+      POSTGRES_MIGRATION_PASSWORD: ${POSTGRES_MIGRATION_PASSWORD:?Set POSTGRES_MIGRATION_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d photoly"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+  # Strangler only: the existing Flask app, reached by photoly for unported routes.
+  flask:
+    profiles: [strangler]
+    build:
+      context: ./photoly_backend
+      target: production
+    environment:
+      POSTGRES_HOST: db_postgres
+      POSTGRES_DB: photoly
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-x}@db_redis:6379/14
+      SESSION_BACKEND: postgres  # share Go's photoly_session table
+      UPLOAD_FOLDER: /photoly
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@a.com}
+    volumes:
+      - ./upload_data:/photoly
+    depends_on:
+      db_postgres:
+        condition: service_healthy
+      db_redis:
+        condition: service_healthy
+  db_redis:
+    profiles: [strangler]
+    image: redis:7.2.4
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save '' --appendonly no"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-x}
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+volumes:
+  postgres_data:
