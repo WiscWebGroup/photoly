@@ -43,7 +43,7 @@ I, the undersigned, confirm that:
 
 | Contributor | Git identities covered | Version | Date (YYYY-MM-DD) | Signed by |
 |---|---|---|---|---|
-| Harold Ye | `Harold Ye <68500948+Harold-y@users.noreply.github.com>`, `Harold <68500948+Harold-y@users.noreply.github.com>`, `Harold-Y <68500948+Harold-y@users.noreply.github.com>`, `Harold澂冰 <68500948+Harold-y@users.noreply.github.com>`, `Harold Ye <haroldye@Harolds-MacBook-Air.local>` | AGPL-3.0-only / AGPL-3.0-or-later (circle one) | | |
+| Harold Ye | `Harold Ye <68500948+Harold-y@users.noreply.github.com>`, `Harold <68500948+Harold-y@users.noreply.github.com>`, `Harold-Y <68500948+Harold-y@users.noreply.github.com>`, `Harold澂冰 <68500948+Harold-y@users.noreply.github.com>`, `Harold Ye <haroldye@Harolds-MacBook-Air.local>` | AGPL-3.0-or-later | 2026-10-24 | Harold Ye |
 | Jeffrey Hui | `Jeffrey Hui <31459252+Slijeff@users.noreply.github.com>`, `Jeffrey Hui <jeff83636tx@gmail.com>`, `Jeffrey <jeff83636tx@gmail.com>`, `Slijeff <jeff83636tx@gmail.com>` | AGPL-3.0-or-later | 2026-10-24 | Jeffrey Hui |
 | Jaylan | `NataRich <natarichjay@gmail.com>` | AGPL-3.0-only / AGPL-3.0-or-later (circle one) | | |
 
