@@ -52,3 +52,21 @@ def cancel(uid, batch_id):
 @legacy()
 def retry(uid, batch_id):
     return result(service(UploadService).retry(uid, batch_id))
+
+
+@bp.delete('')
+@legacy()
+def clear_activity(uid):
+    return result(service(UploadService).clear_activity(uid))
+
+
+@bp.delete('/<batch_id>')
+@legacy()
+def clear_batch(uid, batch_id):
+    return result(service(UploadService).clear_activity(uid, batch_id))
+
+
+@bp.post('/acknowledge-failures')
+@legacy()
+def acknowledge_failures(uid):
+    return result(service(UploadService).acknowledge_failures(uid))

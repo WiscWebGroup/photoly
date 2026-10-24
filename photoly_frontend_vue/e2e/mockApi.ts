@@ -1,8 +1,12 @@
 import { expect, type Page, type Request } from '@playwright/test'
 import { capabilitiesFixture } from '../src/test/aiFixtures'
 
-// Must match VITE_APP_BASE_URL in .env (the dev server Playwright starts).
-export const API = 'http://localhost:8384'
+// Allow the same relative API prefix used by the production container.
+export const API = new URL(
+  process.env.VITE_APP_BASE_URL || 'http://localhost:8384',
+  'http://localhost:5173',
+).href.replace(/\/$/, '')
+const API_PREFIX = new URL(API).pathname.replace(/\/$/, '')
 export const TOKEN = 'e2e-token'
 
 export const PNG = Buffer.from(
@@ -78,7 +82,7 @@ export async function mockApi(page: Page, routes: Record<string, Reply> = {}) {
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors })
 
     const url = new URL(req.url())
-    const path = url.pathname.replace(/\/$/, '')
+    const path = url.pathname.slice(API_PREFIX.length).replace(/\/$/, '')
     if (/^\/(photo\/(render|renderThumbnail|getQR2)|user\/getAvatar)\b/.test(path)) {
       return route.fulfill({ body: PNG, contentType: 'image/png', headers: cors })
     }

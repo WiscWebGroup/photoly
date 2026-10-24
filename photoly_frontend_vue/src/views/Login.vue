@@ -24,11 +24,15 @@ async function login() {
     return
   }
   loading.value = true
+  // Also bound connection establishment; XHR's timeout alone can wait for it in WebKit.
+  const controller = new AbortController()
+  const deadline = setTimeout(() => controller.abort(), 15_000)
   try {
-    const { data } = await http.post('/user/signIn/', {
-      email: email.value,
-      password: password.value,
-    })
+    const { data } = await http.post(
+      '/user/signIn/',
+      { email: email.value, password: password.value },
+      { timeout: 15_000, signal: controller.signal },
+    )
     if (data.msgCode === 200) {
       auth.setToken(data.token)
       await goHome()
@@ -38,6 +42,7 @@ async function login() {
   } catch {
     show('Could not reach the server.')
   } finally {
+    clearTimeout(deadline)
     loading.value = false
   }
 }
@@ -46,7 +51,7 @@ async function login() {
 onMounted(async () => {
   if (!auth.isLoggedIn) return
   try {
-    const { data } = await http.post('/user/pingToken/', {})
+    const { data } = await http.post('/user/pingToken/', {}, { timeout: 10_000 })
     if (data.msgCode === 200) await goHome()
   } catch {
     // stay on the form

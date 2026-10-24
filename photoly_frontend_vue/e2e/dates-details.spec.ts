@@ -17,61 +17,84 @@ const summary = {
   lenses: [],
 }
 
-test('Dates navigation, server ordering, paging, viewer folder link, and URL persistence', async ({
+test('Dates groups, lazy paging, calendar jump, viewer folder link and URL persistence', async ({
   page,
-}) => {
+}, testInfo) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
   await signIn(page)
   const calls = await mockApi(page, {
+    '/photo/getDateSummary': ok({
+      totalCount: 122,
+      undatedCount: 1,
+      days: [
+        { date: '2020-01-01', count: 1 },
+        { date: '2025-06-01', count: 120 },
+      ],
+    }),
     '/photo/getByDate': ({ query }) =>
       ok({
-        items: query.cursor
-          ? [photo(3, 'Undated', { timelineDate: null })]
-          : query.order === 'oldest'
-            ? [
-                photo(1, 'Early', { timelineDate: '2020-01-01T10:00:00' }),
-                photo(2, 'Later', { timelineDate: '2025-06-01T12:00:00' }),
-              ]
-            : [
-                photo(2, 'Later', { timelineDate: '2025-06-01T12:00:00' }),
-                photo(1, 'Early', { timelineDate: '2020-01-01T10:00:00' }),
-              ],
-        nextCursor: query.cursor ? null : 'next-page',
+        items:
+          query.day === '2020-01-01'
+            ? [photo(1, 'Early', { timelineDate: '2020-01-01T10:00:00' })]
+            : query.day === 'undated'
+              ? [photo(500, 'Undated', { timelineDate: null })]
+              : Array.from({ length: query.cursor ? 20 : 100 }, (_, i) =>
+                  photo((query.cursor ? 102 : 2) + i, `Later ${i}`, {
+                    timelineDate: '2025-06-01T12:00:00',
+                  }),
+                ),
+        nextCursor: query.day === '2025-06-01' && !query.cursor ? 'next-page' : null,
       }),
     '/namespace/trace': ok([
       { nsId: 1, nsName: '/' },
       { nsId: 5, nsName: 'Trips' },
     ]),
   })
-  await page.goto('/home/HomePart')
-  await page.getByRole('link', { name: 'Dates', exact: true }).filter({ visible: true }).click()
+  await page.goto('/home/DatesPart')
   await expect(page.getByRole('heading', { name: 'Dates', exact: true })).toBeVisible()
-  const cards = page.locator('[data-photo-id]')
-  await expect(cards.first()).toHaveAttribute('data-photo-id', '2')
-  await page.getByRole('button', { name: 'Load more photos' }).click()
-  await expect(cards).toHaveCount(3)
+  await expect(page.locator('[data-photo-id="2"]')).toBeVisible()
+  expect(
+    calls.filter((c) => c.path === '/photo/getByDate').every((c) => c.query.day === '2025-06-01'),
+  ).toBeTruthy()
+  await page.getByRole('button', { name: 'Hide photo calendar' }).click()
+  await page.locator('[data-date-page="2025-06-01:1"]').scrollIntoViewIfNeeded()
+  await expect(page.locator('[data-photo-id="102"]')).toBeVisible()
   expect(
     calls.some((c) => c.path === '/photo/getByDate' && c.query.cursor === 'next-page'),
   ).toBeTruthy()
+  await page.getByRole('button', { name: 'Show photo calendar' }).click()
+  await page.getByLabel('Calendar year', { exact: true }).selectOption('2020')
+  await page.getByLabel('Calendar month', { exact: true }).selectOption('01')
+  await page.getByRole('button', { name: '2020-01-01, 1 photo', exact: true }).click()
+  await expect(page.locator('[data-photo-id="1"]')).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'June 2025, 120 photos', exact: true }),
+  ).toHaveAttribute('aria-expanded', 'true')
+  await expect(
+    page.getByRole('button', { name: 'January 2020, 1 photo', exact: true }),
+  ).toHaveAttribute('aria-expanded', 'true')
+  await page.screenshot({ path: testInfo.outputPath('dates-calendar.png') })
+  await page.getByRole('button', { name: 'Hide photo calendar' }).click()
   await page.getByRole('button', { name: 'Oldest', exact: true }).click()
   await expect(page).toHaveURL(/order=oldest/)
-  await expect(cards.first()).toHaveAttribute('data-photo-id', '1')
-  await expect(cards).toHaveCount(2)
+  await expect(page.locator('[data-photo-id="1"]')).toBeVisible()
   await page.reload()
   await expect(page.getByRole('button', { name: 'Oldest', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   )
-  await expect(cards.first()).toHaveAttribute('data-photo-id', '1')
-  await page.screenshot({ path: '/tmp/photoly-dates.png', animations: 'disabled' })
-  await cards.first().click()
-  // The viewer's Details panel exposes a link to the real folder.
+  await expect(page.getByRole('button', { name: 'Show photo calendar' })).toBeVisible()
+  await expect(page.locator('[data-photo-id="1"]')).toBeVisible()
+  await page.locator('[data-photo-id="1"]').click()
   const details = page
-    .getByRole('button', { name: 'Details', exact: true })
+    .getByRole('button', { name: /^(Details|Show details)$/ })
     .filter({ visible: true })
   if (await details.count()) await details.first().click()
   await expect(page.getByRole('link', { name: 'Open folder', exact: true })).toBeVisible()
   await page.getByRole('link', { name: 'Open folder', exact: true }).click()
   await expect(page).toHaveURL(/HomePart\?folder=1/)
+  expect(errors).toEqual([])
 })
 
 test('folder Details supports right-click, paging, missing files and Escape', async ({ page }) => {
@@ -108,16 +131,17 @@ test('Dates and folder Details offer retry after a failed request', async ({ pag
   let failedDates = true
   let failedFolder = true
   await mockApi(page, {
-    '/photo/getByDate': () => {
+    '/photo/getDateSummary': () => {
       if (failedDates) {
         failedDates = false
         return { msgCode: 500, t: null }
       }
-      return ok({
-        items: [photo(1, 'Recovered', { timelineDate: '2024-01-01' })],
-        nextCursor: null,
-      })
+      return ok({ totalCount: 1, undatedCount: 0, days: [{ date: '2024-01-01', count: 1 }] })
     },
+    '/photo/getByDate': ok({
+      items: [photo(1, 'Recovered', { timelineDate: '2024-01-01' })],
+      nextCursor: null,
+    }),
     '/namespace/getChildren': ok([{ nsId: 5, nsName: 'Trips', nsParentId: 1 }]),
     '/namespace/getDetails': () => {
       if (failedFolder) {
@@ -136,4 +160,46 @@ test('Dates and folder Details offer retry after a failed request', async ({ pag
   const dialog = page.getByRole('dialog')
   await dialog.getByRole('button', { name: 'Retry', exact: true }).click()
   await expect(dialog.getByText('42', { exact: true })).toBeVisible()
+})
+
+test('large libraries fetch only visited dates and keep rendered pages bounded', async ({
+  page,
+}) => {
+  await signIn(page)
+  const days = Array.from({ length: 36 * 12 }, (_, index) => ({
+    date: `${1990 + Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}-15`,
+    count: 10000,
+  }))
+  const calls = await mockApi(page, {
+    '/photo/getDateSummary': ok({ totalCount: days.length * 10000, undatedCount: 0, days }),
+    '/photo/getByDate': ({ query }) => {
+      const offset = Number(query.cursor || 0)
+      return ok({
+        items: Array.from({ length: 100 }, (_, i) =>
+          photo(offset + i + 1, `${query.day}-${offset + i}`, { timelineDate: query.day }),
+        ),
+        nextCursor: offset + 100 < 10000 ? String(offset + 100) : null,
+      })
+    },
+  })
+  await page.goto('/home/DatesPart')
+  await expect(page.locator('[data-photo-id]').first()).toBeVisible()
+  expect(
+    calls.filter((c) => c.path === '/photo/getByDate').every((c) => c.query.day === '2025-12-15'),
+  ).toBeTruthy()
+  await page.getByLabel('Calendar year', { exact: true }).selectOption('1990')
+  await page.getByLabel('Calendar month', { exact: true }).selectOption('01')
+  await page.getByRole('button', { name: '1990-01-15, 10000 photos', exact: true }).click()
+  const day = page.locator('[data-date-day="1990-01-15"]')
+  await expect(day.locator('[data-photo-id]').first()).toBeVisible()
+  await expect.poll(async () => (await day.boundingBox())!.y).toBeLessThan(200)
+  expect(
+    calls
+      .filter((c) => c.path === '/photo/getByDate')
+      .every((c) => ['1990-01-15', '2025-12-15'].includes(c.query.day!)),
+  ).toBeTruthy()
+  await expect.poll(() => page.locator('[data-photo-id]').count()).toBeLessThanOrEqual(300)
+  // Recycling must actually remove the old month's cards, rather than just hide their images.
+  await expect(page.locator('[data-date-day="2025-12-15"] [data-photo-id]')).toHaveCount(0)
+  expect(calls.filter((c) => c.path === '/photo/getByDate').length).toBeLessThanOrEqual(6)
 })

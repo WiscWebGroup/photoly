@@ -1,6 +1,7 @@
 from flask import Blueprint, request
 from app.controllers.common import legacy, service, arg, ids, body, changed, binary, multipart_photos
 from app.services.photo import PhotoService
+from app.infrastructure.media import mime
 from app.serialization import result
 from app.services.base import BusinessError
 
@@ -39,11 +40,17 @@ def update(uid):
     return changed(service(PhotoService).update(uid, body()))
 
 
+@bp.get("/getDateSummary")
+@legacy()
+def date_summary(uid):
+    return result(service(PhotoService).date_summary(uid))
+
+
 @bp.get("/getByDate")
 @legacy()
 def by_date(uid):
     return result(service(PhotoService).by_date(uid, request.args.get("order", "latest"),
-        arg("limit", integer=True) if "limit" in request.args else 100, request.args.get("cursor")))
+        arg("limit", integer=True) if "limit" in request.args else 100, request.args.get("cursor"), request.args.get("day")))
 
 
 @bp.get("/getByNamespace")
@@ -121,37 +128,43 @@ def galleries(uid):
 @bp.get("/render/<token>")
 @legacy(auth="path", shape="binary")
 def render(uid, token):
-    return binary(service(PhotoService).path(uid, arg("photoId", integer=True)), "image/jpeg")
+    path = service(PhotoService).preview_path(uid, arg("photoId", integer=True))
+    return binary(path, mime(path))
 
 
 @bp.get("/renderThumbnail/<token>")
 @legacy(auth="path", shape="binary")
 def thumbnail(uid, token):
-    return binary(service(PhotoService).path(uid, arg("photoId", integer=True), True), "image/jpeg")
+    path = service(PhotoService).preview_path(uid, arg("photoId", integer=True), True)
+    return binary(path, mime(path))
 
 
 @bp.get("/renderToken")
 @legacy(auth=None, shape="binary")
 def shared():
-    return binary(service(PhotoService).shared_path(arg("path"), arg("token")), "image/jpeg")
+    path = service(PhotoService).shared_path(arg("path"), arg("token"))
+    return binary(path, mime(path))
 
 
 @bp.get("/renderToken/Thumbnail")
 @legacy(auth=None, shape="binary")
 def shared_thumbnail():
-    return binary(service(PhotoService).shared_path(arg("path"), arg("token"), True), "image/jpeg")
+    path = service(PhotoService).shared_path(arg("path"), arg("token"), True)
+    return binary(path, mime(path))
 
 
 @bp.get("/renderV/<token>")
 @legacy(auth="path", shape="binary")
 def video(uid, token):
-    return binary(service(PhotoService).path(uid, arg("photoId", integer=True)), "application/octet-stream")
+    path = service(PhotoService).path(uid, arg("photoId", integer=True))
+    return binary(path, mime(path))
 
 
 @bp.get("/renderVToken")
 @legacy(auth=None, shape="binary")
 def shared_video():
-    return binary(service(PhotoService).shared_path(arg("path"), arg("token")), "application/octet-stream")
+    path = service(PhotoService).shared_path(arg("path"), arg("token"))
+    return binary(path, mime(path))
 
 
 @bp.get("/download/<token>")
@@ -232,3 +245,58 @@ def private_ocr_response(response):
     if request.path.rstrip('/') in ('/photo/ocr', '/photo/ocr/recognize'):
         response.headers['Cache-Control'] = 'private, no-store'
     return response
+
+
+@bp.get('/mediaCapabilities')
+@legacy()
+def media_capabilities(uid):
+    from app.services.media import MediaService
+    return result(service(MediaService).capabilities())
+
+
+@bp.get('/mediaInfo')
+@legacy()
+def media_info(uid):
+    from app.services.media import MediaService
+    return result(service(MediaService).info(uid, arg('photoId', integer=True, required=True)))
+
+
+@bp.post('/convert')
+@legacy()
+def convert(uid):
+    from app.services.media import MediaService
+    return result(service(MediaService).submit(uid, body(), 'convert'))
+
+
+@bp.post('/onlineDownload')
+@legacy()
+def online_download(uid):
+    from app.services.media import MediaService
+    return result(service(MediaService).submit(uid, body(), 'online'))
+
+
+@bp.post('/retryLivePreview')
+@legacy()
+def retry_live_preview(uid):
+    from app.services.media import MediaService
+    return result(service(MediaService).submit(uid, body(), 'live_preview'))
+
+
+@bp.get('/renderLive/<token>')
+@legacy(auth='path', shape='binary')
+def render_live(uid, token):
+    from app.services.media import MediaService
+    return binary(service(MediaService).live_path(uid, arg('photoId', integer=True)), 'video/mp4')
+
+
+@bp.get('/downloadLive/<token>')
+@legacy(auth='path', shape='binary')
+def download_live(uid, token):
+    from app.services.media import MediaService
+    return binary(service(MediaService).live_archive(uid, arg('photoId', integer=True)), 'application/zip', 'Live Photo.zip')
+
+
+@bp.get('/getMonthPreview')
+@legacy()
+def month_preview(uid):
+    return result(service(PhotoService).month_preview(uid, arg('month'), request.args.get('order', 'latest')))

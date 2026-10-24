@@ -1,5 +1,6 @@
 from sqlalchemy import select, func
-from app.entities import Namespace, Photo, PhotoExtra, User
+from app.entities import Namespace, Photo, PhotoExtra, User, PhotoMedia
+from app.infrastructure.media import asset_path, ASSET_SUFFIXES
 from app.services.base import BaseService, BusinessError, valid_name
 
 
@@ -53,6 +54,12 @@ class NamespaceService(BaseService):
                     missing += 1
             except OSError:
                 missing += 1
+            media = self.session.get(PhotoMedia, photo.photo_id)
+            if media:
+                for role in ASSET_SUFFIXES:
+                    resource = asset_path(self.storage, user.uuid, photo, role)
+                    if resource.is_file():
+                        original_bytes += resource.stat().st_size
             if extra is not None and suffix in IMAGE_FORMATS:
                 device(cameras, extra.extra_photo_camera)
                 device(lenses, extra.extra_photo_lens)
@@ -160,4 +167,7 @@ class NamespaceService(BaseService):
             for photo in photos:
                 name = valid_name(photo.photo_name) + "." + photo.format
                 entries.append((self.storage.media(user.uuid, photo), path + "/" + name, photo.photo_id))
+                media = self.session.get(PhotoMedia, photo.photo_id)
+                if media and media.live:
+                    entries.append((asset_path(self.storage, user.uuid, photo, 'live_original'), path + '/' + photo.photo_name + '.mov', photo.photo_id))
         return self.storage.archive(entries)

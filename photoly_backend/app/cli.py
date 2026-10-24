@@ -1,12 +1,13 @@
 import time
 import click
-from sqlalchemy import select, text
+from sqlalchemy import select, text, func
 from app.extensions import db
 from app.entities import Setting, User, Namespace, Gallery
 from app.services.user import UserService
 from app.infrastructure.schema import require_schema
 
 DEFAULT_SETTINGS = {
+    "OnlineDownload": ("0", "Allow public image URL imports"),
     "ping": ("pong", "use for testing connection"),
     "SignUp": ("1", "use for determine if new user could sign up"),
     "SSafeUUID": ("1", "use for determine if SSafe is enabled"),
@@ -56,6 +57,57 @@ def register_cli(app):
                 user = db.session.get(User, uid)
                 user.used_bytes = users.storage.usage(user.uuid)[0]
         click.echo(f'Reconciled {len(ids)} accounts.')
+
+    @app.cli.command("repair-thumbnail-orientation")
+    @click.option('--apply', is_flag=True, help='Rebuild thumbnails; without this flag only audit.')
+    def repair_thumbnail_orientation(apply):
+        """Repair legacy thumbnails whose originals carry EXIF rotations or reflections."""
+        from PIL import Image
+        from app.entities import Photo
+        from app.services.photo import PhotoService
+        from app.infrastructure.media import DECODABLE
+        photos = PhotoService(db.session, app.extensions['photoly'])
+        after, candidates, repaired, unreadable = 0, 0, 0, 0
+        while True:
+            rows = list(db.session.execute(select(Photo.photo_id, Photo.user_id).where(
+                Photo.photo_id > after, func.lower(Photo.format).in_(DECODABLE)
+            ).order_by(Photo.photo_id).limit(100)))
+            db.session.rollback()
+            if not rows:
+                break
+            for pid, uid in rows:
+                after = pid
+                photo = db.session.get(Photo, pid)
+                user = db.session.get(User, uid)
+                if photo is None or user is None:
+                    db.session.rollback()
+                    continue
+                original = photos.storage.media(user.uuid, photo)
+                try:
+                    with Image.open(original) as image:
+                        orientation = image.getexif().get(274, 1)
+                except (OSError, ValueError, Image.DecompressionBombError):
+                    unreadable += 1
+                    db.session.rollback()
+                    continue
+                db.session.rollback()
+                if orientation not in range(2, 9):
+                    continue
+                candidates += 1
+                if apply:
+                    # Re-read under the owner lock to serialize with overwrite/delete.
+                    with photos.atomic(uid) as files:
+                        photo = db.session.get(Photo, pid, populate_existing=True)
+                        if photo is None:
+                            continue
+                        user = db.session.get(User, uid)
+                        original = photos.storage.media(user.uuid, photo)
+                        with Image.open(original) as image:
+                            if image.getexif().get(274, 1) not in range(2, 9):
+                                continue
+                        photos.storage.thumbnail(original, photos.storage.media(user.uuid, photo, True), files)
+                    repaired += 1
+        click.echo(f'Orientation candidates: {candidates}; rebuilt: {repaired}; unreadable: {unreadable}. Originals unchanged.')
 
     @app.cli.command("check-schema")
     def check_schema():

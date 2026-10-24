@@ -11,7 +11,9 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-The tracked `.env` defaults `VITE_APP_BASE_URL` to `http://localhost:8384`. Set it in a local `.env.local` for development, or `.env.production.local` for a production build. Use the externally reachable backend URL when browsers run on another machine. Vite embeds this value at build time: changing the root Docker `.env` or a running container's environment does not update an already built frontend. Rebuild `web` after changing it. `PUBLIC_BASE_URL` separately controls backend-generated share URLs.
+The tracked `.env` defaults `VITE_APP_BASE_URL` to `http://localhost:8384` for development. Set it in `.env.local` for development or `.env.production.local` for a standalone production build.
+
+Docker builds default to `/api`: nginx forwards API and media requests to `backend:8084` on the Compose network. Browsers use the address they opened Photoly with, so changing the host's LAN IP does not require rebuilding. The Docker build argument `VITE_APP_BASE_URL` overrides Vite env files; set it explicitly only when hosting the API separately. Vite embeds the value at build time, so changing a running container's environment has no effect. `PUBLIC_BASE_URL` separately controls backend-generated share URLs.
 
 VS Code with Vue (Official), ESLint and Prettier is recommended; see `.vscode/extensions.json`.
 

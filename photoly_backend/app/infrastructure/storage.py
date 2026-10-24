@@ -6,7 +6,9 @@ import tempfile
 from pathlib import Path
 from uuid import uuid4
 from zipfile import ZipFile, ZIP_DEFLATED
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
+from pillow_heif import register_heif_opener
+register_heif_opener(thumbnails=False)
 from app.services.base import BusinessError
 
 log = logging.getLogger(__name__)
@@ -102,17 +104,13 @@ class LocalStorage:
         return self.path(user_uuid, name)
 
     def thumbnail(self, original, destination, files):
-        if original.suffix.lower() not in {".jpg", ".jpeg", ".png", ".gif", ".jfif", ".ico", ".bmp", ".tif", ".tiff", ".webp"}:
+        if original.suffix.lower() not in {".jpg", ".jpeg", ".png", ".gif", ".jfif", ".ico", ".bmp", ".tif", ".tiff", ".webp", ".heic", ".heif"}:
             return
         try:
             with Image.open(original) as image:
-                width, height = image.size
-                if width > 400 or height > 250:
-                    size = (400, max(1, 400 * height // width))
-                else:
-                    size = image.size
-                output = image.convert("RGB").resize(size, Image.Resampling.LANCZOS)
-                fmt = image.format
+                output = ImageOps.exif_transpose(image).convert("RGB")
+                output.thumbnail((400, 400), Image.Resampling.LANCZOS)
+                fmt = "JPEG" if image.format in {"HEIF", "MPO"} else image.format
                 temporary = files.work / str(uuid4())
                 output.save(temporary, format=fmt)
                 with temporary.open("rb") as stream:

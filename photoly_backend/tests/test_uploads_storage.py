@@ -249,9 +249,9 @@ def test_worker_claim_lock_skips_owned_item(world):
     receive(world,bid,rows[0],world.jpeg)
     with world.app.app_context():
         with db.engine.connect() as lock:
-            lock.execute(text('SELECT pg_advisory_lock(hashtextextended(:id,74831004))'),{'id':rows[0]['id']});lock.commit()
+            lock.execute(text('SELECT pg_advisory_lock(hashtextextended(:id,74831004))'),{'id':bid});lock.commit()
             assert tick(world.app) is False
-            lock.execute(text('SELECT pg_advisory_unlock(hashtextextended(:id,74831004))'),{'id':rows[0]['id']});lock.commit()
+            lock.execute(text('SELECT pg_advisory_unlock(hashtextextended(:id,74831004))'),{'id':bid});lock.commit()
         assert tick(world.app) is True
     assert results(world,bid)[0]['state']=='done'
 
@@ -329,3 +329,48 @@ def test_complete_media_directory_layout_and_duplicate_filenames(world, archive)
         top_names = {service.trace(2, item['nsId'])[1]['nsName']
                      for item in results(world, second) if item['state'] == 'done'}
         assert top_names == {'Archive (1)' if archive else '旅行 (1)'}
+
+
+def test_clear_activity_keeps_photos_idempotency_and_active_batches(world):
+    done, rows = batch(world, [('a.jpg', world.jpeg)])
+    active, _ = batch(world, [('pending.jpg', world.jpeg)])
+    with world.app.app_context():
+        item = db.session.get(UploadItem, rows[0]['id'])
+        item.state, item.photo_id = 'done', 1
+        db.session.commit()
+    assert api(world, f'/uploads/{active}', method='delete')['msgCode'] == 409
+    denied = world.client.delete(f'/uploads/{done}', headers=world.other)
+    assert denied.json['msgCode'] == 404
+    cleared = world.client.delete('/uploads', headers=world.headers)
+    assert_documented_response('DELETE', '/uploads', cleared)
+    assert cleared.json['t'] == [done]
+    assert api(world, f'/uploads/{done}', method='delete')['t'] == []
+    listed = api(world, '/uploads', method='get')['t']
+    assert listed['total'] == 1 and listed['batches'][0]['id'] == active
+    assert api(world, '/uploads', {'id':done, 'nsId':2, 'name':'Again'})['t'] == done
+    with world.app.app_context():
+        assert db.session.get(Photo, 1) is not None
+        assert db.session.get(UploadItem, rows[0]['id']).photo_id == 1
+
+
+def test_failure_acknowledgement_persists_and_new_failures_notify(world):
+    bid, rows = batch(world, [('bad.jpg', world.jpeg)])
+    with world.app.app_context():
+        item = db.session.get(UploadItem, rows[0]['id'])
+        item.state, item.error = 'failed', 'processing_failed'
+        db.session.commit()
+    assert api(world, '/uploads', method='get')['t']['failedCount'] == 1
+    response = world.client.post('/uploads/acknowledge-failures', headers=world.headers)
+    assert_documented_response('POST', '/uploads/acknowledge-failures', response)
+    assert response.json['msgCode'] == 200
+    listed = api(world, '/uploads', method='get')['t']
+    assert listed['failedCount'] == 0 and listed['batches'][0]['counts']['failed']['count'] == 1
+    with world.app.app_context():
+        item = db.session.get(UploadItem, rows[0]['id'])
+        item.updated_at = now() + timedelta(seconds=1)
+        db.session.commit()
+    assert api(world, '/uploads', method='get')['t']['failedCount'] == 1
+    assert api(world, f'/uploads/{bid}', method='delete')['t'] == [bid]
+    assert api(world, '/uploads', method='get')['t']['failedCount'] == 0
+    assert api(world, f'/uploads/{bid}/retry')['msgCode'] == 200
+    assert api(world, '/uploads', method='get')['t']['total'] == 1

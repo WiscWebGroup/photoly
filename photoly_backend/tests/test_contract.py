@@ -12,9 +12,10 @@ from werkzeug.datastructures import MultiDict
 from sqlalchemy.dialects import postgresql
 from sqlalchemy import inspect
 from app.extensions import db
+from app.docs.definitions.media import OPERATIONS as MEDIA_OPERATIONS
 from app.docs.definitions.ai import OPERATIONS as AI_OPERATIONS
 from app.docs.definitions.uploads_storage import OPERATIONS as UPLOAD_OPERATIONS
-ADDITIONAL_TABLES = {"user_group", "upload_batch", "upload_item", "smart_preference", "smart_media", "smart_item", "smart_member", "smart_lineage", "photo_ocr", "video_frame_embedding", "embedding_profile", "photo_embedding_state", "ai_job", "ai_control_state"}
+ADDITIONAL_TABLES = {"photo_media", "user_group", "upload_batch", "upload_item", "smart_preference", "smart_media", "smart_item", "smart_member", "smart_lineage", "photo_ocr", "video_frame_embedding", "embedding_profile", "photo_embedding_state", "ai_job", "ai_control_state"}
 from tests.contract_cases import CASES
 from tests.openapi_assertions import assert_documented_response
 
@@ -58,7 +59,7 @@ def request_options(options, jpeg):
 
 # Documented additions to the frozen Spring inventory (see COMPATIBILITY.md).
 EXTENSIONS = {("GET", "/photo/ocr"), ("PUT", "/photo/ocr"), ("POST", "/photo/ocr/recognize"), ("GET", "/photo/searchSmart"), ("POST", "/photo/replace"), ("GET", "/admin/pingDatabase"), ("GET", "/admin/databaseInfo"),
-              ("GET", "/user/getStorage"), ("GET", "/photo/getCovers"), ("GET", "/photo-extra/getMapPlaces"), ("GET", "/admin/getUsers"), ("GET", "/photo/getByDate"), ("GET", "/namespace/getDetails")}
+              ("GET", "/user/getStorage"), ("GET", "/photo/getCovers"), ("GET", "/photo-extra/getMapPlaces"), ("GET", "/admin/getUsers"), ("GET", "/photo/getByDate"), ("GET", "/photo/getDateSummary"), ("GET", "/photo/getMonthPreview"), ("GET", "/namespace/getDetails")}
 
 
 def test_route_inventory_is_exact(app):
@@ -68,7 +69,7 @@ def test_route_inventory_is_exact(app):
               for method in rule.methods if method in ("GET", "POST", "PATCH", "PUT", "DELETE") and rule.rule != "/healthz"
               and not rule.endpoint.startswith("docs.")}
     assert len(expected) == len(CASES) == 90
-    assert actual == expected | EXTENSIONS | {(method.upper(),path) for path,method,_ in AI_OPERATIONS + UPLOAD_OPERATIONS}
+    assert actual == expected | EXTENSIONS | {(method.upper(),path) for path,method,_ in AI_OPERATIONS + UPLOAD_OPERATIONS + MEDIA_OPERATIONS}
     assert {(method, normalized(path)) for method, path, _, _ in CASES} == expected
 
 
@@ -111,7 +112,7 @@ def test_spring_success_contract(world, method, path, options, expected):
                 assert response.data == world.jpeg
             return
         if expected in ("video", "download"):
-            assert response.mimetype == "application/octet-stream"
+            assert response.mimetype == ("video/mp4" if expected == "video" else "application/octet-stream")
             assert response.data == (world.video if expected == "video" else world.jpeg)
             if expected == "download":
                 assert "attachment" in response.headers["Content-Disposition"]
@@ -169,7 +170,7 @@ def test_spring_success_contract(world, method, path, options, expected):
         elif expected == "addresses":
             assert set(value) == {"mysql", "redis", "upload", "config"}
         elif expected == "settings":
-            assert value == {"SignUp": "1", "SSafeUUID": "1", "TokenDuration": "30", "ping": "pong"}
+            assert value == {"OnlineDownload": "0", "SignUp": "1", "SSafeUUID": "1", "TokenDuration": "30", "ping": "pong"}
         elif expected == "trace":
             assert value == [{"nsId": 2, "nsName": "/"}, {"nsId": 3, "nsName": "Travel"}]
         elif expected == "tag_links":
