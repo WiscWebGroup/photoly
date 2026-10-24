@@ -43,8 +43,15 @@ I, the undersigned, confirm that:
 
 | Contributor | Git identities covered | Version | Date (YYYY-MM-DD) | Signed by |
 |---|---|---|---|---|
-| Harold Ye | `Harold Ye <68500948+Harold-y@users.noreply.github.com>`, `Harold Ye <haroldye@Harolds-MacBook-Air.local>` | AGPL-3.0-only / AGPL-3.0-or-later (circle one) | | |
+| Harold Ye | `Harold Ye <68500948+Harold-y@users.noreply.github.com>`, `Harold <68500948+Harold-y@users.noreply.github.com>`, `Harold-Y <68500948+Harold-y@users.noreply.github.com>`, `Harold澂冰 <68500948+Harold-y@users.noreply.github.com>`, `Harold Ye <haroldye@Harolds-MacBook-Air.local>` | AGPL-3.0-only / AGPL-3.0-or-later (circle one) | | |
 | Jeffrey Hui | `Jeffrey Hui <31459252+Slijeff@users.noreply.github.com>`, `Jeffrey Hui <jeff83636tx@gmail.com>`, `Jeffrey <jeff83636tx@gmail.com>`, `Slijeff <jeff83636tx@gmail.com>` | AGPL-3.0-only / AGPL-3.0-or-later (circle one) | | |
+| Jaylan | `NataRich <natarichjay@gmail.com>` | AGPL-3.0-only / AGPL-3.0-or-later (circle one) | | |
+
+**Unassigned identity:** `Ye <Yixuan.Ye@Dell.com>` (26 commits) has not yet been
+confirmed as belonging to a contributor above. Once confirmed, add it to that
+contributor's row. If the work was done for an employer, the employer's
+permission is needed (see statement item 6).
+
 
 ## How to Sign
 
@@ -65,6 +72,7 @@ keep a copy outside GitHub as well:
 The following do not need a consent signature:
 
 - `dependabot[bot]` commits (automated dependency updates).
+- `fossabot` commits (automated license-scan badge).
 - Commits authored by `Claude <noreply@anthropic.com>`; the maintainer who
   committed or merged these takes responsibility for their licensing.
 - Third-party dependencies, which keep their own licenses and are not
