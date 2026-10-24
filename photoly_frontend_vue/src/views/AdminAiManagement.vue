@@ -6,6 +6,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import { RefreshCw } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { useAiAdmin } from '@/composables/useAiAdmin'
+import AdminInferenceCard from '@/components/ai/AdminInferenceCard.vue'
 import { aiMessage, bytesLabel, type AiChanges, type AiSettings } from '@/lib/ai'
 const admin = useAiAdmin()
 const {
@@ -127,14 +128,6 @@ function setThreshold(event: Event) {
       ? null
       : Number(input.value)
 }
-function chooseDevice(event: Event) {
-  if (!draft.value) return
-  const selectedDevice = (event.target as HTMLSelectElement).value
-  draft.value.device = selectedDevice
-  draft.value.precision =
-    capabilities.value?.devices.find((device) => device.device === selectedDevice)?.precision ??
-    'float32'
-}
 async function save() {
   if (!draft.value || !original.value || !capabilities.value) return
   error.value = ''
@@ -171,8 +164,9 @@ async function save() {
     'search_enabled',
     'new_user_default',
     'smart_tag_enabled',
-    'device',
-    'precision',
+    'placement_image',
+    'placement_text',
+    'browser_text_model',
     ...Object.keys(capabilities.value.fields),
   ]
   for (const key of keys)
@@ -406,6 +400,17 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
               >; Smart Tag also requires user opt-in.
             </p>
           </section>
+          <AdminInferenceCard
+            v-if="draft"
+            :draft="draft"
+            :status="status"
+            :stale="staleResources"
+            :busy="locked"
+            :load="admin.loadModel"
+            :unload="admin.unloadModel"
+            @set="(patch) => draft && Object.assign(draft, patch)"
+            @error="(message) => (error = message)"
+          />
           <section
             v-if="draft && capabilities"
             class="space-y-4 rounded-xl border bg-card p-5 shadow-xs"
@@ -438,48 +443,22 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                     step="1"
                     :min="key === 'ram_max_percent' ? 6 : 11"
                     max="100"
-                    :disabled="key === 'gpu_pause_percent' && draft.device !== 'cuda'"
+                    :disabled="key === 'gpu_pause_percent' && status.settings.device !== 'cuda'"
                     :class="inputClass"
                     @input="setResource(key, $event)"
                   />
                 </label>
-                <label class="text-sm"
-                  >Device<select
-                    :value="draft.device"
-                    aria-label="Inference device"
-                    :disabled="loadedModel"
-                    :class="inputClass"
-                    @change="chooseDevice"
-                  >
-                    <option
-                      v-for="device in capabilities.devices"
-                      :key="device.device"
-                      :value="device.device"
-                      :disabled="device.available !== true"
-                    >
-                      {{
-                        device.device === 'mps'
-                          ? 'Apple Silicon GPU (MPS)'
-                          : device.device.toUpperCase()
-                      }}{{ device.available !== true ? ' — unavailable or unknown' : '' }}
-                    </option>
-                  </select></label
-                >
               </div>
               <p class="text-xs text-muted-foreground">
                 Background tasks wait above these limits. Changing a CPU/GPU limit sets recovery 10
                 percentage points below; RAM recovers 5 points below. Existing custom CPU/GPU
                 recovery values are preserved until changed. Limits are admission thresholds, not
-                hard resource caps. Pause AI before changing Device.
+                hard resource caps.
               </p>
               <p v-if="draft.ram_policy === 'free' && !ramEdited" class="text-sm">
                 Legacy RAM protection is active: pause below {{ draft.memory_pause_free_mib }} MiB
                 free; resume above {{ draft.memory_resume_free_mib }} MiB. Save a RAM max value to
                 use percentage limits.
-              </p>
-              <p v-if="draft.device === 'mps'" class="text-sm">
-                Apple Silicon uses unified memory. GPU utilization is unavailable; CPU and RAM
-                thresholds apply.
               </p>
               <Button type="button" variant="outline" @click="recommended"
                 >Use recommended thresholds</Button

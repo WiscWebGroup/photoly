@@ -7,6 +7,7 @@ import {
   AiError,
   aiMessage,
   type AdminCapabilities,
+  type AiModelKind,
   type AiChanges,
   type AiJob,
   type AiSettings,
@@ -143,6 +144,25 @@ export function useAiAdmin() {
       saving.value = false
     }
   }
+  /** Loads a model in the AI worker; `force` loads it although the server may be short of memory. */
+  async function loadModel(kind: AiModelKind, force = false) {
+    const result = await aiCall<unknown>({
+      method: 'post',
+      url: `/admin/ai/models/${kind}/load${force ? '?force=1' : ''}`,
+      timeout: 120000,
+    })
+    await refresh()
+    return result
+  }
+  async function unloadModel(kind: AiModelKind) {
+    const result = await aiCall<unknown>({
+      method: 'post',
+      url: `/admin/ai/models/${kind}/unload`,
+      timeout: 30000,
+    })
+    await refresh()
+    return result
+  }
   async function operate(command: string, profileId?: number, provider?: string) {
     if (
       (command === 'ai.pause' ? saving.value || pending.value !== null : locked.value) ||
@@ -236,6 +256,8 @@ export function useAiAdmin() {
     refresh,
     save,
     operate,
+    loadModel,
+    unloadModel,
     older,
     sendPending,
   }

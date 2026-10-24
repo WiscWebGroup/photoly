@@ -6,8 +6,28 @@ import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Browser AI runs WebAssembly threads, which need cross-origin isolation. `credentialless`
+// (not `require-corp`) keeps Leaflet's cross-origin map tiles loading. Mirrored in nginx.conf.
+const isolation = {
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cross-Origin-Embedder-Policy': 'credentialless',
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
+  server: { headers: isolation },
+  preview: { headers: isolation },
+  build: {
+    rollupOptions: {
+      output: {
+        // transformers.js and ONNX Runtime load only when a person opts in to browser AI.
+        chunkFileNames: (chunk) =>
+          /^(transformers|ort)/i.test(chunk.name)
+            ? 'assets/browser-ai-[name]-[hash].js'
+            : 'assets/[name]-[hash].js',
+      },
+    },
+  },
   cacheDir: process.env.PHOTOLY_VITE_CACHE_DIR ?? 'node_modules/.vite',
   plugins: [
     vue(),
@@ -27,6 +47,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Browser AI is opt-in: its runtime and models never ride along in the offline precache.
+        globIgnores: ['**/browser-ai-*.js', '**/*.wasm', '**/ort-wasm-*'],
+        navigateFallbackDenylist: [/^\/api\//, /^\/models\//],
         runtimeCaching: [
           {
             urlPattern: /\/photo\/renderThumbnail\//,
@@ -44,6 +67,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // ONNX Runtime Web's engine files are not exported by the package; they load at runtime.
+      '@ort': fileURLToPath(new URL('./node_modules/onnxruntime-web/dist', import.meta.url)),
     },
   },
   test: {

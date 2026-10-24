@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import MediaList from '@/components/MediaList.vue'
 import AiSearchPanel from '@/components/ai/AiSearchPanel.vue'
+import BrowserModelLoading from '@/components/ai/BrowserModelLoading.vue'
 import { ArrowLeft, ImageIcon, Search, Sparkles } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -157,6 +158,7 @@ async function queryPhotos() {
         <p v-if="smart.error.value" role="alert" class="text-destructive">
           {{ smart.error.value }}
         </p>
+        <BrowserModelLoading @server="smart.searchOnServer" />
         <p
           v-if="smart.busy.value"
           role="status"

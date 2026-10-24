@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Cpu,
   Key,
   KeyRound,
   LogOut,
@@ -40,6 +41,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import SmartOrganizationSettings from '@/components/SmartOrganizationSettings.vue'
+import AiDeviceSettings from '@/components/ai/AiDeviceSettings.vue'
+import { useBrowserAiStore } from '@/stores/browserAi'
 import AvatarCropper from '@/components/AvatarCropper.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -59,12 +62,19 @@ const permissions = [
   { value: 'D', label: 'Delete' },
 ]
 
-const sections = [
+const browserAi = useBrowserAiStore()
+// AI placement settings only exist on servers that offer browser inference.
+const hasAiSettings = computed(() => !!browserAi.capabilities?.placement)
+const allSections = [
   { id: 'profile', label: 'Profile' },
   { id: 'password', label: 'Password' },
   { id: 'smart', label: 'Smart Tag' },
+  { id: 'ai', label: 'AI on this device' },
   { id: 'api', label: 'API tokens' },
 ]
+const sections = computed(() =>
+  allSections.filter((s) => s.id !== 'ai' || hasAiSettings.value),
+)
 const activeSection = ref('profile')
 function jump(id: string) {
   activeSection.value = id
@@ -77,7 +87,7 @@ const phone = useMediaQuery('(max-width: 767px)')
 const route = useRoute()
 const phoneSection = computed(() => {
   const id = route.hash.slice(1)
-  return sections.some((s) => s.id === id) ? id : null
+  return sections.value.some((s) => s.id === id) ? id : null
 })
 const showSection = (id: string) => !phone.value || phoneSection.value === id
 const openSection = (id: string) => router.push({ hash: `#${id}` })
@@ -309,6 +319,7 @@ async function copy(token: string) {
 }
 
 onMounted(() => {
+  void browserAi.refreshCapabilities()
   loadUser().catch(() => toast.error('User Info Response Error!'))
   loadCredentials().catch(() => toast.error('Get API Error!'))
 })
@@ -343,6 +354,7 @@ onMounted(() => {
             v-for="row in [
               { id: 'password', label: 'Password', icon: KeyRound, meta: '' },
               { id: 'smart', label: 'Smart Tag', icon: Sparkles, meta: '' },
+              ...(hasAiSettings ? [{ id: 'ai', label: 'AI on this device', icon: Cpu, meta: '' }] : []),
               { id: 'api', label: 'API tokens', icon: Key, meta: String(credentials.length || '') },
             ]"
             :key="row.id"
@@ -551,6 +563,10 @@ onMounted(() => {
       </div>
       <SmartOrganizationSettings class="max-w-[560px]" />
     </section>
+
+    <div v-if="hasAiSettings" v-show="showSection('ai')" id="ai" class="scroll-mt-14">
+      <AiDeviceSettings />
+    </div>
 
     <section
       v-show="showSection('api')"
