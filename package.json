@@ -8,7 +8,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "AGPL-3.0-only",
+  "license": "AGPL-3.0-or-later",
   "dependencies": {
     "corepack": "^0.36.0"
   }
