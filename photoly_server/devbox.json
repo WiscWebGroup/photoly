@@ -1,0 +1,4 @@
+{
+  "packages": ["go@1.24"],
+  "shell": { "init_hook": [] }
+}
