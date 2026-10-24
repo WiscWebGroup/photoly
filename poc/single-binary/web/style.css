@@ -90,3 +90,12 @@ input[type=search] {
 .card img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--border); }
 .card div { padding: 6px 8px; font-size: .85rem; overflow-wrap: anywhere; }
 .card .score { color: var(--muted); font-variant-numeric: tabular-nums; }
+#model-panel label { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; }
+select {
+  font: inherit;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -25,6 +27,10 @@ type API struct {
 	store   *Store
 	profile Profile
 	dir     string // photo files, named by SHA-256
+	// ai embeds on the server (in the AI worker process) when a client asks; nil when
+	// ONNX Runtime is unavailable, with aiOff saying why.
+	ai    *Worker
+	aiOff string
 }
 
 func (a *API) routes(mux *http.ServeMux) {
@@ -34,7 +40,10 @@ func (a *API) routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/photos/{id}/file", a.photoFile)
 	mux.HandleFunc("GET /api/photos/{id}/similar", a.similar)
 	mux.HandleFunc("DELETE /api/photos/{id}", a.deletePhoto)
+	mux.HandleFunc("DELETE /api/photos", a.deleteAllPhotos)
 	mux.HandleFunc("POST /api/search", a.search)
+	mux.HandleFunc("POST /api/ai/{kind}/load", a.loadModel)
+	mux.HandleFunc("POST /api/ai/{kind}/unload", a.unloadModel)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -58,7 +67,70 @@ func (a *API) getProfile(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"profile": a.profile, "database": info})
+	server := map[string]any{"available": a.ai != nil, "reason": a.aiOff}
+	if a.ai != nil {
+		server["models"] = a.ai.Status()
+	}
+	if mb, ok := availableMB(); ok {
+		server["availableMB"] = mb
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"profile": a.profile, "database": info, "server": server})
+}
+
+// requireAI writes 503 when the server cannot embed.
+func (a *API) requireAI(w http.ResponseWriter) bool {
+	if a.ai == nil {
+		fail(w, http.StatusServiceUnavailable, "server inference is off: "+a.aiOff)
+	}
+	return a.ai != nil
+}
+
+func (a *API) loadModel(w http.ResponseWriter, r *http.Request) {
+	if !a.requireAI(w) {
+		return
+	}
+	// force=1 loads even when memory looks short: the user confirmed, and at worst only
+	// the AI worker is killed.
+	info, err := a.ai.Ensure(r.PathValue("kind"), r.URL.Query().Get("force") == "1")
+	if err != nil {
+		aiError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, info)
+}
+
+// unloadModel frees a server model, for a client that moved it back to the browser.
+func (a *API) unloadModel(w http.ResponseWriter, r *http.Request) {
+	if !a.requireAI(w) {
+		return
+	}
+	kind := r.PathValue("kind")
+	if kind != "image" && kind != "text" {
+		http.NotFound(w, r)
+		return
+	}
+	before, after, err := a.ai.Unload(kind)
+	if err != nil {
+		aiError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int{"workerMBBefore": before, "workerMBAfter": after, "freedMB": before - after})
+}
+
+// aiError maps AI failures to responses the page can act on (see "code").
+func aiError(w http.ResponseWriter, err error) {
+	var low *LowMemoryError
+	switch {
+	case errors.As(err, &low):
+		writeJSON(w, http.StatusConflict, map[string]any{"error": err.Error(), "code": "low-memory",
+			"kind": low.Kind, "variant": low.Variant, "needMB": low.NeedMB, "availableMB": low.AvailableMB})
+	case errors.Is(err, errWorkerDied):
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": err.Error(), "code": "worker-died"})
+	case errors.Is(err, errQuery), errors.Is(err, errBadImage):
+		fail(w, http.StatusUnprocessableEntity, err.Error())
+	default:
+		serverError(w, err)
+	}
 }
 
 func (a *API) listPhotos(w http.ResponseWriter, r *http.Request) {
@@ -71,8 +143,8 @@ func (a *API) listPhotos(w http.ResponseWriter, r *http.Request) {
 }
 
 // parseEmbedding checks the profile fingerprint and the vector's shape. An empty
-// embedding is allowed on upload: the photo is stored but not searchable until a client
-// (or, in the full design, the server) indexes it.
+// embedding is allowed on upload: the photo is stored but not searchable, unless the
+// client sends embed=server instead.
 func (a *API) parseEmbedding(raw, profile string) ([]float32, error) {
 	if raw == "" {
 		return nil, nil
@@ -97,6 +169,14 @@ func (a *API) upload(w http.ResponseWriter, r *http.Request) {
 	vec, err := a.parseEmbedding(r.FormValue("embedding"), r.FormValue("profile"))
 	if err != nil {
 		fail(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	serverEmbed := r.FormValue("embed") == "server"
+	if serverEmbed && vec != nil {
+		fail(w, http.StatusBadRequest, "send an embedding or embed=server, not both")
+		return
+	}
+	if serverEmbed && !a.requireAI(w) {
 		return
 	}
 	file, header, err := r.FormFile("file")
@@ -132,6 +212,14 @@ func (a *API) upload(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
+	if serverEmbed {
+		started := time.Now()
+		if vec, err = a.embedFile(tmp.Name()); err != nil {
+			aiError(w, err)
+			return
+		}
+		w.Header().Set("Server-Timing", fmt.Sprintf("embed;dur=%.1f", ms(time.Since(started))))
+	}
 	sum := hash.Sum(nil)
 	dst := filepath.Join(a.dir, hex.EncodeToString(sum))
 	if err := os.Rename(tmp.Name(), dst); err != nil {
@@ -139,12 +227,25 @@ func (a *API) upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := filepath.Base(header.Filename)
-	id, err := a.store.AddPhoto(r.Context(), demoUser, Photo{Name: name, Mime: ctype, Size: size}, sum, a.profile.Fingerprint, vec)
+	source := map[bool]string{true: "server", false: "client"}[serverEmbed]
+	id, err := a.store.AddPhoto(r.Context(), demoUser, Photo{Name: name, Mime: ctype, Size: size}, sum, a.profile.Fingerprint, source, vec)
 	if err != nil {
 		serverError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"id": id, "indexed": vec != nil})
+}
+
+func (a *API) embedFile(path string) ([]float32, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	pixels, err := prepareImage(data)
+	if err != nil {
+		return nil, err
+	}
+	return a.ai.EmbedImage(pixels)
 }
 
 func pathID(r *http.Request) (int64, bool) {
@@ -184,6 +285,16 @@ func (a *API) deletePhoto(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// deleteAllPhotos removes every photo and vector of the user, for re-testing.
+func (a *API) deleteAllPhotos(w http.ResponseWriter, r *http.Request) {
+	n, err := a.store.DeleteAllPhotos(r.Context(), demoUser)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int64{"deleted": n})
+}
+
 func limitParam(r *http.Request) int {
 	n, err := strconv.Atoi(r.URL.Query().Get("limit"))
 	if err != nil || n < 1 || n > 100 {
@@ -196,13 +307,26 @@ func (a *API) search(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Embedding []float32 `json:"embedding"`
 		Profile   string    `json:"profile"`
+		Query     string    `json:"query"` // instead of embedding: embed on the server
 		Limit     int       `json:"limit"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
 		fail(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	if body.Profile != a.profile.Fingerprint {
+	var timing string
+	if body.Embedding == nil && body.Query != "" {
+		if !a.requireAI(w) {
+			return
+		}
+		vec, tokenize, run, err := a.ai.EmbedText(body.Query)
+		if err != nil {
+			aiError(w, err)
+			return
+		}
+		body.Embedding = vec
+		timing = fmt.Sprintf("tokenize;dur=%.1f, model;dur=%.1f, ", ms(tokenize), ms(run))
+	} else if body.Profile != a.profile.Fingerprint {
 		fail(w, http.StatusUnprocessableEntity, "profile mismatch: reload the page to get the current model")
 		return
 	}
@@ -213,11 +337,13 @@ func (a *API) search(w http.ResponseWriter, r *http.Request) {
 	if body.Limit < 1 || body.Limit > 100 {
 		body.Limit = 20
 	}
+	started := time.Now()
 	hits, err := a.store.Search(r.Context(), demoUser, a.profile.Fingerprint, body.Embedding, body.Limit, 0)
 	if err != nil {
 		serverError(w, err)
 		return
 	}
+	w.Header().Set("Server-Timing", timing+fmt.Sprintf("search;dur=%.1f", ms(time.Since(started))))
 	writeJSON(w, http.StatusOK, hits)
 }
 

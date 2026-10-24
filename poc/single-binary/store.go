@@ -91,9 +91,9 @@ type Hit struct {
 	Score float64 `json:"score"`
 }
 
-// AddPhoto stores the record and its client-computed vector in one transaction; the file
+// AddPhoto stores the record and its vector (computed by source: "client" or "server") in one transaction; the file
 // is written by the caller and removed again if this fails.
-func (s *Store) AddPhoto(ctx context.Context, userID int, p Photo, sha []byte, profile string, vec []float32) (int64, error) {
+func (s *Store) AddPhoto(ctx context.Context, userID int, p Photo, sha []byte, profile, source string, vec []float32) (int64, error) {
 	var id int64
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `INSERT INTO photo (user_id, name, mime, size_bytes, sha256)
@@ -104,7 +104,7 @@ func (s *Store) AddPhoto(ctx context.Context, userID int, p Photo, sha []byte, p
 			return nil
 		}
 		_, err := tx.Exec(ctx, `INSERT INTO photo_embedding (photo_id, profile, source, embedding)
-			VALUES ($1,$2,'client',$3)`, id, profile, pgvector.NewHalfVector(vec))
+			VALUES ($1,$2,$3,$4)`, id, profile, source, pgvector.NewHalfVector(vec))
 		return err
 	})
 	return id, err
@@ -134,6 +134,13 @@ func (s *Store) Photo(ctx context.Context, userID int, id int64) (Photo, error) 
 		return p, errNotFound
 	}
 	return p, err
+}
+
+// DeleteAllPhotos removes all of a user's photos; vectors go with them (ON DELETE CASCADE).
+// Files stay on disk, as with DeletePhoto.
+func (s *Store) DeleteAllPhotos(ctx context.Context, userID int) (int64, error) {
+	tag, err := s.db.Exec(ctx, `DELETE FROM photo WHERE user_id=$1`, userID)
+	return tag.RowsAffected(), err
 }
 
 func (s *Store) DeletePhoto(ctx context.Context, userID int, id int64) error {

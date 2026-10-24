@@ -5,12 +5,15 @@
 //   2. the 8 fixture queries (English + Chinese) embedded on-device; top hit must match
 //   3. the server rejects malformed vectors and wrong profiles
 //   4. after closing and reopening the browser, the model loads with zero model downloads
+//   With --server, both models are switched to the server instead: the same uploads and
+//   queries must pass with no model file ever reaching the browser, and the switch must
+//   survive a browser restart.
 //
-// usage: node e2e/e2e.mjs [--url http://localhost:8084] [--wasm | --force-webgpu] [--chrome /path/to/chrome]
+// usage: node e2e/e2e.mjs [--url http://localhost:8084] [--wasm | --force-webgpu | --server] [--chrome /path/to/chrome]
 //   default         Chromium offers only its software GPU (SwiftShader); expect WebAssembly
 //   --wasm          no WebGPU at all; expect WebAssembly for both models
 //   --force-webgpu  software GPU plus ?device=webgpu; both models on WebGPU (slow)
-//                         [--dump-text text-vectors.json]
+//                         [--dump-text text-vectors.json] [--text-model small|full]
 // Needs the `playwright` package (global install is fine) and a running `photoly serve`
 // against an empty database.
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
@@ -24,8 +27,12 @@ const option = (name, fallback) => (args.includes(name) ? args[args.indexOf(name
 const url = option('--url', 'http://localhost:8084')
 const wasm = args.includes('--wasm')
 const forceWebgpu = args.includes('--force-webgpu')
+const serverMode = args.includes('--server')
 const expected = forceWebgpu ? 'webgpu' : 'wasm'
-const pageURL = forceWebgpu ? `${url}/?device=webgpu` : url
+const textModel = option('--text-model', null) // small (int8, the default) or full
+const pageURL = new URL(url)
+if (forceWebgpu) pageURL.searchParams.set('device', 'webgpu')
+if (textModel) pageURL.searchParams.set('textModel', textModel)
 const executablePath = option('--chrome', process.env.CHROME_PATH)
 const dump = option('--dump-text', null) // write query -> browser text vector, for scripts/parity.py
 
@@ -58,7 +65,7 @@ async function open() {
   page.on('console', (m) => { if (m.type() === 'error') console.log('browser:', m.text()) })
   const modelRequests = []
   page.on('request', (r) => { if (r.url().includes('/models/')) modelRequests.push(r.url()) })
-  await page.goto(pageURL)
+  await page.goto(pageURL.href)
   await page.evaluate(() => window.photoly.ready)
   const runtime = await page.textContent('#runtime')
   return { context, page, modelRequests, runtime }
@@ -69,13 +76,21 @@ try {
   let { context, page, modelRequests, runtime } = await open()
   const devices = await page.evaluate(() => window.photoly.state.devices)
   results.device = `image ${devices.image.device}, text ${devices.text.device}`
+  if (serverMode) {
+    await page.evaluate(() => { window.photoly.setWhere('image', 'server'); window.photoly.setWhere('text', 'server') })
+    runtime = await page.textContent('#runtime')
+    results.device = 'server'
+    check(/Images: server.*Text: server/.test(runtime), `runtime line: ${runtime}`)
+  }
   log('runtime', { runtime, devices, crossOriginIsolated: await page.evaluate(() => crossOriginIsolated) })
-  check(devices.image.device === expected && devices.text.device === expected, `expected ${expected} for both models, got ${results.device}`)
-  if (!wasm && !forceWebgpu) check(/software-emulated/.test(devices.image.reason ?? ''), `expected the software GPU to be skipped, got: ${devices.image.reason}`)
-  if (!forceWebgpu) check(/short query/.test(devices.text.reason ?? '') || wasm, `expected text on the CPU by choice, got: ${devices.text.reason}`)
+  if (!serverMode) {
+    check(devices.image.device === expected && devices.text.device === expected, `expected ${expected} for both models, got ${results.device}`)
+    if (!wasm && !forceWebgpu) check(/software-emulated/.test(devices.image.reason ?? ''), `expected the software GPU to be skipped, got: ${devices.image.reason}`)
+    if (!forceWebgpu) check(/short query/.test(devices.text.reason ?? '') || wasm, `expected text on the CPU by choice, got: ${devices.text.reason}`)
+  }
 
   let started = Date.now()
-  await page.evaluate(() => Promise.all([window.photoly.loadVision(), window.photoly.loadText()]))
+  await page.evaluate(() => Promise.all([window.photoly.load('image'), window.photoly.load('text')]))
   log('first model load', { seconds: (Date.now() - started) / 1000, modelRequests: modelRequests.length,
     timings: await page.evaluate(() => window.photoly.state.timings) })
 
@@ -101,7 +116,7 @@ try {
         modelMs: Math.round(timing.modelMs), tokenizeMs: Math.round(timing.tokenizeMs), ok })
     }
   }
-  if (dump) writeFileSync(dump, JSON.stringify(textVectors))
+  if (dump && !serverMode) writeFileSync(dump, JSON.stringify(textVectors))
   const total = manifest.samples.reduce((n, s) => n + s.queries.length, 0)
   log('recall@1', { correct, total })
   check(correct === total, `recall@1 ${correct}/${total}`)
@@ -128,12 +143,33 @@ try {
   })
   log('validation', rejections)
   check(rejections.valid === 200 && rejections.notUnit === 422 && rejections.wrongLength === 422 && rejections.wrongProfile === 422, 'validation statuses')
+
+  if (serverMode) {
+    const status = await page.evaluate(async () => {
+      const post = (body) => fetch('/api/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.status)
+      const form = new FormData()
+      // A PNG signature followed by junk: passes the type check, fails to decode.
+      form.append('file', new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])]), 'bad.png')
+      form.append('embed', 'server')
+      return {
+        tooLong: await post({ query: 'dog cat '.repeat(40) }),
+        notImage: await fetch('/api/photos', { method: 'POST', body: form }).then((r) => r.status),
+      }
+    })
+    log('server validation', status)
+    check(status.tooLong === 422 && status.notImage === 422, 'server validation statuses')
+    check(modelRequests.length === 0, `server mode downloaded model files: ${modelRequests.join(', ')}`)
+  }
   await context.close()
 
   // ---- browser restart: the model must come from the browser cache ----
   ;({ context, page, modelRequests } = await open())
+  if (serverMode) {
+    const where = await page.evaluate(() => window.photoly.state.where)
+    check(where.image === 'server' && where.text === 'server', `switch not remembered: ${JSON.stringify(where)}`)
+  }
   started = Date.now()
-  await page.evaluate(() => Promise.all([window.photoly.loadVision(), window.photoly.loadText()]))
+  await page.evaluate(() => Promise.all([window.photoly.load('image'), window.photoly.load('text')]))
   const reloadSeconds = (Date.now() - started) / 1000
   const storage = await page.evaluate(async () => ({ ...(await navigator.storage.estimate()), persisted: await navigator.storage.persisted() }))
   log('reopen', { seconds: reloadSeconds, modelRequests: modelRequests.length, usageMB: Math.round(storage.usage / 1e6) })

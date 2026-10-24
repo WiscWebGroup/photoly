@@ -43,7 +43,12 @@ var modelFiles = map[string]modelFile{
 	"onnx/vision_model_fp16.onnx": {186039516, "a1959f7bd3993a607e48839f6d01e25b876fe76afda301b028b78eef68aabd95"},
 	"onnx/text_model.onnx":        {1129469657, "baf12d941beabafafb14f7b4adb38dc15be18681b964a84410ec53d9d65e6293"},
 	"onnx/text_model_fp16.onnx":   {564862230, "711da56ada0a4aa11c7dd3320df741081a3cae4f0ae1b5e5c6d5b294738d0eb0"},
+	// Server only, when memory is short: ~35% less memory than fp32; query vectors agree
+	// with fp32 at cosine 0.935-0.96.
+	textInt8File: {283438275, "3a0603d3a00c05a80a6ded4743c16aaac7b1e62cdcc7e362e7ce418659b96400"},
 }
+
+const textInt8File = "onnx/text_model_int8.onnx"
 
 // Profile describes exactly which model produces the stored vectors. Clients must send the
 // fingerprint with every vector; a mismatch is rejected.

@@ -14,13 +14,26 @@
   </header>
 
   <section class="panel" id="model-panel">
-    <h2>On-device model</h2>
-    <p class="muted">SigLIP2 runs in this browser. The server never runs the model; it stores and searches the vectors.</p>
+    <h2>Model</h2>
+    <p class="muted">SigLIP2 runs in this browser by default, and only vectors go to the server. Switch either model to the server to skip the browser download.</p>
+    <div class="row">
+      <label>Photos embedded in
+        <select id="where-image"><option value="browser">this browser</option><option value="server">the server</option></select>
+      </label>
+      <label>Search text embedded in
+        <select id="where-text"><option value="browser">this browser</option><option value="server">the server</option></select>
+      </label>
+      <label>Browser search model
+        <select id="text-model"><option value="small">small (int8, 318 MB)</option><option value="full">full (1.13 GB)</option></select>
+      </label>
+    </div>
+    <p id="server-ai" class="muted"></p>
     <div class="row">
       <button id="load-vision">Load image model</button>
       <button id="load-text">Load text model</button>
       <button id="persist" class="secondary">Keep model on this device</button>
       <button id="clear-cache" class="secondary">Remove cached model</button>
+      <button id="reload" class="secondary" hidden>Reload to free browser memory</button>
     </div>
     <div id="progress"></div>
     <p id="storage" class="muted"></p>
@@ -30,8 +43,11 @@
     <h2>Upload</h2>
     <label class="drop">
       <input id="files" type="file" accept="image/*" multiple>
-      <span>Choose photos. Each is embedded here, then uploaded with its vector.</span>
+      <span>Choose photos. Each is embedded where the setting above says, then stored with its vector.</span>
     </label>
+    <div class="row">
+      <button type="button" id="delete-all" class="secondary">Delete all photos</button>
+    </div>
     <p id="upload-status" class="muted"></p>
   </section>
 

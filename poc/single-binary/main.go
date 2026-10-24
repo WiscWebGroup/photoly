@@ -1,10 +1,12 @@
 // Command photoly is a proof of concept for running the Photoly backend as one Go binary,
-// with SigLIP2 image and text embeddings computed in the browser over WebGPU.
+// with SigLIP2 image and text embeddings computed in the browser over WebGPU, or on the
+// server with ONNX Runtime when a client switches to it.
 //
 //	photoly serve        migrate, then serve the API, web UI and model files
 //	photoly migrate      apply database migrations and exit
 //	photoly fetch-model  download and verify the model files ahead of time
 //	photoly health       exit 0 if the local server answers /healthz (for containers)
+//	photoly ai-worker    server-side inference; started by serve, see worker.go
 //
 // Configuration comes from the environment; see README.md.
 package main
@@ -49,8 +51,10 @@ func main() {
 		err = fetchModel(ctx)
 	case "health":
 		err = health(ctx)
+	case "ai-worker":
+		err = runWorker()
 	default:
-		fmt.Fprintln(os.Stderr, "usage: photoly [serve|migrate|fetch-model|health]")
+		fmt.Fprintln(os.Stderr, "usage: photoly [serve|migrate|fetch-model|health|ai-worker]")
 		os.Exit(2)
 	}
 	if err != nil {
@@ -126,9 +130,17 @@ func serve(ctx context.Context) error {
 		if err := store.Migrate(ctx); err != nil {
 			return err
 		}
+		cache := newModelCache(filepath.Join(dataDir(), "models"))
+		api := &API{store: store, profile: profile, dir: photos}
+		if api.ai, err = startWorker(); err != nil {
+			api.aiOff = err.Error()
+			log.Printf("photoly: server inference off: %v", err)
+		} else {
+			defer api.ai.Close()
+		}
 		mux := http.NewServeMux()
-		(&API{store: store, profile: profile, dir: photos}).routes(mux)
-		mux.Handle("GET /models/{rev}/{model}/{file...}", newModelCache(filepath.Join(dataDir(), "models")))
+		api.routes(mux)
+		mux.Handle("GET /models/{rev}/{model}/{file...}", cache)
 		mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 			if err := store.db.Ping(r.Context()); err != nil {
 				http.Error(w, "database unavailable", http.StatusServiceUnavailable)
