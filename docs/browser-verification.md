@@ -23,21 +23,22 @@ service on :5200. Screenshots: `docs/screenshots/go-ai/`.
 | Leaflet map under COEP | 20 of 20 `a.tile.openstreetmap.org` tiles loaded with credentialless COEP | 09 |
 | Frontend checks | vitest 37 files / 220 tests pass, `pnpm typecheck` clean, `pnpm lint` clean (no source changes were needed) | - |
 
-## Findings (no frontend code changed)
+## Findings
 
 1. Model never reaches the Cache API in this browser pane. `Cache.put` of the 283 MB text model (and a plain
    streamed `cache.put(url, await fetch(url))` I tried by hand) fails with `UnknownError: Unexpected internal error`
    (transformers.js logs "Unable to add response to browser cache"). Config/tokenizer (<=34 MB) and the ORT wasm are
    cached. Consequence: every page load re-downloads the models and the card always says "Downloading", never
    "Loading from this device". This looks like a limit of the embedded browser, not of the app (the app's
-   cache code path is unit-tested), but it was not confirmed in desktop Chrome/Safari. Worth a manual check there
-   because the whole "download once" promise depends on it.
+   cache code path is unit-tested), but it was not confirmed in desktop Chrome/Safari. **Rechecked in desktop Chrome:** `cache.put` of a 300 MB blob and of a 300 MB stream both succeed, so this is
+   an embedded-browser limit. Caveat: that profile's storage quota was 2 GB, so the 1.13 GB full text model plus
+   the rest can still fail to cache on small quotas.
 2. Service worker registration fails on every load: `Failed to register a ServiceWorker ... sw.js: An unknown error
-   occurred when fetching the script`. `/sw.js` and the workbox file return 200 from nginx. Cause not determined
-   (pane limitation vs COEP interaction); only console error besides the expected decode error of the truncated JPEG.
+   occurred when fetching the script`. `/sw.js` and the workbox file return 200 from nginx. **Rechecked in desktop Chrome** against the Go stack with COOP/COEP on: the worker registers and activates and
+   the page is cross-origin isolated. Embedded-pane limitation only.
 3. Admin page UX: pressing "Enable AI" while placement edits are unsaved bumps the config generation, so the
-   draft is flagged stale ("The server configuration changed...") and Save is disabled until Discard. Existing
-   behaviour, not specific to the new card. Also "Save AI settings" is enabled while the footer says "No unsaved changes".
+   draft is flagged stale ("The server configuration changed...") and Save is disabled until Discard. **Fixed:** the draft now rebases onto the new server settings and keeps only the fields the admin edited, and
+   "Save AI settings" is disabled when there are no unsaved changes.
 4. A fresh AI-enabled admin still has no per-user AI access: Account/Search silently use the server path
    (`reason: not_enabled_for_user`) until the switch in User Management is turned on. Expected, but easy to trip on.
 

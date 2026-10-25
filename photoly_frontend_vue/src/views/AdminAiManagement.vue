@@ -100,12 +100,16 @@ function resetDraft() {
   }
 }
 watch(status, () => {
-  if (
-    !draft.value ||
-    (JSON.stringify(draft.value) === JSON.stringify(original.value) &&
-      budgetGiB.value === (original.value?.quota_bytes ?? 0) / 1024 ** 3)
-  )
-    resetDraft()
+  const next = status.value?.settings
+  if (!next || !draft.value || !original.value || unsavedCount.value === 0) return resetDraft()
+  if (next.generation === original.value.generation) return
+  // The server changed under an unsaved draft (e.g. Enable AI): rebase onto the new
+  // settings and keep only the fields the admin actually edited.
+  const d = draft.value as unknown as Record<string, unknown>
+  const o = original.value as unknown as Record<string, unknown>
+  const edited = Object.keys(d).filter((k) => k !== 'generation' && d[k] !== o[k])
+  original.value = { ...next }
+  draft.value = { ...next, ...Object.fromEntries(edited.map((k) => [k, d[k]])) }
 })
 function fieldValue(key: string) {
   return Number(draft.value?.[key as keyof AiSettings] ?? 0)
@@ -604,7 +608,9 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                 >
                 <Button
                   type="submit"
-                  :disabled="locked || original?.generation !== status.settings.generation"
+                  :disabled="
+                    locked || !unsavedCount || original?.generation !== status.settings.generation
+                  "
                   >Save AI settings</Button
                 >
               </div>
