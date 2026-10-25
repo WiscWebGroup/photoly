@@ -15,7 +15,18 @@ const isolation = {
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  server: { headers: isolation },
+  server: {
+    headers: isolation,
+    // `pnpm dev` talks to a backend on PHOTOLY_BACKEND_URL (default: the compose.go.yml port),
+    // same-origin like nginx does in production, so CORS and cross-origin isolation need no setup.
+    proxy: {
+      '/api': {
+        target: process.env.PHOTOLY_BACKEND_URL ?? 'http://localhost:8384',
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+      '/models': process.env.PHOTOLY_BACKEND_URL ?? 'http://localhost:8384',
+    },
+  },
   preview: { headers: isolation },
   build: {
     rollupOptions: {
