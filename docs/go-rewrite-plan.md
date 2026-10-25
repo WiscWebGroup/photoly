@@ -120,7 +120,7 @@ when the admin's value is `user`.
 
 ### 6. Cutover
 
-- Compose: `photoly` + `db_postgres` (+ optional embedded Vue build replacing `web`).
+- Compose: `photoly` + `db_postgres` (or, with `compose.aio.yml`, both in one image: `target: aio`) (+ optional embedded Vue build replacing `web`).
   Remove `backend`, `upload-worker`, `migrate`, `ai-*`, `db_redis`.
 - Same volumes and `UPLOAD_FOLDER/<user_uuid>/<photo_uuid>.<ext>` layout — no file moves.
 - Then drop Flask, `inference/`, PyTorch images, and narrow the dimension CHECK to 768.

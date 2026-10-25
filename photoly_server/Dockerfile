@@ -43,3 +43,22 @@ EXPOSE 8084
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 CMD ["/usr/local/bin/photoly", "health"]
 ENTRYPOINT ["/usr/local/bin/photoly"]
 CMD ["serve"]
+
+# One-container variant: PostgreSQL (with pgvector) and photoly in the same image. Build with
+# `--build-context dbinit=database/postgres-init`; see compose.aio.yml. Photoly runs as the
+# postgres user, so mount ./upload_data owned by uid 999.
+FROM pgvector/pgvector:0.8.7-pg17-bookworm@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d AS aio
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 ffmpeg libheif-examples \
+      libimage-exiftool-perl tesseract-ocr tesseract-ocr-eng tesseract-ocr-chi-sim tesseract-ocr-chi-tra tesseract-ocr-jpn \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /photoly /var/lib/photoly && chown postgres:postgres /photoly /var/lib/photoly
+COPY --from=build /out/lib /usr/local/lib/onnxruntime
+COPY --from=build /out/photoly-bin /usr/local/bin/photoly
+COPY --from=dbinit . /docker-entrypoint-initdb.d/
+COPY docker/aio-entrypoint.sh /usr/local/bin/aio-entrypoint.sh
+ENV PHOTOLY_ADDR=:8084 POSTGRES_HOST=127.0.0.1 POSTGRES_USER=postgres POSTGRES_DB=photoly UPLOAD_FOLDER=/photoly PHOTOLY_DATA=/var/lib/photoly \
+    ONNXRUNTIME_LIB=/usr/local/lib/onnxruntime/libonnxruntime.so.1 ORT_DISABLE_TELEMETRY=1
+VOLUME /var/lib/postgresql/data
+EXPOSE 8084
+HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=3 CMD ["/usr/local/bin/photoly", "health"]
+ENTRYPOINT ["/usr/local/bin/aio-entrypoint.sh"]
