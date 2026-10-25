@@ -35,8 +35,10 @@ COPY --from=build /out/photoly-bin /usr/local/bin/photoly
 COPY --from=build --chown=65532:65532 --chmod=1777 /out/tmp /tmp
 # Uploaded media lives in UPLOAD_FOLDER (mount ./upload_data here, owned by uid 65532).
 COPY --from=build --chown=65532:65532 /out/data /photoly
+# Downloaded model weights; mount a volume here to keep them across rebuilds.
+COPY --from=build --chown=65532:65532 /out/data /var/lib/photoly
 USER 65532:65532
-ENV PHOTOLY_ADDR=:8084 UPLOAD_FOLDER=/photoly ONNXRUNTIME_LIB=/usr/local/lib/onnxruntime/libonnxruntime.so.1 ORT_DISABLE_TELEMETRY=1
+ENV PHOTOLY_ADDR=:8084 UPLOAD_FOLDER=/photoly PHOTOLY_DATA=/var/lib/photoly ONNXRUNTIME_LIB=/usr/local/lib/onnxruntime/libonnxruntime.so.1 ORT_DISABLE_TELEMETRY=1
 EXPOSE 8084
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 CMD ["/usr/local/bin/photoly", "health"]
 ENTRYPOINT ["/usr/local/bin/photoly"]

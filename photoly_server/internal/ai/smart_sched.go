@@ -56,7 +56,7 @@ func (s *SmartSched) reconcile(ctx context.Context, q Q, cfg Settings) error {
 		return nil
 	}
 	read := func(after int64) ([]*smartPref, error) {
-		rows, err := q.Query(ctx, `SELECT `+prefCols+` FROM smart_preference p JOIN "user" u ON u.user_id=p.user_id
+		rows, err := q.Query(ctx, `SELECT p.`+strings.ReplaceAll(prefCols, ", ", ", p.")+` FROM smart_preference p JOIN "user" u ON u.user_id=p.user_id
 			WHERE p.enabled AND u.ai_search_enabled AND p.user_id>$1 ORDER BY p.user_id LIMIT 25`, after)
 		if err != nil {
 			return nil, err

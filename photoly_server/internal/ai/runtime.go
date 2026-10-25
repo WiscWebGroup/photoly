@@ -465,6 +465,7 @@ func mapWorkerErr(err error) error {
 	case errors.Is(err, errBadImage):
 		return mapImageErr(err)
 	}
+	logf("inference failed: %v", err)
 	return fail("inference_failed", 502)
 }
 

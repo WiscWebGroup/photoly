@@ -44,6 +44,7 @@ services:
     environment: *photoly-environment
     volumes:
       - ./upload_data:/photoly
+      - photoly_models:/var/lib/photoly
     restart: unless-stopped
   db_postgres:
     image: pgvector/pgvector:0.8.7-pg17-bookworm@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
@@ -95,4 +96,5 @@ services:
       timeout: 5s
       retries: 20
 volumes:
+  photoly_models:
   postgres_data:
