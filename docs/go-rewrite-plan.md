@@ -74,8 +74,8 @@ exiftool on the fixture set before flipping photo routes. ffmpeg and tesseract s
   while a Qwen profile is active.
 - **New profile fingerprint** (`runtime: onnx`, `preprocessing: exif-white-rgb-224-bilinear-v1`).
   The existing build → activate flow re-indexes in the background; search keeps using the old
-  PyTorch profile until the new one is ready. Measure ONNX-vs-PyTorch cosine on a real
-  library first; if ≥ 0.999 for every photo, offer "keep existing vectors" instead.
+  PyTorch profile until the new one is ready. Measured (docs/onnx-vs-pytorch-report.md): min image cosine 0.99888 < 0.999, so
+  **decision: re-index in the background; no "keep existing vectors" option.**
 - Devices: CPU everywhere; CUDA provider in the CUDA image; CoreML on macOS (replaces MPS).
 
 ### 5. Browser inference (the POC switch, made multi-user)
