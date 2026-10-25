@@ -168,7 +168,8 @@ func (s *Service) install(ctx context.Context, tx pgx.Tx, f *photo.Files, u phot
 	_, err = tx.Exec(ctx, `UPDATE upload_item SET photo_id=$2, ns_id=$3, state='done', error=NULL, updated_at=$4 WHERE id=$1`, it.ID, p.ID, ns, now())
 	it.PhotoID, it.State = &p.ID, "done"
 	if err == nil {
-		s.applyHeld(ctx, it.ID, u.ID, p.ID)
+		// Own connection, and it takes the user-row lock this tx holds: run it after the tx commits.
+		go s.applyHeld(ctx, it.ID, u.ID, p.ID)
 	}
 	return p, err
 }
