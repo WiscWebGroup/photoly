@@ -11,7 +11,7 @@ until pg_isready -q -h 127.0.0.1 -U postgres -d "$POSTGRES_DB"; do
   kill -0 "$pg" 2>/dev/null || exit 1
   sleep 1
 done
-gosu postgres photoly serve &
+gosu nonroot photoly serve &
 app=$!
 
 # Either process ending takes the container down, so Docker restarts both together.

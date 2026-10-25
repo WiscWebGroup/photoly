@@ -203,6 +203,7 @@ func (r *Runtime) change(command string, kinds []string, config map[string]any, 
 	defer r.mu.Unlock()
 	if err != nil {
 		code := asErr(err).Code
+		logf("ai runtime %s failed: %v", command, err)
 		if errors.As(err, new(*LowMemoryError)) {
 			code = "low_memory"
 		}

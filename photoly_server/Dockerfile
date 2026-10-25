@@ -45,13 +45,14 @@ ENTRYPOINT ["/usr/local/bin/photoly"]
 CMD ["serve"]
 
 # One-container variant: PostgreSQL (with pgvector) and photoly in the same image. Build with
-# `--build-context dbinit=database/postgres-init`; see compose.aio.yml. Photoly runs as the
-# postgres user, so mount ./upload_data owned by uid 999.
+# `--build-context dbinit=database/postgres-init`; see compose.aio.yml. Photoly runs as uid 65532
+# like the standalone image, so existing ./upload_data and model volumes keep working.
 FROM pgvector/pgvector:0.8.7-pg17-bookworm@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d AS aio
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 ffmpeg libheif-examples \
       libimage-exiftool-perl tesseract-ocr tesseract-ocr-eng tesseract-ocr-chi-sim tesseract-ocr-chi-tra tesseract-ocr-jpn \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /photoly /var/lib/photoly && chown postgres:postgres /photoly /var/lib/photoly
+    && groupadd -g 65532 nonroot && useradd -u 65532 -g 65532 -M -s /usr/sbin/nologin nonroot \
+    && mkdir -p /photoly /var/lib/photoly && chown 65532:65532 /photoly /var/lib/photoly
 COPY --from=build /out/lib /usr/local/lib/onnxruntime
 COPY --from=build /out/photoly-bin /usr/local/bin/photoly
 COPY --from=dbinit . /docker-entrypoint-initdb.d/

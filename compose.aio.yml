@@ -1,6 +1,6 @@
 # One backend container: photoly + PostgreSQL (pgvector) together, plus the nginx web container.
 #   docker compose -f compose.aio.yml up --build
-# Data: ./upload_data (photos, chown 999) and the `postgres_data` volume.
+# Data: ./upload_data (photos, owned by uid 65532) and the `postgres_data` volume.
 # The `backend` service name is kept so photoly_frontend_vue/nginx.conf works unchanged.
 services:
   web:
