@@ -29,22 +29,66 @@ type Scheduler struct {
 	lastUser   *int64
 	userCursor int64
 	smart      *SmartSched
+	demand     map[string]bool // kinds some user needs on the server (set each tick)
 }
 
 func runtimeConfig(cfg Settings) map[string]any {
 	return map[string]any{"device": cfg.Str("device"), "precision": cfg.Str("precision"), "cpu_threads": cfg.Int("cpu_threads")}
 }
 
-// wantKinds are the models this server loads: browser-only placements need none.
-func wantKinds(cfg Settings) []string {
-	var k []string
-	if cfg.Str("placement_image") != "browser" {
-		k = append(k, "image")
+// serverDemand reports, per model kind, whether anything needs it on this server: a "server"
+// placement, or "user" with at least one AI-enabled user who has not chosen their browser.
+func (s *Scheduler) serverDemand(ctx context.Context, cfg Settings) (map[string]bool, error) {
+	out := map[string]bool{}
+	for _, kind := range []string{"image", "text"} {
+		switch cfg.Str("placement_" + kind) {
+		case "server":
+			out[kind] = true
+		case "user":
+			var v bool
+			// kind is a fixed column name, never user input.
+			err := s.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM "user" u LEFT JOIN user_ai_preference p ON p.user_id=u.user_id
+				WHERE u.ai_search_enabled AND COALESCE(p.`+kind+`, 'server')='server')`).Scan(&v)
+			if err != nil {
+				return nil, err
+			}
+			out[kind] = v
+		}
 	}
-	if cfg.Str("placement_text") != "browser" {
-		k = append(k, "text")
+	return out, nil
+}
+
+// wantKinds are the models this server loads: kinds nobody needs on the server are skipped.
+func (s *Scheduler) wantKinds() []string {
+	var k []string
+	for _, kind := range []string{"image", "text"} {
+		if s.demand == nil || s.demand[kind] {
+			k = append(k, kind)
+		}
 	}
 	return k
+}
+
+// syncModels frees a loaded model nobody needs here and loads one that is wanted again.
+func (s *Scheduler) syncModels(cfg Settings, observed map[string]any) {
+	if observed["state"] != "ready" || !cfg.Bool("enabled") {
+		return
+	}
+	loaded := s.rt.Models()
+	for _, kind := range []string{"image", "text"} {
+		switch has := loaded[kind].Loaded; {
+		case has && !s.demand[kind]:
+			if _, _, err := s.rt.UnloadModel(kind); err != nil {
+				logf("ai: unload %s model: %v", kind, err)
+			} else {
+				logf("ai: %s model unloaded (every user runs it in the browser)", kind)
+			}
+		case !has && s.demand[kind]:
+			if _, err := s.rt.LoadModel(kind, false); err != nil {
+				logf("ai: load %s model: %v", kind, err)
+			}
+		}
+	}
 }
 
 func (s *Scheduler) lead(ctx context.Context, tx pgx.Tx) (bool, error) {
@@ -244,7 +288,7 @@ func (s *Scheduler) operate(ctx context.Context, t *Task) error {
 		verb := command[6:]
 		var kinds []string
 		if verb != "unload" {
-			kinds = wantKinds(cfg)
+			kinds = s.wantKinds()
 		}
 		_, err := s.rt.Change(verb, kinds, runtimeConfig(cfg), gen, itoa(int(t.ID)))
 		stop()
@@ -451,7 +495,7 @@ func (s *Scheduler) managedRuntime(ctx context.Context, cfg Settings) (map[strin
 	if g, _ := toInt(observed["generation"]); g != gen {
 		cmd, kinds := "unload", []string(nil)
 		if pid != nil {
-			cmd, kinds = "load", wantKinds(cfg)
+			cmd, kinds = "load", s.wantKinds()
 		}
 		var err error
 		if observed, err = s.rt.Submit(cmd, kinds, runtimeConfig(cfg), gen, "ai:"+itoa(int(gen))); err != nil {
@@ -529,6 +573,9 @@ func (s *Scheduler) tick(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if s.demand, err = s.serverDemand(ctx, cfg); err != nil {
+		return err
+	}
 	task, err := claim(ctx, tx, s.owner, ClaimOpts{Kinds: []string{"operation"}})
 	if err != nil {
 		return err
@@ -568,7 +615,7 @@ func (s *Scheduler) tick(ctx context.Context) error {
 				gen = row.Generation
 				cmd, kinds := "unload", []string(nil)
 				if pid != nil {
-					cmd, kinds = "load", wantKinds(cfg)
+					cmd, kinds = "load", s.wantKinds()
 				}
 				observed, err = s.rt.Change(cmd, kinds, runtimeConfig(cfg), gen, "reconcile:"+itoa(int(gen)))
 			}
@@ -582,6 +629,7 @@ func (s *Scheduler) tick(ctx context.Context) error {
 		s.publish(ctx, map[string]any{"state": "offline"}, "runtime_offline")
 		return nil
 	}
+	s.syncModels(cfg, observed)
 	res, _ := observed["resources"].(map[string]any)
 	d := s.policy.Decide(res, cfg)
 	var reason any
