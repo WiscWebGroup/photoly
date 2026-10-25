@@ -1,0 +1,11 @@
+# Backend only (photoly + PostgreSQL in one container) for working on the frontend:
+#   docker compose -f compose.dev.yml up -d --build
+#   cd photoly_frontend_vue && pnpm dev     # proxies /api and /models to localhost:8384
+services:
+  backend:
+    extends:
+      file: compose.aio.yml
+      service: backend
+volumes:
+  photoly_models:
+  postgres_data:
