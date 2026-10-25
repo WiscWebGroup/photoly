@@ -59,7 +59,9 @@ describe('search', () => {
       }),
     )
     await store.searchText('a cat', { topK: 5 }, { server: true })
-    store.setCapabilities(browserCapabilities({ placement: { image: 'server', text: 'server' } }) as never)
+    store.setCapabilities(
+      browserCapabilities({ placement: { image: 'server', text: 'server' } }) as never,
+    )
     await store.searchText('a dog', { topK: 5 })
     expect(bodies).toEqual([
       { topK: 5, text: 'a cat' },
@@ -106,7 +108,15 @@ describe('preference', () => {
         return ok({})
       }),
       http.get(`${API}/ai/capabilities`, () =>
-        ok(browserCapabilities({ placement: { image: 'browser', text: 'server', choosable: { image: false, text: true } } })),
+        ok(
+          browserCapabilities({
+            placement: {
+              image: 'browser',
+              text: 'server',
+              choosable: { image: false, text: true },
+            },
+          }),
+        ),
       ),
     )
     await store.setPreference('text', 'server')
@@ -120,7 +130,9 @@ describe('indexing during upload', () => {
     const order: string[] = []
     const embeddings: unknown[] = []
     server.use(
-      http.post(`${API}/uploads`, async ({ request }) => ok(((await request.json()) as { id: string }).id)),
+      http.post(`${API}/uploads`, async ({ request }) =>
+        ok(((await request.json()) as { id: string }).id),
+      ),
       http.post(`${API}/uploads/:id/items`, () => ok(1)),
       http.post(`${API}/uploads/:id/finish`, () => ok(1)),
       http.put(`${API}/uploads/:bid/items/:id/content`, ({ params }) => {
@@ -157,7 +169,10 @@ describe('indexing during upload', () => {
     setup()
     server.use(http.get(`${API}/ai/capabilities`, () => ok(browserCapabilities())))
     const { uploads } = uploadFixtures(() =>
-      HttpResponse.json({ msgCode: 400, t: 'rejected' }, { headers: { 'Access-Control-Allow-Origin': '*' } }),
+      HttpResponse.json(
+        { msgCode: 400, t: 'rejected' },
+        { headers: { 'Access-Control-Allow-Origin': '*' } },
+      ),
     )
     await uploads.enqueue(files(['a.jpg', 'b.png']))
     await vi.waitFor(() => expect(uploads.indexing.failed).toBe(2))
@@ -179,12 +194,65 @@ describe('indexing during upload', () => {
   it('stops trying the browser model after it fails to load', async () => {
     const { fake } = setup()
     server.use(http.get(`${API}/ai/capabilities`, () => ok(browserCapabilities())))
-    vi.mocked(fake.runtime.SiglipVisionModel.from_pretrained).mockRejectedValueOnce(new Error('oom'))
+    vi.mocked(fake.runtime.SiglipVisionModel.from_pretrained).mockRejectedValueOnce(
+      new Error('oom'),
+    )
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const { uploads, embeddings } = uploadFixtures()
     await uploads.enqueue(files(['a.jpg', 'b.jpg', 'c.jpg']))
     await vi.waitFor(() => expect(uploads.indexing.failed).toBe(3))
     expect(fake.runtime.SiglipVisionModel.from_pretrained).toHaveBeenCalledTimes(1)
     expect(embeddings).toHaveLength(0)
+  })
+})
+
+describe('indexLibrary', () => {
+  it('lets the server queue its share and embeds nothing here', async () => {
+    const { store } = setup()
+    server.use(
+      http.post(`${API}/ai/index`, () =>
+        ok({ placement: 'server', serverQueued: 3, browserPending: 0 }),
+      ),
+    )
+    await store.indexLibrary()
+    expect(store.library).toMatchObject({
+      phase: 'done',
+      placement: 'server',
+      serverQueued: 3,
+      done: 0,
+    })
+  })
+
+  it('embeds each pending photo in this browser and counts unreadable ones', async () => {
+    const { store } = setup()
+    const puts: number[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        url.includes('photoId=2')
+          ? new Response('', { status: 404 })
+          : new Response(new Blob(['x'])),
+      ),
+    )
+    server.use(
+      http.post(`${API}/ai/index`, () =>
+        ok({ placement: 'browser', serverQueued: 0, browserPending: 2 }),
+      ),
+      http.get(`${API}/ai/index/pending`, ({ request }) =>
+        ok({
+          items:
+            new URL(request.url).searchParams.get('after') === '0'
+              ? [{ photoId: 1 }, { photoId: 2 }]
+              : [],
+        }),
+      ),
+      http.put(`${API}/ai/photos/:id/embedding`, ({ params }) => {
+        puts.push(Number(params.id))
+        return ok({ status: 'stored' })
+      }),
+    )
+    await store.indexLibrary()
+    expect(puts).toEqual([1])
+    expect(store.library).toMatchObject({ phase: 'done', total: 2, done: 1, failed: 1 })
   })
 })

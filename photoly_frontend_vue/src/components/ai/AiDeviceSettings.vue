@@ -16,6 +16,21 @@ const caps = computed(() => store.capabilities)
 const placement = computed(() => caps.value?.placement)
 const sizes = computed(() => modelSizes(caps.value?.browser?.sizesMB))
 const version = computed(() => caps.value?.browser?.fingerprint?.slice(0, 7) ?? '')
+const library = computed(() => store.library)
+const coveragePct = computed(() => Math.round((caps.value?.coverage?.ratio ?? 0) * 100))
+const libraryStatus = computed(() => {
+  const l = library.value
+  if (l.phase === 'running')
+    return l.placement === 'browser'
+      ? `Indexing in this browser · ${l.done + l.failed} of ${l.total}`
+      : 'Asking the server…'
+  if (l.phase === 'error') return l.message
+  if (l.phase !== 'done') return ''
+  if (l.placement !== 'browser')
+    return l.serverQueued ? `${l.serverQueued} queued on the server.` : 'Nothing left to index.'
+  const failed = l.failed ? ` ${l.failed} could not be read here.` : ''
+  return `Indexed ${l.done} in this browser.${failed}`
+})
 const busy = ref(false)
 const graphics = ref('')
 const threads = threadCount(globalThis.crossOriginIsolated === true, navigator.hardwareConcurrency)
@@ -25,7 +40,9 @@ const rows: { kind: AiModelKind; label: string; what: string }[] = [
   { kind: 'image', label: 'Photo indexing', what: 'image' },
 ]
 const downloadMB = (kind: AiModelKind) =>
-  kind === 'image' ? sizes.value.image : sizes.value[state.textModel === 'full' ? 'textFull' : 'textSmall']
+  kind === 'image'
+    ? sizes.value.image
+    : sizes.value[state.textModel === 'full' ? 'textFull' : 'textSmall']
 const choices = (kind: AiModelKind): { id: Placement; title: string; desc: string }[] => [
   {
     id: 'browser',
@@ -70,7 +87,9 @@ async function remove() {
   }
 }
 const storagePct = computed(() =>
-  store.storage?.quota ? Math.min(100, Math.round((store.storage.usage / store.storage.quota) * 100)) : 0,
+  store.storage?.quota
+    ? Math.min(100, Math.round((store.storage.usage / store.storage.quota) * 100))
+    : 0,
 )
 const mbLabel = (bytes: number) =>
   bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`
@@ -145,7 +164,10 @@ const grid = 'grid gap-x-12 gap-y-5 border-b pb-8 md:grid-cols-[minmax(0,280px)_
               </button>
             </div>
           </div>
-          <div v-else class="bg-muted text-muted-foreground flex items-center gap-2.5 rounded-[10px] p-3 text-sm">
+          <div
+            v-else
+            class="bg-muted text-muted-foreground flex items-center gap-2.5 rounded-[10px] p-3 text-sm"
+          >
             <Lock class="size-4 shrink-0" aria-hidden="true" />
             <span class="flex flex-col"
               ><span class="text-foreground font-medium"
@@ -230,7 +252,37 @@ const grid = 'grid gap-x-12 gap-y-5 border-b pb-8 md:grid-cols-[minmax(0,280px)_
       </div>
     </section>
 
-    <section aria-labelledby="dev-h" class="grid gap-x-12 gap-y-5 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+    <section v-if="caps?.enabled" aria-labelledby="lib-h" :class="grid">
+      <div>
+        <h2 id="lib-h" :class="h2">Your library</h2>
+        <p class="text-muted-foreground text-sm">
+          Photos are indexed automatically. Index now if you switched between this browser and the
+          server, or some photos are missing from search.
+        </p>
+      </div>
+      <div class="flex max-w-[560px] flex-col gap-3">
+        <p class="text-sm">
+          {{ caps.coverage?.ready ?? 0 }} of {{ caps.coverage?.supported ?? 0 }} photos and videos
+          indexed
+        </p>
+        <Progress :model-value="coveragePct" aria-label="Library indexing progress" class="h-1" />
+        <div class="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            :disabled="library.phase === 'running'"
+            @click="store.indexLibrary()"
+            >{{ library.phase === 'running' ? 'Indexing…' : 'Index My Photos Now' }}</Button
+          >
+          <span role="status" class="text-muted-foreground text-sm">{{ libraryStatus }}</span>
+        </div>
+      </div>
+    </section>
+
+    <section
+      aria-labelledby="dev-h"
+      class="grid gap-x-12 gap-y-5 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]"
+    >
       <div>
         <h2 id="dev-h" :class="h2">This device</h2>
         <p class="text-muted-foreground text-sm">What Photoly found in this browser.</p>

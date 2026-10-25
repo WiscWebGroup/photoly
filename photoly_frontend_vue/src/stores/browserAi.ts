@@ -1,8 +1,10 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
+import { photoUrl } from '@/lib/photoUrl'
 import {
   aiCall,
+  aiMessage,
   AiError,
   type AiCapabilities,
   type AiModelKind,
@@ -123,6 +125,75 @@ export const useBrowserAiStore = defineStore('browserAi', () => {
     }
   }
 
+  /** Manual "index my photos now": the server queues its share, this browser does the rest. */
+  const library = ref({
+    phase: 'idle' as 'idle' | 'running' | 'done' | 'error',
+    placement: '' as Placement | '',
+    total: 0,
+    done: 0,
+    failed: 0,
+    serverQueued: 0,
+    message: '',
+  })
+  let libraryRun = 0
+  async function indexLibrary() {
+    if (library.value.phase === 'running') return
+    const run = ++libraryRun
+    const lib = (library.value = {
+      ...library.value,
+      phase: 'running',
+      total: 0,
+      done: 0,
+      failed: 0,
+      serverQueued: 0,
+      message: '',
+    })
+    try {
+      const res = await aiCall<{
+        placement: Placement
+        serverQueued: number
+        browserPending: number
+      }>({
+        method: 'post',
+        url: '/ai/index',
+        data: {},
+      })
+      library.value.placement = res.placement
+      library.value.serverQueued = res.serverQueued
+      library.value.total = res.browserPending
+      let after = 0
+      while (res.placement === 'browser') {
+        const page = await aiCall<{ items: { photoId: number }[] }>({
+          method: 'get',
+          url: '/ai/index/pending',
+          params: { limit: 20, after },
+        })
+        if (!page.items.length) break
+        for (const { photoId } of page.items) {
+          after = photoId
+          if (run !== libraryRun) return
+          try {
+            const file = await fetch(photoUrl(photoId))
+            if (!file.ok) throw new Error('photo unavailable')
+            const { fingerprint, vector } = await embedPhoto(await file.blob())
+            await aiCall({
+              method: 'put',
+              url: `/ai/photos/${photoId}/embedding`,
+              data: { fingerprint, vector },
+            })
+            library.value.done++
+          } catch {
+            library.value.failed++
+          }
+        }
+      }
+      library.value.phase = 'done'
+      await refreshCapabilities(true)
+    } catch (e) {
+      Object.assign(lib, { phase: 'error', message: aiMessage(e) })
+    }
+  }
+
   /** Saves this user's choice where the admin allows one, then re-reads what is effective. */
   async function setPreference(kind: AiModelKind, where: Placement) {
     await aiCall({ method: 'put', url: '/ai/preference', data: { [kind]: where } })
@@ -159,7 +230,8 @@ export const useBrowserAiStore = defineStore('browserAi', () => {
     await ai.removeFromDevice()
     await refreshSaved()
     // WebAssembly memory only comes back with a reload.
-    if (hadMemory) ai.reloadPage('Saved models removed; the page reloaded to give browser memory back.')
+    if (hadMemory)
+      ai.reloadPage('Saved models removed; the page reloaded to give browser memory back.')
   }
   async function unload() {
     await ai.unload()
@@ -189,6 +261,8 @@ export const useBrowserAiStore = defineStore('browserAi', () => {
     refreshCapabilities,
     searchText,
     embedPhoto,
+    library,
+    indexLibrary,
     setPreference,
     setTextModel,
     refreshSaved,

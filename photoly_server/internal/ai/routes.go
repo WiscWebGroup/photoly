@@ -171,6 +171,20 @@ func Register(a *app.App) {
 		}
 		return search.Page(r.Context(), u.ID, id, d, r.Header.Get("HRD-Token"))
 	})
+	index := &Indexer{pool: a.Pool, sink: sink{a.Pool}}
+	user("POST /ai/index", func(r *http.Request, u app.User) (any, error) { return index.Trigger(r.Context(), u.ID) })
+	user("GET /ai/index/pending", func(r *http.Request, u app.User) (any, error) { return index.Pending(r.Context(), u.ID, queryMap(r)) })
+	user("PUT /ai/photos/{photoId}/embedding", func(r *http.Request, u app.User) (any, error) {
+		id, err := idParam(r, "photoId")
+		if err != nil {
+			return nil, err
+		}
+		d, err := body(r)
+		if err != nil {
+			return nil, err
+		}
+		return index.Store(r.Context(), u.ID, id, d)
+	})
 	user("PUT /ai/preference", func(r *http.Request, u app.User) (any, error) {
 		d, err := body(r)
 		if err != nil || len(d) == 0 {
