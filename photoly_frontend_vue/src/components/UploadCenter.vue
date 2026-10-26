@@ -206,8 +206,7 @@ watch(
           uploads.resumeBatch ? 'Reselect pending files' : `Upload to ${uploads.target?.name}`
         }}</DialogTitle
         ><DialogDescription
-          >Choose files, a folder, or a ZIP, or paste an image with Cmd+V / Ctrl+V. Folder structure
-          is preserved. You can keep browsing after starting.</DialogDescription
+          >Choose files, a folder, or a ZIP, or paste an image with Cmd+V / Ctrl+V.</DialogDescription
         ></DialogHeader
       >
       <div
@@ -305,8 +304,7 @@ watch(
       <DialogHeader
         ><DialogTitle>Uploads</DialogTitle
         ><DialogDescription
-          >Keep browsing while uploads finish. Recent activity is kept for 30
-          days.</DialogDescription
+          >Recent activity is kept for 30 days.</DialogDescription
         ></DialogHeader
       >
       <div class="flex gap-2">

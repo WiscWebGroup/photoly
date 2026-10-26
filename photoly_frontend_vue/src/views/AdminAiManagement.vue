@@ -357,10 +357,6 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                 {{ status.startup?.completed }} / {{ status.startup?.total }} files available ·
                 {{ downloadPercent.toFixed(0) }}% of download files
               </p>
-              <p class="text-xs text-muted-foreground">
-                Prepare → Download → Load → Validate → Ready. First startup may take longer while
-                model files download.
-              </p>
               <p v-if="stalled" class="text-sm">
                 Still waiting for the current step. A large download or model load may take several
                 minutes. You can pause and retry.

@@ -454,7 +454,6 @@ onMounted(() => {
           Profile
         </h2>
         <p class="text-muted-foreground text-sm">
-          How you appear across Photoly.
           <template v-if="createdOn">Member since {{ createdOn }}.</template>
         </p>
       </div>
@@ -582,9 +581,6 @@ onMounted(() => {
           >
             API tokens
           </h2>
-          <p class="text-muted-foreground text-sm">
-            Each token can upload, read or delete media for your integrations.
-          </p>
         </div>
         <Button variant="outline" class="ml-auto" aria-label="Add API" @click="openApiDialog(-1)"
           ><Plus /> New Token</Button
@@ -715,7 +711,7 @@ onMounted(() => {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Change Picture</DialogTitle>
-          <DialogDescription>Choose a new profile picture.</DialogDescription>
+          <DialogDescription class="sr-only">Choose a new profile picture.</DialogDescription>
         </DialogHeader>
         <AvatarCropper
           v-if="editingAvatar"

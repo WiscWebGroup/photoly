@@ -1530,9 +1530,6 @@ const overlay = 'dark text-foreground'
                     Find similar
                   </button>
                 </div>
-                <p v-if="!recommendations?.expanded" class="text-muted-foreground text-sm">
-                  Photos and videos that look like this one.
-                </p>
                 <SimilarRecommendations
                   :key="`${info.photoId}:${version}:${recommendationSession}`"
                   ref="recommendations"

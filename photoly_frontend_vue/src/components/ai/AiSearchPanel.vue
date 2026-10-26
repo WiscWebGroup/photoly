@@ -197,8 +197,7 @@ onBeforeUnmount(removeFile)
             placeholder="A cat in the sunlight / 阳光下的猫"
           />
           <p class="text-xs text-muted-foreground">
-            {{ text.length }} / {{ capabilities?.limits.textCharacters ?? 512 }} characters. The
-            model also has a token limit.
+            {{ text.length }} / {{ capabilities?.limits.textCharacters ?? 512 }} characters.
           </p>
         </template>
         <div

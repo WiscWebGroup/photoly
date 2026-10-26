@@ -398,7 +398,6 @@ const label = 'text-sm font-medium'
 
       <section class="space-y-2 rounded-lg border p-3">
         <p :class="label">Crop</p>
-        <p class="text-muted-foreground text-xs">Drag the box or its handles on the image.</p>
         <div class="flex gap-2">
           <Select :model-value="ratio" @update:model-value="pickRatio(String($event))">
             <SelectTrigger class="flex-1" aria-label="Aspect ratio"><SelectValue /></SelectTrigger>

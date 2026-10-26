@@ -183,9 +183,6 @@ const grid = 'grid gap-x-12 gap-y-5 border-b pb-8 md:grid-cols-[minmax(0,280px)_
     <section aria-labelledby="saved-h" :class="grid">
       <div>
         <h2 id="saved-h" :class="h2">Saved on this device</h2>
-        <p class="text-muted-foreground text-sm">
-          Models download once and load from here next time, even offline.
-        </p>
       </div>
       <div class="flex max-w-[560px] flex-col gap-4">
         <ul class="bg-card divide-y rounded-[14px] border text-sm shadow-xs">
@@ -285,7 +282,6 @@ const grid = 'grid gap-x-12 gap-y-5 border-b pb-8 md:grid-cols-[minmax(0,280px)_
     >
       <div>
         <h2 id="dev-h" :class="h2">This device</h2>
-        <p class="text-muted-foreground text-sm">What Photoly found in this browser.</p>
       </div>
       <div class="flex max-w-[560px] flex-col gap-4">
         <dl class="grid grid-cols-[minmax(0,160px)_minmax(0,1fr)] gap-x-4 gap-y-2.5 text-sm">

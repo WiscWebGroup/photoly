@@ -159,10 +159,6 @@ const sources = computed(() => props.status.indexSources)
   <section class="bg-card space-y-5 rounded-xl border p-5 shadow-xs" aria-label="Inference">
     <div>
       <h2 class="text-base font-semibold">Where AI runs</h2>
-      <p class="text-muted-foreground text-sm">
-        On the server, models use this machine's memory. In the browser, each person's computer runs
-        them and sends Photoly only the result.
-      </p>
     </div>
 
     <div v-for="row in rows" :key="row.kind" class="flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -274,10 +270,6 @@ const sources = computed(() => props.status.indexSources)
             : 'Not running'
         }}</span>
       </div>
-      <p class="text-muted-foreground text-xs">
-        Models run in their own process. If the system stops it for memory, the rest of Photoly keeps
-        running and it restarts on the next request.
-      </p>
       <ul class="space-y-2 text-sm">
         <li v-for="kind in ['image', 'text'] as const" :key="kind" class="flex items-center gap-3">
           <span class="flex min-w-0 flex-1 flex-col">

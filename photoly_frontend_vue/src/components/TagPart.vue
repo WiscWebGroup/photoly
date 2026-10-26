@@ -341,7 +341,7 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>New Tag</DialogTitle>
-          <DialogDescription>Tags describe what's in a photo, wherever it lives.</DialogDescription>
+          <DialogDescription class="sr-only">Tags describe what's in a photo, wherever it lives.</DialogDescription>
         </DialogHeader>
         <form class="flex flex-col gap-2" @submit.prevent="createTag">
           <Label for="new-tag">Name</Label>

@@ -768,7 +768,7 @@ watch(
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>New Folder</DialogTitle>
-          <DialogDescription>It goes inside {{ title }}.</DialogDescription>
+          <DialogDescription class="sr-only">It goes inside {{ title }}.</DialogDescription>
         </DialogHeader>
         <form class="flex flex-col gap-2" @submit.prevent="createFolder">
           <Label for="new-folder-name">Name</Label>
@@ -785,7 +785,7 @@ watch(
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Rename Folder</DialogTitle>
-          <DialogDescription>Choose a new name for {{ renaming?.nsName }}.</DialogDescription>
+          <DialogDescription class="sr-only">Choose a new name for {{ renaming?.nsName }}.</DialogDescription>
         </DialogHeader>
         <form class="flex flex-col gap-2" @submit.prevent="renameFolder">
           <Label for="rename-folder">Name</Label>
