@@ -16,15 +16,13 @@ import (
 )
 
 // Needs a migrated database (photoly migrate): TEST_DATABASE_URL=postgres://...
-func TestAuthAdminAndProxy(t *testing.T) {
+func TestAuthAndAdmin(t *testing.T) {
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
 		t.Skip("set TEST_DATABASE_URL")
 	}
-	flask := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "flask:"+r.URL.Path) }))
-	defer flask.Close()
 	cfg := config.Load()
-	cfg.DatabaseURL, cfg.FlaskURL = url, flask.URL
+	cfg.DatabaseURL = url
 	Registrars = append(Registrars, func(a *app.App) {
 		a.Mux.HandleFunc("GET /t/user", a.Auth(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, a.UserFrom(r.Context()).Email) }))
 		a.Mux.HandleFunc("GET /t/admin", a.Admin(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok") }))
@@ -69,8 +67,8 @@ func TestAuthAdminAndProxy(t *testing.T) {
 	if get("/t/user", tok) != "{\"msgCode\":403,\"t\":null}\n" {
 		t.Fatal("deleted token accepted")
 	}
-	if got := get("/not/ported", ""); got != "flask:/not/ported" {
-		t.Fatalf("proxy: %q", got)
+	if got := get("/not/a/route", ""); got != "404 page not found\n" {
+		t.Fatalf("unknown route: %q", got)
 	}
 	if got := get("/healthz", ""); got != "{\"status\":\"ok\"}\n" {
 		t.Fatalf("healthz %q", got)

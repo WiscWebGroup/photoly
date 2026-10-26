@@ -1,6 +1,6 @@
 // Command photoly is the single Photoly backend binary.
 //
-//	photoly serve      migrate (if permitted), then serve the API; unported routes go to FLASK_URL
+//	photoly serve      migrate (if permitted), then serve the API
 //	photoly migrate    apply embedded migrations + seed settings/admin, then exit
 //	photoly ai-worker  SigLIP2 inference child process (internal/ai)
 //	photoly verify     self-checks (internal/ai)

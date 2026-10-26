@@ -324,10 +324,10 @@ node e2e/e2e.mjs [--wasm | --force-webgpu | --server] [--text-model small|full] 
                                                 # (use --text-model full with --dump-text for parity.py)
 node e2e/bench.mjs --url URL --container NAME --chrome PATH   # browser vs server: wait time, memory, CPU (deletes all photos)
 python -I scripts/parity.py --model-dir data/models/<revision> \
-    --fixtures ../../photoly_backend/tests/fixtures/ai --database-url "$DATABASE_URL" [--browser-text t.json]
+    --fixtures ../../photoly_server/internal/ai/testdata/ai --database-url "$DATABASE_URL" [--browser-text t.json]
 ```
 
-The e2e test uses the AI fixtures from `photoly_backend/tests/fixtures/ai` and their 8
+The e2e test uses the AI fixtures from `photoly_server/internal/ai/testdata/ai` and their 8
 queries (English and Chinese). It requires every query's top hit to be the right photo,
 checks that bad vectors are rejected, then restarts the browser and requires the model to
 load with zero model downloads. By default it offers Chromium only its software GPU and

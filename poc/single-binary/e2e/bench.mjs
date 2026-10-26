@@ -33,7 +33,7 @@ const dockerSocket = option('--docker-socket', '/var/run/docker.sock')
 
 const { chromium } = createRequire(import.meta.url)('playwright')
 const here = dirname(fileURLToPath(import.meta.url))
-const fixtures = join(here, '../../../photoly_backend/tests/fixtures/ai')
+const fixtures = join(here, '../../../photoly_server/internal/ai/testdata/ai')
 const manifest = JSON.parse(readFileSync(join(fixtures, 'manifest.json'), 'utf8'))
 const files = manifest.samples.map((s) => join(fixtures, s.file))
 const queries = manifest.samples.flatMap((s) => s.queries)

@@ -1,7 +1,7 @@
 version: 2
 updates:
-  - package-ecosystem: uv
-    directory: /photoly_backend
+  - package-ecosystem: gomod
+    directory: /photoly_server
     schedule:
       interval: weekly
   - package-ecosystem: npm
@@ -10,7 +10,7 @@ updates:
       interval: weekly
   - package-ecosystem: docker
     directories:
-      - /photoly_backend
+      - /photoly_server
       - /photoly_frontend_vue
     schedule:
       interval: weekly

@@ -1,0 +1,40 @@
+name: Server
+
+on:
+  push:
+    branches: [main]
+    paths: ['photoly_server/**', 'database/postgres-init/**', 'docker-compose.yml', '.github/workflows/server.yml']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # Always runs on PRs (no `paths` filter) so required checks report; skipped jobs count as passing.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      server: ${{ steps.filter.outputs.server }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            server:
+              - 'photoly_server/**'
+              - 'database/postgres-init/**'
+              - 'docker-compose.yml'
+              - '.github/workflows/server.yml'
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The image build runs `go vet` and compiles the binary.
+      - run: docker build --target aio --build-context dbinit=database/postgres-init photoly_server

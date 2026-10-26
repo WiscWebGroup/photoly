@@ -14,21 +14,20 @@ type Config struct {
 	UploadFolder string
 	AdminEmail   string
 
-	AdminPassword string
-	Addr          string // listen address, PHOTOLY_ADDR (default :8084)
-	FlaskURL      string // strangler target for unported routes, FLASK_URL (empty = 404)
-	PublicBaseURL string
-	Timezone      string
-	MaxContentLength        int64
-	UploadZipMaxBytes       int64
-	UploadDiskReserveBytes  int64
-	UploadTempHours         int
-	UploadHistoryDays       int
-	OnlineDownloadMaxBytes  int64
+	AdminPassword                string
+	Addr                         string // listen address, PHOTOLY_ADDR (default :8084)
+	PublicBaseURL                string
+	Timezone                     string
+	MaxContentLength             int64
+	UploadZipMaxBytes            int64
+	UploadDiskReserveBytes       int64
+	UploadTempHours              int
+	UploadHistoryDays            int
+	OnlineDownloadMaxBytes       int64
 	OnlineDownloadConnectTimeout float64 // seconds
-	OnlineDownloadTimeout   float64
-	MediaProcessTimeout     float64
-	CORSOrigins             []string
+	OnlineDownloadTimeout        float64
+	MediaProcessTimeout          float64
+	CORSOrigins                  []string
 }
 
 type User struct {

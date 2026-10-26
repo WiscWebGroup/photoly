@@ -1,4 +1,4 @@
-// Package photo ports photoly_backend/app/controllers/photo.py and its services
+// Package photo implements the photo routes and their services
 // (photo, media, live import, OCR) plus the file/EXIF/imaging infrastructure.
 package photo
 

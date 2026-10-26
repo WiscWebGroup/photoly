@@ -10,7 +10,7 @@ import (
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/user"
 )
 
-// Route packages ported so far; everything else is proxied to Flask.
+// Route packages; a path none of them registers is a 404.
 func init() {
 	Registrars = append(Registrars, user.Register, catalog.Register, photo.Register, uploads.Register, ai.Register, admin.Register, docs.Register)
 	Background = append(Background, uploads.Worker)

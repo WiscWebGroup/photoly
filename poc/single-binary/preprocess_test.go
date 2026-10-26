@@ -30,7 +30,7 @@ type reference struct {
 	Tokens map[string][]int32 `json:"tokens"`
 }
 
-const fixtureDir = "../../photoly_backend/tests/fixtures/ai"
+const fixtureDir = "../../photoly_server/internal/ai/testdata/ai"
 
 func loadReference(t *testing.T) reference {
 	t.Helper()

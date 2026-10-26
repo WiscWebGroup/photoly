@@ -1,27 +1,7 @@
-# AI runtime: set COMPOSE_PROFILES in .env to ai-cuda, ai-cpu or ai-mps (unset = no AI).
-# ai-mps also needs AI_RUNTIME_URL=http://host.docker.internal:8090 and the native runtime
-# (photoly_backend/scripts/mps-runtime.sh). Enable only one AI profile.
-x-app-environment: &app-environment
-  POSTGRES_HOST: db_postgres
-  POSTGRES_DB: photoly
-  POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?Set POSTGRES_APP_PASSWORD in .env}
-  REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@db_redis:6379/14
-  UPLOAD_FOLDER: /photoly
-  PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8384}
-  TIMEZONE: ${TIMEZONE:-America/New_York}
-  MAX_CONTENT_LENGTH: ${MAX_CONTENT_LENGTH:-629145600}
-  UPLOAD_ZIP_MAX_BYTES: ${UPLOAD_ZIP_MAX_BYTES:-50000000000}
-  UPLOAD_DISK_RESERVE_BYTES: ${UPLOAD_DISK_RESERVE_BYTES:-536870912}
-  UPLOAD_TEMP_HOURS: ${UPLOAD_TEMP_HOURS:-24}
-  UPLOAD_HISTORY_DAYS: ${UPLOAD_HISTORY_DAYS:-30}
-  ONLINE_DOWNLOAD_MAX_BYTES: ${ONLINE_DOWNLOAD_MAX_BYTES:-52428800}
-  ONLINE_DOWNLOAD_CONNECT_TIMEOUT: ${ONLINE_DOWNLOAD_CONNECT_TIMEOUT:-5}
-  ONLINE_DOWNLOAD_TIMEOUT: ${ONLINE_DOWNLOAD_TIMEOUT:-60}
-  MEDIA_PROCESS_TIMEOUT: ${MEDIA_PROCESS_TIMEOUT:-60}
-  ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@a.com}
-  AI_RUNTIME_URL: ${AI_RUNTIME_URL:-http://ai-runtime:8090}
-  AI_INFERENCE_TOKEN: ${AI_INFERENCE_TOKEN:-}
-
+# One backend container: photoly + PostgreSQL (pgvector) together, plus the nginx web container.
+#   docker compose up --build
+# Data: ./upload_data (photos, owned by uid 65532) and the `postgres_data` volume.
+# The `backend` service name is what photoly_frontend_vue/nginx.conf proxies to.
 services:
   web:
     depends_on:
@@ -32,154 +12,29 @@ services:
       - "5200:80"
   backend:
     build:
-      context: ./photoly_backend
-      target: production
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      db_redis:
-        condition: service_healthy
+      context: ./photoly_server
+      target: aio
+      additional_contexts:
+        dbinit: ./database/postgres-init
     ports:
       - "8384:8084"
-    environment: *app-environment
-    volumes:
-      - ./upload_data:/photoly
-  upload-worker:
-    build:
-      context: ./photoly_backend
-      target: production
-    user: "10001:10001"
-    entrypoint: ["sh", "-c", "flask --app app:create_app wait-ready && flask --app app:create_app check-schema && exec python -m app.uploads.worker"]
-    environment: *app-environment
-    volumes:
-      - ./upload_data:/photoly
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-    healthcheck:
-      disable: true
-    restart: unless-stopped
-  migrate:
-    build:
-      context: ./photoly_backend
-      target: production
-    entrypoint: ["/app/migrate.sh"]
-    healthcheck:
-      disable: true
-    depends_on:
-      db_postgres:
-        condition: service_healthy
-      db_redis:
-        condition: service_healthy
     environment:
-      <<: *app-environment
-      POSTGRES_MIGRATION_PASSWORD: ${POSTGRES_MIGRATION_PASSWORD:?Set POSTGRES_MIGRATION_PASSWORD in .env}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
-    volumes:
-      - ./upload_data:/photoly
-    restart: "no"
-  db_postgres:
-    image: pgvector/pgvector:0.8.7-pg17-bookworm@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_DB: photoly
       POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_ADMIN_PASSWORD in .env}
       POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?Set POSTGRES_APP_PASSWORD in .env}
       POSTGRES_MIGRATION_PASSWORD: ${POSTGRES_MIGRATION_PASSWORD:?Set POSTGRES_MIGRATION_PASSWORD in .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@a.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8384}
+      TIMEZONE: ${TIMEZONE:-America/New_York}
+      MAX_CONTENT_LENGTH: ${MAX_CONTENT_LENGTH:-629145600}
+      UPLOAD_ZIP_MAX_BYTES: ${UPLOAD_ZIP_MAX_BYTES:-50000000000}
+      UPLOAD_DISK_RESERVE_BYTES: ${UPLOAD_DISK_RESERVE_BYTES:-536870912}
     volumes:
+      - ./upload_data:/photoly
+      - photoly_models:/var/lib/photoly
       - postgres_data:/var/lib/postgresql/data
-      - ./database/postgres-init:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d photoly"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-    restart: unless-stopped
-  db_redis:
-    image: redis:7.2.4
-    environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
-    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save '' --appendonly no"]
-    healthcheck:
-      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    restart: unless-stopped
-  ai-runtime:
-    profiles: [ai-cuda]
-    image: photoly-ai-runtime:phase2
-    build:
-      context: ./photoly_backend
-      target: inference
-    environment: &ai-runtime-environment
-      AI_INFERENCE_TOKEN: ${AI_INFERENCE_TOKEN:?Set AI_INFERENCE_TOKEN}
-      AI_CONTROL_TOKEN: ${AI_CONTROL_TOKEN:?Set AI_CONTROL_TOKEN}
-    volumes: &ai-runtime-volumes
-      - ai_models:/models
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    restart: unless-stopped
-  ai-runtime-cpu:
-    profiles: [ai-cpu]
-    image: photoly-ai-runtime:phase2-cpu
-    build:
-      context: ./photoly_backend
-      target: inference
-      args:
-        INFERENCE_VARIANT: cpu
-    environment: *ai-runtime-environment
-    volumes: *ai-runtime-volumes
-    networks:
-      default:
-        aliases: [ai-runtime]
-    restart: unless-stopped
-  ai-scheduler:
-    profiles: [ai-cuda, ai-cpu, ai-mps]
-    build:
-      context: ./photoly_backend
-      target: production
-    user: "10001:10001"
-    entrypoint: ["sh", "-c", "flask --app app:create_app wait-ready && flask --app app:create_app check-schema && exec python -m app.scheduler.photo_embedding_scheduler"]
-    environment:
-      <<: *app-environment
-      AI_CONTROL_TOKEN: ${AI_CONTROL_TOKEN:?Set AI_CONTROL_TOKEN}
-    volumes:
-      - ./upload_data:/photoly:ro
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      # Only the runtime for the active profile exists; ai-mps runs it on the host.
-      ai-runtime:
-        condition: service_healthy
-        required: false
-      ai-runtime-cpu:
-        condition: service_healthy
-        required: false
-    healthcheck:
-      disable: true
-    restart: unless-stopped
-  ai-maintenance:
-    profiles: [ai-cuda, ai-cpu, ai-mps]
-    build:
-      context: ./photoly_backend
-      target: production
-    user: "10001:10001"
-    entrypoint: ["sh", "-c", "flask --app app:create_app wait-ready && flask --app app:create_app check-schema && exec python -m app.scheduler.maintenance"]
-    environment:
-      <<: *app-environment
-      POSTGRES_MIGRATION_PASSWORD: ${POSTGRES_MIGRATION_PASSWORD:?Set POSTGRES_MIGRATION_PASSWORD}
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-    healthcheck:
-      disable: true
+    stop_grace_period: 60s
     restart: unless-stopped
 volumes:
-  ai_models:
+  photoly_models:
   postgres_data:

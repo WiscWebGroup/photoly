@@ -28,17 +28,16 @@ func num[T int | int64 | float64](k string, d T) T {
 	return T(f)
 }
 
-// Load mirrors photoly_backend/app/config.py defaults.
+// Load reads the environment; unset values take the defaults below.
 func Load() app.Config {
 	return app.Config{
-		DatabaseURL:   DatabaseURL(false),
-		UploadFolder:  str("UPLOAD_FOLDER", "/photoly"),
-		AdminEmail:    str("ADMIN_EMAIL", "admin@a.com"),
-		AdminPassword: os.Getenv("ADMIN_PASSWORD"),
-		Addr:          str("PHOTOLY_ADDR", ":8084"),
-		FlaskURL:      strings.TrimRight(os.Getenv("FLASK_URL"), "/"),
-		PublicBaseURL: strings.TrimRight(str("PUBLIC_BASE_URL", "http://localhost:8384"), "/"),
-		Timezone:      str("TIMEZONE", "America/New_York"),
+		DatabaseURL:                  DatabaseURL(false),
+		UploadFolder:                 str("UPLOAD_FOLDER", "/photoly"),
+		AdminEmail:                   str("ADMIN_EMAIL", "admin@a.com"),
+		AdminPassword:                os.Getenv("ADMIN_PASSWORD"),
+		Addr:                         str("PHOTOLY_ADDR", ":8084"),
+		PublicBaseURL:                strings.TrimRight(str("PUBLIC_BASE_URL", "http://localhost:8384"), "/"),
+		Timezone:                     str("TIMEZONE", "America/New_York"),
 		MaxContentLength:             num("MAX_CONTENT_LENGTH", int64(600<<20)),
 		UploadZipMaxBytes:            num("UPLOAD_ZIP_MAX_BYTES", int64(50_000_000_000)),
 		UploadDiskReserveBytes:       num("UPLOAD_DISK_RESERVE_BYTES", int64(512<<20)),

@@ -66,7 +66,7 @@ func Run(ctx context.Context, dsn string) error {
 			return err
 		}
 		if rev != alembicHead {
-			return fmt.Errorf("database is at Alembic %q; upgrade with the Flask migrate service to %s first", rev, alembicHead)
+			return fmt.Errorf("database is at Alembic %q; upgrade it to %s with the previous release first", rev, alembicHead)
 		}
 		p, err := provider(db)
 		if err != nil {

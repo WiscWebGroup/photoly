@@ -45,7 +45,7 @@ try {
 }
 
 const here = dirname(fileURLToPath(import.meta.url))
-const fixtures = join(here, '../../../photoly_backend/tests/fixtures/ai')
+const fixtures = join(here, '../../../photoly_server/internal/ai/testdata/ai')
 const manifest = JSON.parse(readFileSync(join(fixtures, 'manifest.json'), 'utf8'))
 
 // Software WebGPU (SwiftShader) works in headless Chromium on Linux without a GPU.

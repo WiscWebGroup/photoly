@@ -1,4 +1,4 @@
-// Package server wires config, database, sessions, auth, the Go routes and the Flask proxy.
+// Package server wires config, database, sessions, auth and the routes.
 package server
 
 import (
@@ -13,7 +13,6 @@ import (
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/db"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/httpx"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/migrations"
-	"github.com/WiscWebGroup/photoly/photoly_server/internal/proxy"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/session"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/user/legacy"
 	"github.com/jackc/pgx/v5"
@@ -93,12 +92,7 @@ func New(ctx context.Context, cfg app.Config, openapi []byte) (*app.App, http.Ha
 	for _, register := range Registrars {
 		register(a)
 	}
-	fallback, err := proxy.New(cfg.FlaskURL)
-	if err != nil {
-		return nil, nil, err
-	}
-	mux.Handle("/", fallback) // strangler: everything not ported
-	// Flask runs with strict_slashes=False: "/x/" and "/x" are the same route.
+	// "/x/" and "/x" are the same route.
 	var h http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if p := r.URL.Path; len(p) > 1 && p[len(p)-1] == '/' {
 			r.URL.Path = p[:len(p)-1]
@@ -120,7 +114,7 @@ func Serve(ctx context.Context, a *app.App, h http.Handler) error {
 	}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()
-	log.Printf("photoly: listening on %s (flask fallback: %q)", a.Cfg.Addr, a.Cfg.FlaskURL)
+	log.Printf("photoly: listening on %s", a.Cfg.Addr)
 	select {
 	case err := <-errc:
 		return err

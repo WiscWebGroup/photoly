@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 const API = 'http://localhost:18384'
-const samples = resolve('../photoly_backend/tests/fixtures/ai')
+const samples = resolve('../photoly_server/internal/ai/testdata/ai')
 const output = resolve('../docs/verification/similar-scroll')
 test.skip(
   process.env.PHOTOLY_REAL_AI !== '1',

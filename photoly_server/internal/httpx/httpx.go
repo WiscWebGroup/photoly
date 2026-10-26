@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-// JSON writes {"t": v, "msgCode": code} (see photoly_backend/app/serialization.py).
+// JSON writes {"t": v, "msgCode": code}.
 func JSON(w http.ResponseWriter, v any, code int) {
 	write(w, map[string]any{"t": v, "msgCode": code})
 }
