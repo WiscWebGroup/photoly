@@ -261,7 +261,7 @@ func throttleWindow(observed map[string]any, cfg Settings, now time.Time) (start
 			deadline, reason = d, "interval_wait"
 		}
 	}
-	if m := int(cfg.Int("background_max_per_minute")); m > 0 && len(starts) >= m {
+	if m := clampInt(cfg.Int("background_max_per_minute")); m > 0 && len(starts) >= m {
 		if d := starts[len(starts)-m].Add(time.Minute); d.After(now) && !d.Before(deadline) {
 			deadline, reason = d, "rate_limited"
 		}

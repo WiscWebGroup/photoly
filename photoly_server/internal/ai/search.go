@@ -601,14 +601,14 @@ func (s *Search) Search(ctx context.Context, uid int64, in Query) (out map[strin
 	f.Exclude = in.PhotoID
 	cov := func() (map[string]any, error) { return coverage(ctx, s.pool, &pid, &uid) }
 	if in.Page {
-		hits, boundary, err := s.store.Page(ctx, pid, vectors, uid, int(k), f, left)
+		hits, boundary, err := s.store.Page(ctx, pid, vectors, uid, clampInt(k), f, left)
 		if err != nil {
 			return nil, err
 		}
 		var next any
 		if boundary != nil {
 			if qctx == nil {
-				qctx = s.cursors.create(uid, *in.PhotoID, pid, sourceVersion, vectors, int(k), threshold, in.Token)
+				qctx = s.cursors.create(uid, *in.PhotoID, pid, sourceVersion, vectors, clampInt(k), threshold, in.Token)
 			}
 			if next, err = s.cursors.next(qctx, *boundary); err != nil {
 				return nil, err
@@ -623,7 +623,7 @@ func (s *Search) Search(ctx context.Context, uid int64, in Query) (out map[strin
 			"similarityThreshold": threshold, "nextCursor": next, "hasMore": next != nil}, nil
 	}
 	f.After = nil
-	hits, err := s.store.Search(ctx, pid, vectors, uid, int(k), f, left)
+	hits, err := s.store.Search(ctx, pid, vectors, uid, clampInt(k), f, left)
 	if err != nil {
 		return nil, err
 	}

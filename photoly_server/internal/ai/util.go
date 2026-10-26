@@ -65,6 +65,17 @@ func toInt(v any) (int64, bool) {
 	return 0, false
 }
 
+// clampInt narrows an int64 to int, saturating at the int32 range.
+func clampInt(n int64) int {
+	if n > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if n < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int(n)
+}
+
 func toFloat(v any) (float64, bool) {
 	switch n := v.(type) {
 	case int:

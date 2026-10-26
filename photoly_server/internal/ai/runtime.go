@@ -245,7 +245,7 @@ func (r *Runtime) apply(command string, kinds []string, config map[string]any, c
 		if err != nil {
 			return err
 		}
-		w.Threads, w.Device = int(threads), dev
+		w.Threads, w.Device = clampInt(threads), dev
 		if probe, err := w.Devices(); err == nil {
 			r.mu.Lock()
 			r.probe = probe
