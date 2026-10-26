@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { aiStartupStage } from '@/lib/aiStartup'
 import { smartReason } from '@/lib/smartOrganization'
 import { computed, ref, watch } from 'vue'
 import AdminLayout from '@/components/AdminLayout.vue'
@@ -221,11 +222,7 @@ async function feature(key: 'search_enabled' | 'smart_tag_enabled', event: Event
     Object.assign(original.value, update)
   }
 }
-const stage = computed(
-  () =>
-    status.value?.startup?.stage ??
-    (status.value?.settings.enabled ? runtime.value?.observed.state : 'paused'),
-)
+const stage = computed(() => aiStartupStage(status.value))
 const stageLabels: Record<string, string> = {
   preparing: 'Preparing AI',
   downloading: 'Downloading model',
@@ -234,13 +231,15 @@ const stageLabels: Record<string, string> = {
   ready: 'AI ready',
   preparing_index: 'Preparing search index',
   paused: 'AI paused',
-  unloaded: 'AI paused',
+  idle: 'AI enabled · models unloaded',
   pausing: 'Pausing AI and releasing resources',
   failed: 'AI startup failed',
   draining: 'Releasing previous model',
 }
 const starting = computed(
-  () => !!status.value?.settings.enabled && !['ready', 'failed'].includes(stage.value ?? ''),
+  () =>
+    !!status.value?.settings.enabled &&
+    !['ready', 'failed', 'idle', 'paused'].includes(stage.value ?? ''),
 )
 const downloadPercent = computed(() => {
   const p = status.value?.startup
@@ -289,9 +288,11 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
             ? 'Running'
             : stage === 'failed'
               ? 'Failed'
-              : status.settings.enabled
-                ? 'Starting'
-                : 'Paused'
+              : stage === 'idle'
+                ? 'Enabled'
+                : status.settings.enabled
+                  ? 'Starting'
+                  : 'Paused'
         }}</span>
         <span class="text-muted-foreground">{{ status.settings.device }}</span>
       </span>
@@ -325,14 +326,20 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                 <p class="text-sm text-muted-foreground">
                   {{
                     status.settings.enabled
-                      ? 'AI is enabled.'
+                      ? stage === 'ready'
+                        ? 'AI is ready to use.'
+                        : stage === 'failed'
+                          ? 'AI is enabled, but startup failed. Retry below.'
+                          : stage === 'idle'
+                            ? 'Enable AI to load the models.'
+                            : 'AI is enabled and starting.'
                       : 'Enable AI to prepare your model automatically.'
                   }}
                 </p>
               </div>
               <div class="flex flex-wrap gap-2">
                 <Button
-                  v-if="!status.settings.enabled || stage === 'failed'"
+                  v-if="!status.settings.enabled || stage === 'failed' || stage === 'idle'"
                   :disabled="locked"
                   @click="enableAi"
                   >Enable AI</Button
@@ -356,6 +363,10 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
               <p v-if="downloadPercent !== undefined" class="text-sm">
                 {{ status.startup?.completed }} / {{ status.startup?.total }} files available ·
                 {{ downloadPercent.toFixed(0) }}% of download files
+              </p>
+              <p v-if="stage === 'loading'" class="text-sm text-muted-foreground">
+                Loading models. The first start downloads model files; later starts use the local
+                cache.
               </p>
               <p v-if="stalled" class="text-sm">
                 Still waiting for the current step. A large download or model load may take several

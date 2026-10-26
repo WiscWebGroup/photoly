@@ -698,23 +698,9 @@ func (a *Admin) Status(ctx context.Context) (map[string]any, error) {
 	}
 	generation, _ := rt["generation"].(int64)
 	sameLoad := generation == cfg.Int("lifecycle_id")
-	stage, _ := rt["state"].(string)
-	if cfg.Bool("managed_lifecycle") {
-		switch {
-		case !sameLoad && cfg.Bool("enabled"):
-			stage = "preparing"
-		case !sameLoad:
-			stage = "pausing"
-		case !cfg.Bool("enabled") && stage == "unloaded":
-			stage = "paused"
-		case stage == "ready" && cfg.PID("building_profile_id") != nil:
-			stage = "preparing_index"
-		}
-	} else if !cfg.Bool("enabled") {
-		stage = "paused"
-	}
+	stage := startupStage(cfg, rt, sameLoad)
 	var progress map[string]any
-	if sameLoad {
+	if sameLoad || !cfg.Bool("managed_lifecycle") {
 		progress, _ = rt["progress"].(map[string]any)
 	}
 	var indexReason any
@@ -738,7 +724,7 @@ func (a *Admin) Status(ctx context.Context) (map[string]any, error) {
 		return progress[k]
 	}
 	reason := indexReason
-	if reason == nil && sameLoad {
+	if reason == nil && (sameLoad || !cfg.Bool("managed_lifecycle")) {
 		reason = rt["reason"]
 	}
 	startup := map[string]any{"stage": stage, "lifecycleId": cfg.Int("lifecycle_id"), "completed": pv("completed"), "total": pv("total"),
@@ -810,4 +796,34 @@ func (a *Admin) UnloadModel(kind string) (map[string]any, error) {
 		return nil, err
 	}
 	return map[string]any{"kind": kind, "beforeMB": before, "afterMB": after, "worker": a.rt.WorkerStatus()}, nil
+}
+
+// Enabled is the desired setting, not proof that model loading completed.
+func startupStage(cfg Settings, rt map[string]any, sameLoad bool) string {
+	state, _ := rt["state"].(string)
+	if cfg.Bool("managed_lifecycle") && !sameLoad {
+		if cfg.Bool("enabled") {
+			return "preparing"
+		}
+		return "pausing"
+	}
+	if !cfg.Bool("enabled") {
+		if state == "unloaded" || !cfg.Bool("managed_lifecycle") {
+			return "paused"
+		}
+		if state == "failed" {
+			return "failed"
+		}
+		return "pausing"
+	}
+	if state == "unloaded" || state == "paused" {
+		if cfg.Str("runtime") == "loaded" {
+			return "preparing"
+		}
+		return "idle"
+	}
+	if state == "ready" && cfg.PID("building_profile_id") != nil && (cfg.Bool("maintenance") || cfg.PID("search_profile_id") == nil) {
+		return "preparing_index"
+	}
+	return state
 }
