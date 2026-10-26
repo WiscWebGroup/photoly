@@ -1,6 +1,6 @@
 package ai
 
-// Model registry (app/ai/registry.py). Qwen is gone: SigLIP2 on ONNX Runtime is the only
+// Model registry. Qwen is gone: SigLIP2 on ONNX Runtime is the only
 // provider, and startup refuses while a Qwen profile is still active.
 
 import (

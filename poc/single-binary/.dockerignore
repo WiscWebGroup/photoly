@@ -1,9 +1,0 @@
-photoly
-data/
-web/vendor/
-e2e/
-scripts/parity.py
-**/__pycache__/
-Dockerfile
-compose.yml
-README.md

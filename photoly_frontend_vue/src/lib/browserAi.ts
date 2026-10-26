@@ -1,6 +1,5 @@
 // Browser side of SigLIP2: transformers.js + ONNX Runtime Web run the image and text towers on
-// WebGPU or WebAssembly, and only 768-number vectors go to the server. Ported from
-// poc/single-binary/web/app.js; model files come from the Photoly server (never a CDN) and are
+// WebGPU or WebAssembly, and only 768-number vectors go to the server. Model files come from the Photoly server (never a CDN) and are
 // kept in the Cache API so a second visit downloads nothing.
 import { reactive } from 'vue'
 import type { AiModelKind, BrowserModelInfo, BrowserTextModel } from './ai'

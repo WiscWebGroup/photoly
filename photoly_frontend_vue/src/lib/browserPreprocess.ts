@@ -1,7 +1,7 @@
 // Image preparation that matches Photoly's server (Pillow) closely enough that browser and
 // server vectors are interchangeable: decode without colour management, EXIF orientation,
 // white behind transparency, RGB, Pillow's antialiased bilinear resize to 224 x 224, then
-// SigLIP's normalisation to [-1, 1], channel-first. Ported from poc/single-binary/web/preprocess.js.
+// SigLIP's normalisation to [-1, 1], channel-first.
 
 export const SIZE = 224
 export interface RgbImage {

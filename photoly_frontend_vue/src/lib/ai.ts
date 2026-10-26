@@ -16,7 +16,7 @@ export type Placement = 'server' | 'browser'
 export type PlacementSetting = Placement | 'user'
 export type AiModelKind = 'image' | 'text'
 export type BrowserTextModel = 'small' | 'full'
-/** Effective placement per model for this user (docs/go-rewrite-plan.md section 5). */
+/** Effective placement per model for this user. */
 export interface PlacementInfo {
   image: Placement
   text: Placement
