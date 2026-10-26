@@ -293,7 +293,7 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                 ? 'Starting'
                 : 'Paused'
         }}</span>
-        <span class="text-muted-foreground uppercase">{{ status.settings.device }}</span>
+        <span class="text-muted-foreground">{{ status.settings.device }}</span>
       </span>
       <Button variant="outline" @click="admin.refresh"><RefreshCw /> Refresh status</Button>
     </PageHeader>
@@ -319,7 +319,7 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
           >
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 class="text-base font-semibold">
+                <h2 class="min-w-0 text-base font-semibold break-words">
                   {{ stageLabels[stage ?? ''] ?? 'AI status unknown' }}
                 </h2>
                 <p class="text-sm text-muted-foreground">
@@ -370,7 +370,7 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
               {{ aiMessage(status.startup.reason) }}
             </p>
             <p v-if="!runtime?.online" role="status" class="text-sm">
-              Offline / unknown — startup will continue when the AI services are available.
+              Offline or unknown. Startup will continue when the AI services are available.
             </p>
             <div class="flex flex-wrap gap-5 border-t pt-4">
               <label class="flex items-center gap-2 text-sm font-medium"

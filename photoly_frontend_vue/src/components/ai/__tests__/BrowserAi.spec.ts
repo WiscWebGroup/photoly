@@ -43,8 +43,8 @@ describe('Admin · Where AI runs', () => {
     expect(text).toContain('Search model, small')
     expect(text).toContain('Fits')
     expect(text).toContain("Doesn't fit") // the full text model needs 2.2 GB
-    expect(text).toContain('Running · 0.8 GB')
-    expect(text).toContain('Browsers · 260')
+    expect(text).toContain('Running, 0.8 GB')
+    expect(text).toContain('Browsers: 260')
     expect(text).toContain('26 of 26 matched')
   })
   it('emits a placement change for Browser without touching the server', async () => {
@@ -138,7 +138,7 @@ describe('Account · AI on this device', () => {
     expect(button('Keep on This Device')).toBeTruthy()
     expect(button('Remove from This Device')).toBeTruthy()
     const options = [...document.querySelectorAll('#ai-text-model option')].map((o) => o.textContent)
-    expect(options).toEqual(['Small · 318 MB (recommended)', 'Full · 1.13 GB'])
+    expect(options).toEqual(['Small, 318 MB (recommended)', 'Full, 1.13 GB'])
   })
   it('is empty on servers without browser inference', async () => {
     mountDevice({ placement: undefined })

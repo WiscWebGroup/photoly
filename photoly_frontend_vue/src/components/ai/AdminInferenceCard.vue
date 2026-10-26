@@ -55,14 +55,14 @@ const rows: {
     key: 'placement_image',
     title: 'Photo indexing',
     desc: 'Turns each new photo into a search vector.',
-    cost: 'Browser: 372 MB download once · Server: about 0.9 GB memory',
+    cost: 'Browser: 372 MB download once; Server: about 0.9 GB memory',
   },
   {
     kind: 'text',
     key: 'placement_text',
     title: 'Search queries',
     desc: 'Turns what people type into a search vector.',
-    cost: 'Browser: 318 MB download once · Server: 0.9–2.2 GB memory',
+    cost: 'Browser: 318 MB download once, Server: 0.9–2.2 GB memory',
   },
 ]
 const value = (key: 'placement_image' | 'placement_text') => props.draft[key] ?? 'server'
@@ -206,8 +206,8 @@ const sources = computed(() => props.status.indexSources)
           })
         "
       >
-        <option value="small">Small · 318 MB download (recommended)</option>
-        <option value="full">Full · 1.13 GB download</option>
+        <option value="small">Small, 318 MB download (recommended)</option>
+        <option value="full">Full, 1.13 GB download</option>
       </select>
       <span class="text-muted-foreground text-xs"
         >Same results on our tests; small uses a quarter of the memory.</span
@@ -221,9 +221,9 @@ const sources = computed(() => props.status.indexSources)
 
     <div v-if="sources" class="space-y-1 text-sm">
       <div class="flex gap-4">
-        <span>Server · {{ sources.server.toLocaleString() }}</span>
-        <span>Browsers · {{ sources.browser.toLocaleString() }}</span>
-        <span>Waiting · {{ sources.waiting.toLocaleString() }}</span>
+        <span>Server: {{ sources.server.toLocaleString() }}</span>
+        <span>Browsers: {{ sources.browser.toLocaleString() }}</span>
+        <span>Waiting: {{ sources.waiting.toLocaleString() }}</span>
       </div>
       <p v-if="sources.spotCheck" class="text-muted-foreground text-xs">
         The server re-checks 1 in 100 browser results when idle. Last check:
@@ -270,7 +270,7 @@ const sources = computed(() => props.status.indexSources)
         <h3 class="font-medium">AI worker</h3>
         <span class="text-muted-foreground">{{
           worker?.running
-            ? `Running${worker.memoryMB ? ` · ${mbToGb(worker.memoryMB)}` : ''}`
+            ? `Running${worker.memoryMB ? `, ${mbToGb(worker.memoryMB)}` : ''}`
             : 'Not running'
         }}</span>
       </div>
@@ -284,10 +284,10 @@ const sources = computed(() => props.status.indexSources)
             <span class="font-medium">{{ kind === 'image' ? 'Image model' : 'Search model' }}</span>
             <span class="text-muted-foreground text-xs">{{
               modelState(kind)?.loaded
-                ? `${modelState(kind)?.variant === 'int8' ? 'Small (int8)' : 'Full precision'} · loaded ${loadedAgo(modelState(kind)?.loadedAt)}`.trim()
+                ? `${modelState(kind)?.variant === 'int8' ? 'Small (int8)' : 'Full precision'}, loaded ${loadedAgo(modelState(kind)?.loadedAt)}`.trim()
                 : kind === 'text' && value('placement_text') !== 'server'
-                  ? 'Not loaded · search runs in browsers'
-                  : 'Not loaded · loads on demand'
+                  ? 'Not loaded, search runs in browsers'
+                  : 'Not loaded, loads on demand'
             }}</span>
           </span>
           <Button

@@ -22,7 +22,7 @@ const libraryStatus = computed(() => {
   const l = library.value
   if (l.phase === 'running')
     return l.placement === 'browser'
-      ? `Indexing in this browser · ${l.done + l.failed} of ${l.total}`
+      ? `Indexing in this browser: ${l.done + l.failed} of ${l.total}`
       : 'Asking the server…'
   if (l.phase === 'error') return l.message
   if (l.phase !== 'done') return ''
@@ -105,7 +105,7 @@ onMounted(async () => {
   const gpu = await store.ai.detectGpu()
   graphics.value =
     gpu.adapter && !gpu.software
-      ? `WebGPU${gpu.name ? ` · ${gpu.name}` : ''}`
+      ? `WebGPU${gpu.name ? `, ${gpu.name}` : ''}`
       : `Not used${gpu.reason ? ` (${gpu.reason})` : ''}`
 })
 
@@ -191,7 +191,7 @@ const grid = 'grid gap-x-12 gap-y-5 border-b pb-8 md:grid-cols-[minmax(0,280px)_
         <ul class="bg-card divide-y rounded-[14px] border text-sm shadow-xs">
           <li class="flex items-center gap-3 px-4 py-3.5">
             <span class="flex min-w-0 flex-1 flex-col"
-              ><span class="font-medium">Search model · {{ state.textModel }}</span
+              ><span class="font-medium">Search model: {{ state.textModel }}</span
               ><span class="text-muted-foreground text-xs"
                 >{{ sizeLabel(sizes[state.textModel === 'full' ? 'textFull' : 'textSmall']) }}
                 <template v-if="version">· version {{ version }}</template></span
@@ -304,8 +304,8 @@ const grid = 'grid gap-x-12 gap-y-5 border-b pb-8 md:grid-cols-[minmax(0,280px)_
             class="border-input bg-card h-9 rounded-md border px-2.5 text-sm shadow-xs"
             @change="chooseSize"
           >
-            <option value="small">Small · {{ sizeLabel(sizes.textSmall) }} (recommended)</option>
-            <option value="full">Full · {{ sizeLabel(sizes.textFull) }}</option>
+            <option value="small">Small, {{ sizeLabel(sizes.textSmall) }} (recommended)</option>
+            <option value="full">Full, {{ sizeLabel(sizes.textFull) }}</option>
           </select>
           <span class="text-muted-foreground text-xs"
             >Full is a little more precise and uses about 3 GB of memory while searching.</span
