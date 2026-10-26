@@ -17,7 +17,7 @@ const isolation = {
 export default defineConfig({
   server: {
     headers: isolation,
-    // `pnpm dev` talks to a backend on PHOTOLY_BACKEND_URL (default: the compose.go.yml port),
+    // `pnpm dev` talks to a backend on PHOTOLY_BACKEND_URL (default: the compose.dev.yml port),
     // same-origin like nginx does in production, so CORS and cross-origin isolation need no setup.
     proxy: {
       '/api': {
