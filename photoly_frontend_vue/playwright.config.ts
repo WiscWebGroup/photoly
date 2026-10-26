@@ -4,6 +4,9 @@ export default defineConfig({
   testDir: './e2e',
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  // The dev server transforms modules on first request, so cold CI workers need more headroom.
+  timeout: process.env.CI ? 60_000 : 30_000,
+  expect: { timeout: process.env.CI ? 10_000 : 5_000 },
   // Runners have 4 vCPUs (default would be 2); tests mostly wait on the browser, not the CPU.
   workers: process.env.CI ? 4 : undefined,
   reporter: process.env.CI ? 'github' : 'list',
