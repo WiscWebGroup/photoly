@@ -557,6 +557,47 @@ func (s *Scheduler) managedRuntime(ctx context.Context, cfg Settings) (map[strin
 	return observed, nil
 }
 
+// Runtime ownership is local to this process. Do not wait for the database's
+// embedding leader lease (up to 120 seconds after a restart), indexing or a long
+// media job before starting/stopping this process's models.
+func (s *Scheduler) runtimeTick(ctx context.Context) error {
+	cfg, err := loadSettings(ctx, s.pool)
+	if err != nil {
+		return err
+	}
+	if s.demand, err = s.serverDemand(ctx, cfg); err != nil {
+		return err
+	}
+	var observed map[string]any
+	if cfg.Bool("managed_lifecycle") {
+		observed, err = s.managedRuntime(ctx, cfg)
+	} else {
+		observed = s.rt.Status()
+		pid := cfg.PID("loaded_profile_id")
+		want := "unloaded"
+		if cfg.Str("runtime") == "loaded" {
+			want = "ready"
+		}
+		if observed["state"] != want || (pid != nil && observed["fingerprint"] != ONNXProfile().Fingerprint) {
+			gen := cfg.Int("lifecycle_id")
+			var row *ControlRow
+			if row, err = control(ctx, s.pool, "global", false); err == nil {
+				gen = row.Generation
+				cmd, kinds := "unload", []string(nil)
+				if pid != nil {
+					cmd, kinds = "load", s.wantKinds()
+				}
+				observed, err = s.rt.Submit(cmd, kinds, runtimeConfig(cfg), gen, "reconcile:"+itoa(int(gen)))
+			}
+		}
+	}
+	if err != nil {
+		return err
+	}
+	s.syncModels(cfg, observed)
+	return nil
+}
+
 func (s *Scheduler) tick(ctx context.Context) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -597,39 +638,7 @@ func (s *Scheduler) tick(ctx context.Context) error {
 	if _, err := s.smart.Tick(ctx); err != nil {
 		logf("Smart Tag batch failed: %v", err)
 	}
-	var observed map[string]any
-	if cfg.Bool("managed_lifecycle") {
-		observed, err = s.managedRuntime(ctx, cfg)
-	} else {
-		observed = s.rt.Status()
-		pid := cfg.PID("loaded_profile_id")
-		want := "unloaded"
-		if cfg.Str("runtime") == "loaded" {
-			want = "ready"
-		}
-		if observed["state"] != want || (pid != nil && observed["fingerprint"] != ONNXProfile().Fingerprint) {
-			stop, lost := s.heartbeat(ctx, nil)
-			gen := cfg.Int("lifecycle_id")
-			var row *ControlRow
-			if row, err = control(ctx, s.pool, "global", false); err == nil {
-				gen = row.Generation
-				cmd, kinds := "unload", []string(nil)
-				if pid != nil {
-					cmd, kinds = "load", s.wantKinds()
-				}
-				observed, err = s.rt.Change(cmd, kinds, runtimeConfig(cfg), gen, "reconcile:"+itoa(int(gen)))
-			}
-			stop()
-			if lost.Load() {
-				return nil
-			}
-		}
-	}
-	if err != nil {
-		s.publish(ctx, map[string]any{"state": "offline"}, "runtime_offline")
-		return nil
-	}
-	s.syncModels(cfg, observed)
+	observed := s.rt.Status()
 	res, _ := observed["resources"].(map[string]any)
 	d := s.policy.Decide(res, cfg)
 	var reason any
@@ -951,6 +960,9 @@ func (s *Scheduler) Start(ctx context.Context) {
 			}
 		}()
 	}
+	// Keep demand state separate from the embedding loop.
+	runtimeScheduler := &Scheduler{pool: s.pool, rt: s.rt, root: s.root}
+	loop("runtime", time.Second, runtimeScheduler.runtimeTick)
 	loop("scheduler", 2*time.Second, s.tick)
 	loop("maintenance", 3*time.Second, s.maintenanceTick)
 }

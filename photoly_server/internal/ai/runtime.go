@@ -124,9 +124,6 @@ func (r *Runtime) flush(err error) {
 // Submit accepts a lifecycle request without blocking (the scheduler and Pause stay
 // responsive); poll Status. A newer generation cancels an older load that has not begun.
 func (r *Runtime) Submit(command string, kinds []string, config map[string]any, generation int64, opID string) (map[string]any, error) {
-	if err := checkCommand(command, config); err != nil {
-		return nil, err
-	}
 	r.mu.Lock()
 	if generation < max(r.requested, r.generation) {
 		r.mu.Unlock()
@@ -139,6 +136,12 @@ func (r *Runtime) Submit(command string, kinds []string, config map[string]any, 
 	close(r.cancel)
 	cancel := make(chan struct{})
 	r.cancel, r.requested = cancel, generation
+	if err := checkCommand(command, config); err != nil {
+		r.state, r.generation, r.failure = "failed", generation, asErr(err).Code
+		r.reportProgress("failed", nil, nil, "")
+		r.mu.Unlock()
+		return nil, err
+	}
 	r.mu.Unlock()
 	go func() { _, _ = r.change(command, kinds, config, generation, opID, cancel) }()
 	return r.Status(), nil

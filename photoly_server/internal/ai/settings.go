@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"maps"
+	"runtime"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -134,6 +135,7 @@ func loadSettings(ctx context.Context, q Q) (Settings, error) {
 		out["ai_initialized"] = Settings(saved).Bool("enabled") || saved["loaded_profile_id"] != nil || saved["search_profile_id"] != nil || (sc != "" && sc != "stopped")
 	}
 	maps.Copy(out, saved)
+	normalizeLegacyDevice(out, runtime.GOOS)
 	return out, nil
 }
 
@@ -227,4 +229,18 @@ func effectivePlacement(admin, userChoice string) string {
 		return "server"
 	}
 	return admin
+}
+
+// Python deployments used MPS and reduced precision, which are not ONNX device
+// names. Normalize saved settings only; new API input still uses strict validation.
+func normalizeLegacyDevice(s Settings, goos string) {
+	if s.Str("device") == "mps" {
+		s["device"] = "cpu"
+		if goos == "darwin" {
+			s["device"] = "coreml"
+		}
+	}
+	if s.Str("precision") == "bfloat16" || s.Str("precision") == "float16" {
+		s["precision"] = "float32"
+	}
 }
