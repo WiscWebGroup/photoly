@@ -498,7 +498,7 @@ func (s *Scheduler) managedRuntime(ctx context.Context, cfg Settings) (map[strin
 			cmd, kinds = "load", s.wantKinds()
 		}
 		var err error
-		if observed, err = s.rt.Submit(cmd, kinds, runtimeConfig(cfg), gen, "ai:"+itoa(int(gen))); err != nil {
+		if observed, err = s.rt.Submit(cmd, kinds, runtimeConfig(cfg), gen, "ai:"+itoa(clampInt(gen))); err != nil {
 			return nil, err
 		}
 	}
@@ -617,7 +617,7 @@ func (s *Scheduler) tick(ctx context.Context) error {
 				if pid != nil {
 					cmd, kinds = "load", s.wantKinds()
 				}
-				observed, err = s.rt.Change(cmd, kinds, runtimeConfig(cfg), gen, "reconcile:"+itoa(int(gen)))
+				observed, err = s.rt.Change(cmd, kinds, runtimeConfig(cfg), gen, "reconcile:"+itoa(clampInt(gen)))
 			}
 			stop()
 			if lost.Load() {
