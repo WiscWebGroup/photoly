@@ -65,7 +65,7 @@ const rows: {
     cost: 'Browser: 318 MB download once, Server: 0.9–2.2 GB memory',
   },
 ]
-const value = (key: 'placement_image' | 'placement_text') => props.draft[key] ?? 'server'
+const value = (key: 'placement_image' | 'placement_text') => props.draft[key] ?? 'user'
 
 const memory = computed(() => memoryMeter(props.status, props.stale))
 const worker = computed(() => props.status.worker)

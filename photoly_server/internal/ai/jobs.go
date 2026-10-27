@@ -87,7 +87,7 @@ func claim(ctx context.Context, tx pgx.Tx, owner string, o ClaimOpts) (*Task, er
 		sql += `JOIN photo ph ON ph.photo_id=j.photo_id JOIN "user" u ON u.user_id=ph.user_id LEFT JOIN user_ai_preference up ON up.user_id=u.user_id `
 		where += ` AND u.ai_search_enabled AND ph.content_version=j.content_version`
 		args = append(args, o.AdminImage, int(o.Grace.Seconds()))
-		where += ` AND $2::text <> 'browser' AND ($2::text <> 'user' OR COALESCE(up.image,'server') <> 'browser' OR j.created_at < now() - make_interval(secs => $3::float8))`
+		where += ` AND $2::text <> 'browser' AND ($2::text <> 'user' OR COALESCE(up.image,'browser') <> 'browser' OR j.created_at < now() - make_interval(secs => $3::float8))`
 		if o.LastUser != nil {
 			args = append(args, *o.LastUser)
 			order = `(ph.user_id = $` + itoa(len(args)) + `) ASC, `

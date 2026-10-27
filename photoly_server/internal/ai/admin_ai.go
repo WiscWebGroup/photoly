@@ -658,7 +658,7 @@ func (a *Admin) indexSources(ctx context.Context, cfg Settings) (map[string]any,
 	}
 	var server, browser, waiting int64
 	if err := a.pool.QueryRow(ctx, `SELECT count(*) FILTER (WHERE s.status='ready' AND s.source='server'), count(*) FILTER (WHERE s.status='ready' AND s.source='client'),
-		count(*) FILTER (WHERE s.status='pending' AND ($2='browser' OR ($2='user' AND COALESCE(up.image,'server')='browser')))
+		count(*) FILTER (WHERE s.status='pending' AND ($2='browser' OR ($2='user' AND COALESCE(up.image,'browser')='browser')))
 		FROM photo_embedding_state s JOIN photo p ON p.photo_id=s.photo_id JOIN "user" u ON u.user_id=p.user_id AND u.ai_search_enabled
 		LEFT JOIN user_ai_preference up ON up.user_id=u.user_id WHERE s.profile_id=$1 AND s.content_version=p.content_version`, *pid, cfg.Str("placement_image")).
 		Scan(&server, &browser, &waiting); err != nil {
