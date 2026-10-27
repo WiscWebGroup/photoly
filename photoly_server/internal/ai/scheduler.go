@@ -48,7 +48,7 @@ func (s *Scheduler) serverDemand(ctx context.Context, cfg Settings) (map[string]
 			var v bool
 			// kind is a fixed column name, never user input.
 			err := s.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM "user" u LEFT JOIN user_ai_preference p ON p.user_id=u.user_id
-				WHERE u.ai_search_enabled AND COALESCE(p.`+kind+`, 'server')='server')`).Scan(&v)
+				WHERE u.ai_search_enabled AND COALESCE(p.`+kind+`, 'browser')='server')`).Scan(&v)
 			if err != nil {
 				return nil, err
 			}

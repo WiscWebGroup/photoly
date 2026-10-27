@@ -54,7 +54,7 @@ func defaults() Settings {
 		"ram_policy": "percent", "new_user_default": false, "smart_tag_enabled": false, "maintenance": false,
 		"similarity_threshold": nil, "search_profile_id": nil, "building_profile_id": nil, "quota_bytes": int64(10) << 30,
 		"scheduler": "stopped", "runtime": "unloaded", "loaded_profile_id": nil, "device": "cpu", "precision": "float32",
-		"placement_image": "server", "placement_text": "user", "browser_text_model": "small",
+		"placement_image": "user", "placement_text": "user", "browser_text_model": "small",
 	}
 	for k, v := range limitDefaults {
 		s[k] = v
@@ -220,13 +220,13 @@ func validateLimitPairs(c Settings) error {
 	return nil
 }
 
-// effectivePlacement resolves "user" with the user's own choice (default: server).
+// effectivePlacement resolves "user" with the user's own choice (default: browser).
 func effectivePlacement(admin, userChoice string) string {
 	if admin == "user" {
-		if userChoice == "browser" {
-			return "browser"
+		if userChoice == "server" {
+			return "server"
 		}
-		return "server"
+		return "browser"
 	}
 	return admin
 }
