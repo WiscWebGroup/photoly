@@ -11,7 +11,39 @@ export interface Coverage {
   unsupported: number
   ratio: number
 }
+/** Where a model runs. `user` is only an admin setting; capabilities carry the effective value. */
+export type Placement = 'server' | 'browser'
+export type PlacementSetting = Placement | 'user'
+export type AiModelKind = 'image' | 'text'
+export type BrowserTextModel = 'small' | 'full'
+/** Effective placement per model for this user. */
+export interface PlacementInfo {
+  image: Placement
+  text: Placement
+  /** True where the admin let users choose (the admin value is `user`). */
+  choosable?: { image: boolean; text: boolean }
+  /** This user's saved choice, where choosable. */
+  preference?: Partial<Record<AiModelKind, Placement>>
+}
+/** What the browser needs to run SigLIP2 and to tag its vectors. */
+export interface BrowserModelInfo {
+  fingerprint: string
+  /** Model folder under `modelBaseUrl` (transformers.js model id). */
+  modelName: string
+  /** Weights for the image tower and the full text tower, e.g. `fp32`, `fp16`. */
+  dtype: string
+  /** Admin default for the text tower; users can override on this device. */
+  textModel?: BrowserTextModel
+  /** SHA-256 per model file, used as the cache revision. */
+  files?: Record<string, string>
+  /** Download sizes in MB, for the settings text. */
+  sizesMB?: Partial<Record<'image' | 'textSmall' | 'textFull', number>>
+}
 export interface AiCapabilities {
+  placement?: PlacementInfo
+  /** Absolute or root-relative URL the model files are served from, e.g. `/models/<rev>/`. */
+  modelBaseUrl?: string
+  browser?: BrowserModelInfo
   similarityThreshold: number | null
   enabled: boolean
   globalEnabled: boolean
@@ -85,6 +117,10 @@ export interface AiSettings {
   vram_resume_free_mib: number
   disk_pause_free_mib: number
   disk_resume_free_mib: number
+  /** Admin placement per model; absent on servers without browser inference. */
+  placement_image?: PlacementSetting
+  placement_text?: PlacementSetting
+  browser_text_model?: BrowserTextModel
 }
 export type AiChanges = Partial<
   Omit<
@@ -204,7 +240,32 @@ export interface StartupProgress {
   reason: string | null
   online: boolean
 }
+/** Server-side model state from the AI worker (Unload / low-memory flows). */
+export interface WorkerModel {
+  loaded: boolean
+  variant?: string
+  loadedAt?: string | null
+  /** Memory the model needs on the server; the card falls back to its defaults. */
+  needMB?: number
+}
+export interface AiWorker {
+  running: boolean
+  memoryMB?: number
+  restartedAt?: string | null
+  restartReason?: string | null
+  models?: Partial<Record<AiModelKind, WorkerModel>>
+  /** Memory the Photoly process itself holds. */
+  appMemoryMB?: number
+}
+export interface IndexSources {
+  server: number
+  browser: number
+  waiting: number
+  spotCheck?: { checked: number; matched: number; at?: string | null } | null
+}
 export interface AiStatus {
+  worker?: AiWorker
+  indexSources?: IndexSources
   startup?: StartupProgress
   smartTag?: import('./smartOrganization').SmartStatus
   settings: AiSettings
@@ -227,6 +288,8 @@ export class AiError extends Error {
   constructor(
     public code: string,
     public status = 0,
+    /** The response body, for errors that carry data (low-memory needMB / availableMB). */
+    public body?: Record<string, unknown>,
   ) {
     super(code)
   }
@@ -243,8 +306,11 @@ export async function aiCall<T>(config: AxiosRequestConfig): Promise<T> {
   } catch (e) {
     if (isAxiosError(e) && e.code !== 'ERR_CANCELED')
       throw new AiError(
-        e.response?.data?.error ?? (e.code === 'ECONNABORTED' ? 'query_timeout' : 'network_error'),
+        e.response?.data?.code ??
+          e.response?.data?.error ??
+          (e.code === 'ECONNABORTED' ? 'query_timeout' : 'network_error'),
         e.response?.status ?? 0,
+        e.response?.data,
       )
     throw e
   }
@@ -307,6 +373,14 @@ const messages: Record<string, string> = {
   activation_not_ready: 'The model, index or coverage is not ready for activation.',
   maintenance_required: 'Enter maintenance before switching or rebuilding profiles.',
   profile_in_use: 'This profile is still in use.',
+  'low-memory': 'The server may not have enough memory to load this model.',
+  'worker-died':
+    'The AI worker stopped, most likely out of memory. Photoly keeps running; try again.',
+  browser_search_failed:
+    'The search model could not run in this browser. Try searching on the server, or check AI settings.',
+  browser_index_failed: 'This browser could not index the photo. The server will.',
+  placement_not_allowed: 'Your admin does not let you choose where AI runs.',
+  fingerprint_mismatch: 'The search model changed. Reload the page to get the current one.',
 }
 export function aiMessage(error: unknown): string {
   const code =

@@ -110,7 +110,7 @@ defineExpose({
     <DialogContent>
       <DialogHeader>
         <DialogTitle>{{ heading }}</DialogTitle>
-        <DialogDescription>
+        <DialogDescription class="sr-only">
           {{ itemName ? `Pick a folder for ${itemName}.` : 'Pick a folder.' }}
         </DialogDescription>
       </DialogHeader>

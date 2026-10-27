@@ -1,0 +1,72 @@
+name: Server
+
+on:
+  push:
+    branches: [main]
+    paths: ['photoly_server/**', 'database/postgres-init/**', 'docker-compose.yml', '.github/workflows/server.yml']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # Always runs on PRs (no `paths` filter) so required checks report; skipped jobs count as passing.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      server: ${{ steps.filter.outputs.server }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            server:
+              - 'photoly_server/**'
+              - 'database/postgres-init/**'
+              - 'docker-compose.yml'
+              - '.github/workflows/server.yml'
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The image build runs `go vet` and compiles the binary.
+      - run: docker build --target aio --build-context dbinit=database/postgres-init photoly_server
+
+  # Required check on main: Go tests against a real PostgreSQL with pgvector.
+  postgres:
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: pgvector/pgvector:0.8.7-pg17-bookworm@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: photoly
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d photoly" --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      DATABASE_URL: postgres://postgres:ci@localhost:5432/photoly
+      TEST_DATABASE_URL: postgres://postgres:ci@localhost:5432/photoly
+      ADMIN_PASSWORD: ci-admin-password
+    defaults:
+      run:
+        working-directory: photoly_server
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: photoly_server/go.mod
+          cache-dependency-path: photoly_server/go.sum
+      - run: PGPASSWORD=ci psql -h localhost -U postgres -d photoly -c 'CREATE EXTENSION vector'
+      - run: go run ./cmd/photoly migrate
+      # TestWorker needs the ONNX Runtime shared library, which only the image carries.
+      - run: go vet ./... && go test -skip TestWorker ./...

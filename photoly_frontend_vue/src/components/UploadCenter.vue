@@ -14,6 +14,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { useAuthStore } from '@/stores/auth'
+import { useBrowserAiStore } from '@/stores/browserAi'
+import { loadingCopy } from '@/lib/browserAiCopy'
 import {
   bytesLabel,
   supportedUpload,
@@ -30,7 +32,16 @@ import { photoUrl } from '@/lib/photoUrl'
 
 const uploads = useUploadsStore()
 const auth = useAuthStore()
+const browserAi = useBrowserAiStore()
 const router = useRouter()
+const indexed = computed(() => uploads.indexing.done + uploads.indexing.failed)
+const indexRunning = computed(() => indexed.value < uploads.indexing.total)
+const indexLoading = computed(
+  () => browserAi.state.phase === 'loading' && browserAi.state.kind === 'image',
+)
+const indexLoadCopy = computed(() =>
+  loadingCopy(browserAi.state.source, browserAi.state.loadedMB, browserAi.state.totalMB, 'image'),
+)
 const picked = ref<PickedFile[]>([])
 const pickPage = ref(1)
 const scanning = ref(false)
@@ -195,8 +206,7 @@ watch(
           uploads.resumeBatch ? 'Reselect pending files' : `Upload to ${uploads.target?.name}`
         }}</DialogTitle
         ><DialogDescription
-          >Choose files, a folder, or a ZIP, or paste an image with Cmd+V / Ctrl+V. Folder structure
-          is preserved. You can keep browsing after starting.</DialogDescription
+          >Choose files, a folder, or a ZIP, or paste an image with Cmd+V / Ctrl+V.</DialogDescription
         ></DialogHeader
       >
       <div
@@ -294,8 +304,7 @@ watch(
       <DialogHeader
         ><DialogTitle>Uploads</DialogTitle
         ><DialogDescription
-          >Keep browsing while uploads finish. Recent activity is kept for 30
-          days.</DialogDescription
+          >Recent activity is kept for 30 days.</DialogDescription
         ></DialogHeader
       >
       <div class="flex gap-2">
@@ -330,6 +339,47 @@ watch(
           Sending from this browser… {{ uploads.progress }}%
         </p>
         <Progress :model-value="uploads.progress" aria-label="Upload progress" />
+      </div>
+      <div
+        v-if="uploads.indexing.total"
+        role="status"
+        aria-live="polite"
+        class="bg-card space-y-2 rounded-xl border p-3 text-sm"
+      >
+        <template v-if="indexLoading">
+          <div class="flex items-baseline justify-between gap-2">
+            <span class="font-medium">{{ indexLoadCopy.headline }}</span>
+            <span class="text-muted-foreground text-xs tabular-nums">{{
+              indexLoadCopy.amount
+            }}</span>
+          </div>
+          <Progress :model-value="browserAi.state.percent" aria-label="Image model loading" />
+          <p class="text-muted-foreground text-xs">{{ indexLoadCopy.detail }}</p>
+        </template>
+        <template v-else>
+          <div class="flex items-baseline justify-between gap-2">
+            <span class="font-medium">{{
+              indexRunning
+                ? 'Indexing for search in this browser'
+                : 'Indexed for search in this browser'
+            }}</span>
+            <span class="text-muted-foreground text-xs tabular-nums"
+              >{{ indexed }} of {{ uploads.indexing.total }}</span
+            >
+          </div>
+          <Progress
+            :model-value="Math.round((indexed / uploads.indexing.total) * 100)"
+            aria-label="Browser indexing progress"
+          />
+        </template>
+        <p v-if="uploads.indexing.failed" class="text-muted-foreground text-xs">
+          {{ uploads.indexing.failed }}
+          {{ uploads.indexing.failed === 1 ? 'photo' : 'photos' }} will be indexed by the server
+          instead.
+        </p>
+        <p v-if="indexRunning" class="text-muted-foreground text-xs">
+          Keep this tab open to finish indexing here. If you close it, the server indexes the rest.
+        </p>
       </div>
       <p
         v-if="uploads.local.some((i) => i.state === 'failed' && !i.acknowledged)"

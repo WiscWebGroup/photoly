@@ -72,7 +72,14 @@ test('pull the sheet down to hide it, and up to show it again', async ({ page })
 
 test('pulling down mid-scroll scrolls the sheet instead of hiding it', async ({ page }) => {
   const scroller = page.getByTestId('photo-viewer-scroll')
-  await scroller.evaluate((el) => el.scrollTo({ top: 120, behavior: 'instant' }))
+  // Make sure there is something to scroll however short the sheet's content is.
+  await scroller.evaluate((el) => {
+    const spacer = document.createElement('div')
+    spacer.style.cssText = 'height:600px;flex:none'
+    el.append(spacer)
+    el.scrollTo({ top: 120, behavior: 'instant' })
+  })
+  await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
   const box = (await sheet(page).boundingBox())!
   await drag(page, box.x + 40, box.y + 200, box.y + 300)
   await expect(page.getByRole('button', { name: 'Hide details' })).toBeAttached()

@@ -138,9 +138,6 @@ onBeforeUnmount(() => {
           :aria-label="section.title"
         >
           <h3 class="font-semibold">{{ section.title }}</h3>
-          <p v-if="section.key === 'places'" class="text-muted-foreground text-xs">
-            Approximate nearby towns from GPS metadata.
-          </p>
           <p v-if="!section.all.length" class="text-muted-foreground mt-2 text-sm">
             No information available.
           </p>

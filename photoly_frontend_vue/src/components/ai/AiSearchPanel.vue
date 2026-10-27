@@ -2,6 +2,7 @@
 import type { SmartSource } from '@/lib/smartOrganization'
 import { mediaKind } from '@/lib/media'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import BrowserModelLoading from '@/components/ai/BrowserModelLoading.vue'
 import MediaList from '@/components/MediaList.vue'
 import MoveToShowFolder from '@/components/MoveToShowFolder.vue'
 import { Button } from '@/components/ui/button'
@@ -15,7 +16,7 @@ import { useAuthStore } from '@/stores/auth'
 const emit = defineEmits<{ libraryChanged: [change?: { type: string; photo: Photo }] }>()
 const autoSubmitted = ref(false)
 const props = defineProps<{ mode: 'text' | 'image' | 'similar'; source?: Photo }>()
-const { capabilities, result, busy, error, notice, search, cancel, clear, refreshCapabilities } =
+const { capabilities, result, busy, error, notice, search, searchOnServer, cancel, clear, refreshCapabilities } =
   useAiSearch()
 const auth = useAuthStore()
 const text = ref(''),
@@ -196,8 +197,7 @@ onBeforeUnmount(removeFile)
             placeholder="A cat in the sunlight / 阳光下的猫"
           />
           <p class="text-xs text-muted-foreground">
-            {{ text.length }} / {{ capabilities?.limits.textCharacters ?? 512 }} characters. The
-            model also has a token limit.
+            {{ text.length }} / {{ capabilities?.limits.textCharacters ?? 512 }} characters.
           </p>
         </template>
         <div
@@ -275,6 +275,7 @@ onBeforeUnmount(removeFile)
         </p>
       </form>
     </div>
+    <BrowserModelLoading v-if="mode === 'text'" @server="searchOnServer" />
     <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
     <p v-if="notice" role="status" class="text-sm">{{ notice }}</p>
     <div v-if="result" role="status" class="text-sm space-y-1">
