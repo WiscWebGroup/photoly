@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { aiStartupStage } from '@/lib/aiStartup'
 import { smartReason } from '@/lib/smartOrganization'
 import { computed, ref, watch } from 'vue'
 import AdminLayout from '@/components/AdminLayout.vue'
@@ -6,6 +7,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import { RefreshCw } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { useAiAdmin } from '@/composables/useAiAdmin'
+import AdminInferenceCard from '@/components/ai/AdminInferenceCard.vue'
 import { aiMessage, bytesLabel, type AiChanges, type AiSettings } from '@/lib/ai'
 const admin = useAiAdmin()
 const {
@@ -99,12 +101,16 @@ function resetDraft() {
   }
 }
 watch(status, () => {
-  if (
-    !draft.value ||
-    (JSON.stringify(draft.value) === JSON.stringify(original.value) &&
-      budgetGiB.value === (original.value?.quota_bytes ?? 0) / 1024 ** 3)
-  )
-    resetDraft()
+  const next = status.value?.settings
+  if (!next || !draft.value || !original.value || unsavedCount.value === 0) return resetDraft()
+  if (next.generation === original.value.generation) return
+  // The server changed under an unsaved draft (e.g. Enable AI): rebase onto the new
+  // settings and keep only the fields the admin actually edited.
+  const d = draft.value as unknown as Record<string, unknown>
+  const o = original.value as unknown as Record<string, unknown>
+  const edited = Object.keys(d).filter((k) => k !== 'generation' && d[k] !== o[k])
+  original.value = { ...next }
+  draft.value = { ...next, ...Object.fromEntries(edited.map((k) => [k, d[k]])) }
 })
 function fieldValue(key: string) {
   return Number(draft.value?.[key as keyof AiSettings] ?? 0)
@@ -126,14 +132,6 @@ function setThreshold(event: Event) {
     : input.value === ''
       ? null
       : Number(input.value)
-}
-function chooseDevice(event: Event) {
-  if (!draft.value) return
-  const selectedDevice = (event.target as HTMLSelectElement).value
-  draft.value.device = selectedDevice
-  draft.value.precision =
-    capabilities.value?.devices.find((device) => device.device === selectedDevice)?.precision ??
-    'float32'
 }
 async function save() {
   if (!draft.value || !original.value || !capabilities.value) return
@@ -171,8 +169,9 @@ async function save() {
     'search_enabled',
     'new_user_default',
     'smart_tag_enabled',
-    'device',
-    'precision',
+    'placement_image',
+    'placement_text',
+    'browser_text_model',
     ...Object.keys(capabilities.value.fields),
   ]
   for (const key of keys)
@@ -223,11 +222,7 @@ async function feature(key: 'search_enabled' | 'smart_tag_enabled', event: Event
     Object.assign(original.value, update)
   }
 }
-const stage = computed(
-  () =>
-    status.value?.startup?.stage ??
-    (status.value?.settings.enabled ? runtime.value?.observed.state : 'paused'),
-)
+const stage = computed(() => aiStartupStage(status.value))
 const stageLabels: Record<string, string> = {
   preparing: 'Preparing AI',
   downloading: 'Downloading model',
@@ -236,13 +231,15 @@ const stageLabels: Record<string, string> = {
   ready: 'AI ready',
   preparing_index: 'Preparing search index',
   paused: 'AI paused',
-  unloaded: 'AI paused',
+  idle: 'AI enabled · models unloaded',
   pausing: 'Pausing AI and releasing resources',
   failed: 'AI startup failed',
   draining: 'Releasing previous model',
 }
 const starting = computed(
-  () => !!status.value?.settings.enabled && !['ready', 'failed'].includes(stage.value ?? ''),
+  () =>
+    !!status.value?.settings.enabled &&
+    !['ready', 'failed', 'idle', 'paused'].includes(stage.value ?? ''),
 )
 const downloadPercent = computed(() => {
   const p = status.value?.startup
@@ -291,11 +288,13 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
             ? 'Running'
             : stage === 'failed'
               ? 'Failed'
-              : status.settings.enabled
-                ? 'Starting'
-                : 'Paused'
+              : stage === 'idle'
+                ? 'Enabled'
+                : status.settings.enabled
+                  ? 'Starting'
+                  : 'Paused'
         }}</span>
-        <span class="text-muted-foreground uppercase">{{ status.settings.device }}</span>
+        <span class="text-muted-foreground">{{ status.settings.device }}</span>
       </span>
       <Button variant="outline" @click="admin.refresh"><RefreshCw /> Refresh status</Button>
     </PageHeader>
@@ -321,20 +320,26 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
           >
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 class="text-base font-semibold">
+                <h2 class="min-w-0 text-base font-semibold break-words">
                   {{ stageLabels[stage ?? ''] ?? 'AI status unknown' }}
                 </h2>
                 <p class="text-sm text-muted-foreground">
                   {{
                     status.settings.enabled
-                      ? 'AI is enabled.'
+                      ? stage === 'ready'
+                        ? 'AI is ready to use.'
+                        : stage === 'failed'
+                          ? 'AI is enabled, but startup failed. Retry below.'
+                          : stage === 'idle'
+                            ? 'Enable AI to load the models.'
+                            : 'AI is enabled and starting.'
                       : 'Enable AI to prepare your model automatically.'
                   }}
                 </p>
               </div>
               <div class="flex flex-wrap gap-2">
                 <Button
-                  v-if="!status.settings.enabled || stage === 'failed'"
+                  v-if="!status.settings.enabled || stage === 'failed' || stage === 'idle'"
                   :disabled="locked"
                   @click="enableAi"
                   >Enable AI</Button
@@ -359,9 +364,9 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                 {{ status.startup?.completed }} / {{ status.startup?.total }} files available ·
                 {{ downloadPercent.toFixed(0) }}% of download files
               </p>
-              <p class="text-xs text-muted-foreground">
-                Prepare → Download → Load → Validate → Ready. First startup may take longer while
-                model files download.
+              <p v-if="stage === 'loading'" class="text-sm text-muted-foreground">
+                Loading models. The first start downloads model files; later starts use the local
+                cache.
               </p>
               <p v-if="stalled" class="text-sm">
                 Still waiting for the current step. A large download or model load may take several
@@ -372,7 +377,7 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
               {{ aiMessage(status.startup.reason) }}
             </p>
             <p v-if="!runtime?.online" role="status" class="text-sm">
-              Offline / unknown — startup will continue when the AI services are available.
+              Offline or unknown. Startup will continue when the AI services are available.
             </p>
             <div class="flex flex-wrap gap-5 border-t pt-4">
               <label class="flex items-center gap-2 text-sm font-medium"
@@ -406,6 +411,17 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
               >; Smart Tag also requires user opt-in.
             </p>
           </section>
+          <AdminInferenceCard
+            v-if="draft"
+            :draft="draft"
+            :status="status"
+            :stale="staleResources"
+            :busy="locked"
+            :load="admin.loadModel"
+            :unload="admin.unloadModel"
+            @set="(patch) => draft && Object.assign(draft, patch)"
+            @error="(message) => (error = message)"
+          />
           <section
             v-if="draft && capabilities"
             class="space-y-4 rounded-xl border bg-card p-5 shadow-xs"
@@ -438,48 +454,22 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                     step="1"
                     :min="key === 'ram_max_percent' ? 6 : 11"
                     max="100"
-                    :disabled="key === 'gpu_pause_percent' && draft.device !== 'cuda'"
+                    :disabled="key === 'gpu_pause_percent' && status.settings.device !== 'cuda'"
                     :class="inputClass"
                     @input="setResource(key, $event)"
                   />
                 </label>
-                <label class="text-sm"
-                  >Device<select
-                    :value="draft.device"
-                    aria-label="Inference device"
-                    :disabled="loadedModel"
-                    :class="inputClass"
-                    @change="chooseDevice"
-                  >
-                    <option
-                      v-for="device in capabilities.devices"
-                      :key="device.device"
-                      :value="device.device"
-                      :disabled="device.available !== true"
-                    >
-                      {{
-                        device.device === 'mps'
-                          ? 'Apple Silicon GPU (MPS)'
-                          : device.device.toUpperCase()
-                      }}{{ device.available !== true ? ' — unavailable or unknown' : '' }}
-                    </option>
-                  </select></label
-                >
               </div>
               <p class="text-xs text-muted-foreground">
                 Background tasks wait above these limits. Changing a CPU/GPU limit sets recovery 10
                 percentage points below; RAM recovers 5 points below. Existing custom CPU/GPU
                 recovery values are preserved until changed. Limits are admission thresholds, not
-                hard resource caps. Pause AI before changing Device.
+                hard resource caps.
               </p>
               <p v-if="draft.ram_policy === 'free' && !ramEdited" class="text-sm">
                 Legacy RAM protection is active: pause below {{ draft.memory_pause_free_mib }} MiB
                 free; resume above {{ draft.memory_resume_free_mib }} MiB. Save a RAM max value to
                 use percentage limits.
-              </p>
-              <p v-if="draft.device === 'mps'" class="text-sm">
-                Apple Silicon uses unified memory. GPU utilization is unavailable; CPU and RAM
-                thresholds apply.
               </p>
               <Button type="button" variant="outline" @click="recommended"
                 >Use recommended thresholds</Button
@@ -625,7 +615,9 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                 >
                 <Button
                   type="submit"
-                  :disabled="locked || original?.generation !== status.settings.generation"
+                  :disabled="
+                    locked || !unsavedCount || original?.generation !== status.settings.generation
+                  "
                   >Save AI settings</Button
                 >
               </div>

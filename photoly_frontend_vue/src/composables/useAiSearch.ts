@@ -1,5 +1,6 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useBrowserAiStore } from '@/stores/browserAi'
 import {
   aiCall,
   aiMessage,
@@ -10,6 +11,7 @@ import {
 
 export function useAiSearch() {
   const auth = useAuthStore()
+  const browser = useBrowserAiStore()
   const capabilities = ref<AiCapabilities | null>(null)
   const result = ref<AiSearchResponse | null>(null)
   const busy = ref(false)
@@ -19,6 +21,11 @@ export function useAiSearch() {
   let controller: AbortController | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   let disposed = false
+  let last: { mode: 'text' | 'image' | 'similar'; value: string | File | number; filters: AiFilters } | null = null
+  /** "Search on the server this time": repeats the last query without the browser model. */
+  function searchOnServer() {
+    if (last) return search(last.mode, last.value, last.filters, { server: true })
+  }
   function cancel() {
     sequence++
     controller?.abort()
@@ -44,6 +51,7 @@ export function useAiSearch() {
       )
         clear()
       capabilities.value = next
+      browser.setCapabilities(next)
     } catch (e) {
       if (!disposed && token === auth.token) error.value = aiMessage(e)
     }
@@ -52,7 +60,9 @@ export function useAiSearch() {
     mode: 'text' | 'image' | 'similar',
     value: string | File | number,
     filters: AiFilters,
+    options: { server?: boolean } = {},
   ) {
+    last = { mode, value, filters }
     cancel()
     result.value = null
     error.value = ''
@@ -67,12 +77,20 @@ export function useAiSearch() {
         data.set('file', value as File)
         Object.entries(filters).forEach(([k, v]) => v !== undefined && data.set(k, String(v)))
       }
-      const response = await aiCall<AiSearchResponse>({
-        method: 'post',
-        signal: controller.signal,
-        url: mode === 'similar' ? `/ai/photos/${value}/similar` : `/ai/search/${mode}`,
-        data: mode === 'image' ? data : { ...filters, ...(mode === 'text' ? { text: value } : {}) },
-      })
+      // Text queries may be embedded in this browser; image search and "similar" stay on the server.
+      const response =
+        mode === 'text'
+          ? await browser.searchText(value as string, { ...filters }, {
+              signal: controller.signal,
+              caps: capabilities.value,
+              server: options.server,
+            })
+          : await aiCall<AiSearchResponse>({
+              method: 'post',
+              signal: controller.signal,
+              url: mode === 'similar' ? `/ai/photos/${value}/similar` : `/ai/search/${mode}`,
+              data: mode === 'image' ? data : { ...filters },
+            })
       if (id === sequence && token === auth.token) result.value = response
     } catch (e) {
       if (id === sequence && token === auth.token) {
@@ -101,5 +119,5 @@ export function useAiSearch() {
     clearTimeout(timer)
     cancel()
   })
-  return { capabilities, result, busy, error, notice, search, cancel, clear, refreshCapabilities }
+  return { capabilities, result, busy, error, notice, search, searchOnServer, cancel, clear, refreshCapabilities }
 }

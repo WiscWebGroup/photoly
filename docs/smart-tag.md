@@ -4,10 +4,9 @@ Smart Tag organizes existing photos and videos into camera/lens tags and capture
 
 ## Deploy and enable
 
-1. Rebuild the application images and run the migration service. Migration `0005_smart_organization` adds five companion tables and content/vector invalidation triggers. No existing photo vectors, media or ordinary catalogs are rewritten.
-2. Start the normal backend, scheduler and frontend. The native MPS inference installation does not need updating for Smart Tag.
-3. In **Admin → AI → Settings and resource limits**, enable global AI and **Enable Smart Tag**, grant the account AI access, and start/resume the existing background scheduler.
-4. In personal settings, enable **Smart Tag for my library**. Both Smart Tag switches default off. Progress, resource/maintenance waiting reasons and failures appear in settings; **Refresh and retry** requests another pass and retries failed metadata reads.
+1. Rebuild and restart. Migration `0005_smart_organization` adds five companion tables and content/vector invalidation triggers. No existing photo vectors, media or ordinary catalogs are rewritten.
+2. In **Admin → AI → Settings and resource limits**, enable global AI and **Enable Smart Tag**, grant the account AI access, and start/resume the existing background scheduler.
+3. In personal settings, enable **Smart Tag for my library**. Both Smart Tag switches default off. Progress, resource/maintenance waiting reasons and failures appear in settings; **Refresh and retry** requests another pass and retries failed metadata reads.
 
 All four gates are rechecked before each automatic commit: global AI, administrator Smart Tag setting, account AI access, user opt-in. Maintenance, scheduler pause/stop and CPU/RAM/disk pressure pause processing. An offline or unloaded model does not block EXIF or existing-vector work. Disabling preserves generated results and manual edits. Restoring a deleted item is also available while automatic processing is disabled.
 
@@ -58,15 +57,3 @@ Deterministic tests cover all 16 gate combinations, user isolation, legacy respo
 
 An isolated PostgreSQL test with **10,002 media** ran ten 25-item metadata batches: mean **0.140 s**, max **0.149 s**, no measured RSS growth. Metadata was stubbed to isolate scheduling/database overhead; real EXIF descriptor reading is tested separately. This is a bounded-work measurement, not a promise about real EXIF I/O or end-to-end large-library completion time. The same process still proceeds to its normal vector work after each batch.
 
-Real-model smoke evaluation used Apple M3, 16 GiB, PyTorch 2.8, **MPS float32**, offline cached fixed model revisions and **document/document** matching. Four public test photos each received a 5% inset crop, acting as no-GPS candidates against the four original anchors. This is deliberately a small consistency check, **not a labeled travel grouping accuracy benchmark**.
-
-| Model | Correct crop matches admitted | Correct similarity | Margin over second | Median image inference | MPS tensors before unload |
-|---|---:|---|---|---:|---:|
-| SigLIP2 | 4 / 4 | 0.982–0.992 | 0.308–0.327 | 0.038 s | 1.40 GiB |
-| Qwen3-VL Embedding | 4 / 4 | 0.922–0.979 | 0.439–0.680 | 1.308 s | 7.93 GiB |
-
-Both unloaded to zero MPS tensor bytes. Full reports: [SigLIP2](validation/smart-siglip2-mps.json), [Qwen3-VL](validation/smart-qwen3-vl-mps.json). The scheduler reuses stored vectors; these loading/inference costs apply only to this explicit evaluation. The thresholds are fixed initial heuristics and may leave legitimate travel media unclassified. Similar-looking scenes alone never merge trips across the time gates.
-
-Reproduce the opt-in model smoke with `PYTHONPATH=photoly_backend HF_HOME="$HOME/.cache/photoly/models" HF_HUB_OFFLINE=1 PYTORCH_ENABLE_MPS_FALLBACK=0 photoly_backend/inference/mps/.venv/bin/python photoly_backend/scripts/smart_model_evaluation.py siglip2 --output /tmp/smart-siglip2.json` (substitute `qwen3_vl` for the second model).
-
-Final automated checks: **476 backend tests passed** against isolated PostgreSQL/Redis (5 opt-in live-HTTP tests deselected); **125 frontend unit tests passed**; **147 related Chromium/WebKit/mobile tests passed**, followed by 21 targeted Smart Tag/avatar browser checks after the final UI robustness changes. Type checking, ESLint, frontend production build, backend production image build, packaged offline city lookup and `git diff --check` passed. Generated screenshots were inspected at desktop and mobile sizes. Additional scheduler tests verify three-user round robin (no starvation), lease expiry, profile changes and continuation into vector work in the same scheduler cycle. Disposable test containers and database data were removed after validation.

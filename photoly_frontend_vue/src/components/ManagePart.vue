@@ -7,6 +7,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Cpu,
+  HardDrive,
   Key,
   KeyRound,
   LogOut,
@@ -40,6 +42,9 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import SmartOrganizationSettings from '@/components/SmartOrganizationSettings.vue'
+import StorageVisibilitySetting from '@/components/StorageVisibilitySetting.vue'
+import AiDeviceSettings from '@/components/ai/AiDeviceSettings.vue'
+import { useBrowserAiStore } from '@/stores/browserAi'
 import AvatarCropper from '@/components/AvatarCropper.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -59,12 +64,18 @@ const permissions = [
   { value: 'D', label: 'Delete' },
 ]
 
-const sections = [
+const browserAi = useBrowserAiStore()
+// AI placement settings only exist on servers that offer browser inference.
+const hasAiSettings = computed(() => !!browserAi.capabilities?.placement)
+const allSections = [
   { id: 'profile', label: 'Profile' },
   { id: 'password', label: 'Password' },
   { id: 'smart', label: 'Smart Tag' },
+  { id: 'storage', label: 'Storage' },
+  { id: 'ai', label: 'AI on this device' },
   { id: 'api', label: 'API tokens' },
 ]
+const sections = computed(() => allSections.filter((s) => s.id !== 'ai' || hasAiSettings.value))
 const activeSection = ref('profile')
 function jump(id: string) {
   activeSection.value = id
@@ -77,7 +88,7 @@ const phone = useMediaQuery('(max-width: 767px)')
 const route = useRoute()
 const phoneSection = computed(() => {
   const id = route.hash.slice(1)
-  return sections.some((s) => s.id === id) ? id : null
+  return sections.value.some((s) => s.id === id) ? id : null
 })
 const showSection = (id: string) => !phone.value || phoneSection.value === id
 const openSection = (id: string) => router.push({ hash: `#${id}` })
@@ -309,6 +320,7 @@ async function copy(token: string) {
 }
 
 onMounted(() => {
+  void browserAi.refreshCapabilities()
   loadUser().catch(() => toast.error('User Info Response Error!'))
   loadCredentials().catch(() => toast.error('Get API Error!'))
 })
@@ -343,6 +355,10 @@ onMounted(() => {
             v-for="row in [
               { id: 'password', label: 'Password', icon: KeyRound, meta: '' },
               { id: 'smart', label: 'Smart Tag', icon: Sparkles, meta: '' },
+              { id: 'storage', label: 'Storage', icon: HardDrive, meta: '' },
+              ...(hasAiSettings
+                ? [{ id: 'ai', label: 'AI on this device', icon: Cpu, meta: '' }]
+                : []),
               { id: 'api', label: 'API tokens', icon: Key, meta: String(credentials.length || '') },
             ]"
             :key="row.id"
@@ -442,7 +458,6 @@ onMounted(() => {
           Profile
         </h2>
         <p class="text-muted-foreground text-sm">
-          How you appear across Photoly.
           <template v-if="createdOn">Member since {{ createdOn }}.</template>
         </p>
       </div>
@@ -553,6 +568,28 @@ onMounted(() => {
     </section>
 
     <section
+      v-show="showSection('storage')"
+      id="storage"
+      aria-labelledby="storage-h"
+      class="grid scroll-mt-14 gap-x-12 gap-y-5 border-b pb-8 max-md:border-b-0 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]"
+    >
+      <div>
+        <h2
+          id="storage-h"
+          class="mb-1 text-base font-semibold max-md:text-2xl max-md:leading-8 max-md:tracking-[-0.01em]"
+        >
+          Storage
+        </h2>
+        <p class="text-muted-foreground text-sm">Choose which storage your library lists.</p>
+      </div>
+      <StorageVisibilitySetting />
+    </section>
+
+    <div v-if="hasAiSettings" v-show="showSection('ai')" id="ai" class="scroll-mt-14">
+      <AiDeviceSettings />
+    </div>
+
+    <section
       v-show="showSection('api')"
       id="api"
       aria-labelledby="api-h"
@@ -566,9 +603,6 @@ onMounted(() => {
           >
             API tokens
           </h2>
-          <p class="text-muted-foreground text-sm">
-            Each token can upload, read or delete media for your integrations.
-          </p>
         </div>
         <Button variant="outline" class="ml-auto" aria-label="Add API" @click="openApiDialog(-1)"
           ><Plus /> New Token</Button
@@ -699,7 +733,7 @@ onMounted(() => {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Change Picture</DialogTitle>
-          <DialogDescription>Choose a new profile picture.</DialogDescription>
+          <DialogDescription class="sr-only">Choose a new profile picture.</DialogDescription>
         </DialogHeader>
         <AvatarCropper
           v-if="editingAvatar"

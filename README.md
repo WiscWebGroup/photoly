@@ -23,83 +23,32 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 
 ## Specifications
 
-DB: PostgreSQL 17 + pgvector 0.8.7 + Redis
-
-Backend: Python 3.12 + Flask (application factory, Controller / Service / Entity)
+One Go binary (`photoly`) plus PostgreSQL 17 with pgvector 0.8.7. AI search uses SigLIP2 on ONNX Runtime, in the server or in the user's browser (the administrator chooses where each model runs).
 
 Frontend: Vue 3 + TypeScript + Tailwind CSS + shadcn-vue (installable PWA)
 
 ## How to Run?
 
-The backend has been migrated from Spring Boot to Flask. This version supports **fresh deployments**; it does not migrate legacy AES passwords or Redis sessions. The original Java implementation is available in Git at `e6619ab`.
-
-### Docker
-
-1. Copy `.env.example` to `.env` and set database, Redis, administrator and both internal AI token values. Use separate PostgreSQL administrator, migration and application passwords. The Redis password must be URL-safe because it enters a connection URL.
-2. Run `docker compose up -d --build` from this directory.
-3. Open `http://localhost:5200`. The API is available at `http://localhost:8384`, with interactive [Swagger UI](http://localhost:8384/docs/) and an [OpenAPI 3.2 document](http://localhost:8384/openapi.json).
+1. Copy `.env.example` to `.env` and set the three PostgreSQL passwords (administrator, migration, application) and the administrator account.
+2. Run `docker compose up -d --build` from this directory. The `backend` container holds `photoly` and PostgreSQL; `web` serves the frontend.
+3. Open `http://localhost:5200`. The API is available at `http://localhost:8384`, with interactive [Swagger UI](http://localhost:8384/docs/) and an [OpenAPI document](http://localhost:8384/openapi.json).
 4. Sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env`.
 
-PostgreSQL bootstrap installs pgvector and creates separate schema-owner and application roles. The one-shot `migrate` service runs Alembic and seeds settings/admin before Gunicorn starts. The Web process only checks the schema and cannot execute DDL. Repeated startup preserves records, passwords and settings. PostgreSQL uses `postgres_data`; media remains in `./upload_data`. This is a fresh deployment, with no MySQL data import tool.
+`photoly serve` migrates the schema and seeds settings and the administrator on start; repeated starts preserve records, passwords and settings. PostgreSQL data lives in the `postgres_data` volume, media in `./upload_data`, downloaded model weights in `photoly_models`. Never use `down -v` on a production deployment.
 
-The administrator dashboard displays PostgreSQL, pgvector and the schema revision using `/admin/pingDatabase` and `/admin/databaseInfo`.
+For access from another machine, open `http://<server-address>:5200`. The frontend uses its same-origin `/api` proxy, so browser API requests follow the address used to open the site. Set `PUBLIC_BASE_URL` to an externally reachable API URL for backend-generated share links (for example, `http://<server-address>:5200/api`).
 
-For access from another machine, open `http://<server-address>:5200`. Docker's frontend uses its same-origin `/api` proxy, so browser API requests follow the address used to open the site. Set `PUBLIC_BASE_URL` to an externally reachable API URL for backend-generated share links (for example, `http://<server-address>:5200/api`). Standalone frontend builds or separately hosted APIs still need the appropriate `VITE_APP_BASE_URL` build setting.
+### AI
 
-### Optional AI runtimes
-
-Docker Compose **2.24.4+** is required. Set separate `AI_INFERENCE_TOKEN` and `AI_CONTROL_TOKEN` in the root `.env`, including for configurations where Compose validates inactive AI services. Choose the runtime once with `COMPOSE_PROFILES` in `.env`, then use plain `docker compose up -d --build` from the repository root:
-
-| Deployment | `.env` setting | Requirements |
-| --- | --- | --- |
-| Base library + OCR | leave `COMPOSE_PROFILES` unset | No model runtime required |
-| NVIDIA CUDA | `COMPOSE_PROFILES=ai-cuda` | NVIDIA GPU and container runtime |
-| CPU | `COMPOSE_PROFILES=ai-cpu` | CPU-only inference image |
-| Apple Silicon MPS | `COMPOSE_PROFILES=ai-mps` and `AI_RUNTIME_URL=http://host.docker.internal:8090` | Start the native runtime first, as below |
-
-Enable only one AI profile at a time.
-
-For MPS, use a native ARM64 macOS 14+ shell with `uv` installed:
-
-```sh
-sh photoly_backend/scripts/mps-runtime.sh install
-sh photoly_backend/scripts/mps-runtime.sh check
-sh photoly_backend/scripts/mps-runtime.sh start
-```
-
-Keep `start` running in its terminal and run `docker compose up -d --build` in another. Docker connects to `AI_RUNTIME_URL`; the native runtime defaults to `0.0.0.0:8090`, authenticated with the same two tokens. See [runtime setup and troubleshooting](docs/ai-backend-operations.md).
-
-AI starts disabled. In **AI Management**, configure the device (`cpu/float32`, `cuda/bfloat16`, or `mps/float32`), explicitly load a model, grant user access and activate a search profile. Startup alone does not download weights. SigLIP2 is recommended for 16 GB Macs; Qwen video queries can exceed the 60-second deadline under memory pressure.
+AI starts disabled. In **AI Management**, enable it, choose per model whether it runs on the server, in browsers, or by user choice, grant user access and activate a search profile. See [AI operations](docs/ai-backend-operations.md).
 
 ### Upgrading an existing PostgreSQL deployment
 
-Back up the database and media together. `COMPOSE_PROFILES` in `.env` keeps every command on your deployment's AI profile:
-
-```sh
-docker compose stop backend upload-worker ai-scheduler ai-maintenance
-docker compose build
-docker compose run --rm migrate
-docker compose up -d
-```
-
-For base deployments, stop only `backend`. For MPS, stop the native runtime, rerun its `install` command after dependency changes, and restart it before the final Compose command. If migration fails, resolve it before starting the new application services.
-
-Alembic `upgrade head` includes video frame vectors (`0003_video_vectors`), OCR (`0004_photo_ocr`) Smart Tag (`0005_smart_organization`), uploads/storage groups (`0006_uploads_storage`), and media resources/tasks (`0007_media_tools`). Existing image vectors are retained. Rebuild the application images to include FFmpeg, Tesseract language data and the offline city index. Never use `down -v` to upgrade a production deployment.
+Back up the database and media together, rebuild and restart. A database created by the earlier Python release must be at Alembic `0008_upload_activity` before the first start; `photoly serve` adopts it without changing the schema.
 
 ### Development and tests
 
-See [backend setup and architecture](photoly_backend/README.md), [frontend development](photoly_frontend_vue/README.md) and [API compatibility notes](photoly_backend/COMPATIBILITY.md).
-
-Database tests require real PostgreSQL and an Alembic-created schema. Run from the repository root:
-
-```sh
-docker compose -p photoly-test -f compose.test.yml build tests backend migrate smoke upload-worker ai-runtime ai-scheduler ai-maintenance
-docker compose -p photoly-test -f compose.test.yml run --rm tests
-docker compose -p photoly-test -f compose.test.yml run --rm smoke
-docker compose -p photoly-test -f compose.test.yml down -v --remove-orphans
-```
-
-The integration database is `photoly_test`; the HTTP server uses `photoly_http_test`. Both are temporary and isolated from production. The final HTTP test deliberately stops its own Gunicorn server. Only run cleanup with the explicit test project and Compose file above.
+Frontend: `docker compose -f compose.dev.yml up -d --build`, then `pnpm dev` in `photoly_frontend_vue` (see [frontend development](photoly_frontend_vue/README.md)). Server: Go 1.24 in `photoly_server`; `go test ./...` needs `TEST_DATABASE_URL` for the database-backed tests and the ONNX Runtime library for the AI worker test. Database access goes through sqlc: edit `photoly_server/internal/db/queries/*.sql` and run `devbox run -- sqlc generate` in `photoly_server` (CI fails if `internal/db/gen` is stale).
 
 ## License
 See [LICENSE](LICENSE).
@@ -141,9 +90,6 @@ nearby towns derived from GPS; cameras and lenses come from photo metadata, with
 
 The new owner-only endpoints are `GET /photo/getDateSummary`, `GET /photo/getByDate`, `GET /photo/getMonthPreview` and `GET /namespace/getDetails`; see `/docs`
 for parameters, pagination and response schemas. Dates itself requires no schema changes. Media tools use migration `0007_media_tools`; persistent upload activity controls use `0008_upload_activity`.
-When deploying with Compose overrides, mount the same media directory on `backend`, `migrate`,
-`upload-worker` and the maintenance service. Validate the merged configuration with `docker compose config --quiet`
-using your deployment's existing project, environment file, overrides and AI profile before restarting it.
 
 ### Media tools
 

@@ -65,11 +65,6 @@ Switching images aborts browser requests and ignores late responses. An already-
 
 These are small-sample measurements, not memory caps or accuracy guarantees. RSS is sampled every 10 ms and summed for the disposable Python worker and its Tesseract child; shared pages may be counted twice. It excludes the web server and databases. Larger originals need more decode memory. Extra GPU VRAM usage is zero; Apple Silicon CPU processes still use the shared system memory pool. Natural scenes, tiny lettering, and mixed-script lines remain less reliable than clear screenshot-style text; manual correction is intentional.
 
-The five screenshot-style fixtures were generated for this project (text rendered with the local Hiragino Sans GB font); no font files are redistributed. The existing real-photo fixture's attribution is in `photoly_backend/tests/fixtures/ai/manifest.json`. To repeat OCR measurements without a database:
+The five screenshot-style fixtures were generated for this project (text rendered with the local Hiragino Sans GB font); no font files are redistributed.
 
-```sh
-docker compose -f compose.test.yml build tests
-docker compose -f compose.test.yml run --rm --no-deps tests python scripts/ocr_smoke.py
-```
-
-Backend tests use the isolated PostgreSQL/Redis environment in `compose.test.yml`. Coverage includes persistence, ownership, optimistic conflicts, content overwrite/delete races, migration rollback, global concurrency, timeout termination, cleanup, limits, first-frame behavior, orientation, transparency and real multilingual recognition. Frontend component and Chromium/WebKit/mobile tests cover explicit recognition, edits, clipboard behavior, reopening, independent photos, history navigation, confirmation and retry paths.
+Frontend component and Chromium/WebKit/mobile tests cover explicit recognition, edits, clipboard behavior, reopening, independent photos, history navigation, confirmation and retry paths.

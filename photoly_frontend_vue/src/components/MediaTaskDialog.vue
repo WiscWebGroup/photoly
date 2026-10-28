@@ -136,7 +136,7 @@ async function submit() {
     <DialogContent class="sm:max-w-md">
       <DialogHeader>
         <DialogTitle>{{ photo ? 'Format Convert' : 'Online Download' }}</DialogTitle>
-        <DialogDescription>{{
+        <DialogDescription class="sr-only">{{
           photo
             ? 'Save a private copy in the original photo’s folder.'
             : 'Download a public image link into your library.'
@@ -181,9 +181,6 @@ async function submit() {
               ? 'Uses the static Live Photo cover.'
               : 'Only the first animation frame will be saved.'
           }}
-        </p>
-        <p v-if="live && format === 'gif'" class="text-muted-foreground text-sm">
-          Uses the paired video without sound.
         </p>
         <p v-if="format === 'jpeg'" class="text-muted-foreground text-sm">
           JPEG quality 90. Transparent areas become white.

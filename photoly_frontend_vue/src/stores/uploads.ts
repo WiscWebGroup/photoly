@@ -4,6 +4,7 @@ import { toast } from 'vue-sonner'
 import { http, type Envelope } from '@/lib/http'
 import { useAuthStore } from '@/stores/auth'
 import { newUuid } from '@/lib/uuid'
+import { useBrowserAiStore } from '@/stores/browserAi'
 
 export interface PickedFile {
   file: File
@@ -36,6 +37,18 @@ interface LocalItem extends PickedFile {
   sent: number
   error?: string
   acknowledged?: boolean
+  /** Embed this photo in the browser once the server has the bytes. */
+  index?: boolean
+}
+/** Photos too odd for createImageBitmap or not photos at all stay with the server. */
+const browserIndexable = (path: string) =>
+  /\.(jpe?g|png|webp|gif|bmp|ico|jfif)$/i.test(path)
+export interface IndexingProgress {
+  total: number
+  done: number
+  /** Photos this browser gave up on; the server indexes them. */
+  failed: number
+  current: string
 }
 const media = new Set(
   'jpg jpeg gif png webp ico bmp tif tiff svg psd raw arw pcd jfif heic heif mp4 avi wmv mpeg m4v mov flv asf f4v rmvb vob rm zip'.split(
@@ -116,6 +129,10 @@ export const useUploadsStore = defineStore('uploads', () => {
   let running = 0
   let refreshSequence = 0
   const controllers = new Map<string, AbortController>()
+  const browserAi = useBrowserAiStore()
+  const indexing = ref<IndexingProgress>({ total: 0, done: 0, failed: 0, current: '' })
+  const indexQueue: { id: string; batchId: string; path: string; file: File }[] = []
+  let indexRunning = false
   let sessionController = new AbortController()
   const serverActive = ref(0)
   const serverFailed = ref(0)
@@ -160,6 +177,8 @@ export const useUploadsStore = defineStore('uploads', () => {
       batches.value = []
       serverActive.value = 0
       serverFailed.value = 0
+      indexQueue.length = 0
+      indexing.value = { total: 0, done: 0, failed: 0, current: '' }
       total.value = 0
       page.value = 1
       open.value = false
@@ -292,6 +311,14 @@ export const useUploadsStore = defineStore('uploads', () => {
       const eligible = jobs.filter(
         (i) => supportedUpload(i.path) && i.file.size <= maxFileBytes.value,
       )
+      // Placement can change between uploads, so ask once per batch.
+      await browserAi.refreshCapabilities(true)
+      if (browserAi.imageInBrowser) {
+        // A finished run starts over; counts only grow while photos are still being indexed.
+        if (!indexQueue.length && !indexRunning)
+          indexing.value = { total: 0, done: 0, failed: 0, current: '' }
+        for (const job of eligible) job.index = browserIndexable(job.path)
+      }
       const keys = new Set(eligible.map((i) => i.id))
       local.value = [...local.value.filter((i) => !keys.has(i.id)), ...eligible]
       await uploadCall(`/uploads/${batchId}/finish`, 'post', undefined, signal)
@@ -337,6 +364,7 @@ export const useUploadsStore = defineStore('uploads', () => {
       if (gen !== generation) return
       item.state = data.t.state
       item.sent = item.file.size
+      if (item.index) queueIndex(item, gen)
       // Release potentially large File objects as soon as the server owns the bytes.
       local.value = local.value.filter((i) => i.id !== item.id)
     } catch (e) {
@@ -352,6 +380,41 @@ export const useUploadsStore = defineStore('uploads', () => {
         pump()
         if (!local.value.some((i) => ['pending', 'sending'].includes(i.state))) void refresh()
       }
+    }
+  }
+
+  /** Embeds photos here, one at a time, after the server has their bytes (plan section 5). */
+  function queueIndex(item: LocalItem, gen: number) {
+    indexQueue.push({ id: item.id, batchId: item.batchId, path: item.path, file: item.file })
+    indexing.value.total++
+    void runIndex(gen)
+  }
+  async function runIndex(gen: number) {
+    if (indexRunning) return
+    indexRunning = true
+    try {
+      while (indexQueue.length && gen === generation) {
+        const job = indexQueue.shift()!
+        indexing.value.current = job.path
+        try {
+          // Once the model cannot run here, the server takes everything that is left.
+          if (browserAi.state.phase === 'error') throw new Error('browser model unavailable')
+          const { fingerprint, vector } = await browserAi.embedPhoto(job.file)
+          await uploadCall(
+            `/uploads/${job.batchId}/items/${job.id}/embedding`,
+            'put',
+            { fingerprint, vector },
+            sessionController.signal,
+          )
+          if (gen === generation) indexing.value.done++
+        } catch {
+          // The server queue indexes anything the browser did not.
+          if (gen === generation) indexing.value.failed++
+        }
+      }
+    } finally {
+      indexRunning = false
+      if (gen === generation) indexing.value.current = ''
     }
   }
 
@@ -373,7 +436,14 @@ export const useUploadsStore = defineStore('uploads', () => {
           item.error = undefined
         }
         pump()
-      } else local.value = local.value.filter((i) => i.batchId !== batchId)
+      } else {
+        local.value = local.value.filter((i) => i.batchId !== batchId)
+        for (let i = indexQueue.length - 1; i >= 0; i--)
+          if (indexQueue[i]!.batchId === batchId) {
+            indexQueue.splice(i, 1)
+            indexing.value.total--
+          }
+      }
       await refresh()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not update upload')
@@ -435,6 +505,7 @@ export const useUploadsStore = defineStore('uploads', () => {
     active,
     failed,
     progress,
+    indexing,
     refresh,
     start,
     rootPicker,

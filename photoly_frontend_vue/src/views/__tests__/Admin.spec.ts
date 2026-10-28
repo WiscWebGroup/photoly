@@ -47,7 +47,7 @@ describe('AdminDashboard', () => {
   it('shows service status, addresses and settings', async () => {
     server.use(
       get('/admin/isAdmin', { msgCode: 200, t: true }),
-      get('/admin/pingDatabase', { msgCode: 200, t: 1 }),
+      get('/admin/pingDatabase', { msgCode: 500 }),
       get('/admin/databaseInfo', {
         msgCode: 200,
         t: {
@@ -58,10 +58,9 @@ describe('AdminDashboard', () => {
           schemaRevision: '0002_ai_backend',
         },
       }),
-      get('/admin/pingRedis', { msgCode: 500 }),
       get('/admin/getAddress', {
         msgCode: 200,
-        t: { mysql: 'db:5432', redis: 'cache:6379', upload: '/up', config: '/cfg' },
+        t: { mysql: 'db:5432', upload: '/up', config: '/cfg' },
       }),
       get('/admin/getSettings', {
         msgCode: 200,
@@ -71,14 +70,13 @@ describe('AdminDashboard', () => {
     mountWithApp(AdminDashboard)
 
     await vi.waitFor(() => expect(pageText()).toContain('db:5432'))
-    await vi.waitFor(() => expect(pageText()).toContain('Redis not responding'))
+    await vi.waitFor(() => expect(pageText()).toContain('PostgreSQL not responding'))
     const status = [...document.querySelectorAll('[role=status]')].map((s) =>
       s.getAttribute('aria-label'),
     )
     expect(status).toEqual([
       'Backend Status: Running',
-      'PostgreSQL Status: Running',
-      'Redis Status: Down',
+      'PostgreSQL Status: Down',
     ])
     expect(pageText()).toContain('pgvector 0.8.7')
     expect(pageText()).toContain('/up')
@@ -94,7 +92,6 @@ describe('AdminDashboard', () => {
     server.use(
       get('/admin/isAdmin', { msgCode: 200, t: false }),
       get('/admin/pingDatabase', { msgCode: 403 }),
-      get('/admin/pingRedis', { msgCode: 403 }),
       get('/admin/getAddress', { msgCode: 403 }),
       get('/admin/databaseInfo', { msgCode: 403 }),
       get('/admin/getSettings', { msgCode: 403 }),

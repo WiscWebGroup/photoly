@@ -590,7 +590,7 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
       <DialogContent v-if="form" class="sm:max-w-[640px]">
         <DialogHeader>
           <DialogTitle>{{ form.gaId === undefined ? 'New Gallery' : 'Edit Gallery' }}</DialogTitle>
-          <DialogDescription
+          <DialogDescription class="sr-only"
             >Galleries collect items from any folder without moving them.</DialogDescription
           >
         </DialogHeader>

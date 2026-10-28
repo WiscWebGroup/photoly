@@ -63,6 +63,12 @@ const router = createRouter({
       component: () => import('@/views/AdminAiManagement.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
     },
+    {
+      path: '/thepersonincharge/storage',
+      name: 'admin_storage',
+      component: () => import('@/views/AdminStorage.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
   ],
 })
 

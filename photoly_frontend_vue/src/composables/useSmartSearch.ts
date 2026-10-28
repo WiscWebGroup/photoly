@@ -1,12 +1,15 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { Photo } from './usePhotos'
 import { useAuthStore } from '@/stores/auth'
+import { useBrowserAiStore } from '@/stores/browserAi'
 import { call } from '@/lib/http'
-import { aiCall, type AiCapabilities, type AiSearchResponse } from '@/lib/ai'
+import { aiCall, type AiCapabilities } from '@/lib/ai'
 import { fuseSearchResults, SMART_SEARCH_LIMIT } from '@/lib/smartSearch'
 
 export function useSmartSearch() {
   const auth = useAuthStore()
+  const browser = useBrowserAiStore()
+  let lastQuery = ''
   const textResults = ref<Photo[]>([])
   const semanticResults = ref<Photo[]>([])
   const textBusy = ref(false)
@@ -30,8 +33,9 @@ export function useSmartSearch() {
     textNotice.value = semanticNotice.value = error.value = ''
     submitted.value = false
   }
-  async function search(query: string) {
+  async function search(query: string, options: { server?: boolean } = {}) {
     clear()
+    lastQuery = query
     if (query.length > 512) {
       error.value = 'Keep your search to 512 characters or fewer.'
       return
@@ -75,12 +79,12 @@ export function useSmartSearch() {
               'Semantic search is unavailable. Showing name, tag and gallery matches.'
             return
           }
-          const response = await aiCall<AiSearchResponse>({
-            method: 'post',
-            url: '/ai/search/text',
-            data: { text, topK: SMART_SEARCH_LIMIT },
-            signal,
-          })
+          browser.setCapabilities(caps)
+          const response = await browser.searchText(
+            text,
+            { topK: SMART_SEARCH_LIMIT },
+            { signal, caps, server: options.server },
+          )
           if (current()) semanticResults.value = response.items.map((hit) => hit.photo)
         } catch {
           if (current())
@@ -104,6 +108,7 @@ export function useSmartSearch() {
     textNotice,
     semanticNotice,
     search,
+    searchOnServer: () => search(lastQuery, { server: true }),
     clear,
   }
 }

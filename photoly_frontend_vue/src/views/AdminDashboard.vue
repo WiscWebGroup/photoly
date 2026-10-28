@@ -28,7 +28,6 @@ import { assertAdmin, useAdminGuard } from '@/composables/useAdminGuard'
 import { call } from '@/lib/http'
 
 interface Addresses {
-  redis: string
   upload: string
   config: string
 }
@@ -42,7 +41,6 @@ interface Settings {
 const { guarded } = useAdminGuard()
 
 const databaseStatus = ref(0)
-const redisStatus = ref(0)
 const backendStatus = ref(0)
 const loaded = ref(false)
 const checkedAt = ref<Date>()
@@ -62,13 +60,6 @@ const services = computed(() => [
     extra: database.value
       ? `Version ${database.value.version} · pgvector ${database.value.pgvectorVersion ?? 'unavailable'} · schema ${database.value.schemaRevision}`
       : '',
-  },
-  {
-    name: 'Redis',
-    icon: HardDrive,
-    up: redisStatus.value === 100,
-    detail: addresses.value.redis ?? '',
-    extra: '',
   },
 ])
 const down = computed(() => services.value.filter((s) => !s.up).map((s) => s.name))
@@ -174,7 +165,6 @@ async function loadDashboard() {
         call<Settings>({ url: '/admin/getSettings' }),
         call<typeof database.value>({ url: '/admin/databaseInfo' }),
         ping('/admin/pingDatabase').then((v) => (databaseStatus.value = v)),
-        ping('/admin/pingRedis').then((v) => (redisStatus.value = v)),
       ])
       backendStatus.value = 100
       addresses.value = addrs
