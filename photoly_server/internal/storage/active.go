@@ -84,12 +84,30 @@ func key(path string) (string, bool) {
 	return "", false
 }
 
+// inRoot cleans path and reports whether it lies inside the upload root. Every filesystem
+// access below goes through it, so a crafted name cannot reach outside the media folder.
+func inRoot(path string) (string, bool) {
+	p := filepath.Clean(path)
+	if rs := roots.Load(); rs != nil {
+		for _, r := range *rs {
+			if strings.HasPrefix(p, r+string(filepath.Separator)) {
+				return p, true
+			}
+		}
+	}
+	return "", false
+}
+
 func exists(p string) bool { st, err := os.Stat(p); return err == nil && !st.IsDir() }
 
 // Fetch ensures path exists locally, downloading it from the remote store when it was
 // offloaded. It reports whether the file is now present. Free when the file is local.
 // Fetched files are a cache that Sweep trims.
 func Fetch(path string) bool {
+	path, ok := inRoot(path)
+	if !ok {
+		return false
+	}
 	if exists(path) {
 		touch(path)
 		return true
@@ -152,6 +170,10 @@ func Publish(removed, created []string) {
 		}
 	}
 	for _, p := range created {
+		p, ok := inRoot(p)
+		if !ok {
+			continue
+		}
 		k, ok := key(p)
 		if !ok {
 			continue
@@ -188,6 +210,10 @@ func DeleteUser(uuid string) {
 // store without downloading. A missing file reports an error satisfying os.IsNotExist.
 // ponytail: one remote HEAD per offloaded file; batch via a prefix listing if lists get slow.
 func Size(path string) (int64, error) {
+	path, ok := inRoot(path)
+	if !ok {
+		return 0, os.ErrNotExist
+	}
 	if st, err := os.Stat(path); err == nil {
 		if !st.Mode().IsRegular() {
 			return 0, os.ErrNotExist
@@ -197,7 +223,6 @@ func Size(path string) (int64, error) {
 		return 0, err
 	}
 	st, k := Remote(), ""
-	var ok bool
 	if k, ok = key(path); st == nil || !ok {
 		return 0, os.ErrNotExist
 	}
