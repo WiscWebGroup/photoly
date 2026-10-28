@@ -81,7 +81,7 @@ func (b *builder) vec(v []float32) string {
 
 func (b *builder) filters(pid int64, f filter) string {
 	// The profile id is a trusted literal so PostgreSQL can prove the partial HNSW predicate.
-	w := []string{"p.user_id=" + b.add(f.UserID), "s.profile_id=" + strconv.FormatInt(pid, 10), "s.status='ready'",
+	w := []string{"p.user_id=" + b.add(f.UserID), "photo_visible(p.storage_id, p.user_id)", "s.profile_id=" + strconv.FormatInt(pid, 10), "s.status='ready'",
 		"s.content_version=p.content_version", "(s.sampling_version IS NULL OR s.sampling_version=" + strconv.Itoa(samplingVersion) + ")"}
 	if f.NS != nil {
 		w = append(w, "p.ns_id="+b.add(*f.NS))

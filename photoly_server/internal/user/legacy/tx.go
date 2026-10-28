@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -81,6 +82,7 @@ func (f *Files) Install(src io.Reader, dest string) error {
 
 // Remove moves path aside (restorable) and reports 1 if it existed.
 func (f *Files) Remove(path string) (int, error) {
+	storage.Fetch(path) // an offloaded file must come back so it can be sized and restored
 	if f.original == nil {
 		f.original = map[string]int64{}
 	}
@@ -120,6 +122,15 @@ func (f *Files) rollback() {
 		_ = os.MkdirAll(filepath.Dir(f.removed[i][0]), 0o755)
 		_ = os.Rename(f.removed[i][1], f.removed[i][0])
 	}
+}
+
+// publish mirrors the committed changes to the remote store (no-op for local storage).
+func (f *Files) publish() {
+	removed := make([]string, len(f.removed))
+	for i, r := range f.removed {
+		removed[i] = r[0]
+	}
+	storage.Publish(removed, f.created)
 }
 
 func (f *Files) cleanup() {
@@ -225,7 +236,11 @@ func Atomic(ctx context.Context, pool *pgxpool.Pool, root string, uid int64, pol
 			return err
 		}
 	}
-	return tx.Commit(ctx)
+	if err = tx.Commit(ctx); err != nil {
+		return err
+	}
+	f.publish()
+	return nil
 }
 
 // Now is BaseService.now: wall clock in the configured timezone, naive, whole seconds.

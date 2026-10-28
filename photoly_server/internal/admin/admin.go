@@ -22,6 +22,7 @@ import (
 	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/httpx"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/photo"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/user/legacy"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -330,6 +331,7 @@ func storageLimit(v any) *int64 {
 func Register(a *app.App) {
 	s := &svc{a}
 	m := a.Mux
+	s.registerStorage()
 	get := func(p string, missing any, page bool, fn func(w http.ResponseWriter, r *http.Request, u app.User)) {
 		m.HandleFunc("GET "+p, s.legacy(missing, page, fn))
 	}
@@ -496,6 +498,7 @@ func Register(a *app.App) {
 		})
 		if uid != "" && !strings.ContainsAny(uid, "/\\") && uid != "." && uid != ".." {
 			_ = os.RemoveAll(filepath.Join(a.Cfg.UploadFolder, uid))
+			storage.DeleteUser(uid)
 		}
 		_ = dbgen.New(a.Pool).DeleteUserSessions(ctx, id)
 		changed(w, count)

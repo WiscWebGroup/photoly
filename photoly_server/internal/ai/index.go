@@ -76,7 +76,7 @@ func (x *Indexer) Trigger(ctx context.Context, uid int64) (map[string]any, error
 		return nil, err
 	}
 	rows, err := tx.Query(ctx, `SELECT p.photo_id FROM photo p LEFT JOIN photo_embedding_state s ON s.photo_id=p.photo_id AND s.profile_id=$2
-		WHERE p.user_id=$1 AND lower(p.format)=ANY($3) AND `+notReady+` AND NOT EXISTS (SELECT 1 FROM ai_job j WHERE j.photo_id=p.photo_id
+		WHERE p.user_id=$1 AND photo_visible(p.storage_id, p.user_id) AND lower(p.format)=ANY($3) AND `+notReady+` AND NOT EXISTS (SELECT 1 FROM ai_job j WHERE j.photo_id=p.photo_id
 			AND j.profile_id=$2 AND j.content_version=p.content_version AND j.kind='embedding' AND j.status IN ('queued','running'))
 		ORDER BY p.photo_id LIMIT $4`, uid, pid, formats(true), maxManualIndex)
 	if err != nil {
@@ -154,7 +154,7 @@ func (x *Indexer) Pending(ctx context.Context, uid int64, q map[string]string) (
 		return nil, err
 	}
 	rows, err := x.pool.Query(ctx, `SELECT p.photo_id, COALESCE(p.photo_name, '') FROM photo p LEFT JOIN photo_embedding_state s ON s.photo_id=p.photo_id AND s.profile_id=$2
-		WHERE p.user_id=$1 AND p.photo_id>$4 AND lower(p.format)=ANY($3) AND `+notReady+` ORDER BY p.photo_id LIMIT $5`,
+		WHERE p.user_id=$1 AND photo_visible(p.storage_id, p.user_id) AND p.photo_id>$4 AND lower(p.format)=ANY($3) AND `+notReady+` ORDER BY p.photo_id LIMIT $5`,
 		uid, pid, formats(false), after, limit)
 	if err != nil {
 		return nil, err

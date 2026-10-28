@@ -102,6 +102,7 @@ type Photo struct {
 	UserID         *int64
 	ContentVersion int64
 	ContentSha256  *string
+	StorageID      string
 }
 
 type PhotoEmbeddingState struct {
@@ -222,6 +223,21 @@ type SmartPreference struct {
 	UpdatedAt         *time.Time
 }
 
+type StorageConfig struct {
+	ID        int64
+	Driver    string
+	Config    []byte
+	Secret    []byte
+	UpdatedAt time.Time
+	BackendID string
+}
+
+type StorageDriverConfig struct {
+	Driver string
+	Config []byte
+	Secret []byte
+}
+
 type Tag struct {
 	TagID   int64
 	UserID  int64
@@ -269,18 +285,19 @@ type UploadItem struct {
 }
 
 type User struct {
-	UserID          int64
-	UserName        *string
-	Email           *string
-	CreateDate      *time.Time
-	Role            *string
-	Password        *string
-	Uuid            *string
-	AiSearchEnabled bool
-	GroupID         int64
-	StorageOverride bool
-	MaxStorageBytes *int64
-	UsedBytes       *int64
+	UserID           int64
+	UserName         *string
+	Email            *string
+	CreateDate       *time.Time
+	Role             *string
+	Password         *string
+	Uuid             *string
+	AiSearchEnabled  bool
+	GroupID          int64
+	StorageOverride  bool
+	MaxStorageBytes  *int64
+	UsedBytes        *int64
+	ShowOtherStorage bool
 }
 
 type UserAiPreference struct {

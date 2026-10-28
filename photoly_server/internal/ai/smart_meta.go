@@ -18,6 +18,8 @@ import (
 	"strings"
 	"time"
 	_ "time/tzdata"
+
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 )
 
 //go:embed smartdata/cities.tsv.gz
@@ -244,6 +246,7 @@ func extract(d map[string]any, g *gazetteer, appZone string) mediaFacts {
 
 // readMedia runs exiftool on an open descriptor, which pins the inode through a concurrent replacement.
 func readMedia(ctx context.Context, path string, g *gazetteer, appZone string) (mediaFacts, string) {
+	storage.Fetch(path)
 	f, err := os.Open(path)
 	if err != nil {
 		return mediaFacts{}, "metadata_dependency_or_file_missing"

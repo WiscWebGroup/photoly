@@ -14,6 +14,7 @@ import (
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
 	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/user/legacy"
 	"github.com/jackc/pgx/v5"
 )
@@ -38,6 +39,7 @@ func Register(a *app.App) {
 	m.HandleFunc("POST /user/signOut", noAuthRes.Wrap(a, s.signOut))
 	m.HandleFunc("GET /user/getInfo", resultOpt.Wrap(a, s.info))
 	m.HandleFunc("GET /user/getStorage", resultOpt.Wrap(a, s.storage))
+	m.HandleFunc("POST /user/updateStorageVisibility", resultOpt.Wrap(a, s.storageVisibility))
 	m.HandleFunc("POST /user/updateUsername", resultOpt.Wrap(a, s.updateField("user_name", "username")))
 	m.HandleFunc("POST /user/updateEmail", resultOpt.Wrap(a, s.updateField("email", "email")))
 	m.HandleFunc("POST /user/updatePassword", resultOpt.Wrap(a, s.updateField("password", "newPass")))
@@ -205,7 +207,7 @@ func (s *svc) storage(w http.ResponseWriter, r *http.Request, uid int64) (any, e
 		u = *st.UsedBytes
 	}
 	return legacy.Res{V: map[string]any{"usedBytes": u, "capacityBytes": limit, "groupId": st.GroupID, "groupName": st.GroupName,
-		"storageOverride": st.StorageOverride, "maxStorageBytes": st.MaxStorageBytes, "quotaSource": source,
+		"storageOverride": st.StorageOverride, "maxStorageBytes": st.MaxStorageBytes, "quotaSource": source, "backend": backendLabel(), "showOtherStorage": st.ShowOtherStorage,
 		"overQuota": limit != nil && u > *limit}, Code: 200}, nil
 }
 
@@ -301,7 +303,7 @@ func (s *svc) avatar(w http.ResponseWriter, r *http.Request, uid int64) (any, er
 	if err != nil {
 		return nil, err
 	}
-	if st, e := os.Stat(p); e == nil && st.Mode().IsRegular() {
+	if isFile(p) {
 		legacy.ServeFile(w, r, p, "image/jpeg", "")
 		return legacy.Done{}, nil
 	}
@@ -358,6 +360,27 @@ func (s *svc) delete(w http.ResponseWriter, r *http.Request, uid int64) (any, er
 }
 
 func isFile(p string) bool {
+	storage.Fetch(p)
 	st, err := os.Stat(p)
 	return err == nil && st.Mode().IsRegular()
+}
+
+// backendLabel names the storage backend currently holding new media.
+func backendLabel() string {
+	if d, ok := storage.Lookup(storage.ActiveDriver()); ok {
+		return d.Label
+	}
+	return storage.ActiveDriver()
+}
+
+// storageVisibility sets whether the account also lists media stored on inactive backends.
+func (s *svc) storageVisibility(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
+	v, ok := legacy.Arg(r, "show")
+	if !ok || (v != "true" && v != "false") {
+		return nil, legacy.Bad()
+	}
+	if err := dbgen.New(s.a.Pool).SetShowOtherStorage(r.Context(), dbgen.SetShowOtherStorageParams{Show: v == "true", UserID: uid}); err != nil {
+		return nil, err
+	}
+	return legacy.Res{V: 1, Code: 200}, nil
 }

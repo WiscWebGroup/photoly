@@ -146,7 +146,7 @@ func (s *Scheduler) reconcile(ctx context.Context, tx pgx.Tx) error {
 		seen[*pid] = true
 		for _, uid := range users {
 			prow, err := tx.Query(ctx, `SELECT p.photo_id FROM photo p LEFT JOIN photo_embedding_state s ON s.photo_id=p.photo_id AND s.profile_id=$2
-				WHERE p.user_id=$1 AND (s.state_id IS NULL OR s.content_version<>p.content_version
+				WHERE p.user_id=$1 AND photo_visible(p.storage_id, p.user_id) AND (s.state_id IS NULL OR s.content_version<>p.content_version
 					OR (lower(p.format)=ANY($3) AND (s.sampling_version IS NULL OR s.sampling_version<>$4))
 					OR (s.status='pending' AND NOT EXISTS (SELECT 1 FROM ai_job j WHERE j.photo_id=p.photo_id AND j.profile_id=$2
 						AND j.content_version=p.content_version AND j.status IN ('queued','running'))))
@@ -316,7 +316,7 @@ func (s *Scheduler) operate(ctx context.Context, t *Task) error {
 			sql += `JOIN photo_embedding_state s ON s.photo_id=p.photo_id AND s.profile_id=$2 AND s.status='failed' `
 			args = append(args, *t.ProfileID)
 		}
-		rows, err := tx.Query(ctx, sql+`WHERE u.ai_search_enabled AND p.photo_id>$1 ORDER BY p.photo_id LIMIT 100`, args...)
+		rows, err := tx.Query(ctx, sql+`WHERE u.ai_search_enabled AND photo_visible(p.storage_id, p.user_id) AND p.photo_id>$1 ORDER BY p.photo_id LIMIT 100`, args...)
 		if err != nil {
 			return err
 		}

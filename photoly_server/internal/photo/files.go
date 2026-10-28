@@ -13,6 +13,7 @@ import (
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
 	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -239,6 +240,7 @@ func (f *Files) Created(p string) { f.created = append(f.created, p) }
 
 // Remove moves path into the staging area (restorable) and reports whether it existed.
 func (f *Files) Remove(p string) (int, error) {
+	storage.Fetch(p) // an offloaded file must come back so it can be sized and restored
 	if _, ok := f.sizes[p]; !ok {
 		f.sizes[p] = fileSize(p)
 	}
@@ -272,6 +274,15 @@ func (f *Files) rollback() {
 		_ = os.MkdirAll(filepath.Dir(f.removed[i][0]), 0o755)
 		_ = os.Rename(f.removed[i][1], f.removed[i][0])
 	}
+}
+
+// publish mirrors the committed changes to the remote store (no-op for local storage).
+func (f *Files) publish() {
+	removed := make([]string, len(f.removed))
+	for i, r := range f.removed {
+		removed[i] = r[0]
+	}
+	storage.Publish(removed, f.created)
 }
 
 func (f *Files) close() { _ = os.RemoveAll(f.work) }
@@ -346,6 +357,7 @@ func (s *Service) Atomic(ctx context.Context, uid int64, fn func(tx pgx.Tx, u Us
 		return err
 	}
 	ok = true
+	files.publish()
 	return nil
 }
 

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/user/legacy"
 	"github.com/jackc/pgx/v5"
 )
@@ -106,20 +107,11 @@ func (t *tally) list() []map[string]any {
 
 func newTally() *tally { return &tally{map[string]string{}, map[string]int{}} }
 
-func fileSize(p string) (int64, error) {
-	st, err := os.Stat(p)
-	if err != nil {
-		return 0, err
-	}
-	return st.Size(), nil
-}
+func fileSize(p string) (int64, error) { return storage.Size(p) }
 
 func isFile(p string) (int64, bool) {
-	st, err := os.Stat(p)
-	if err != nil || !st.Mode().IsRegular() {
-		return 0, false
-	}
-	return st.Size(), true
+	n, err := storage.Size(p)
+	return n, err == nil
 }
 
 func (s *svc) nsDetails(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {

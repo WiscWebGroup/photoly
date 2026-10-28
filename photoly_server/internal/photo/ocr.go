@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -252,6 +253,7 @@ func (s *Service) OCRRecognize(ctx context.Context, uid int64, data map[string]a
 		if err != nil {
 			return nil, err
 		}
+		storage.Fetch(path)
 		f, err := os.Open(path)
 		if err != nil {
 			return nil, ocrFail("image_missing", 404)

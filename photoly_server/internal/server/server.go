@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/httpx"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/migrations"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/session"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/user/legacy"
 	"github.com/jackc/pgx/v5"
 )
@@ -47,9 +49,14 @@ func New(ctx context.Context, cfg app.Config, openapi []byte) (*app.App, http.Ha
 	if err != nil {
 		return nil, nil, err
 	}
+	storage.Init(cfg.UploadFolder)
+	if err := storage.Startup(ctx, pool); err != nil {
+		return nil, nil, fmt.Errorf("storage: %w", err)
+	}
 	store := session.Store{Pool: pool}
 	legacy.Sessions = store
 	go store.Sweep(ctx)
+	go storage.Sweep(ctx)
 
 	mux := http.NewServeMux()
 	a := &app.App{Cfg: cfg, Pool: pool, Mux: mux}

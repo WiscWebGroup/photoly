@@ -16,6 +16,7 @@ import (
 	"time"
 
 	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -51,7 +52,7 @@ func (s *Service) MediaInfo(ctx context.Context, uid, photoID int64) (any, error
 	decodable := DecodableFormats[strings.ToLower(p.Format)]
 	if !has && decodable {
 		if uu, err := s.userUUID(ctx, s.Pool, uid); err == nil {
-			if path, err := s.MediaPath(uu, p.UUID, p.Format, false); err == nil {
+			if path, err := s.MediaPath(uu, p.UUID, p.Format, false); err == nil && storage.Fetch(path) {
 				if a, err := ImageInfo(ctx, path); err == nil {
 					animated = a
 				}
@@ -288,6 +289,7 @@ func (s *Service) ProcessMedia(ctx context.Context, itemID string) error {
 		if err != nil {
 			return err
 		}
+		storage.Fetch(path)
 		in, err := os.Open(path)
 		if err != nil {
 			return Err("source_changed", 409)
@@ -444,7 +446,7 @@ func (s *Service) LivePath(ctx context.Context, uid, photoID int64) (string, err
 	if err != nil {
 		return "", err
 	}
-	if !regular(path) {
+	if !storage.Fetch(path) || !regular(path) {
 		return "", Err(nil, 404)
 	}
 	return path, nil
@@ -479,6 +481,7 @@ func (s *Service) LiveArchive(ctx context.Context, uid, photoID int64) ([]byte, 
 	zw := zip.NewWriter(&buf)
 	seen := map[string]bool{}
 	for _, e := range [][2]string{{still, name + "." + p.Format}, {movie, name + ".mov"}} {
+		storage.Fetch(e[0])
 		fi, err := os.Stat(e[0])
 		if err != nil || !fi.Mode().IsRegular() {
 			return nil, Err(nil, 404)

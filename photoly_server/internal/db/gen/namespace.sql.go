@@ -179,7 +179,7 @@ const listNamespaceDownloadPhotos = `-- name: ListNamespaceDownloadPhotos :many
 SELECT p.photo_id, p.photo_uuid::text AS photo_uuid, p.photo_name, p.format::text AS format, coalesce(m.live, false)::bool AS live
 FROM photo p
 LEFT JOIN photo_media m ON m.photo_id = p.photo_id
-WHERE p.user_id = $1::int AND p.ns_id = $2::int
+WHERE p.user_id = $1::int AND p.ns_id = $2::int AND photo_visible(p.storage_id, p.user_id)
 ORDER BY p.photo_id
 `
 
@@ -223,7 +223,7 @@ func (q *Queries) ListNamespaceDownloadPhotos(ctx context.Context, arg ListNames
 }
 
 const listNamespacePhotos = `-- name: ListNamespacePhotos :many
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256 FROM photo WHERE user_id = $1::int AND ns_id = $2::int ORDER BY photo_id
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo WHERE user_id = $1::int AND ns_id = $2::int ORDER BY photo_id
 `
 
 type ListNamespacePhotosParams struct {
@@ -252,6 +252,7 @@ func (q *Queries) ListNamespacePhotos(ctx context.Context, arg ListNamespacePhot
 			&i.UserID,
 			&i.ContentVersion,
 			&i.ContentSha256,
+			&i.StorageID,
 		); err != nil {
 			return nil, err
 		}
@@ -275,7 +276,7 @@ SELECT p.photo_uuid::text AS photo_uuid, p.format::text AS format,
 FROM photo p
 LEFT JOIN photo_extra e ON e.f_photo_id = p.photo_id
 LEFT JOIN photo_media m ON m.photo_id = p.photo_id
-WHERE p.user_id = $1::int AND p.ns_id IN (SELECT ns_id FROM d)
+WHERE p.user_id = $1::int AND p.ns_id IN (SELECT ns_id FROM d) AND photo_visible(p.storage_id, p.user_id)
 ORDER BY p.photo_id
 `
 
@@ -325,7 +326,7 @@ func (q *Queries) ListNamespaceTreePhotos(ctx context.Context, arg ListNamespace
 }
 
 const listPhotoIDsInNamespace = `-- name: ListPhotoIDsInNamespace :many
-SELECT photo_id FROM photo WHERE user_id = $1::int AND ns_id = $2::int ORDER BY photo_id
+SELECT photo_id FROM photo WHERE user_id = $1::int AND ns_id = $2::int AND photo_visible(storage_id, user_id) ORDER BY photo_id
 `
 
 type ListPhotoIDsInNamespaceParams struct {

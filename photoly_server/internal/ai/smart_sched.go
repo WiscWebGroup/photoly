@@ -237,7 +237,7 @@ func (s *SmartSched) batch(ctx context.Context, t *Task, uid int64) error {
 				var puid, format, owner string
 				err := tx.QueryRow(ctx, `SELECT p.photo_id, p.content_version, COALESCE(p.photo_uuid,''), COALESCE(p.format,''), u.uuid
 					FROM photo p JOIN "user" u ON u.user_id=p.user_id LEFT JOIN smart_media sm ON sm.photo_id=p.photo_id
-					WHERE p.user_id=$1 AND (sm.photo_id IS NULL OR sm.content_version<>p.content_version OR (sm.error IS NOT NULL AND sm.attempts<3))
+					WHERE p.user_id=$1 AND photo_visible(p.storage_id, p.user_id) AND (sm.photo_id IS NULL OR sm.content_version<>p.content_version OR (sm.error IS NOT NULL AND sm.attempts<3))
 					ORDER BY p.photo_id LIMIT 1`, uid).Scan(&pid, &ver, &puid, &format, &owner)
 				switch {
 				case err == nil:
