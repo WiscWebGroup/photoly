@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -45,11 +46,11 @@ func (s *Service) ocrPhoto(ctx context.Context, q DB, uid int64, photoID any, lo
 		if remaining <= 0 {
 			return nil, ocrFail("ocr_timeout", 504)
 		}
-		if _, err := q.Exec(ctx, `SELECT set_config('lock_timeout', $1, true)`, itoaMS(remaining)); err != nil {
+		qs := dbgen.New(q)
+		if err := qs.SetLockTimeout(ctx, itoaMS(remaining)); err != nil {
 			return nil, err
 		}
-		var one int64
-		if err := q.QueryRow(ctx, `SELECT user_id FROM "user" WHERE user_id=$1 FOR UPDATE`, uid).Scan(&one); err != nil && err != pgx.ErrNoRows {
+		if _, err := qs.LockUser(ctx, uid); err != nil && err != pgx.ErrNoRows {
 			var pg *pgconn.PgError
 			if errors.As(err, &pg) && pg.Code == "55P03" {
 				if deadline != nil {
@@ -60,12 +61,13 @@ func (s *Service) ocrPhoto(ctx context.Context, q DB, uid int64, photoID any, lo
 			return nil, err
 		}
 	}
-	p, err := scanPhoto(q.QueryRow(ctx, `SELECT `+photoCols+` FROM photo p WHERE p.photo_id=$1 AND p.user_id=$2`, id, uid))
+	row, err := dbgen.New(q).GetUserPhoto(ctx, dbgen.GetUserPhotoParams{PhotoID: id, UserID: uid})
 	if err == pgx.ErrNoRows {
 		return nil, ocrFail("photo_not_found", 404)
 	} else if err != nil {
 		return nil, err
 	}
+	p := photoFromRow(row)
 	if !ImageFormats[strings.ToLower(p.Format)] {
 		return nil, ocrFail("unsupported_format", 400)
 	}
@@ -81,21 +83,21 @@ func itoaMS(d time.Duration) string {
 }
 
 type ocrRow struct {
-	Version  int32
-	Revision int32
+	Version  int64
+	Revision int64
 	Text     string
 	Engine   *string
 	Updated  time.Time
 }
 
 func (s *Service) ocrRowOf(ctx context.Context, q DB, photoID int64) (*ocrRow, error) {
-	var r ocrRow
-	err := q.QueryRow(ctx, `SELECT content_version, revision, text, engine_version, updated_at FROM photo_ocr WHERE photo_id=$1`, photoID).
-		Scan(&r.Version, &r.Revision, &r.Text, &r.Engine, &r.Updated)
+	r, err := dbgen.New(q).GetPhotoOCR(ctx, photoID)
 	if err == pgx.ErrNoRows {
 		return nil, nil
+	} else if err != nil {
+		return nil, err
 	}
-	return &r, err
+	return &ocrRow{Version: r.ContentVersion, Revision: r.Revision, Text: r.Text, Engine: r.EngineVersion, Updated: r.UpdatedAt}, nil
 }
 
 func ocrResponse(p *Photo, r *ocrRow) map[string]any {
@@ -131,9 +133,9 @@ func ocrValidate(p *Photo, r *ocrRow, data map[string]any) error {
 	}
 	cur := int64(0)
 	if r != nil {
-		cur = int64(r.Revision)
+		cur = r.Revision
 	}
-	if int64(p.ContentVersion) != v || cur != rev {
+	if p.ContentVersion != v || cur != rev {
 		return ocrFail("ocr_conflict", 409)
 	}
 	return nil
@@ -173,26 +175,20 @@ func (s *Service) OCRSave(ctx context.Context, uid int64, data map[string]any, r
 		return nil, err
 	}
 	now := time.Now().UTC()
-	var engine any
+	var eng *string
 	if r != nil {
-		engine = nilStr(r.Engine)
+		eng = r.Engine
 	}
 	if rec != nil {
-		engine = rec.Engine
+		eng = &rec.Engine
 	}
-	rev := int32(1)
+	rev := int64(1)
 	if r != nil {
 		rev = r.Revision + 1
 	}
-	if _, err = tx.Exec(ctx, `INSERT INTO photo_ocr (photo_id, content_version, text, languages, engine_version, revision, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (photo_id) DO UPDATE SET content_version=EXCLUDED.content_version, text=EXCLUDED.text,
-		languages=EXCLUDED.languages, engine_version=EXCLUDED.engine_version, revision=EXCLUDED.revision, updated_at=EXCLUDED.updated_at`,
-		p.ID, p.ContentVersion, value, ocrLanguages, engine, rev, now); err != nil {
+	if err = dbgen.New(tx).UpsertPhotoOCR(ctx, dbgen.UpsertPhotoOCRParams{PhotoID: p.ID, ContentVersion: p.ContentVersion, Text: value,
+		Languages: ocrLanguages, EngineVersion: eng, Revision: rev, UpdatedAt: now}); err != nil {
 		return nil, err
-	}
-	var eng *string
-	if e, ok := engine.(string); ok {
-		eng = &e
 	}
 	out := ocrResponse(p, &ocrRow{Revision: rev, Text: value, Engine: eng, Updated: now})
 	return out, tx.Commit(ctx)
@@ -208,8 +204,8 @@ func (s *Service) OCRRecognize(ctx context.Context, uid int64, data map[string]a
 	if err != nil {
 		return nil, err
 	}
-	var got bool
-	if err = conn.QueryRow(ctx, `SELECT pg_try_advisory_lock($1)`, int64(ocrAdvisoryKey)).Scan(&got); err != nil || !got {
+	got, err := dbgen.New(conn).TryAdvisoryLock(ctx, ocrAdvisoryKey)
+	if err != nil || !got {
 		conn.Release()
 		if err != nil {
 			return nil, err
@@ -217,9 +213,8 @@ func (s *Service) OCRRecognize(ctx context.Context, uid int64, data map[string]a
 		return nil, ocrFail("ocr_busy", 429)
 	}
 	defer func() {
-		var ok bool
 		c := context.WithoutCancel(ctx)
-		if conn.QueryRow(c, `SELECT pg_advisory_unlock($1)`, int64(ocrAdvisoryKey)).Scan(&ok) != nil || !ok {
+		if ok, err := dbgen.New(conn).AdvisoryUnlock(c, ocrAdvisoryKey); err != nil || !ok {
 			_ = conn.Hijack().Close(c) // never return a connection that may still hold the slot
 			return
 		}

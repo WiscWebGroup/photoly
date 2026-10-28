@@ -1,0 +1,42 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema: internal/migrations/sql
+    queries: internal/db/queries
+    gen:
+      go:
+        package: dbgen
+        out: internal/db/gen
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        overrides:
+          # IDs and counters are int64 across the codebase; pgx range-checks on write.
+          - db_type: "pg_catalog.int4"
+            go_type: "int64"
+          - db_type: "pg_catalog.int4"
+            nullable: true
+            go_type: { type: "int64", pointer: true }
+          - db_type: "pg_catalog.int2"
+            go_type: "int64"
+          - db_type: "pg_catalog.int2"
+            nullable: true
+            go_type: { type: "int64", pointer: true }
+          - db_type: "pg_catalog.timestamp"
+            go_type: "time.Time"
+          - db_type: "pg_catalog.timestamp"
+            nullable: true
+            go_type: { type: "time.Time", pointer: true }
+          - db_type: "pg_catalog.timestamptz"
+            go_type: "time.Time"
+          - db_type: "pg_catalog.timestamptz"
+            nullable: true
+            go_type: { type: "time.Time", pointer: true }
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+          - db_type: "timestamptz"
+            nullable: true
+            go_type: { type: "time.Time", pointer: true }
+          - db_type: "vector"
+            go_type: "github.com/pgvector/pgvector-go.Vector"
+          - db_type: "halfvec"
+            go_type: "github.com/pgvector/pgvector-go.HalfVector"

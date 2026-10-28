@@ -48,7 +48,7 @@ Back up the database and media together, rebuild and restart. A database created
 
 ### Development and tests
 
-Frontend: `docker compose -f compose.dev.yml up -d --build`, then `pnpm dev` in `photoly_frontend_vue` (see [frontend development](photoly_frontend_vue/README.md)). Server: Go 1.24 in `photoly_server`; `go test ./...` needs `TEST_DATABASE_URL` for the database-backed tests and the ONNX Runtime library for the AI worker test.
+Frontend: `docker compose -f compose.dev.yml up -d --build`, then `pnpm dev` in `photoly_frontend_vue` (see [frontend development](photoly_frontend_vue/README.md)). Server: Go 1.24 in `photoly_server`; `go test ./...` needs `TEST_DATABASE_URL` for the database-backed tests and the ONNX Runtime library for the AI worker test. Database access goes through sqlc: edit `photoly_server/internal/db/queries/*.sql` and run `devbox run -- sqlc generate` in `photoly_server` (CI fails if `internal/db/gen` is stale).
 
 ## License
 See [LICENSE](LICENSE).

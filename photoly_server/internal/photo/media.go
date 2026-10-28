@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -41,13 +42,12 @@ func (s *Service) MediaInfo(ctx context.Context, uid, photoID int64) (any, error
 	if err != nil {
 		return nil, err
 	}
-	var animated, live bool
-	var status, lerr *string
-	err = s.Pool.QueryRow(ctx, `SELECT animated, live, live_status, live_error FROM photo_media WHERE photo_id=$1`, photoID).Scan(&animated, &live, &status, &lerr)
+	m, err := dbgen.New(s.Pool).GetPhotoMedia(ctx, photoID)
 	has := err == nil
 	if err != nil && err != pgx.ErrNoRows {
 		return nil, err
 	}
+	animated, live, status, lerr := m.Animated, m.Live, m.LiveStatus, m.LiveError
 	decodable := DecodableFormats[strings.ToLower(p.Format)]
 	if !has && decodable {
 		if uu, err := s.userUUID(ctx, s.Pool, uid); err == nil {
@@ -109,16 +109,14 @@ func (s *Service) Submit(ctx context.Context, uid int64, data map[string]any, ki
 		request[k] = data[k] // nil when absent, like dict.get
 	}
 	err = s.Atomic(ctx, uid, func(tx pgx.Tx, u UserRow, f *Files) error {
-		var owner int64
-		switch err := tx.QueryRow(ctx, `SELECT user_id FROM upload_batch WHERE id=$1`, key).Scan(&owner); err {
+		q := dbgen.New(tx)
+		switch owner, err := q.GetUploadBatchOwner(ctx, key); err {
 		case nil:
 			if owner != uid {
 				return Err("upload_id_conflict", 409)
 			}
-			var pk string
-			var opts []byte
-			err = tx.QueryRow(ctx, `SELECT kind, options FROM upload_item WHERE batch_id=$1 LIMIT 1`, key).Scan(&pk, &opts)
-			if err == pgx.ErrNoRows || pk != kind || !sameRequest(opts, request) {
+			first, err := q.GetFirstUploadItemOfBatch(ctx, key)
+			if err == pgx.ErrNoRows || first.Kind != kind || !sameRequest(first.Options, request) {
 				return Err("upload_id_conflict", 409)
 			} else if err != nil {
 				return err
@@ -155,8 +153,7 @@ func (s *Service) Submit(ctx context.Context, uid int64, data map[string]any, ki
 				return Err("unsupported_image", 400)
 			}
 			if kind == "live_preview" {
-				var live bool
-				if err := tx.QueryRow(ctx, `SELECT live FROM photo_media WHERE photo_id=$1`, p.ID).Scan(&live); err != nil || !live {
+				if live, err := q.GetPhotoLive(ctx, p.ID); err != nil || !live {
 					return Err("not_live_photo", 400)
 				}
 			}
@@ -173,15 +170,12 @@ func (s *Service) Submit(ctx context.Context, uid int64, data map[string]any, ki
 			return err
 		}
 		now := uploadsNow()
-		if _, err := tx.Exec(ctx, `INSERT INTO upload_batch (id, user_id, ns_id, name, sealed, cancelled, created_at, updated_at, folders, dismissed)
-			VALUES ($1,$2,$3,$4,true,false,$5,$5,'{}',false)`, key, uid, nsID, name, now); err != nil {
+		if err := q.InsertSealedUploadBatch(ctx, dbgen.InsertSealedUploadBatchParams{ID: key, UserID: uid, NsID: nsID, Name: name, Now: now}); err != nil {
 			return err
 		}
 		_, kb, _ := ParseUUID(key)
 		raw, _ := json.Marshal(options)
-		_, err := tx.Exec(ctx, `INSERT INTO upload_item (id, batch_id, path, size, state, kind, options, updated_at)
-			VALUES ($1,$2,$3,0,'ready',$4,$5,$6)`, UUID5(kb, kind), key, name, kind, raw, now)
-		return err
+		return q.InsertMediaUploadItem(ctx, dbgen.InsertMediaUploadItemParams{ID: UUID5(kb, kind), BatchID: key, Path: name, Kind: kind, Options: raw, UpdatedAt: now})
 	})
 	if err != nil {
 		return nil, err
@@ -208,7 +202,7 @@ func (s *Service) checkedSource(ctx context.Context, q DB, uid int64, options ma
 	if err != nil {
 		return nil, err
 	}
-	if v, _ := options["version"].(float64); int32(v) != p.ContentVersion {
+	if v, _ := options["version"].(float64); int64(v) != p.ContentVersion {
 		return nil, Err("source_changed", 409)
 	}
 	return p, nil
@@ -236,14 +230,11 @@ func (s *Service) EncodeLive(ctx context.Context, src, out string, gif bool) err
 // ProcessMedia runs a convert/online/live_preview item (MediaService.process). The caller owns the
 // item's 'processing' state and records any returned error.
 func (s *Service) ProcessMedia(ctx context.Context, itemID string) error {
-	var batchID, kind string
-	var rawOpts []byte
-	var uid int64
-	err := s.Pool.QueryRow(ctx, `SELECT i.batch_id, i.kind, i.options, b.user_id FROM upload_item i JOIN upload_batch b ON b.id=i.batch_id WHERE i.id=$1`, itemID).
-		Scan(&batchID, &kind, &rawOpts, &uid)
+	job, err := dbgen.New(s.Pool).GetUploadItemForProcess(ctx, itemID)
 	if err != nil {
 		return err
 	}
+	batchID, kind, rawOpts, uid := job.BatchID, job.Kind, job.Options, job.UserID
 	options := map[string]any{}
 	_ = json.Unmarshal(rawOpts, &options)
 	target, _ := options["format"].(string)
@@ -286,8 +277,7 @@ func (s *Service) ProcessMedia(ctx context.Context, itemID string) error {
 		if err != nil {
 			return err
 		}
-		var live bool
-		_ = s.Pool.QueryRow(ctx, `SELECT live FROM photo_media WHERE photo_id=$1`, p.ID).Scan(&live)
+		live, _ := dbgen.New(s.Pool).GetPhotoLive(ctx, p.ID)
 		useVideo := live && (target == "gif" || kind == "live_preview")
 		var path string
 		if useVideo {
@@ -345,17 +335,15 @@ func (s *Service) ProcessMedia(ctx context.Context, itemID string) error {
 		}
 	}
 	return s.Atomic(ctx, uid, func(tx pgx.Tx, u UserRow, f *Files) error {
-		var state string
-		var cancelled bool
-		var nsID *int64
-		err := tx.QueryRow(ctx, `SELECT i.state, b.cancelled, b.ns_id FROM upload_item i JOIN upload_batch b ON b.id=i.batch_id
-			WHERE i.id=$1 AND b.user_id=$2`, itemID, uid).Scan(&state, &cancelled, &nsID)
+		q := dbgen.New(tx)
+		st, err := q.GetUploadItemStateForUser(ctx, dbgen.GetUploadItemStateForUserParams{ID: itemID, UserID: uid})
 		if err == pgx.ErrNoRows {
 			return Err("upload_not_found", 404)
 		} else if err != nil {
 			return err
 		}
-		if cancelled || state != "processing" {
+		nsID := st.NsID
+		if st.Cancelled || st.State != "processing" {
 			return nil
 		}
 		if kind == "online" {
@@ -379,8 +367,7 @@ func (s *Service) ProcessMedia(ctx context.Context, itemID string) error {
 		var photoID int64
 		var photoNS = ns
 		if kind == "live_preview" {
-			var live bool
-			if err := tx.QueryRow(ctx, `SELECT live FROM photo_media WHERE photo_id=$1`, originalID).Scan(&live); err != nil || !live {
+			if live, err := q.GetPhotoLive(ctx, originalID); err != nil || !live {
 				return Err("source_changed", 409)
 			}
 			dst, err := s.AssetPath(u.UUID, original.UUID, "live_preview")
@@ -390,7 +377,7 @@ func (s *Service) ProcessMedia(ctx context.Context, itemID string) error {
 			if _, err = f.InstallFile(output, dst); err != nil {
 				return err
 			}
-			if _, err = tx.Exec(ctx, `UPDATE photo_media SET live_status='ready', live_error=NULL WHERE photo_id=$1`, originalID); err != nil {
+			if err = q.MarkLivePreviewReady(ctx, originalID); err != nil {
 				return err
 			}
 			photoID = original.ID
@@ -407,12 +394,12 @@ func (s *Service) ProcessMedia(ctx context.Context, itemID string) error {
 			}
 			candidate, number := stem, 1
 			for {
-				var one int
-				err := tx.QueryRow(ctx, `SELECT 1 FROM photo WHERE user_id=$1 AND ns_id=$2 AND photo_name=$3 AND format=$4 LIMIT 1`, uid, ns, candidate, target).Scan(&one)
-				if err == pgx.ErrNoRows {
-					break
-				} else if err != nil {
+				taken, err := q.PhotoNameTaken(ctx, dbgen.PhotoNameTakenParams{UserID: uid, NsID: ns, PhotoName: candidate, Format: target})
+				if err != nil {
 					return err
+				}
+				if !taken {
+					break
 				}
 				candidate, number = fmt.Sprintf("%s (%d)", stem, number), number+1
 			}
@@ -426,23 +413,17 @@ func (s *Service) ProcessMedia(ctx context.Context, itemID string) error {
 				return err
 			}
 			if originalID != 0 {
-				if _, err = tx.Exec(ctx, `UPDATE photo_extra n SET extra_photo_gps_lat=o.extra_photo_gps_lat, extra_photo_gps_lon=o.extra_photo_gps_lon,
-					extra_photo_camera=o.extra_photo_camera, extra_photo_lens=o.extra_photo_lens, extra_photo_aperture=o.extra_photo_aperture,
-					extra_photo_focal=o.extra_photo_focal, extra_photo_iso=o.extra_photo_iso, extra_photo_shutter_sec=o.extra_photo_shutter_sec,
-					extra_photo_taken_date=o.extra_photo_taken_date, extra_photo_note=o.extra_photo_note
-					FROM photo_extra o WHERE n.f_photo_id=$1 AND o.f_photo_id=$2`, p.ID, originalID); err != nil {
+				if err = q.CopyPhotoExtra(ctx, dbgen.CopyPhotoExtraParams{ToPhotoID: p.ID, FromPhotoID: originalID}); err != nil {
 					return err
 				}
 			}
 			photoID = p.ID
 		}
 		now := uploadsNow()
-		if _, err = tx.Exec(ctx, `UPDATE upload_item SET photo_id=$2, ns_id=$3, size=$4, state='done', error=NULL, updated_at=$5 WHERE id=$1`,
-			itemID, photoID, photoNS, fi.Size(), now); err != nil {
+		if err = q.MarkMediaUploadItemDone(ctx, dbgen.MarkMediaUploadItemDoneParams{ID: itemID, PhotoID: photoID, NsID: photoNS, Size: fi.Size(), UpdatedAt: now}); err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `UPDATE upload_batch SET updated_at=$2 WHERE id=$1`, batchID, now)
-		return err
+		return q.TouchUploadBatch(ctx, dbgen.TouchUploadBatchParams{ID: batchID, UpdatedAt: now})
 	})
 }
 
@@ -452,9 +433,7 @@ func (s *Service) LivePath(ctx context.Context, uid, photoID int64) (string, err
 	if err != nil {
 		return "", err
 	}
-	var live bool
-	var status *string
-	if err := s.Pool.QueryRow(ctx, `SELECT live, live_status FROM photo_media WHERE photo_id=$1`, photoID).Scan(&live, &status); err != nil || !live || status == nil || *status != "ready" {
+	if m, err := dbgen.New(s.Pool).GetPhotoLiveStatus(ctx, photoID); err != nil || !m.Live || m.LiveStatus == nil || *m.LiveStatus != "ready" {
 		return "", Err(nil, 404)
 	}
 	uu, err := s.userUUID(ctx, s.Pool, uid)
@@ -477,8 +456,7 @@ func (s *Service) LiveArchive(ctx context.Context, uid, photoID int64) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	var live bool
-	if err := s.Pool.QueryRow(ctx, `SELECT live FROM photo_media WHERE photo_id=$1`, photoID).Scan(&live); err != nil || !live {
+	if live, err := dbgen.New(s.Pool).GetPhotoLive(ctx, photoID); err != nil || !live {
 		return nil, Err(nil, 404)
 	}
 	uu, err := s.userUUID(ctx, s.Pool, uid)

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/photo"
 	"github.com/jackc/pgx/v5"
 )
@@ -115,6 +116,7 @@ func (s *Service) folder(ctx context.Context, tx pgx.Tx, b *batchRow, p string) 
 	if err := s.Owned(ctx, tx, "namespace", base, b.UserID, "destination_deleted", 404); err != nil {
 		return 0, err
 	}
+	q := dbgen.New(tx)
 	parent := base
 	parts := strings.Split(p, "/")
 	parts = parts[:len(parts)-1]
@@ -130,13 +132,12 @@ func (s *Service) folder(ctx context.Context, tx pgx.Tx, b *batchRow, p string) 
 		}
 		cand, n := name, 1
 		for {
-			var one int64
-			err := tx.QueryRow(ctx, `SELECT ns_id FROM namespace WHERE user_id=$1 AND ns_parent_id=$2 AND ns_name=$3 LIMIT 1`, b.UserID, parent, cand).Scan(&one)
-			if err == pgx.ErrNoRows {
-				break
-			}
+			taken, err := q.NamespaceNameTaken(ctx, dbgen.NamespaceNameTakenParams{UserID: b.UserID, ParentID: parent, NsName: cand})
 			if err != nil {
 				return 0, err
+			}
+			if !taken {
+				break
 			}
 			tail := fmt.Sprintf(" (%d)", n)
 			r := []rune(name)
@@ -145,15 +146,15 @@ func (s *Service) folder(ctx context.Context, tx pgx.Tx, b *batchRow, p string) 
 			}
 			cand, n = string(r)+tail, n+1
 		}
-		var id int64
-		if err := tx.QueryRow(ctx, `INSERT INTO namespace (ns_name, ns_parent_id, user_id) VALUES ($1,$2,$3) RETURNING ns_id`, cand, parent, b.UserID).Scan(&id); err != nil {
+		id, err := q.CreateFolder(ctx, dbgen.CreateFolderParams{NsName: cand, ParentID: parent, UserID: b.UserID})
+		if err != nil {
 			return 0, err
 		}
 		parent, b.Folders[key], dirty = id, id, true
 	}
 	if dirty {
 		raw, _ := json.Marshal(b.Folders)
-		if _, err := tx.Exec(ctx, `UPDATE upload_batch SET folders=$2 WHERE id=$1`, b.ID, raw); err != nil {
+		if err := q.SetUploadBatchFolders(ctx, dbgen.SetUploadBatchFoldersParams{ID: b.ID, Folders: raw}); err != nil {
 			return 0, err
 		}
 	}
@@ -165,7 +166,7 @@ func (s *Service) install(ctx context.Context, tx pgx.Tx, f *photo.Files, u phot
 	if err != nil {
 		return nil, err
 	}
-	_, err = tx.Exec(ctx, `UPDATE upload_item SET photo_id=$2, ns_id=$3, state='done', error=NULL, updated_at=$4 WHERE id=$1`, it.ID, p.ID, ns, now())
+	err = dbgen.New(tx).MarkUploadItemDone(ctx, dbgen.MarkUploadItemDoneParams{ID: it.ID, PhotoID: p.ID, NsID: ns, UpdatedAt: now()})
 	it.PhotoID, it.State = &p.ID, "done"
 	if err == nil {
 		// Own connection, and it takes the user-row lock this tx holds: run it after the tx commits.
@@ -193,6 +194,7 @@ func (s *Service) expand(ctx context.Context, tx pgx.Tx, it *itemRow, b *batchRo
 		return err
 	}
 	defer zr.Close()
+	q := dbgen.New(tx)
 	var total int64
 	for _, e := range zr.File {
 		if _, err := relativePath(strings.TrimRight(e.Name, "/")); err != nil {
@@ -228,28 +230,27 @@ func (s *Service) expand(ctx context.Context, tx pgx.Tx, it *itemRow, b *batchRo
 		if err != nil {
 			return err
 		}
-		state, errc := "ready", any(nil)
+		state, errc := "ready", (*string)(nil)
 		if !media[suffix(p)] {
-			state, errc = "skipped", "unsupported_file_type"
+			state, errc = "skipped", ptr("unsupported_file_type")
 		} else if int64(e.UncompressedSize64) > s.Cfg.MaxContentLength {
-			state, errc = "failed", "file_too_large"
+			state, errc = "failed", ptr("file_too_large")
 		}
 		old, err := s.item(ctx, tx, key)
 		if err != nil {
 			return err
 		}
 		if old == nil {
-			_, err = tx.Exec(ctx, `INSERT INTO upload_item (id, batch_id, path, size, state, error, source_id, entry_index, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-				key, b.ID, p, int64(e.UncompressedSize64), state, errc, it.ID, idx, now())
+			err = q.InsertExpandedUploadItem(ctx, dbgen.InsertExpandedUploadItemParams{ID: key, BatchID: b.ID, Path: p, Size: int64(e.UncompressedSize64),
+				State: state, Error: errc, SourceID: it.ID, EntryIndex: int64(idx), UpdatedAt: now()})
 		} else if old.State == "pending" {
-			_, err = tx.Exec(ctx, `UPDATE upload_item SET state=$2, error=$3, updated_at=$4 WHERE id=$1`, key, state, errc, now())
+			err = q.SetUploadItemState(ctx, dbgen.SetUploadItemStateParams{ID: key, State: state, Error: errc, UpdatedAt: now()})
 		}
 		if err != nil {
 			return err
 		}
 	}
-	_, err = tx.Exec(ctx, `UPDATE upload_item SET state='expanded', error=NULL WHERE id=$1`, it.ID)
-	return err
+	return q.MarkUploadItemExpanded(ctx, it.ID)
 }
 
 // errCode is the item.error text for a failed worker run.
@@ -270,8 +271,8 @@ func (s *Service) process(ctx context.Context, id string) {
 	if err != nil || it == nil || !(it.State == "ready" || it.State == "processing" || it.State == "waiting") {
 		return
 	}
-	var uid int64
-	if err := s.Pool.QueryRow(ctx, `SELECT user_id FROM upload_batch WHERE id=$1`, it.BatchID).Scan(&uid); err != nil {
+	uid, err := dbgen.New(s.Pool).GetUploadBatchOwner(ctx, it.BatchID)
+	if err != nil {
 		return
 	}
 	skip := false
@@ -289,8 +290,7 @@ func (s *Service) process(ctx context.Context, id string) {
 			return nil
 		}
 		it = cur
-		_, err = tx.Exec(ctx, `UPDATE upload_item SET state='processing', updated_at=$2 WHERE id=$1`, id, now())
-		return err
+		return dbgen.New(tx).StartUploadItem(ctx, dbgen.StartUploadItemParams{ID: id, UpdatedAt: now()})
 	})
 	if err != nil || skip {
 		return
@@ -306,11 +306,12 @@ func (s *Service) process(ctx context.Context, id string) {
 				return err
 			}
 			t := now()
-			if _, err = tx.Exec(ctx, `UPDATE upload_item SET state='failed', error=$2, updated_at=$3 WHERE id=$1`, id, code, t); err != nil {
+			q := dbgen.New(tx)
+			if err = q.SetUploadItemState(ctx, dbgen.SetUploadItemStateParams{ID: id, State: "failed", Error: &code, UpdatedAt: t}); err != nil {
 				return err
 			}
 			if cur.PairID != nil {
-				_, err = tx.Exec(ctx, `UPDATE upload_item SET state='failed', error=$2, updated_at=$3 WHERE id=$1 AND state='processing'`, *cur.PairID, code, t)
+				err = q.FailProcessingUploadItem(ctx, dbgen.FailProcessingUploadItemParams{ID: *cur.PairID, Error: code, UpdatedAt: t})
 			}
 			return err
 		})
@@ -341,29 +342,24 @@ func (s *Service) run(ctx context.Context, uid int64, it *itemRow) error {
 			// A nested archive entry is not expanded again: import it as a file (unsupported type).
 			return photo.Err("unsupported_file_type", 400)
 		}
-		_, err = tx.Exec(ctx, `UPDATE upload_item SET updated_at=$2 WHERE id=$1`, it.ID, now())
-		if err == nil {
-			_, err = tx.Exec(ctx, `UPDATE upload_batch SET updated_at=$2 WHERE id=$1`, b.ID, now())
+		q := dbgen.New(tx)
+		if err = q.TouchUploadItem(ctx, dbgen.TouchUploadItemParams{ID: it.ID, UpdatedAt: now()}); err != nil {
+			return err
 		}
-		return err
+		return q.TouchUploadBatch(ctx, dbgen.TouchUploadBatchParams{ID: b.ID, UpdatedAt: now()})
 	})
 }
 
 func (s *Service) siblings(ctx context.Context, batchID string) ([]*itemRow, error) {
-	rows, err := s.Pool.Query(ctx, `SELECT `+itemCols+` FROM upload_item WHERE batch_id=$1 AND kind='upload'`, batchID)
+	rows, err := dbgen.New(s.Pool).ListUploadSiblings(ctx, batchID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var out []*itemRow
-	for rows.Next() {
-		i, err := scanItem(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, i)
+	out := make([]*itemRow, len(rows))
+	for i, r := range rows {
+		out[i] = itemFromRow(r)
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 func identifierOf(raw []byte) string {
@@ -379,8 +375,7 @@ func identifierOf(raw []byte) string {
 
 func (s *Service) wait(ctx context.Context, uid int64, id string) error {
 	return s.Atomic(ctx, uid, func(tx pgx.Tx, u photo.UserRow, f *photo.Files) error {
-		_, err := tx.Exec(ctx, `UPDATE upload_item SET state='waiting', updated_at=$2 WHERE id=$1 AND state='processing'`, id, now())
-		return err
+		return dbgen.New(tx).WaitUploadItem(ctx, dbgen.WaitUploadItemParams{ID: id, UpdatedAt: now()})
 	})
 }
 
@@ -422,8 +417,7 @@ func (s *Service) processImport(ctx context.Context, uid int64, it *itemRow) err
 				stop = true
 				return err
 			}
-			_, err = tx.Exec(ctx, `UPDATE upload_item SET media_metadata=$2 WHERE id=$1`, it.ID, raw)
-			return err
+			return dbgen.New(tx).SetUploadItemMediaMetadata(ctx, dbgen.SetUploadItemMediaMetadataParams{ID: it.ID, MediaMetadata: raw})
 		}); err != nil || stop {
 			return err
 		}
@@ -461,17 +455,17 @@ func (s *Service) processImport(ctx context.Context, uid int64, it *itemRow) err
 		if _, err = s.install(ctx, tx, f, u, cur, ns, in, prep); err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `UPDATE upload_batch SET updated_at=$2 WHERE id=$1`, b.ID, now())
-		return err
+		return dbgen.New(tx).TouchUploadBatch(ctx, dbgen.TouchUploadBatchParams{ID: b.ID, UpdatedAt: now()})
 	})
 }
 
 // pair handles an item carrying a ContentIdentifier. It reports whether the item was fully handled.
 func (s *Service) pair(ctx context.Context, uid int64, it *itemRow, ident, work, original string) (bool, error) {
-	var sealed bool
-	if err := s.Pool.QueryRow(ctx, `SELECT sealed FROM upload_batch WHERE id=$1`, it.BatchID).Scan(&sealed); err != nil {
+	batch, err := dbgen.New(s.Pool).GetUploadBatch(ctx, it.BatchID)
+	if err != nil {
 		return true, err
 	}
+	sealed := batch.Sealed
 	sibs, err := s.siblings(ctx, it.BatchID)
 	if err != nil {
 		return true, err
@@ -535,7 +529,7 @@ func (s *Service) pair(ctx context.Context, uid int64, it *itemRow, ident, work,
 		}
 		t := now()
 		for _, p := range [][2]string{{cover.ID, movie.ID}, {movie.ID, cover.ID}} {
-			if _, err = tx.Exec(ctx, `UPDATE upload_item SET pair_id=$2, state='processing', updated_at=$3 WHERE id=$1`, p[0], p[1], t); err != nil {
+			if err = dbgen.New(tx).PairUploadItem(ctx, dbgen.PairUploadItemParams{ID: p[0], PairID: p[1], UpdatedAt: t}); err != nil {
 				return err
 			}
 		}
@@ -599,24 +593,24 @@ func (s *Service) pair(ctx context.Context, uid int64, it *itemRow, ident, work,
 		if err = put(moviePath, "live_original"); err != nil {
 			return err
 		}
-		status, errv := "ready", any(nil)
+		status, errv := "ready", (*string)(nil)
 		if failure != "" {
-			status, errv = "failed", failure
+			status, errv = "failed", &failure
 		} else if err = put(preview, "live_preview"); err != nil {
 			return err
 		}
-		if _, err = tx.Exec(ctx, `UPDATE photo_media SET live=true, live_status=$2, live_error=$3 WHERE photo_id=$1`, p.ID, status, errv); err != nil {
+		q := dbgen.New(tx)
+		if err = q.MarkPhotoLive(ctx, dbgen.MarkPhotoLiveParams{PhotoID: p.ID, LiveStatus: status, LiveError: errv}); err != nil {
 			return err
 		}
 		t := now()
-		if _, err = tx.Exec(ctx, `UPDATE upload_item SET pair_id=$2 WHERE id=$1`, cover.ID, movie.ID); err != nil {
+		if err = q.SetUploadItemPair(ctx, dbgen.SetUploadItemPairParams{ID: cover.ID, PairID: movie.ID}); err != nil {
 			return err
 		}
-		if _, err = tx.Exec(ctx, `UPDATE upload_item SET pair_id=$2, photo_id=$3, ns_id=$4, state='done', error=NULL, updated_at=$5 WHERE id=$1`, movie.ID, cover.ID, p.ID, ns, t); err != nil {
+		if err = q.MarkPairedUploadItemDone(ctx, dbgen.MarkPairedUploadItemDoneParams{ID: movie.ID, PairID: cover.ID, PhotoID: p.ID, NsID: ns, UpdatedAt: t}); err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `UPDATE upload_batch SET updated_at=$2 WHERE id=$1`, b.ID, t)
-		return err
+		return q.TouchUploadBatch(ctx, dbgen.TouchUploadBatchParams{ID: b.ID, UpdatedAt: t})
 	})
 }
 
@@ -624,69 +618,45 @@ func (s *Service) pair(ctx context.Context, uid int64, it *itemRow, ident, work,
 func (s *Service) cleanup(ctx context.Context) error {
 	cutoff := now().Add(-time.Duration(s.Cfg.UploadTempHours) * time.Hour)
 	history := now().Add(-time.Duration(s.Cfg.UploadHistoryDays) * 24 * time.Hour)
-	rows, err := s.Pool.Query(ctx, `SELECT id, user_id FROM upload_batch WHERE updated_at < $1`, cutoff)
+	ids, err := dbgen.New(s.Pool).ListStaleUploadBatches(ctx, cutoff)
 	if err != nil {
 		return err
 	}
-	type pair struct {
-		id  string
-		uid int64
-	}
-	var ids []pair
-	for rows.Next() {
-		var p pair
-		if err := rows.Scan(&p.id, &p.uid); err != nil {
-			rows.Close()
-			return err
-		}
-		ids = append(ids, p)
-	}
-	rows.Close()
 	for _, p := range ids {
-		err := s.Atomic(ctx, p.uid, func(tx pgx.Tx, u photo.UserRow, f *photo.Files) error {
-			var updated time.Time
-			if err := tx.QueryRow(ctx, `SELECT updated_at FROM upload_batch WHERE id=$1`, p.id).Scan(&updated); err != nil {
-				if err == pgx.ErrNoRows {
-					return nil
-				}
+		err := s.Atomic(ctx, p.UserID, func(tx pgx.Tx, u photo.UserRow, f *photo.Files) error {
+			q := dbgen.New(tx)
+			batch, err := q.GetUploadBatch(ctx, p.ID)
+			if err == pgx.ErrNoRows {
+				return nil
+			} else if err != nil {
 				return err
 			}
+			updated := batch.UpdatedAt
 			if !updated.Before(cutoff) {
 				return nil
 			}
-			var active int
-			if err := tx.QueryRow(ctx, `SELECT count(*) FROM upload_item WHERE batch_id=$1 AND state IN ('ready','processing')`, p.id).Scan(&active); err != nil || active > 0 {
+			active, err := q.CountInflightUploadItems(ctx, p.ID)
+			if err != nil || active > 0 {
 				return err
 			}
 			t := now()
-			if _, err := tx.Exec(ctx, `UPDATE upload_item SET state='failed', error='transmission_expired', updated_at=$2 WHERE batch_id=$1 AND state='pending'`, p.id, t); err != nil {
+			if err := q.ExpireUntransmittedUploadItems(ctx, dbgen.ExpireUntransmittedUploadItemsParams{BatchID: p.ID, UpdatedAt: t}); err != nil {
 				return err
 			}
-			if _, err := tx.Exec(ctx, `UPDATE upload_batch SET sealed=true WHERE id=$1`, p.id); err != nil {
+			if err := q.SealUploadBatchQuietly(ctx, p.ID); err != nil {
 				return err
 			}
-			tag, err := tx.Exec(ctx, `UPDATE upload_item SET state='ready', updated_at=$2 WHERE batch_id=$1 AND state='waiting'`, p.id, t)
+			resumed, err := q.ResumeWaitingUploadItems(ctx, dbgen.ResumeWaitingUploadItemsParams{BatchID: p.ID, UpdatedAt: t})
 			if err != nil {
 				return err
 			}
-			if tag.RowsAffected() > 0 {
-				_, err = tx.Exec(ctx, `UPDATE upload_batch SET updated_at=$2 WHERE id=$1`, p.id, t)
-				return err
+			if resumed > 0 {
+				return q.TouchUploadBatch(ctx, dbgen.TouchUploadBatchParams{ID: p.ID, UpdatedAt: t})
 			}
-			keys, err := tx.Query(ctx, `SELECT id FROM upload_item WHERE batch_id=$1 AND source_id IS NULL`, p.id)
+			del, err := q.ListUploadSourceIDs(ctx, p.ID)
 			if err != nil {
 				return err
 			}
-			var del []string
-			for keys.Next() {
-				var k string
-				if err := keys.Scan(&k); err != nil {
-					keys.Close()
-					return err
-				}
-				del = append(del, k)
-			}
-			keys.Close()
 			for _, k := range del {
 				if sp, err := s.source(k); err == nil {
 					if _, err := f.Remove(sp); err != nil {
@@ -695,11 +665,10 @@ func (s *Service) cleanup(ctx context.Context) error {
 				}
 			}
 			if updated.Before(history) {
-				if _, err := tx.Exec(ctx, `DELETE FROM upload_item WHERE batch_id=$1`, p.id); err != nil {
+				if err := q.DeleteBatchUploadItems(ctx, p.ID); err != nil {
 					return err
 				}
-				_, err = tx.Exec(ctx, `DELETE FROM upload_batch WHERE id=$1`, p.id)
-				return err
+				return q.DeleteUploadBatch(ctx, p.ID)
 			}
 			return nil
 		})
@@ -721,8 +690,7 @@ func (s *Service) cleanup(ctx context.Context) error {
 			os.Remove(filepath.Join(dir, e.Name()))
 			continue
 		}
-		var one int
-		if err := s.Pool.QueryRow(ctx, `SELECT 1 FROM upload_item WHERE id=$1`, e.Name()).Scan(&one); err == pgx.ErrNoRows {
+		if exists, err := dbgen.New(s.Pool).UploadItemExists(ctx, e.Name()); err == nil && !exists {
 			os.Remove(filepath.Join(dir, e.Name()))
 		}
 	}
@@ -731,26 +699,16 @@ func (s *Service) cleanup(ctx context.Context) error {
 
 // tick processes up to 100 items; it reports whether any work was found.
 func (s *Service) tick(ctx context.Context) bool {
-	rows, err := s.Pool.Query(ctx, `SELECT i.id, i.batch_id FROM upload_item i WHERE i.state IN ('ready','processing','waiting')
-		ORDER BY (i.state='waiting'), i.updated_at, i.id LIMIT 100`)
+	work, err := dbgen.New(s.Pool).ListRunnableUploadItems(ctx)
 	if err != nil {
 		log.Printf("uploads: worker query: %v", err)
 		return false
 	}
-	type pair struct{ id, batch string }
-	var work []pair
-	for rows.Next() {
-		var p pair
-		if rows.Scan(&p.id, &p.batch) == nil {
-			work = append(work, p)
-		}
-	}
-	rows.Close()
 	for _, w := range work {
 		if ctx.Err() != nil {
 			return true
 		}
-		s.locked(ctx, w.batch, func() { s.process(ctx, w.id) })
+		s.locked(ctx, w.BatchID, func() { s.process(ctx, w.ID) })
 	}
 	return len(work) > 0
 }
@@ -762,11 +720,12 @@ func (s *Service) locked(ctx context.Context, batch string, fn func()) {
 		return
 	}
 	defer c.Release()
-	var got bool
-	if err := c.QueryRow(ctx, `SELECT pg_try_advisory_lock(hashtextextended($1, $2))`, batch, sessionLock).Scan(&got); err != nil || !got {
+	q := dbgen.New(c)
+	arg := dbgen.TryBatchLockParams{Batch: batch, SessionLock: sessionLock}
+	if got, err := q.TryBatchLock(ctx, arg); err != nil || !got {
 		return
 	}
-	defer c.Exec(context.Background(), `SELECT pg_advisory_unlock(hashtextextended($1, $2))`, batch, sessionLock)
+	defer q.BatchUnlock(context.Background(), dbgen.BatchUnlockParams(arg))
 	fn()
 }
 

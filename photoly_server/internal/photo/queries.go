@@ -1,19 +1,20 @@
 package photo
 
 import (
-	"os"
-	"path/filepath"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
 
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -39,6 +40,18 @@ func collect(rows pgx.Rows) ([]map[string]any, error) {
 	return out, rows.Err()
 }
 
+func photosJSON(rows []dbgen.Photo, err error) (any, error) {
+	if err != nil {
+		return nil, err
+	}
+	out := make([]map[string]any, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, photoFromRow(r).JSON())
+	}
+	return out, nil
+}
+
+// allJSON runs a hand-built photoCols query (ByDate-style dynamic SQL).
 func (s *Service) allJSON(ctx context.Context, sql string, args ...any) (any, error) {
 	rows, err := s.Pool.Query(ctx, sql, args...)
 	if err != nil {
@@ -49,29 +62,21 @@ func (s *Service) allJSON(ctx context.Context, sql string, args ...any) (any, er
 
 // DateSummary is PhotoService.date_summary.
 func (s *Service) DateSummary(ctx context.Context, uid int64) (any, error) {
-	rows, err := s.Pool.Query(ctx, `SELECT date(coalesce(e.extra_photo_taken_date, p.upload_date)) AS d, count(p.photo_id)
-		FROM photo p LEFT JOIN photo_extra e ON e.f_photo_id=p.photo_id
-		WHERE p.user_id=$1 AND lower(p.format)=ANY($2) GROUP BY d ORDER BY d`, uid, imageFormatList())
+	rows, err := dbgen.New(s.Pool).ListDateSummary(ctx, dbgen.ListDateSummaryParams{UserID: uid, Formats: imageFormatList()})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	var total, undated int64
 	days := make([]map[string]any, 0)
-	for rows.Next() {
-		var d *time.Time
-		var n int64
-		if err := rows.Scan(&d, &n); err != nil {
-			return nil, err
-		}
-		total += n
-		if d == nil {
-			undated = n
+	for _, r := range rows {
+		total += r.N
+		if r.Day == "" {
+			undated = r.N
 		} else {
-			days = append(days, map[string]any{"date": d.Format("2006-01-02"), "count": n})
+			days = append(days, map[string]any{"date": r.Day, "count": r.N})
 		}
 	}
-	return map[string]any{"totalCount": total, "undatedCount": undated, "days": days}, rows.Err()
+	return map[string]any{"totalCount": total, "undatedCount": undated, "days": days}, nil
 }
 
 var (
@@ -90,31 +95,22 @@ func (s *Service) MonthPreview(ctx context.Context, uid int64, month string, has
 	if err != nil || start.Year() < 1 {
 		return nil, Bad()
 	}
-	q := `SELECT p.photo_id FROM photo p LEFT JOIN photo_extra e ON e.f_photo_id=p.photo_id
-		WHERE p.user_id=$1 AND lower(p.format)=ANY($2) AND ` + dateExpr + ` >= $3`
-	args := []any{uid, imageFormatList(), start}
+	arg := dbgen.ListMonthPreviewLatestParams{UserID: uid, Formats: imageFormatList(), Since: start}
 	if month != "9999-12" {
-		q += ` AND ` + dateExpr + ` < $4`
-		args = append(args, start.AddDate(0, 1, 0))
+		until := start.AddDate(0, 1, 0)
+		arg.Until = &until
 	}
-	dir := "DESC"
+	q := dbgen.New(s.Pool)
+	var ids []int64
 	if order == "oldest" {
-		dir = "ASC"
+		ids, err = q.ListMonthPreviewOldest(ctx, dbgen.ListMonthPreviewOldestParams(arg))
+	} else {
+		ids, err = q.ListMonthPreviewLatest(ctx, arg)
 	}
-	rows, err := s.Pool.Query(ctx, q+fmt.Sprintf(` ORDER BY %s %s, p.photo_id %s LIMIT 10`, dateExpr, dir, dir), args...)
-	if err != nil {
-		return nil, err
+	if ids == nil {
+		ids = []int64{}
 	}
-	defer rows.Close()
-	ids := make([]int64, 0)
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return ids, err
 }
 
 func pyIso(t time.Time) string { return isoNaive(t) }
@@ -129,6 +125,7 @@ func parseISO(v string) (time.Time, bool) {
 }
 
 // ByDate is PhotoService.by_date: owner-scoped keyset pagination, undated images last.
+// Raw SQL on purpose: the ORDER BY direction and keyset predicate are built dynamically, which sqlc can't express.
 func (s *Service) ByDate(ctx context.Context, uid int64, order string, limit int64, cursor string, day *string) (any, error) {
 	if (order != "latest" && order != "oldest") || limit < 1 || limit > 200 {
 		return nil, Bad()
@@ -280,7 +277,7 @@ func jsonStr(s string) string {
 
 // ByNamespace is by_namespace.
 func (s *Service) ByNamespace(ctx context.Context, uid int64, ns *int64) (any, error) {
-	return s.allJSON(ctx, `SELECT `+photoCols+` FROM photo p WHERE p.user_id=$1 AND p.ns_id IS NOT DISTINCT FROM $2 ORDER BY p.photo_id`, uid, ns)
+	return photosJSON(dbgen.New(s.Pool).ListPhotosByNamespace(ctx, dbgen.ListPhotosByNamespaceParams{UserID: uid, NsID: ns}))
 }
 
 // ByGallery is by_gallery.
@@ -288,8 +285,7 @@ func (s *Service) ByGallery(ctx context.Context, uid, ga int64) (any, error) {
 	if err := s.Owned(ctx, s.Pool, "gallery", ga, uid, nil, 400); err != nil {
 		return nil, err
 	}
-	return s.allJSON(ctx, `SELECT `+photoCols+` FROM photo p JOIN gallery_photo g ON g.photo_id=p.photo_id
-		WHERE g.ga_id=$1 AND p.user_id=$2 ORDER BY p.photo_id`, ga, uid)
+	return photosJSON(dbgen.New(s.Pool).ListPhotosByGallery(ctx, dbgen.ListPhotosByGalleryParams{GaID: ga, UserID: uid}))
 }
 
 // ByTags is by_tags (photos carrying every listed tag).
@@ -303,9 +299,7 @@ func (s *Service) ByTags(ctx context.Context, uid int64, tagIDs []int64) (any, e
 			return nil, err
 		}
 	}
-	return s.allJSON(ctx, `SELECT `+photoCols+` FROM photo p WHERE p.user_id=$1 AND p.photo_id IN (
-		SELECT photo_id FROM tag_photo WHERE user_id=$1 AND tag_id=ANY($2) GROUP BY photo_id HAVING count(DISTINCT tag_id)=$3)
-		ORDER BY p.photo_id`, uid, set, len(set))
+	return photosJSON(dbgen.New(s.Pool).ListPhotosByTags(ctx, dbgen.ListPhotosByTagsParams{UserID: uid, TagIds: set, TagCount: int64(len(set))}))
 }
 
 func uniqueSorted(v []int64) []int64 {
@@ -340,20 +334,38 @@ func (s *Service) Covers(ctx context.Context, uid int64, source string, hasSourc
 	if len(keys) == 0 {
 		return []any{}, nil
 	}
-	var q string
+	type coverRow struct {
+		key, photoID int64
+		format       *string
+	}
+	var rows []coverRow
+	q := dbgen.New(s.Pool)
 	switch source {
 	case "folder":
-		q = `SELECT p.ns_id, p.photo_id, p.format FROM photo p WHERE p.user_id=$1 AND p.ns_id=ANY($2) ORDER BY p.photo_id DESC`
+		rs, err := q.ListFolderCovers(ctx, dbgen.ListFolderCoversParams{UserID: uid, Keys: keys})
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range rs {
+			rows = append(rows, coverRow{r.Key, r.PhotoID, r.Format})
+		}
 	case "gallery":
-		q = `SELECT l.ga_id, p.photo_id, p.format FROM photo p JOIN gallery_photo l ON l.photo_id=p.photo_id WHERE p.user_id=$1 AND l.ga_id=ANY($2) ORDER BY p.photo_id DESC`
+		rs, err := q.ListGalleryCovers(ctx, dbgen.ListGalleryCoversParams{UserID: uid, Keys: keys})
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range rs {
+			rows = append(rows, coverRow{r.Key, r.PhotoID, r.Format})
+		}
 	default:
-		q = `SELECT l.tag_id, p.photo_id, p.format FROM photo p JOIN tag_photo l ON l.photo_id=p.photo_id WHERE p.user_id=$1 AND l.tag_id=ANY($2) ORDER BY p.photo_id DESC`
+		rs, err := q.ListTagCovers(ctx, dbgen.ListTagCoversParams{UserID: uid, Keys: keys})
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range rs {
+			rows = append(rows, coverRow{r.Key, r.PhotoID, r.Format})
+		}
 	}
-	rows, err := s.Pool.Query(ctx, q, uid, keys)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 	type cover struct {
 		id    int64
 		count int64
@@ -363,20 +375,12 @@ func (s *Service) Covers(ctx context.Context, uid int64, source string, hasSourc
 	for _, k := range keys {
 		found[k] = &cover{id: k, ids: []int64{}}
 	}
-	for rows.Next() {
-		var k, pid int64
-		var f *string
-		if err := rows.Scan(&k, &pid, &f); err != nil {
-			return nil, err
-		}
-		c := found[k]
+	for _, r := range rows {
+		c := found[r.key]
 		c.count++
-		if len(c.ids) < 3 && f != nil && ImageFormats[strings.ToLower(*f)] {
-			c.ids = append(c.ids, pid)
+		if len(c.ids) < 3 && r.format != nil && ImageFormats[strings.ToLower(*r.format)] {
+			c.ids = append(c.ids, r.photoID)
 		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
 	}
 	out := make([]map[string]any, 0, len(keys))
 	for _, k := range keys {
@@ -389,23 +393,22 @@ func (s *Service) Covers(ctx context.Context, uid int64, source string, hasSourc
 // SearchPhoto is PhotoService.search.
 func (s *Service) SearchPhoto(ctx context.Context, uid int64, option, query string) (any, error) {
 	pattern := "%" + query + "%"
-	var q string
+	q := dbgen.New(s.Pool)
 	switch option {
 	case "photoName":
-		q = `p.photo_name ILIKE $2`
+		return photosJSON(q.SearchPhotosByName(ctx, dbgen.SearchPhotosByNameParams{UserID: uid, Pattern: pattern}))
 	case "namespace":
-		q = `p.ns_id IN (SELECT ns_id FROM namespace WHERE user_id=$1 AND ns_name ILIKE $2)`
+		return photosJSON(q.SearchPhotosByNamespace(ctx, dbgen.SearchPhotosByNamespaceParams{UserID: uid, Pattern: pattern}))
 	case "gallery":
-		q = `p.photo_id IN (SELECT gp.photo_id FROM gallery_photo gp JOIN gallery g ON g.ga_id=gp.ga_id WHERE g.user_id=$1 AND g.ga_name ILIKE $2)`
+		return photosJSON(q.SearchPhotosByGallery(ctx, dbgen.SearchPhotosByGalleryParams{UserID: uid, Pattern: pattern}))
 	case "tag":
-		q = `p.photo_id IN (SELECT tp.photo_id FROM tag_photo tp JOIN tag t ON t.tag_id=tp.tag_id WHERE t.user_id=$1 AND t.tag_name ILIKE $2)`
-	default:
-		return []any{}, nil
+		return photosJSON(q.SearchPhotosByTag(ctx, dbgen.SearchPhotosByTagParams{UserID: uid, Pattern: pattern}))
 	}
-	return s.allJSON(ctx, `SELECT `+photoCols+` FROM photo p WHERE p.user_id=$1 AND `+q+` ORDER BY p.photo_id`, uid, pattern)
+	return []any{}, nil
 }
 
 // SearchSmart is smart_search.search_smart: bounded lexical candidates.
+// Raw SQL on purpose: the predicate is assembled from the tokenized query.
 func (s *Service) SearchSmart(ctx context.Context, uid int64, query string, ok bool) (any, error) {
 	if !ok || len([]rune(query)) > 512 {
 		return nil, Bad()
@@ -447,28 +450,25 @@ func (s *Service) SearchSmart(ctx context.Context, uid int64, query string, ok b
 // ---- links and smart-catalog membership ----
 
 func (s *Service) manualMember(ctx context.Context, tx pgx.Tx, kind string, key, photoID int64, included bool) error {
-	col := "tag_id"
+	q := dbgen.New(tx)
+	arg := dbgen.GetSmartItemForParams{TagID: &key}
 	if kind == "gallery" {
-		col = "ga_id"
+		arg = dbgen.GetSmartItemForParams{GaID: &key}
 	}
-	var item, owner int64
-	err := tx.QueryRow(ctx, `SELECT item_id, user_id FROM smart_item WHERE `+col+`=$1`, key).Scan(&item, &owner)
+	item, err := q.GetSmartItemFor(ctx, arg)
 	if err == pgx.ErrNoRows {
 		return nil
 	} else if err != nil {
 		return err
 	}
-	manual := -1
+	manual := int64(-1)
 	if included {
 		manual = 1
 	}
-	if _, err = tx.Exec(ctx, `INSERT INTO smart_member (item_id, photo_id, content_version, manual)
-		SELECT $1, photo_id, content_version, $3 FROM photo WHERE photo_id=$2
-		ON CONFLICT (item_id, photo_id) DO UPDATE SET manual=EXCLUDED.manual`, item, photoID, manual); err != nil {
+	if err = q.UpsertManualSmartMember(ctx, dbgen.UpsertManualSmartMemberParams{ItemID: item.ItemID, PhotoID: photoID, Manual: manual}); err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, `UPDATE smart_preference SET revision=revision+1 WHERE user_id=$1`, owner)
-	return err
+	return q.BumpSmartRevision(ctx, item.UserID)
 }
 
 // AddTags is PhotoService.add_tags.
@@ -487,12 +487,11 @@ func (s *Service) AddTags(ctx context.Context, uid, photoID int64, tagIDs []int6
 			if err := s.manualMember(ctx, tx, "tag", k, photoID, true); err != nil {
 				return err
 			}
-			ct, err := tx.Exec(ctx, `INSERT INTO tag_photo (photo_id, tag_id, user_id)
-				SELECT $1,$2,$3 WHERE NOT EXISTS (SELECT 1 FROM tag_photo WHERE photo_id=$1 AND tag_id=$2)`, photoID, k, uid)
+			n, err := dbgen.New(tx).InsertTagPhoto(ctx, dbgen.InsertTagPhotoParams{PhotoID: photoID, TagID: k, UserID: uid})
 			if err != nil {
 				return err
 			}
-			count += int(ct.RowsAffected())
+			count += int(n)
 		}
 		return nil
 	})
@@ -515,11 +514,11 @@ func (s *Service) DeleteTags(ctx context.Context, uid, photoID int64, tagIDs []i
 			if err := s.manualMember(ctx, tx, "tag", k, photoID, false); err != nil {
 				return err
 			}
-			ct, err := tx.Exec(ctx, `DELETE FROM tag_photo WHERE user_id=$1 AND photo_id=$2 AND tag_id=$3`, uid, photoID, k)
+			n, err := dbgen.New(tx).DeleteTagPhoto(ctx, dbgen.DeleteTagPhotoParams{UserID: uid, PhotoID: photoID, TagID: k})
 			if err != nil {
 				return err
 			}
-			count += int(ct.RowsAffected())
+			count += int(n)
 		}
 		return nil
 	})
@@ -539,10 +538,10 @@ func (s *Service) GalleryLink(ctx context.Context, uid, photoID, ga int64, remov
 		if err := s.manualMember(ctx, tx, "gallery", ga, photoID, !remove); err != nil {
 			return err
 		}
-		var one int
-		err := tx.QueryRow(ctx, `SELECT 1 FROM gallery_photo WHERE photo_id=$1 AND ga_id=$2`, photoID, ga).Scan(&one)
-		exists := err == nil
-		if err != nil && err != pgx.ErrNoRows {
+		q := dbgen.New(tx)
+		link := dbgen.GalleryPhotoExistsParams{PhotoID: photoID, GaID: ga}
+		exists, err := q.GalleryPhotoExists(ctx, link)
+		if err != nil {
 			return err
 		}
 		if remove {
@@ -550,51 +549,38 @@ func (s *Service) GalleryLink(ctx context.Context, uid, photoID, ga int64, remov
 				result = 0
 				return nil
 			}
-			_, err = tx.Exec(ctx, `DELETE FROM gallery_photo WHERE photo_id=$1 AND ga_id=$2`, photoID, ga)
-			return err
+			return q.DeleteGalleryPhoto(ctx, dbgen.DeleteGalleryPhotoParams(link))
 		}
 		if exists {
 			result = -1
 			return nil
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO gallery_photo (photo_id, ga_id) VALUES ($1,$2)`, photoID, ga)
-		return err
+		return q.InsertGalleryPhoto(ctx, dbgen.InsertGalleryPhotoParams(link))
 	})
 	return result, err
-}
-
-type smartDTO struct {
-	ID         int64
-	Source     string
-	Name       string
-	CustomName *string
-	Suppressed bool
-	Basis      json.RawMessage
 }
 
 func (s *Service) decorate(ctx context.Context, kind string, rows []map[string]any, keyField string) ([]map[string]any, error) {
 	if len(rows) == 0 {
 		return []map[string]any{}, nil
 	}
-	col := "tag_id"
-	if kind == "gallery" {
-		col = "ga_id"
-	}
 	keys := make([]int64, len(rows))
 	for i, r := range rows {
 		keys[i] = r[keyField].(int64)
 	}
-	rs, err := s.Pool.Query(ctx, `SELECT `+col+`, item_id, source, name, custom_name, suppressed, basis FROM smart_item WHERE `+col+`=ANY($1)`, keys)
+	arg := dbgen.ListSmartItemsForParams{TagIds: keys}
+	if kind == "gallery" {
+		arg = dbgen.ListSmartItemsForParams{GaIds: keys}
+	}
+	rs, err := dbgen.New(s.Pool).ListSmartItemsFor(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
-	defer rs.Close()
 	items := map[int64]map[string]any{}
-	for rs.Next() {
-		var k int64
-		var d smartDTO
-		if err := rs.Scan(&k, &d.ID, &d.Source, &d.Name, &d.CustomName, &d.Suppressed, &d.Basis); err != nil {
-			return nil, err
+	for _, d := range rs {
+		k := deref(d.TagID)
+		if kind == "gallery" {
+			k = deref(d.GaID)
 		}
 		name := d.Name
 		if d.CustomName != nil && *d.CustomName != "" {
@@ -602,7 +588,7 @@ func (s *Service) decorate(ctx context.Context, kind string, rows []map[string]a
 		}
 		var basis any
 		_ = json.Unmarshal(d.Basis, &basis)
-		items[k] = map[string]any{"id": d.ID, "source": d.Source, "name": name, "suppressed": d.Suppressed, "basis": basis}
+		items[k] = map[string]any{"id": d.ItemID, "source": d.Source, "name": name, "suppressed": d.Suppressed, "basis": basis}
 	}
 	for i, r := range rows {
 		if it, ok := items[keys[i]]; ok {
@@ -611,7 +597,7 @@ func (s *Service) decorate(ctx context.Context, kind string, rows []map[string]a
 			r["smart"] = nil
 		}
 	}
-	return rows, rs.Err()
+	return rows, nil
 }
 
 // Tags is PhotoService.tags (snake_case rows, optional smart decoration).
@@ -619,25 +605,18 @@ func (s *Service) Tags(ctx context.Context, uid, photoID int64, smart bool) (any
 	if _, err := s.OwnedPhoto(ctx, s.Pool, photoID, uid, nil, 400); err != nil {
 		return nil, err
 	}
-	rs, err := s.Pool.Query(ctx, `SELECT t.tag_id, t.tag_name FROM tag t JOIN tag_photo tp ON tp.tag_id=t.tag_id
-		WHERE tp.photo_id=$1 AND t.user_id=$2 ORDER BY t.tag_id`, photoID, uid)
+	tags, err := dbgen.New(s.Pool).ListPhotoTags(ctx, dbgen.ListPhotoTagsParams{PhotoID: photoID, UserID: uid})
 	if err != nil {
 		return nil, err
 	}
-	defer rs.Close()
 	rows := make([]map[string]any, 0)
-	for rs.Next() {
-		var id int64
-		var name *string
-		if err := rs.Scan(&id, &name); err != nil {
-			return nil, err
-		}
-		rows = append(rows, map[string]any{"photo_id": photoID, "tag_id": id, "tag_name": nilStr(name)})
+	for _, t := range tags {
+		rows = append(rows, map[string]any{"photo_id": photoID, "tag_id": t.TagID, "tag_name": t.TagName})
 	}
 	if smart {
 		return s.decorate(ctx, "tag", rows, "tag_id")
 	}
-	return rows, rs.Err()
+	return rows, nil
 }
 
 // Galleries is PhotoService.galleries.
@@ -645,25 +624,18 @@ func (s *Service) Galleries(ctx context.Context, uid, photoID int64, smart bool)
 	if _, err := s.OwnedPhoto(ctx, s.Pool, photoID, uid, nil, 400); err != nil {
 		return nil, err
 	}
-	rs, err := s.Pool.Query(ctx, `SELECT g.ga_id, g.ga_name FROM gallery g JOIN gallery_photo gp ON gp.ga_id=g.ga_id
-		WHERE gp.photo_id=$1 AND g.user_id=$2 ORDER BY g.ga_id`, photoID, uid)
+	galleries, err := dbgen.New(s.Pool).ListPhotoGalleries(ctx, dbgen.ListPhotoGalleriesParams{PhotoID: photoID, UserID: uid})
 	if err != nil {
 		return nil, err
 	}
-	defer rs.Close()
 	rows := make([]map[string]any, 0)
-	for rs.Next() {
-		var id int64
-		var name *string
-		if err := rs.Scan(&id, &name); err != nil {
-			return nil, err
-		}
-		rows = append(rows, map[string]any{"photo_id": photoID, "ga_id": id, "ga_name": nilStr(name)})
+	for _, g := range galleries {
+		rows = append(rows, map[string]any{"photo_id": photoID, "ga_id": g.GaID, "ga_name": nilStr(g.GaName)})
 	}
 	if smart {
 		return s.decorate(ctx, "gallery", rows, "ga_id")
 	}
-	return rows, rs.Err()
+	return rows, nil
 }
 
 // Update is PhotoService.update.
@@ -678,7 +650,7 @@ func (s *Service) Update(ctx context.Context, uid int64, data map[string]any) (i
 			if err != nil {
 				return err
 			}
-			if _, err = tx.Exec(ctx, `UPDATE photo SET photo_name=$1 WHERE photo_id=$2`, name, id); err != nil {
+			if err = dbgen.New(tx).RenamePhoto(ctx, dbgen.RenamePhotoParams{Name: name, PhotoID: id}); err != nil {
 				return err
 			}
 		}
@@ -687,7 +659,7 @@ func (s *Service) Update(ctx context.Context, uid int64, data map[string]any) (i
 			if !ok || n < 0 || n > 2 {
 				return Bad()
 			}
-			if _, err := tx.Exec(ctx, `UPDATE photo SET visibility=$1 WHERE photo_id=$2`, n, id); err != nil {
+			if err := dbgen.New(tx).SetPhotoVisibility(ctx, dbgen.SetPhotoVisibilityParams{Visibility: n, PhotoID: id}); err != nil {
 				return err
 			}
 		}
@@ -721,8 +693,7 @@ func (s *Service) Move(ctx context.Context, uid, photoID, ns int64) (int, error)
 		if err := s.Owned(ctx, tx, "namespace", ns, uid, -1, 400); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `UPDATE photo SET ns_id=$1 WHERE photo_id=$2`, ns, photoID)
-		return err
+		return dbgen.New(tx).MovePhoto(ctx, dbgen.MovePhotoParams{NsID: ns, PhotoID: photoID})
 	})
 	return 1, err
 }
@@ -742,9 +713,8 @@ func (s *Service) Delete(ctx context.Context, uid, photoID int64) (int, error) {
 // ---- file lookup ----
 
 func (s *Service) userUUID(ctx context.Context, q DB, uid int64) (string, error) {
-	var u string
-	err := q.QueryRow(ctx, `SELECT uuid FROM "user" WHERE user_id=$1`, uid).Scan(&u)
-	return u, err
+	u, err := dbgen.New(q).GetUserUUID(ctx, uid)
+	return deref(u), err
 }
 
 // PhotoPath is PhotoService.path.
@@ -781,8 +751,7 @@ func (s *Service) PreviewPath(ctx context.Context, uid, photoID int64, thumbnail
 		return "", err
 	}
 	if !thumbnail {
-		var has bool
-		if err := s.Pool.QueryRow(ctx, `SELECT has_preview FROM photo_media WHERE photo_id=$1`, photoID).Scan(&has); err == nil && has {
+		if has, err := dbgen.New(s.Pool).GetPhotoHasPreview(ctx, photoID); err == nil && has {
 			uu, err := s.userUUID(ctx, s.Pool, uid)
 			if err != nil {
 				return "", err
@@ -818,15 +787,15 @@ func (s *Service) SharedPath(ctx context.Context, path, token string, hasPath, h
 		}
 		photoUUID = strings.TrimSuffix(photoUUID, "_thumbnail")
 	}
-	var p *Photo
-	p, err := scanPhoto(s.Pool.QueryRow(ctx, `SELECT `+photoCols+` FROM photo p WHERE p.photo_uuid=$1`, photoUUID))
+	row, err := dbgen.New(s.Pool).GetPhotoByUUID(ctx, photoUUID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return "", Err(nil, 403)
 		}
 		return "", err
 	}
-	vis := int32(-1)
+	p := photoFromRow(row)
+	vis := int64(-1)
 	if p.Visibility != nil {
 		vis = *p.Visibility
 	}
@@ -848,8 +817,7 @@ func (s *Service) SharedPath(ctx context.Context, path, token string, hasPath, h
 		return "", Err(nil, 404)
 	}
 	if !thumbnail {
-		var has bool
-		if err := s.Pool.QueryRow(ctx, `SELECT has_preview FROM photo_media WHERE photo_id=$1`, p.ID).Scan(&has); err == nil && has {
+		if has, err := dbgen.New(s.Pool).GetPhotoHasPreview(ctx, p.ID); err == nil && has {
 			return s.AssetPath(uu, p.UUID, "preview")
 		}
 	}

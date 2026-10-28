@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	dbpkg "github.com/WiscWebGroup/photoly/photoly_server/internal/db"
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -34,15 +36,30 @@ type Photo struct {
 	UploadDate     *time.Time
 	Format         string
 	NsID           *int64
-	Visibility     *int32
+	Visibility     *int64
 	Token          string
 	UUID           string
 	UserID         int64
-	ContentVersion int32
+	ContentVersion int64
 }
 
 const photoCols = `p.photo_id, p.photo_name, p.upload_date, coalesce(p.format,''), p.ns_id, p.visibility, coalesce(p.token,''), coalesce(p.photo_uuid,''), coalesce(p.user_id,0), p.content_version`
 
+// photoFromRow adapts a photo table row; NULL text/owner columns read as their zero value.
+func photoFromRow(r dbgen.Photo) *Photo {
+	return &Photo{ID: r.PhotoID, Name: r.PhotoName, UploadDate: r.UploadDate, Format: deref(r.Format), NsID: r.NsID, Visibility: r.Visibility,
+		Token: deref(r.Token), UUID: deref(r.PhotoUuid), UserID: deref(r.UserID), ContentVersion: r.ContentVersion}
+}
+
+func deref[T any](p *T) T {
+	var z T
+	if p == nil {
+		return z
+	}
+	return *p
+}
+
+// scanPhoto reads photoCols; only the hand-built queries (ByDate, SearchSmart) still need it.
 func scanPhoto(row pgx.Row) (*Photo, error) {
 	var p Photo
 	if err := row.Scan(&p.ID, &p.Name, &p.UploadDate, &p.Format, &p.NsID, &p.Visibility, &p.Token, &p.UUID, &p.UserID, &p.ContentVersion); err != nil {
@@ -58,13 +75,6 @@ func nilInt(p *int64) any {
 	return *p
 }
 
-func nilInt32(p *int32) any {
-	if p == nil {
-		return nil
-	}
-	return int64(*p)
-}
-
 func nilStr(p *string) any {
 	if p == nil {
 		return nil
@@ -75,18 +85,14 @@ func nilStr(p *string) any {
 // JSON is the legacy Photo projection (serialization.LEGACY_FIELDS['Photo']).
 func (p *Photo) JSON() map[string]any {
 	return map[string]any{"photoId": p.ID, "photoName": nilStr(p.Name), "uploadDate": optTime(p.UploadDate), "format": p.Format,
-		"nsId": nilInt(p.NsID), "visibility": nilInt32(p.Visibility), "token": p.Token, "photoUuid": p.UUID, "userId": p.UserID}
+		"nsId": nilInt(p.NsID), "visibility": nilInt(p.Visibility), "token": p.Token, "photoUuid": p.UUID, "userId": p.UserID}
 }
-
-var tables = map[string][2]string{"photo": {"photo", "photo_id"}, "namespace": {"namespace", "ns_id"}, "gallery": {"gallery", "ga_id"}, "tag": {"tag", "tag_id"}}
 
 // Owned is BaseService.owned: the row must exist and belong to uid.
 func (s *Service) Owned(ctx context.Context, q DB, kind string, id, uid int64, failure any, code int) error {
-	t := tables[kind]
 	if id > 0 && inInt32(id) {
-		var owner *int64
-		err := q.QueryRow(ctx, `SELECT user_id FROM `+t[0]+` WHERE `+t[1]+`=$1`, id).Scan(&owner)
-		if err == nil && owner != nil && *owner == uid {
+		owner, err := dbpkg.Owner(ctx, q, kind, id)
+		if err == nil && owner == uid {
 			return nil
 		}
 		if err != nil && err != pgx.ErrNoRows {
@@ -99,9 +105,9 @@ func (s *Service) Owned(ctx context.Context, q DB, kind string, id, uid int64, f
 // OwnedPhoto loads an owned photo, failing like BaseService.owned.
 func (s *Service) OwnedPhoto(ctx context.Context, q DB, id, uid int64, failure any, code int) (*Photo, error) {
 	if id > 0 && inInt32(id) {
-		p, err := scanPhoto(q.QueryRow(ctx, `SELECT `+photoCols+` FROM photo p WHERE p.photo_id=$1`, id))
-		if err == nil && p.UserID == uid {
-			return p, nil
+		r, err := dbgen.New(q).GetPhoto(ctx, id)
+		if err == nil && deref(r.UserID) == uid {
+			return photoFromRow(r), nil
 		}
 		if err != nil && err != pgx.ErrNoRows {
 			return nil, err
@@ -119,7 +125,9 @@ type Prepared struct {
 	Preview   string
 }
 
-func suffixOf(path string) string { return strings.ToLower(strings.TrimPrefix(filepath.Ext(path), ".")) }
+func suffixOf(path string) string {
+	return strings.ToLower(strings.TrimPrefix(filepath.Ext(path), "."))
+}
 
 // Prepare is PhotoService.prepare: inspect metadata and build previews in work.
 func (s *Service) Prepare(ctx context.Context, path, work string) (*Prepared, error) {
@@ -165,9 +173,9 @@ func (s *Service) InstallOne(ctx context.Context, tx pgx.Tx, f *Files, u UserRow
 	if !suffixRE.MatchString(suffix) {
 		return nil, Bad()
 	}
-	vis := int32(0)
+	vis := int64(0)
 	if v, ok := visibility.(int64); ok && v >= 0 && v <= 2 {
-		vis = int32(v)
+		vis = v
 	}
 	p := &Photo{Name: &stem, Format: suffix, NsID: &nsID, Visibility: &vis, Token: NewUUID(), UUID: NewUUID(), UserID: u.ID, ContentVersion: 1}
 	now := s.Now()
@@ -198,8 +206,9 @@ func (s *Service) InstallOne(ctx context.Context, tx pgx.Tx, f *Files, u UserRow
 			return nil, err
 		}
 	}
-	err = tx.QueryRow(ctx, `INSERT INTO photo (photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,1,$9) RETURNING photo_id`, stem, now, suffix, nsID, vis, p.Token, p.UUID, u.ID, sha).Scan(&p.ID)
+	q := dbgen.New(tx)
+	p.ID, err = q.InsertPhoto(ctx, dbgen.InsertPhotoParams{PhotoName: stem, UploadDate: now, Format: suffix, NsID: nsID, Visibility: vis,
+		Token: p.Token, PhotoUuid: p.UUID, UserID: u.ID, ContentSha256: sha})
 	if err != nil {
 		return nil, err
 	}
@@ -215,14 +224,13 @@ func (s *Service) InstallOne(ctx context.Context, tx pgx.Tx, f *Files, u UserRow
 			}
 			hasPreview = true
 		}
-		if _, err = tx.Exec(ctx, `INSERT INTO photo_media (photo_id, animated, has_preview, live) VALUES ($1,$2,$3,false)`, p.ID, prepared.Animated, hasPreview); err != nil {
+		if err = q.InsertPhotoMedia(ctx, dbgen.InsertPhotoMediaParams{PhotoID: p.ID, Animated: prepared.Animated, HasPreview: hasPreview}); err != nil {
 			return nil, err
 		}
 	}
 	e := ExtraFrom(prepared.Meta)
-	if _, err = tx.Exec(ctx, `INSERT INTO photo_extra (f_photo_id, extra_photo_gps_lat, extra_photo_gps_lon, extra_photo_camera, extra_photo_lens,
-		extra_photo_aperture, extra_photo_focal, extra_photo_iso, extra_photo_shutter_sec, extra_photo_taken_date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-		p.ID, e.Lat, e.Lon, e.Camera, e.Lens, e.Aperture, e.Focal, e.ISO, e.Shut, e.Taken); err != nil {
+	if err = q.InsertPhotoExtra(ctx, dbgen.InsertPhotoExtraParams{FPhotoID: p.ID, GpsLat: e.Lat, GpsLon: e.Lon, Camera: e.Camera, Lens: e.Lens,
+		Aperture: e.Aperture, Focal: e.Focal, Iso: e.ISO, ShutterSec: e.Shut, TakenDate: e.Taken}); err != nil {
 		return nil, err
 	}
 	if Hooks.PhotoChanged != nil {
@@ -247,8 +255,7 @@ func (s *Service) removeAssets(ctx context.Context, tx pgx.Tx, f *Files, userUUI
 		}
 		n += c
 	}
-	_, err := tx.Exec(ctx, `DELETE FROM photo_media WHERE photo_id=$1`, p.ID)
-	return n, err
+	return n, dbgen.New(tx).DeletePhotoMedia(ctx, p.ID)
 }
 
 // DeleteRecord removes the photo's files and rows (PhotoService.delete_record).
@@ -265,8 +272,7 @@ func (s *Service) DeleteRecord(ctx context.Context, tx pgx.Tx, f *Files, u UserR
 			return err
 		}
 	}
-	_, err := tx.Exec(ctx, `DELETE FROM photo WHERE photo_id=$1`, p.ID)
-	return err
+	return dbgen.New(tx).DeletePhoto(ctx, p.ID)
 }
 
 // Replace swaps an owned image's content in place (PhotoService.replace).
@@ -288,9 +294,8 @@ func (s *Service) Replace(ctx context.Context, uid, photoID int64, filename stri
 		if !EditableFormats[strings.ToLower(p.Format)] {
 			return Bad()
 		}
-		var hasPreview bool
-		_ = tx.QueryRow(ctx, `SELECT has_preview FROM photo_media WHERE photo_id=$1`, p.ID).Scan(&hasPreview)
-		if hasPreview {
+		q := dbgen.New(tx)
+		if hasPreview, _ := q.GetPhotoHasPreview(ctx, p.ID); hasPreview {
 			ap, err := s.AssetPath(u.UUID, p.UUID, "preview")
 			if err != nil {
 				return err
@@ -316,7 +321,7 @@ func (s *Service) Replace(ctx context.Context, uid, photoID int64, filename stri
 		if err != nil {
 			return err
 		}
-		if _, err = tx.Exec(ctx, `UPDATE photo SET format=$1, content_sha256=$2, content_version=content_version+1 WHERE photo_id=$3`, suffix, sha, p.ID); err != nil {
+		if err = q.ReplacePhotoContent(ctx, dbgen.ReplacePhotoContentParams{Format: suffix, ContentSha256: sha, PhotoID: p.ID}); err != nil {
 			return err
 		}
 		if Hooks.PhotoChanged != nil {
@@ -340,9 +345,7 @@ func (s *Service) Replace(ctx context.Context, uid, photoID int64, filename stri
 		if err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO photo_media (photo_id, animated) VALUES ($1,$2)
-			ON CONFLICT (photo_id) DO UPDATE SET animated=EXCLUDED.animated, has_preview=false`, p.ID, animated)
-		return err
+		return q.UpsertPhotoMediaAnimated(ctx, dbgen.UpsertPhotoMediaAnimatedParams{PhotoID: p.ID, Animated: animated})
 	})
 	if err != nil {
 		return 0, err
