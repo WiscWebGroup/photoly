@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/photo"
 	"github.com/jackc/pgx/v5"
 )
@@ -64,30 +65,24 @@ func relativePath(v any) (string, error) {
 }
 
 type batchRow struct {
-	ID         string
-	UserID     int64
-	NsID       *int64
-	Name       string
-	Sealed     bool
-	Cancelled  bool
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
-	Folders    map[string]int64
-	Dismissed  bool
-	AckedAt    *time.Time
-	foldersRaw []byte
+	ID        string
+	UserID    int64
+	NsID      *int64
+	Name      string
+	Sealed    bool
+	Cancelled bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Folders   map[string]int64
+	Dismissed bool
+	AckedAt   *time.Time
 }
 
-const batchCols = `id, user_id, ns_id, name, sealed, cancelled, created_at, updated_at, folders, dismissed, failures_acknowledged_at`
-
-func scanBatch(row pgx.Row) (*batchRow, error) {
-	var b batchRow
-	if err := row.Scan(&b.ID, &b.UserID, &b.NsID, &b.Name, &b.Sealed, &b.Cancelled, &b.CreatedAt, &b.UpdatedAt, &b.foldersRaw, &b.Dismissed, &b.AckedAt); err != nil {
-		return nil, err
-	}
-	b.Folders = map[string]int64{}
-	_ = json.Unmarshal(b.foldersRaw, &b.Folders)
-	return &b, nil
+func batchFromRow(r dbgen.UploadBatch) *batchRow {
+	b := &batchRow{ID: r.ID, UserID: r.UserID, NsID: r.NsID, Name: r.Name, Sealed: r.Sealed, Cancelled: r.Cancelled, CreatedAt: r.CreatedAt,
+		UpdatedAt: r.UpdatedAt, Dismissed: r.Dismissed, AckedAt: r.FailuresAcknowledgedAt, Folders: map[string]int64{}}
+	_ = json.Unmarshal(r.Folders, &b.Folders)
+	return b
 }
 
 type itemRow struct {
@@ -95,19 +90,16 @@ type itemRow struct {
 	Size                           int64
 	Error, SHA, SourceID, PairID   *string
 	PhotoID, NsID                  *int64
-	EntryIndex                     *int32
+	EntryIndex                     *int64
 	Options, MediaMeta             []byte
 }
 
-const itemCols = `id, batch_id, path, size, state, error, content_sha256, photo_id, ns_id, source_id, entry_index, kind, options, media_metadata, pair_id`
-
-func scanItem(row pgx.Row) (*itemRow, error) {
-	var i itemRow
-	if err := row.Scan(&i.ID, &i.BatchID, &i.Path, &i.Size, &i.State, &i.Error, &i.SHA, &i.PhotoID, &i.NsID, &i.SourceID, &i.EntryIndex, &i.Kind, &i.Options, &i.MediaMeta, &i.PairID); err != nil {
-		return nil, err
-	}
-	return &i, nil
+func itemFromRow(r dbgen.UploadItem) *itemRow {
+	return &itemRow{ID: r.ID, BatchID: r.BatchID, Path: r.Path, State: r.State, Kind: r.Kind, Size: r.Size, Error: r.Error, SHA: r.ContentSha256,
+		SourceID: r.SourceID, PairID: r.PairID, PhotoID: r.PhotoID, NsID: r.NsID, EntryIndex: r.EntryIndex, Options: r.Options, MediaMeta: r.MediaMetadata}
 }
+
+func ptr[T any](v T) *T { return &v }
 
 func sp(p *string) any {
 	if p == nil {
@@ -146,19 +138,23 @@ func (s *Service) batch(ctx context.Context, q photo.DB, uid int64, id string) (
 	if err != nil {
 		return nil, err
 	}
-	b, err := scanBatch(q.QueryRow(ctx, `SELECT `+batchCols+` FROM upload_batch WHERE id=$1`, norm))
-	if err == pgx.ErrNoRows || (err == nil && b.UserID != uid) {
+	r, err := dbgen.New(q).GetUploadBatch(ctx, norm)
+	if err == pgx.ErrNoRows || (err == nil && r.UserID != uid) {
 		return nil, photo.Err("upload_not_found", 404)
+	} else if err != nil {
+		return nil, err
 	}
-	return b, err
+	return batchFromRow(r), nil
 }
 
 func (s *Service) item(ctx context.Context, q photo.DB, id string) (*itemRow, error) {
-	i, err := scanItem(q.QueryRow(ctx, `SELECT `+itemCols+` FROM upload_item WHERE id=$1`, id))
+	r, err := dbgen.New(q).GetUploadItem(ctx, id)
 	if err == pgx.ErrNoRows {
 		return nil, nil
+	} else if err != nil {
+		return nil, err
 	}
-	return i, err
+	return itemFromRow(r), nil
 }
 
 func (s *Service) create(ctx context.Context, uid int64, data map[string]any) (any, error) {
@@ -167,8 +163,8 @@ func (s *Service) create(ctx context.Context, uid int64, data map[string]any) (a
 		return nil, err
 	}
 	err = s.Atomic(ctx, uid, func(tx pgx.Tx, u photo.UserRow, f *photo.Files) error {
-		var one int
-		switch err := tx.QueryRow(ctx, `SELECT 1 FROM upload_batch WHERE id=$1`, id).Scan(&one); err {
+		q := dbgen.New(tx)
+		switch _, err := q.GetUploadBatchOwner(ctx, id); err {
 		case nil:
 			_, err := s.batch(ctx, tx, uid, id)
 			return err
@@ -187,8 +183,7 @@ func (s *Service) create(ctx context.Context, uid int64, data map[string]any) (a
 		if err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO upload_batch (id, user_id, ns_id, name, created_at, updated_at, folders) VALUES ($1,$2,$3,$4,$5,$5,'{}')`, id, uid, ns, name, now())
-		return err
+		return q.InsertUploadBatch(ctx, dbgen.InsertUploadBatchParams{ID: id, UserID: uid, NsID: ns, Name: name, Now: now()})
 	})
 	if err != nil {
 		return nil, err
@@ -209,6 +204,7 @@ func (s *Service) register(ctx context.Context, uid int64, batchID string, raw a
 		if b.Cancelled || b.Sealed {
 			return photo.Err("upload_closed", 409)
 		}
+		q := dbgen.New(tx)
 		for _, e := range entries {
 			d, ok := e.(map[string]any)
 			if !ok {
@@ -236,19 +232,17 @@ func (s *Service) register(ctx context.Context, uid int64, batchID string, raw a
 				}
 				continue
 			}
-			state, errc := "pending", any(nil)
+			state, errc := "pending", (*string)(nil)
 			if sfx := suffix(p); !media[sfx] && sfx != "zip" {
-				state, errc = "skipped", "unsupported_file_type"
+				state, errc = "skipped", ptr("unsupported_file_type")
 			} else if size > s.Cfg.MaxContentLength {
-				state, errc = "failed", "file_too_large"
+				state, errc = "failed", ptr("file_too_large")
 			}
-			if _, err = tx.Exec(ctx, `INSERT INTO upload_item (id, batch_id, path, size, state, error, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-				key, b.ID, p, size, state, errc, now()); err != nil {
+			if err = q.InsertUploadItem(ctx, dbgen.InsertUploadItemParams{ID: key, BatchID: b.ID, Path: p, Size: size, State: state, Error: errc, UpdatedAt: now()}); err != nil {
 				return err
 			}
 		}
-		_, err = tx.Exec(ctx, `UPDATE upload_batch SET updated_at=$2 WHERE id=$1`, b.ID, now())
-		return err
+		return q.TouchUploadBatch(ctx, dbgen.TouchUploadBatchParams{ID: b.ID, UpdatedAt: now()})
 	})
 	if err != nil {
 		return nil, err
@@ -359,10 +353,11 @@ func (s *Service) receive(ctx context.Context, uid int64, batchID, itemID string
 			}
 			f.Created(dest)
 			t := now()
-			if _, err = tx.Exec(ctx, `UPDATE upload_item SET content_sha256=$2, state='ready', error=NULL, updated_at=$3 WHERE id=$1`, iid, sum, t); err != nil {
+			q := dbgen.New(tx)
+			if err = q.MarkUploadItemReceived(ctx, dbgen.MarkUploadItemReceivedParams{ID: iid, Sha: sum, UpdatedAt: t}); err != nil {
 				return err
 			}
-			if _, err = tx.Exec(ctx, `UPDATE upload_batch SET updated_at=$2 WHERE id=$1`, b.ID, t); err != nil {
+			if err = q.TouchUploadBatch(ctx, dbgen.TouchUploadBatchParams{ID: b.ID, UpdatedAt: t}); err != nil {
 				return err
 			}
 		}
@@ -381,8 +376,7 @@ func (s *Service) finish(ctx context.Context, uid int64, batchID string) (any, e
 		if err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `UPDATE upload_batch SET sealed=true, updated_at=$2 WHERE id=$1`, b.ID, now())
-		return err
+		return dbgen.New(tx).SealUploadBatch(ctx, dbgen.SealUploadBatchParams{ID: b.ID, UpdatedAt: now()})
 	})
 	return 1, err
 }
@@ -396,75 +390,54 @@ func (s *Service) listing(ctx context.Context, uid int64, page int64, batchID st
 		if err != nil {
 			return nil, err
 		}
-		var total int64
-		if err = s.Pool.QueryRow(ctx, `SELECT count(*) FROM upload_item WHERE batch_id=$1`, b.ID).Scan(&total); err != nil {
-			return nil, err
-		}
-		rows, err := s.Pool.Query(ctx, `SELECT `+itemCols+` FROM upload_item WHERE batch_id=$1 ORDER BY path, id OFFSET $2 LIMIT 50`, b.ID, (page-1)*50)
+		q := dbgen.New(s.Pool)
+		total, err := q.CountUploadItems(ctx, b.ID)
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
-		items := []map[string]any{}
-		for rows.Next() {
-			i, err := scanItem(rows)
-			if err != nil {
-				return nil, err
-			}
-			items = append(items, i.JSON())
+		rows, err := q.ListUploadItems(ctx, dbgen.ListUploadItemsParams{BatchID: b.ID, Skip: (page - 1) * 50})
+		if err != nil {
+			return nil, err
 		}
-		return map[string]any{"items": items, "total": total}, rows.Err()
+		items := []map[string]any{}
+		for _, r := range rows {
+			items = append(items, itemFromRow(r).JSON())
+		}
+		return map[string]any{"items": items, "total": total}, nil
 	}
-	var total int64
-	if err := s.Pool.QueryRow(ctx, `SELECT count(*) FROM upload_batch WHERE user_id=$1 AND NOT dismissed`, uid).Scan(&total); err != nil {
-		return nil, err
-	}
-	rows, err := s.Pool.Query(ctx, `SELECT `+batchCols+` FROM upload_batch WHERE user_id=$1 AND NOT dismissed ORDER BY created_at DESC, id OFFSET $2 LIMIT 20`, uid, (page-1)*20)
+	q := dbgen.New(s.Pool)
+	total, err := q.CountUploadBatches(ctx, uid)
 	if err != nil {
 		return nil, err
 	}
-	var batches []*batchRow
-	for rows.Next() {
-		b, err := scanBatch(rows)
-		if err != nil {
-			rows.Close()
-			return nil, err
-		}
-		batches = append(batches, b)
-	}
-	rows.Close()
-	counts := map[string]map[string]any{}
-	if len(batches) > 0 {
-		ids := make([]string, len(batches))
-		for i, b := range batches {
-			ids[i] = b.ID
-		}
-		cr, err := s.Pool.Query(ctx, `SELECT batch_id, state, count(*), sum(size)::text FROM upload_item WHERE batch_id=ANY($1) GROUP BY batch_id, state`, ids)
-		if err != nil {
-			return nil, err
-		}
-		for cr.Next() {
-			var bid, state, bytes string
-			var n int64
-			if err := cr.Scan(&bid, &state, &n, &bytes); err != nil {
-				cr.Close()
-				return nil, err
-			}
-			if counts[bid] == nil {
-				counts[bid] = map[string]any{}
-			}
-			// sum(bigint) is numeric: Flask emits Decimal as a JSON string.
-			counts[bid][state] = map[string]any{"count": n, "bytes": bytes}
-		}
-		cr.Close()
-	}
-	var active, failed int64
-	if err := s.Pool.QueryRow(ctx, `SELECT count(*) FROM upload_item i JOIN upload_batch b ON b.id=i.batch_id
-		WHERE b.user_id=$1 AND i.state IN ('pending','ready','processing','waiting')`, uid).Scan(&active); err != nil {
+	rows, err := q.ListUploadBatches(ctx, dbgen.ListUploadBatchesParams{UserID: uid, Skip: (page - 1) * 20})
+	if err != nil {
 		return nil, err
 	}
-	if err := s.Pool.QueryRow(ctx, `SELECT count(*) FROM upload_item i JOIN upload_batch b ON b.id=i.batch_id
-		WHERE b.user_id=$1 AND NOT b.dismissed AND i.state='failed' AND (b.failures_acknowledged_at IS NULL OR i.updated_at > b.failures_acknowledged_at)`, uid).Scan(&failed); err != nil {
+	batches := make([]*batchRow, len(rows))
+	ids := make([]string, len(rows))
+	for i, r := range rows {
+		batches[i], ids[i] = batchFromRow(r), r.ID
+	}
+	counts := map[string]map[string]any{}
+	if len(batches) > 0 {
+		cr, err := q.CountUploadItemsByState(ctx, ids)
+		if err != nil {
+			return nil, err
+		}
+		for _, c := range cr {
+			if counts[c.BatchID] == nil {
+				counts[c.BatchID] = map[string]any{}
+			}
+			counts[c.BatchID][c.State] = map[string]any{"count": c.N, "bytes": c.Bytes}
+		}
+	}
+	active, err := q.CountActiveUploadItems(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+	failed, err := q.CountUnseenFailedUploadItems(ctx, uid)
+	if err != nil {
 		return nil, err
 	}
 	out := []map[string]any{}
@@ -489,41 +462,28 @@ func (s *Service) clearActivity(ctx context.Context, uid int64, batchID string) 
 				return err
 			}
 		}
-		q := `SELECT id FROM upload_batch b WHERE user_id=$1 AND NOT dismissed AND sealed AND NOT EXISTS (
-			SELECT 1 FROM upload_item i WHERE i.batch_id=b.id AND i.state NOT IN ('done','failed','skipped','cancelled','expanded'))`
-		args := []any{uid}
+		q := dbgen.New(tx)
+		arg := dbgen.ListFinishedUploadBatchIDsParams{UserID: uid}
 		if only != nil {
-			q += ` AND id=$2`
-			args = append(args, only.ID)
+			arg.OnlyID = &only.ID
 		}
-		rows, err := tx.Query(ctx, q, args...)
-		if err != nil {
+		if ids, err = q.ListFinishedUploadBatchIDs(ctx, arg); err != nil {
 			return err
 		}
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				rows.Close()
-				return err
-			}
-			ids = append(ids, id)
-		}
-		rows.Close()
 		if only != nil && len(ids) == 0 && !only.Dismissed {
 			return photo.Err("upload_still_active", 409)
 		}
 		if len(ids) > 0 {
-			_, err = tx.Exec(ctx, `UPDATE upload_batch SET dismissed=true WHERE id=ANY($1)`, ids)
+			return q.DismissUploadBatches(ctx, ids)
 		}
-		return err
+		return nil
 	})
 	return ids, err
 }
 
 func (s *Service) acknowledge(ctx context.Context, uid int64) (any, error) {
 	err := s.Atomic(ctx, uid, func(tx pgx.Tx, u photo.UserRow, f *photo.Files) error {
-		_, err := tx.Exec(ctx, `UPDATE upload_batch SET failures_acknowledged_at=$2 WHERE user_id=$1 AND NOT dismissed`, uid, now())
-		return err
+		return dbgen.New(tx).AcknowledgeUploadFailures(ctx, dbgen.AcknowledgeUploadFailuresParams{UserID: uid, At: now()})
 	})
 	return 1, err
 }
@@ -535,11 +495,11 @@ func (s *Service) cancel(ctx context.Context, uid int64, batchID string) (any, e
 			return err
 		}
 		t := now()
-		if _, err = tx.Exec(ctx, `UPDATE upload_batch SET cancelled=true, sealed=true, updated_at=$2 WHERE id=$1`, b.ID, t); err != nil {
+		q := dbgen.New(tx)
+		if err = q.CancelUploadBatch(ctx, dbgen.CancelUploadBatchParams{ID: b.ID, UpdatedAt: t}); err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `UPDATE upload_item SET state='cancelled', updated_at=$2 WHERE batch_id=$1 AND state IN ('pending','ready','processing','waiting')`, b.ID, t)
-		return err
+		return q.CancelOpenUploadItems(ctx, dbgen.CancelOpenUploadItemsParams{BatchID: b.ID, UpdatedAt: t})
 	})
 	return 1, err
 }
@@ -551,23 +511,18 @@ func (s *Service) retry(ctx context.Context, uid int64, batchID string) (any, er
 			return err
 		}
 		t := now()
-		if _, err = tx.Exec(ctx, `UPDATE upload_batch SET cancelled=false, dismissed=false, updated_at=$2 WHERE id=$1`, b.ID, t); err != nil {
+		q := dbgen.New(tx)
+		if err = q.ReopenUploadBatch(ctx, dbgen.ReopenUploadBatchParams{ID: b.ID, UpdatedAt: t}); err != nil {
 			return err
 		}
-		rows, err := tx.Query(ctx, `SELECT `+itemCols+` FROM upload_item WHERE batch_id=$1 AND state IN ('failed','cancelled')`, b.ID)
+		rows, err := q.ListRetryableUploadItems(ctx, b.ID)
 		if err != nil {
 			return err
 		}
-		var items []*itemRow
-		for rows.Next() {
-			i, err := scanItem(rows)
-			if err != nil {
-				rows.Close()
-				return err
-			}
-			items = append(items, i)
+		items := make([]*itemRow, len(rows))
+		for i, r := range rows {
+			items[i] = itemFromRow(r)
 		}
-		rows.Close()
 		for _, i := range items {
 			if i.Error != nil && *i.Error == "file_too_large" {
 				continue
@@ -583,15 +538,15 @@ func (s *Service) retry(ctx context.Context, uid int64, batchID string) (any, er
 					available = true
 				}
 			}
-			state, errc := "pending", any("source_expired")
+			state, errc := "pending", ptr("source_expired")
 			if available {
 				state, errc = "ready", nil
 			}
-			if _, err = tx.Exec(ctx, `UPDATE upload_item SET state=$2, error=$3, updated_at=$4 WHERE id=$1`, i.ID, state, errc, t); err != nil {
+			if err = q.SetUploadItemState(ctx, dbgen.SetUploadItemStateParams{ID: i.ID, State: state, Error: errc, UpdatedAt: t}); err != nil {
 				return err
 			}
 			if !available && i.SourceID != nil {
-				if _, err = tx.Exec(ctx, `UPDATE upload_item SET state='pending', error='source_expired', updated_at=$2 WHERE id=$1`, *i.SourceID, t); err != nil {
+				if err = q.SetUploadItemState(ctx, dbgen.SetUploadItemStateParams{ID: *i.SourceID, State: "pending", Error: errc, UpdatedAt: t}); err != nil {
 					return err
 				}
 			}

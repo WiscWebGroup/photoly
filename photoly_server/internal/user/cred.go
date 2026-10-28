@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/user/legacy"
 	"github.com/jackc/pgx/v5"
 )
@@ -23,12 +24,11 @@ type cred struct {
 }
 
 func (s *svc) identify(ctx context.Context, token string) (*cred, error) {
-	var c cred
-	err := s.a.Pool.QueryRow(ctx, `SELECT c.user_id, c."authorization" FROM cred c JOIN "user" u ON u.user_id=c.user_id WHERE c.token=$1`, token).Scan(&c.UserID, &c.Auth)
+	row, err := dbgen.New(s.a.Pool).GetCredByToken(ctx, token)
 	if err == pgx.ErrNoRows {
 		return nil, nil
 	}
-	return &c, err
+	return &cred{UserID: row.UserID, Auth: row.Authorization}, err
 }
 
 func authorization(v any) (string, error) {
@@ -48,22 +48,17 @@ func authorization(v any) (string, error) {
 	return out, nil
 }
 
-func credMap(r pgx.Row) (map[string]any, error) {
-	var id, uid int64
-	var token, auth *string
-	if err := r.Scan(&id, &uid, &token, &auth); err != nil {
-		return nil, err
-	}
-	return map[string]any{"credId": id, "userId": uid, "token": token, "authorization": auth}, nil
-}
-
 func registerCred(a *app.App, s *svc) {
 	m := a.Mux
 	res := legacy.Opt{Auth: "header"}
 	m.HandleFunc("POST /cred/create", legacy.Opt{Auth: "header", Failure: 0, HasFailure: true}.Wrap(a, s.credCreate))
 	m.HandleFunc("GET /cred/query", res.Wrap(a, func(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
-		rows, err := legacy.Rows(r.Context(), a.Pool, credMap, `SELECT cred_id,user_id,token,"authorization" FROM cred WHERE user_id=$1 ORDER BY cred_id`, uid)
-		return legacy.Res{V: rows, Code: 200}, err
+		rows, err := dbgen.New(a.Pool).ListUserCreds(r.Context(), uid)
+		out := make([]map[string]any, len(rows))
+		for i, c := range rows {
+			out[i] = map[string]any{"credId": c.CredID, "userId": c.UserID, "token": c.Token, "authorization": c.Authorization}
+		}
+		return legacy.Res{V: out, Code: 200}, err
 	}))
 	m.HandleFunc("POST /cred/update", res.Wrap(a, s.credUpdate))
 	m.HandleFunc("POST /cred/delete", res.Wrap(a, s.credDelete))
@@ -88,8 +83,7 @@ func (s *svc) credCreate(w http.ResponseWriter, r *http.Request, uid int64) (any
 		if err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO cred(user_id,token,"authorization") VALUES ($1,$2,$3)`, uid, legacy.NewUUID(), auth)
-		return err
+		return dbgen.New(tx).InsertCred(ctx, dbgen.InsertCredParams{UserID: uid, Token: legacy.NewUUID(), Auth: auth})
 	})
 	if err != nil {
 		return nil, err
@@ -105,15 +99,14 @@ func (s *svc) credUpdate(w http.ResponseWriter, r *http.Request, uid int64) (any
 	ctx := r.Context()
 	err = legacy.Atomic(ctx, s.a.Pool, s.a.Cfg.UploadFolder, uid, false, func(tx pgx.Tx, _ *legacy.Files, _ *legacy.LockedUser) error {
 		id, ok := legacy.Int(data["credId"])
-		if err := legacy.Owned(ctx, tx, "cred", "cred_id", id, ok, uid, -1, 400); err != nil {
+		if err := legacy.Owned(ctx, tx, "cred", id, ok, uid, -1, 400); err != nil {
 			return err
 		}
 		auth, err := authorization(data["authorization"])
 		if err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `UPDATE cred SET "authorization"=$2 WHERE cred_id=$1`, id, auth)
-		return err
+		return dbgen.New(tx).UpdateCredAuthorization(ctx, dbgen.UpdateCredAuthorizationParams{CredID: id, Auth: auth})
 	})
 	if err != nil {
 		return nil, err
@@ -128,11 +121,10 @@ func (s *svc) credDelete(w http.ResponseWriter, r *http.Request, uid int64) (any
 	}
 	ctx := r.Context()
 	err = legacy.Atomic(ctx, s.a.Pool, s.a.Cfg.UploadFolder, uid, false, func(tx pgx.Tx, _ *legacy.Files, _ *legacy.LockedUser) error {
-		if err := legacy.Owned(ctx, tx, "cred", "cred_id", id, ok, uid, -1, 400); err != nil {
+		if err := legacy.Owned(ctx, tx, "cred", id, ok, uid, -1, 400); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `DELETE FROM cred WHERE cred_id=$1`, id)
-		return err
+		return dbgen.New(tx).DeleteCred(ctx, id)
 	})
 	if err != nil {
 		return nil, err
@@ -211,8 +203,11 @@ func (s *svc) credUpload(multiple bool) legacy.Handler {
 
 func (s *svc) photoByUUID(ctx context.Context, uid int64, uuid string, ok bool) (id int64, owner string, format string, err error) {
 	if ok {
-		err = s.a.Pool.QueryRow(ctx, `SELECT p.photo_id, u.uuid, p.format FROM photo p JOIN "user" u ON u.user_id=p.user_id
-			WHERE p.user_id=$1 AND p.photo_uuid=$2`, uid, uuid).Scan(&id, &owner, &format)
+		var row dbgen.GetPhotoForCredRow
+		row, err = dbgen.New(s.a.Pool).GetPhotoForCred(ctx, dbgen.GetPhotoForCredParams{UserID: uid, PhotoUuid: uuid})
+		if err == nil {
+			id, owner, format = row.PhotoID, deref(row.OwnerUuid), deref(row.Format)
+		}
 	} else {
 		err = pgx.ErrNoRows
 	}
@@ -262,7 +257,7 @@ func (s *svc) credDeletePhoto(w http.ResponseWriter, r *http.Request, _ int64) (
 	}
 	root := s.a.Cfg.UploadFolder
 	err = legacy.Atomic(ctx, s.a.Pool, root, c.UserID, false, func(tx pgx.Tx, f *legacy.Files, lu *legacy.LockedUser) error {
-		if err := legacy.Owned(ctx, tx, "photo", "photo_id", id, true, c.UserID, -1, 400); err != nil {
+		if err := legacy.Owned(ctx, tx, "photo", id, true, c.UserID, -1, 400); err != nil {
 			return err
 		}
 		_, err := legacy.DeletePhotos(ctx, tx, f, root, lu, []int64{id})
@@ -279,11 +274,11 @@ func (s *svc) credRoot(w http.ResponseWriter, r *http.Request, _ int64) (any, er
 	if c == nil || err != nil {
 		return nil, err
 	}
-	m, err := legacy.NsMap(s.a.Pool.QueryRow(r.Context(), `SELECT `+legacy.NsCols+` FROM namespace WHERE user_id=$1 AND ns_parent_id=-1 LIMIT 1`, c.UserID))
+	ns, err := dbgen.New(s.a.Pool).GetRootNamespace(r.Context(), c.UserID)
 	if err == pgx.ErrNoRows {
 		return nil, nil
 	}
-	return legacy.Raw{V: m}, err
+	return legacy.Raw{V: legacy.NsJSON(ns)}, err
 }
 
 func (s *svc) credChildren(w http.ResponseWriter, r *http.Request, _ int64) (any, error) {
@@ -299,9 +294,8 @@ func (s *svc) credChildren(w http.ResponseWriter, r *http.Request, _ int64) (any
 	if ok {
 		arg = &pid
 	}
-	rows, err := legacy.Rows(r.Context(), s.a.Pool, legacy.NsMap, `SELECT `+legacy.NsCols+` FROM namespace
-		WHERE user_id=$1 AND ns_parent_id IS NOT DISTINCT FROM $2::int8 ORDER BY ns_id`, c.UserID, arg)
-	return legacy.Raw{V: rows}, err
+	rows, err := dbgen.New(s.a.Pool).ListChildNamespaces(r.Context(), dbgen.ListChildNamespacesParams{UserID: c.UserID, ParentID: arg})
+	return legacy.Raw{V: legacy.NsListJSON(rows)}, err
 }
 
 func (s *svc) credPhotoList(w http.ResponseWriter, r *http.Request, _ int64) (any, error) {
@@ -314,9 +308,9 @@ func (s *svc) credPhotoList(w http.ResponseWriter, r *http.Request, _ int64) (an
 	if err != nil {
 		return nil, err
 	}
-	if err := legacy.Owned(ctx, s.a.Pool, "namespace", "ns_id", ns, ok, c.UserID, -1, 400); err != nil {
+	if err := legacy.Owned(ctx, s.a.Pool, "namespace", ns, ok, c.UserID, -1, 400); err != nil {
 		return nil, err
 	}
-	rows, err := legacy.Rows(ctx, s.a.Pool, legacy.PhotoMap, `SELECT `+legacy.PhotoCols+` FROM photo WHERE user_id=$1 AND ns_id=$2 ORDER BY photo_id`, c.UserID, ns)
-	return legacy.Raw{V: rows}, err
+	rows, err := dbgen.New(s.a.Pool).ListNamespacePhotos(ctx, dbgen.ListNamespacePhotosParams{UserID: c.UserID, NsID: ns})
+	return legacy.Raw{V: legacy.PhotoListJSON(rows)}, err
 }

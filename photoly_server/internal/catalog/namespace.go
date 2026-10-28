@@ -9,16 +9,17 @@ import (
 	"strconv"
 	"strings"
 
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/user/legacy"
 	"github.com/jackc/pgx/v5"
 )
 
 func (s *svc) nsRoot(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
-	m, err := legacy.NsMap(s.a.Pool.QueryRow(r.Context(), `SELECT `+legacy.NsCols+` FROM namespace WHERE user_id=$1 AND ns_parent_id=-1 LIMIT 1`, uid))
+	ns, err := dbgen.New(s.a.Pool).GetRootNamespace(r.Context(), uid)
 	if err == pgx.ErrNoRows {
 		return legacy.Res{V: nil, Code: 200}, nil
 	}
-	return legacy.Res{V: m, Code: 200}, err
+	return legacy.Res{V: legacy.NsJSON(ns), Code: 200}, err
 }
 
 func (s *svc) nsChildren(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
@@ -30,13 +31,12 @@ func (s *svc) nsChildren(w http.ResponseWriter, r *http.Request, uid int64) (any
 	if ok {
 		arg = &pid
 	}
-	rows, err := legacy.Rows(r.Context(), s.a.Pool, legacy.NsMap, `SELECT `+legacy.NsCols+` FROM namespace
-		WHERE user_id=$1 AND ns_parent_id IS NOT DISTINCT FROM $2::int8 ORDER BY ns_id`, uid, arg)
-	return legacy.Res{V: rows, Code: 200}, err
+	rows, err := dbgen.New(s.a.Pool).ListChildNamespaces(r.Context(), dbgen.ListChildNamespacesParams{UserID: uid, ParentID: arg})
+	return legacy.Res{V: legacy.NsListJSON(rows), Code: 200}, err
 }
 
 func (s *svc) owned(ctx context.Context, db legacy.DB, id int64, ok bool, uid int64, failure any) error {
-	return legacy.Owned(ctx, db, "namespace", "ns_id", id, ok, uid, failure, 400)
+	return legacy.Owned(ctx, db, "namespace", id, ok, uid, failure, 400)
 }
 
 func (s *svc) nsName(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
@@ -48,8 +48,7 @@ func (s *svc) nsName(w http.ResponseWriter, r *http.Request, uid int64) (any, er
 	if err := s.owned(ctx, s.a.Pool, id, ok, uid, -1); err != nil {
 		return nil, err
 	}
-	var name *string
-	err = s.a.Pool.QueryRow(ctx, `SELECT ns_name FROM namespace WHERE ns_id=$1`, id).Scan(&name)
+	name, err := dbgen.New(s.a.Pool).GetNamespaceName(ctx, id)
 	return legacy.Res{V: name, Code: 200}, err
 }
 
@@ -132,35 +131,23 @@ func (s *svc) nsDetails(w http.ResponseWriter, r *http.Request, uid int64) (any,
 	if err := s.owned(ctx, s.a.Pool, id, true, uid, -1); err != nil {
 		return nil, err
 	}
-	var nsName *string
-	var uuid string
-	var folders int64
-	const cte = `WITH RECURSIVE d(ns_id) AS (SELECT ns_id FROM namespace WHERE ns_id=$1 AND user_id=$2
-		UNION SELECT n.ns_id FROM namespace n JOIN d ON n.ns_parent_id=d.ns_id WHERE n.user_id=$2) `
-	if err := s.a.Pool.QueryRow(ctx, cte+`SELECT (SELECT ns_name FROM namespace WHERE ns_id=$1), (SELECT uuid FROM "user" WHERE user_id=$2), (SELECT count(*) FROM d)`, id, uid).Scan(&nsName, &uuid, &folders); err != nil {
-		return nil, err
-	}
-	rows, err := s.a.Pool.Query(ctx, cte+`SELECT p.photo_uuid, p.format, m.photo_id IS NOT NULL, e.f_photo_id IS NOT NULL,
-		e.extra_photo_camera, e.extra_photo_lens, e.extra_photo_gps_lat, e.extra_photo_gps_lon
-		FROM photo p LEFT JOIN photo_extra e ON e.f_photo_id=p.photo_id LEFT JOIN photo_media m ON m.photo_id=p.photo_id
-		WHERE p.user_id=$2 AND p.ns_id IN (SELECT ns_id FROM d) ORDER BY p.photo_id`, id, uid)
+	q := dbgen.New(s.a.Pool)
+	sum, err := q.GetNamespaceSummary(ctx, dbgen.GetNamespaceSummaryParams{NsID: id, UserID: uid})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	nsName, uuid, folders := sum.NsName, sum.Uuid, sum.Folders
+	rows, err := q.ListNamespaceTreePhotos(ctx, dbgen.ListNamespaceTreePhotosParams{NsID: id, UserID: uid})
+	if err != nil {
+		return nil, err
+	}
 	var photos, videos, orig, thumb, missing int64
 	cams, lenses := newTally(), newTally()
 	type pk struct{ place, country string }
 	placeCount := map[pk]int{}
 	root := s.a.Cfg.UploadFolder
-	for rows.Next() {
-		var puuid, format string
-		var hasMedia, hasExtra bool
-		var cam, lens *string
-		var lat, lon *float64
-		if err := rows.Scan(&puuid, &format, &hasMedia, &hasExtra, &cam, &lens, &lat, &lon); err != nil {
-			return nil, err
-		}
+	for _, row := range rows {
+		puuid, format := row.PhotoUuid, row.Format
 		suffix := strings.ToLower(format)
 		if imageFormats[suffix] {
 			photos++
@@ -188,7 +175,7 @@ func (s *svc) nsDetails(w http.ResponseWriter, r *http.Request, uid int64) (any,
 		} else {
 			thumb += n
 		}
-		if hasMedia {
+		if row.HasMedia {
 			for _, sfx := range []string{"_preview.jpg", "_live.mov", "_live.mp4"} {
 				if p, err := path(puuid + sfx); err == nil {
 					if n, ok := isFile(p); ok {
@@ -197,16 +184,13 @@ func (s *svc) nsDetails(w http.ResponseWriter, r *http.Request, uid int64) (any,
 				}
 			}
 		}
-		if hasExtra && imageFormats[suffix] {
-			cams.add(cam)
-			lenses.add(lens)
-			if pl := places().nearest(lat, lon); pl != nil {
+		if row.HasExtra && imageFormats[suffix] {
+			cams.add(row.ExtraPhotoCamera)
+			lenses.add(row.ExtraPhotoLens)
+			if pl := places().nearest(row.ExtraPhotoGpsLat, row.ExtraPhotoGpsLon); pl != nil {
 				placeCount[pk{pl.Place, pl.Country}]++
 			}
 		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
 	}
 	keys := make([]pk, 0, len(placeCount))
 	for k := range placeCount {
@@ -245,8 +229,7 @@ func (s *svc) nsInsert(w http.ResponseWriter, r *http.Request, uid int64) (any, 
 		if err := s.owned(ctx, tx, pid, ok, uid, -1); err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO namespace(ns_name,ns_parent_id,user_id) VALUES ($1,$2,$3)`, name, pid, uid)
-		return err
+		return dbgen.New(tx).InsertNamespace(ctx, dbgen.InsertNamespaceParams{NsName: name, ParentID: pid, UserID: uid})
 	})
 	if err != nil {
 		return nil, err
@@ -255,16 +238,14 @@ func (s *svc) nsInsert(w http.ResponseWriter, r *http.Request, uid int64) (any, 
 }
 
 func parentOf(ctx context.Context, db legacy.DB, id int64) (parent int64, name string, err error) {
-	var p *int64
-	var n *string
-	err = db.QueryRow(ctx, `SELECT ns_parent_id, ns_name FROM namespace WHERE ns_id=$1`, id).Scan(&p, &n)
-	if p != nil {
-		parent = *p
+	ns, err := dbgen.New(db).GetNamespace(ctx, id)
+	if ns.NsParentID != nil {
+		parent = *ns.NsParentID
 	}
-	if n != nil {
-		name = *n
+	if ns.NsName != nil {
+		name = *ns.NsName
 	}
-	return
+	return parent, name, err
 }
 
 func (s *svc) nsRename(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
@@ -287,8 +268,7 @@ func (s *svc) nsRename(w http.ResponseWriter, r *http.Request, uid int64) (any, 
 		if err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `UPDATE namespace SET ns_name=$2 WHERE ns_id=$1`, id, name)
-		return err
+		return dbgen.New(tx).RenameNamespace(ctx, dbgen.RenameNamespaceParams{NsID: id, NsName: name})
 	})
 	if err != nil {
 		return nil, err
@@ -334,8 +314,7 @@ func (s *svc) nsMove(w http.ResponseWriter, r *http.Request, uid int64) (any, er
 			}
 			cur = p
 		}
-		_, err = tx.Exec(ctx, `UPDATE namespace SET ns_parent_id=$2 WHERE ns_id=$1`, id, pid)
-		return err
+		return dbgen.New(tx).MoveNamespace(ctx, dbgen.MoveNamespaceParams{NsID: id, ParentID: pid})
 	})
 	if err != nil {
 		return nil, err
@@ -402,34 +381,26 @@ func (s *svc) tree(ctx context.Context, db legacy.DB, uid, id int64) ([]node, er
 		}
 		seen[n.id] = true
 		out = append(out, n)
-		rows, err := db.Query(ctx, `SELECT ns_id, ns_name FROM namespace WHERE user_id=$1 AND ns_parent_id=$2 ORDER BY ns_id`, uid, n.id)
+		children, err := dbgen.New(db).ListChildNamespaceNames(ctx, dbgen.ListChildNamespaceNamesParams{UserID: uid, ParentID: n.id})
 		if err != nil {
 			return nil, err
 		}
 		names := map[string]bool{}
-		for rows.Next() {
-			var cid int64
-			var cname *string
-			if err := rows.Scan(&cid, &cname); err != nil {
-				rows.Close()
-				return nil, err
-			}
+		for _, c := range children {
 			var v any
-			if cname != nil {
-				v = *cname
+			if c.NsName != nil {
+				v = *c.NsName
 			}
 			nm, err := legacy.ValidName(v, false)
 			if err != nil {
-				rows.Close()
 				return nil, err
 			}
 			if names[nm] {
-				nm += " (" + itoa(cid) + ")"
+				nm += " (" + itoa(c.NsID) + ")"
 			}
 			names[nm] = true
-			stack = append(stack, node{cid, n.path + "/" + nm})
+			stack = append(stack, node{c.NsID, n.path + "/" + nm})
 		}
-		rows.Close()
 	}
 	return out, nil
 }
@@ -457,26 +428,17 @@ func (s *svc) nsDelete(w http.ResponseWriter, r *http.Request, uid int64) (any, 
 			return err
 		}
 		for i := len(tree) - 1; i >= 0; i-- {
-			rows, err := tx.Query(ctx, `SELECT photo_id FROM photo WHERE user_id=$1 AND ns_id=$2 ORDER BY photo_id`, uid, tree[i].id)
+			q := dbgen.New(tx)
+			ids, err := q.ListPhotoIDsInNamespace(ctx, dbgen.ListPhotoIDsInNamespaceParams{UserID: uid, NsID: tree[i].id})
 			if err != nil {
 				return err
 			}
-			var ids []int64
-			for rows.Next() {
-				var pid int64
-				if err := rows.Scan(&pid); err != nil {
-					rows.Close()
-					return err
-				}
-				ids = append(ids, pid)
-			}
-			rows.Close()
 			n, err := legacy.DeletePhotos(ctx, tx, f, root, u, ids)
 			if err != nil {
 				return err
 			}
 			count += n
-			if _, err := tx.Exec(ctx, `DELETE FROM namespace WHERE ns_id=$1`, tree[i].id); err != nil {
+			if err := q.DeleteNamespace(ctx, tree[i].id); err != nil {
 				return err
 			}
 			count++
@@ -498,55 +460,43 @@ func (s *svc) nsDownload(w http.ResponseWriter, r *http.Request, uid int64) (any
 	if err := s.owned(ctx, s.a.Pool, id, ok, uid, -1); err != nil {
 		return nil, err
 	}
-	var uuid string
-	if err := s.a.Pool.QueryRow(ctx, `SELECT uuid FROM "user" WHERE user_id=$1`, uid).Scan(&uuid); err != nil {
+	uuidp, err := dbgen.New(s.a.Pool).GetUserUUID(ctx, uid)
+	if err != nil {
 		return nil, err
 	}
+	uuid := deref(uuidp)
 	tree, err := s.tree(ctx, s.a.Pool, uid, id)
 	if err != nil {
 		return nil, err
 	}
 	var entries []legacy.Entry
 	for _, n := range tree {
-		rows, err := s.a.Pool.Query(ctx, `SELECT p.photo_id, p.photo_uuid, p.photo_name, p.format, coalesce(m.live,false)
-			FROM photo p LEFT JOIN photo_media m ON m.photo_id=p.photo_id WHERE p.user_id=$1 AND p.ns_id=$2 ORDER BY p.photo_id`, uid, n.id)
+		rows, err := dbgen.New(s.a.Pool).ListNamespaceDownloadPhotos(ctx, dbgen.ListNamespaceDownloadPhotosParams{UserID: uid, NsID: n.id})
 		if err != nil {
 			return nil, err
 		}
-		for rows.Next() {
-			var pid int64
-			var puuid, format string
-			var pname *string
-			var live bool
-			if err := rows.Scan(&pid, &puuid, &pname, &format, &live); err != nil {
-				rows.Close()
-				return nil, err
-			}
+		for _, row := range rows {
 			var v any
-			if pname != nil {
-				v = *pname
+			if row.PhotoName != nil {
+				v = *row.PhotoName
 			}
 			nm, err := legacy.ValidName(v, false)
 			if err != nil {
-				rows.Close()
 				return nil, err
 			}
-			p, err := legacy.MediaPath(s.a.Cfg.UploadFolder, uuid, puuid+"."+format)
+			p, err := legacy.MediaPath(s.a.Cfg.UploadFolder, uuid, row.PhotoUuid+"."+row.Format)
 			if err != nil {
-				rows.Close()
 				return nil, err
 			}
-			entries = append(entries, legacy.Entry{Path: p, Name: n.path + "/" + nm + "." + format, ID: pid})
-			if live {
-				lp, err := legacy.MediaPath(s.a.Cfg.UploadFolder, uuid, puuid+"_live.mov")
+			entries = append(entries, legacy.Entry{Path: p, Name: n.path + "/" + nm + "." + row.Format, ID: row.PhotoID})
+			if row.Live {
+				lp, err := legacy.MediaPath(s.a.Cfg.UploadFolder, uuid, row.PhotoUuid+"_live.mov")
 				if err != nil {
-					rows.Close()
 					return nil, err
 				}
-				entries = append(entries, legacy.Entry{Path: lp, Name: n.path + "/" + nm + ".mov", ID: pid})
+				entries = append(entries, legacy.Entry{Path: lp, Name: n.path + "/" + nm + ".mov", ID: row.PhotoID})
 			}
 		}
-		rows.Close()
 	}
 	legacy.ServeArchive(w, r, entries)
 	return legacy.Done{}, nil

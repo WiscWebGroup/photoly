@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	dbpkg "github.com/WiscWebGroup/photoly/photoly_server/internal/db"
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -32,60 +34,43 @@ func Day(t *time.Time) any {
 	return t.Format("2006-01-02")
 }
 
-const (
-	NsCols    = "ns_id, ns_name, ns_parent_id, user_id"
-	PhotoCols = "photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id"
-)
-
-func NsMap(r pgx.Row) (map[string]any, error) {
-	var id int64
-	var name *string
-	var parent, uid *int64
-	if err := r.Scan(&id, &name, &parent, &uid); err != nil {
-		return nil, err
-	}
-	return map[string]any{"nsId": id, "nsName": name, "nsParentId": parent, "userId": uid}, nil
+// NsJSON is the wire shape of a namespace row.
+func NsJSON(n dbgen.Namespace) map[string]any {
+	return map[string]any{"nsId": n.NsID, "nsName": n.NsName, "nsParentId": n.NsParentID, "userId": n.UserID}
 }
 
-func PhotoMap(r pgx.Row) (map[string]any, error) {
-	var id int64
-	var name, format, token, puuid *string
-	var up *time.Time
-	var ns, vis, uid *int64
-	if err := r.Scan(&id, &name, &up, &format, &ns, &vis, &token, &puuid, &uid); err != nil {
-		return nil, err
+// NsListJSON maps namespace rows; the result is never nil (JSON []).
+func NsListJSON(rows []dbgen.Namespace) []map[string]any {
+	out := make([]map[string]any, len(rows))
+	for i, n := range rows {
+		out[i] = NsJSON(n)
 	}
-	return map[string]any{"photoId": id, "photoName": name, "uploadDate": ISO(up), "format": format,
-		"nsId": ns, "visibility": vis, "token": token, "photoUuid": puuid, "userId": uid}, nil
+	return out
 }
 
-// Rows maps every row of a query; the result is never nil (JSON []).
-func Rows(ctx context.Context, db DB, f func(pgx.Row) (map[string]any, error), sql string, args ...any) ([]map[string]any, error) {
-	rows, err := db.Query(ctx, sql, args...)
-	if err != nil {
-		return nil, err
+// PhotoJSON is the wire shape of a photo row.
+func PhotoJSON(p dbgen.Photo) map[string]any {
+	return map[string]any{"photoId": p.PhotoID, "photoName": p.PhotoName, "uploadDate": ISO(p.UploadDate), "format": p.Format,
+		"nsId": p.NsID, "visibility": p.Visibility, "token": p.Token, "photoUuid": p.PhotoUuid, "userId": p.UserID}
+}
+
+// PhotoListJSON maps photo rows; the result is never nil (JSON []).
+func PhotoListJSON(rows []dbgen.Photo) []map[string]any {
+	out := make([]map[string]any, len(rows))
+	for i, p := range rows {
+		out[i] = PhotoJSON(p)
 	}
-	defer rows.Close()
-	out := []map[string]any{}
-	for rows.Next() {
-		m, err := f(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, m)
-	}
-	return out, rows.Err()
+	return out
 }
 
 // Owned is BaseService.owned: the key must exist and belong to uid, else Biz(failure, code).
-func Owned(ctx context.Context, db DB, table, pk string, key int64, ok bool, uid int64, failure any, code int) error {
+func Owned(ctx context.Context, db DB, table string, key int64, ok bool, uid int64, failure any, code int) error {
 	if ok && InInt32(key) {
-		var owner *int64
-		err := db.QueryRow(ctx, "SELECT user_id FROM "+table+" WHERE "+pk+"=$1", key).Scan(&owner)
+		owner, err := dbpkg.Owner(ctx, db, table, key)
 		if err != nil && err != pgx.ErrNoRows {
 			return err
 		}
-		if err == nil && owner != nil && *owner == uid {
+		if err == nil && owner == uid {
 			return nil
 		}
 	}
@@ -102,15 +87,16 @@ var assetSuffixes = []string{"_preview.jpg", "_live.mov", "_live.mp4"}
 func DeletePhotos(ctx context.Context, tx pgx.Tx, f *Files, root string, u *LockedUser, ids []int64) (int, error) {
 	count := 0
 	for _, id := range ids {
-		var puuid, format string
-		if err := tx.QueryRow(ctx, `SELECT photo_uuid, format FROM photo WHERE photo_id=$1`, id).Scan(&puuid, &format); err != nil {
+		q := dbgen.New(tx)
+		file, err := q.GetPhotoFileNames(ctx, id)
+		if err != nil {
 			return 0, err
 		}
 		names := []string{}
 		for _, s := range assetSuffixes {
-			names = append(names, puuid+s)
+			names = append(names, file.PhotoUuid+s)
 		}
-		names = append(names, puuid+"."+format, puuid+"_thumbnail."+format)
+		names = append(names, file.PhotoUuid+"."+file.Format, file.PhotoUuid+"_thumbnail."+file.Format)
 		for _, n := range names {
 			p, err := MediaPath(root, u.UUID, n)
 			if err != nil {
@@ -122,10 +108,10 @@ func DeletePhotos(ctx context.Context, tx pgx.Tx, f *Files, root string, u *Lock
 			}
 			count += c
 		}
-		if _, err := tx.Exec(ctx, `DELETE FROM photo_media WHERE photo_id=$1`, id); err != nil {
+		if err := q.DeletePhotoMedia(ctx, id); err != nil {
 			return 0, err
 		}
-		if _, err := tx.Exec(ctx, `DELETE FROM photo WHERE photo_id=$1`, id); err != nil {
+		if err := q.DeletePhoto(ctx, id); err != nil {
 			return 0, err
 		}
 	}

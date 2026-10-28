@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/httpx"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/photo"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/user/legacy"
@@ -157,14 +158,14 @@ type txFn func(tx pgx.Tx)
 func (s *svc) atomic(ctx context.Context, policyWrite bool, userID *int64, fn txFn) {
 	tx := must(s.a.Pool.Begin(ctx))
 	defer tx.Rollback(ctx)
-	lock := "pg_advisory_xact_lock_shared"
+	q := dbgen.New(tx)
 	if policyWrite {
-		lock = "pg_advisory_xact_lock"
+		check(q.LockPolicyExclusive(ctx))
+	} else {
+		check(q.LockPolicyShared(ctx))
 	}
-	must(tx.Exec(ctx, `SELECT `+lock+`(74831003)`))
 	if userID != nil {
-		var id int64
-		if err := tx.QueryRow(ctx, `SELECT user_id FROM "user" WHERE user_id=$1 FOR UPDATE`, *userID).Scan(&id); err != nil {
+		if _, err := q.LockUser(ctx, *userID); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				throw(-1, 400)
 			}
@@ -196,10 +197,12 @@ type userRow struct {
 	MaxBytes, Used          *int64
 }
 
-const userCols = `user_id, user_name, email, create_date, role, uuid, group_id, storage_override, max_storage_bytes, used_bytes`
+func userFromList(r dbgen.ListUsersRow) userRow {
+	return userRow{r.UserID, r.UserName, r.Email, r.Role, r.Uuid, r.CreateDate, r.GroupID, r.StorageOverride, r.MaxStorageBytes, r.UsedBytes}
+}
 
-func (u *userRow) scan(r pgx.Rows) error {
-	return r.Scan(&u.ID, &u.Name, &u.Email, &u.Created, &u.Role, &u.UUID, &u.GroupID, &u.Override, &u.MaxBytes, &u.Used)
+func userFromGet(r dbgen.GetAdminUserRow) userRow {
+	return userRow{r.UserID, r.UserName, r.Email, r.Role, r.Uuid, r.CreateDate, r.GroupID, r.StorageOverride, r.MaxStorageBytes, r.UsedBytes}
 }
 
 func (u *userRow) legacy() map[string]any {
@@ -214,27 +217,27 @@ func (u *userRow) legacy() map[string]any {
 	return map[string]any{"userId": u.ID, "userName": u.Name, "email": u.Email, "createDate": created, "role": u.Role, "password": nil, "uuid": u.UUID}
 }
 
-func (s *svc) users(ctx context.Context, where string, args []any, page, rows int64) ([]userRow, int64) {
-	var total int64
-	check(s.a.Pool.QueryRow(ctx, `SELECT count(*) FROM "user" u `+where, args...).Scan(&total))
-	n := len(args)
-	rs := must(s.a.Pool.Query(ctx, `SELECT `+userCols+` FROM "user" u `+where+` ORDER BY user_id OFFSET $`+strconv.Itoa(n+1)+` LIMIT $`+strconv.Itoa(n+2),
-		append(args, (page-1)*rows, rows)...))
-	defer rs.Close()
-	var out []userRow
-	for rs.Next() {
-		var u userRow
-		check(u.scan(rs))
-		out = append(out, u)
+// userFilter narrows the user list; nil fields match everything.
+type userFilter struct {
+	search  *string // ILIKE pattern, wildcards included
+	role    *string
+	groupID *int64
+}
+
+func (s *svc) users(ctx context.Context, f userFilter, page, rows int64) ([]userRow, int64) {
+	q := dbgen.New(s.a.Pool)
+	total := must(q.CountUsers(ctx, dbgen.CountUsersParams{Search: f.search, Role: f.role, GroupID: f.groupID}))
+	list := must(q.ListUsers(ctx, dbgen.ListUsersParams{Search: f.search, Role: f.role, GroupID: f.groupID, RowOffset: (page - 1) * rows, RowLimit: rows}))
+	out := make([]userRow, len(list))
+	for i, r := range list {
+		out[i] = userFromList(r)
 	}
-	check(rs.Err())
 	return out, total
 }
 
 func (s *svc) projection(ctx context.Context, u userRow) map[string]any {
-	var name string
-	var groupMax *int64
-	check(s.a.Pool.QueryRow(ctx, `SELECT name, max_storage_bytes FROM user_group WHERE id=$1`, u.GroupID).Scan(&name, &groupMax))
+	group := must(dbgen.New(s.a.Pool).GetUserGroup(ctx, u.GroupID))
+	name, groupMax := group.Name, group.MaxStorageBytes
 	limit, source := groupMax, "group"
 	if u.Override {
 		limit, source = u.MaxBytes, "user"
@@ -265,7 +268,7 @@ func (s *svc) setSetting(ctx context.Context, u app.User, name string, value int
 	}
 	var n int64
 	s.atomic(ctx, name == "OnlineDownload", nil, func(tx pgx.Tx) {
-		n = must(tx.Exec(ctx, `UPDATE setting SET setting_value=$2 WHERE setting_name=$1`, name, strconv.FormatInt(value, 10))).RowsAffected()
+		n = must(dbgen.New(tx).UpdateSetting(ctx, dbgen.UpdateSettingParams{Name: name, Value: strconv.FormatInt(value, 10)}))
 	})
 	if n == 0 {
 		return 0
@@ -281,29 +284,27 @@ func (s *svc) createUser(ctx context.Context, tx pgx.Tx, data map[string]any, ro
 	if !ok1 || !emailRe.MatchString(email) || !ok2 || password == "" {
 		throw(-1, 400)
 	}
-	var exists bool
-	check(tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM "user" WHERE email=$1)`, email).Scan(&exists))
-	if exists {
+	q := dbgen.New(tx)
+	if must(q.EmailExists(ctx, email)) {
 		throw(-1, 400)
 	}
-	aiDefault := false
-	_ = tx.QueryRow(ctx, `SELECT COALESCE((desired->>'new_user_default')::boolean, false) FROM ai_control_state WHERE name='global'`).Scan(&aiDefault)
+	aiDefault, _ := q.NewUserAIDefault(ctx)
 	loc, err := time.LoadLocation(s.a.Cfg.Timezone)
 	if err != nil {
 		loc = time.UTC
 	}
 	now := time.Now().In(loc)
 	naive := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), 0, time.UTC)
-	var name any
-	if v, ok := data["userName"]; ok {
-		name = v
+	var name *string
+	if v, ok := data["userName"].(string); ok {
+		name = &v
+	} else if data["userName"] != nil {
+		throw(-1, 400)
 	}
-	var uid int64
-	check(tx.QueryRow(ctx, `INSERT INTO "user" (user_name, email, password, role, uuid, create_date, group_id, used_bytes, ai_search_enabled)
-		VALUES ($1,$2,$3,$4,$5,$6,(SELECT id FROM user_group WHERE is_default LIMIT 1),0,$7) RETURNING user_id`,
-		name, email, legacy.HashPassword(password), role, photo.NewUUID(), naive, aiDefault).Scan(&uid))
-	must(tx.Exec(ctx, `INSERT INTO namespace (ns_name, ns_parent_id, user_id) VALUES ('/', -1, $1)`, uid))
-	must(tx.Exec(ctx, `INSERT INTO gallery (ga_name, user_id, create_date, cover_id, cover_color) VALUES ('My Favorite', $1, $2, 2, '#FFFFFF')`, uid, naive))
+	uid := must(q.InsertUser(ctx, dbgen.InsertUserParams{UserName: name, Email: email, Password: legacy.HashPassword(password), Role: role,
+		Uuid: photo.NewUUID(), CreateDate: naive, AiSearchEnabled: aiDefault}))
+	check(q.InsertRootNamespace(ctx, uid))
+	check(q.InsertFavoriteGallery(ctx, dbgen.InsertFavoriteGalleryParams{UserID: uid, CreateDate: naive}))
 }
 
 func validName(v any) string {
@@ -314,7 +315,7 @@ func validName(v any) string {
 	return s
 }
 
-func storageLimit(v any) any {
+func storageLimit(v any) *int64 {
 	if v == nil {
 		return nil
 	}
@@ -322,7 +323,7 @@ func storageLimit(v any) any {
 	if !ok || n < 0 || n > 9007199254740991 {
 		throw("invalid_storage_limit", 400)
 	}
-	return n
+	return &n
 }
 
 // Register mounts the /admin routes.
@@ -337,9 +338,7 @@ func Register(a *app.App) {
 	}
 	ping := func(w http.ResponseWriter, r *http.Request, u app.User) {
 		requireAdmin(u)
-		var one int64
-		check(a.Pool.QueryRow(r.Context(), `SELECT 1`).Scan(&one))
-		changed(w, one)
+		changed(w, must(dbgen.New(a.Pool).Ping(r.Context())))
 	}
 	get("/admin/isAdmin", false, false, func(w http.ResponseWriter, r *http.Request, u app.User) {
 		httpx.JSON(w, u.Role == "admin", 200)
@@ -350,8 +349,8 @@ func Register(a *app.App) {
 	get("/admin/databaseInfo", nil, false, func(w http.ResponseWriter, r *http.Request, u app.User) {
 		requireAdmin(u)
 		ctx := r.Context()
-		var version string
-		check(a.Pool.QueryRow(ctx, `SHOW server_version`).Scan(&version))
+		version := must(dbgen.New(a.Pool).ServerVersion(ctx))
+		// pg_extension and goose_db_version live outside the sqlc schema, so these two stay raw SQL.
 		var vec, rev *string
 		_ = a.Pool.QueryRow(ctx, `SELECT extversion FROM pg_extension WHERE extname='vector'`).Scan(&vec)
 		if a.Pool.QueryRow(ctx, `SELECT max(version_id)::text FROM goose_db_version`).Scan(&rev) != nil {
@@ -371,16 +370,10 @@ func Register(a *app.App) {
 			httpx.JSON(w, nil, 400)
 			return
 		}
-		rs := must(a.Pool.Query(r.Context(), `SELECT setting_name, setting_value FROM setting ORDER BY setting_id`))
-		defer rs.Close()
 		out := map[string]any{}
-		for rs.Next() {
-			var k string
-			var v *string
-			check(rs.Scan(&k, &v))
-			out[k] = v
+		for _, row := range must(dbgen.New(a.Pool).ListSettings(r.Context())) {
+			out[deref(row.SettingName)] = row.SettingValue
 		}
-		check(rs.Err())
 		httpx.JSON(w, out, 200)
 	})
 	post("/admin/stop", -2, func(w http.ResponseWriter, r *http.Request, u app.User) {
@@ -412,11 +405,12 @@ func Register(a *app.App) {
 		if !ok1 || !ok2 || page < 1 || rows < 1 {
 			throw(-1, 400)
 		}
-		where, args := "", []any(nil)
+		var f userFilter
 		if search != nil {
-			where, args = `WHERE user_name ILIKE $1 OR email ILIKE $1`, []any{"%" + *search + "%"}
+			pattern := "%" + *search + "%"
+			f.search = &pattern
 		}
-		us, total := s.users(r.Context(), where, args, page, rows)
+		us, total := s.users(r.Context(), f, page, rows)
 		out := []map[string]any{}
 		for i := range us {
 			out = append(out, us[i].legacy())
@@ -440,35 +434,26 @@ func Register(a *app.App) {
 		if !ok1 || !ok2 || page < 1 || rows < 1 || rows > 200 || (hasRole && role != "admin" && role != "user") {
 			throw(-1, 400)
 		}
-		var conds []string
-		var args []any
+		var f userFilter
 		if q, _ := arg(r, "search"); q != "" {
 			q = strings.NewReplacer("\\", "\\\\", "%", "\\%", "_", "\\_").Replace(q)
-			args = append(args, "%"+q+"%")
-			conds = append(conds, `(user_name ILIKE $`+strconv.Itoa(len(args))+` OR email ILIKE $`+strconv.Itoa(len(args))+`)`)
+			pattern := "%" + q + "%"
+			f.search = &pattern
 		}
 		if hasRole {
-			args = append(args, role)
-			conds = append(conds, `role=$`+strconv.Itoa(len(args)))
+			f.role = &role
 		}
 		if g, ok := intArg(r, "groupId"); ok {
-			args = append(args, g)
-			conds = append(conds, `group_id=$`+strconv.Itoa(len(args)))
+			f.groupID = &g
 		}
-		where := ""
-		if len(conds) > 0 {
-			where = "WHERE " + strings.Join(conds, " AND ")
-		}
-		us, total := s.users(r.Context(), where, args, page, rows)
+		us, total := s.users(r.Context(), f, page, rows)
 		out := []map[string]any{}
 		for _, row := range us {
 			item := row.legacy()
 			for k, v := range s.projection(r.Context(), row) {
 				item[k] = v
 			}
-			var n int64
-			check(a.Pool.QueryRow(r.Context(), `SELECT count(*) FROM photo WHERE user_id=$1`, row.ID).Scan(&n))
-			item["mediaCount"] = n
+			item["mediaCount"] = must(dbgen.New(a.Pool).CountUserPhotos(r.Context(), row.ID))
 			out = append(out, item)
 		}
 		httpx.JSON(w, map[string]any{"users": out, "total": total}, 200)
@@ -494,25 +479,25 @@ func Register(a *app.App) {
 			return
 		}
 		ctx := r.Context()
-		var uid string
-		if err := a.Pool.QueryRow(ctx, `SELECT uuid FROM "user" WHERE user_id=$1`, id).Scan(&uid); err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				changed(w, -5)
-				return
-			}
-			panic(err)
+		uuid, err := dbgen.New(a.Pool).GetUserUUID(ctx, id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			changed(w, -5)
+			return
 		}
+		check(err)
+		uid := deref(uuid)
 		var count int64
 		s.atomic(ctx, false, &id, func(tx pgx.Tx) {
-			for _, q := range []string{`DELETE FROM photo WHERE user_id=$1`, `DELETE FROM namespace WHERE user_id=$1`, `DELETE FROM tag WHERE user_id=$1`,
-				`DELETE FROM gallery WHERE user_id=$1`, `DELETE FROM cred WHERE user_id=$1`, `DELETE FROM "user" WHERE user_id=$1`} {
-				count += must(tx.Exec(ctx, q, id)).RowsAffected()
+			q := dbgen.New(tx)
+			for _, del := range []func(context.Context, int64) (int64, error){q.DeleteUserPhotos, q.DeleteUserNamespaces, q.DeleteUserTags,
+				q.DeleteUserGalleries, q.DeleteUserCreds, q.DeleteUser} {
+				count += must(del(ctx, id))
 			}
 		})
 		if uid != "" && !strings.ContainsAny(uid, "/\\") && uid != "." && uid != ".." {
 			_ = os.RemoveAll(filepath.Join(a.Cfg.UploadFolder, uid))
 		}
-		_, _ = a.Pool.Exec(ctx, `DELETE FROM photoly_session WHERE user_id=$1`, id)
+		_ = dbgen.New(a.Pool).DeleteUserSessions(ctx, id)
 		changed(w, count)
 	})
 	for _, c := range []struct{ path, key, col string }{{"/admin/resetUserPassword", "password", "password"}, {"/admin/resetUserEmail", "email", "email"},
@@ -525,8 +510,11 @@ func Register(a *app.App) {
 			ctx := r.Context()
 			id, hasID := integer(d["userId"])
 			s.atomic(ctx, false, nil, func(tx pgx.Tx) {
-				var cur int64
-				if !hasID || tx.QueryRow(ctx, `SELECT user_id FROM "user" WHERE user_id=$1 FOR UPDATE`, id).Scan(&cur) != nil {
+				q := dbgen.New(tx)
+				if !hasID {
+					return
+				}
+				if _, err := q.LockUser(ctx, id); err != nil {
 					return
 				}
 				v, ok := d[c.key].(string)
@@ -541,12 +529,20 @@ func Register(a *app.App) {
 						throw(-1, 400)
 					}
 				case "email":
-					var other int64
-					if err := tx.QueryRow(ctx, `SELECT user_id FROM "user" WHERE email=$1`, v).Scan(&other); err == nil && other != id {
+					if other, err := q.GetUserIDByEmail(ctx, v); err == nil && other != id {
 						throw(-1, 400)
 					}
 				}
-				must(tx.Exec(ctx, `UPDATE "user" SET `+c.col+`=$2 WHERE user_id=$1`, id, v))
+				switch c.col {
+				case "password":
+					check(q.UpdateUserPassword(ctx, dbgen.UpdateUserPasswordParams{UserID: id, Value: &v}))
+				case "email":
+					check(q.UpdateUserEmail(ctx, dbgen.UpdateUserEmailParams{UserID: id, Value: &v}))
+				case "role":
+					check(q.UpdateUserRole(ctx, dbgen.UpdateUserRoleParams{UserID: id, Value: &v}))
+				default:
+					check(q.UpdateUserName(ctx, dbgen.UpdateUserNameParams{UserID: id, Value: &v}))
+				}
 				res = 1
 			})
 			changed(w, res)
@@ -558,8 +554,7 @@ func Register(a *app.App) {
 			return
 		}
 		name, _ := arg(r, "name")
-		var v *string
-		err := a.Pool.QueryRow(r.Context(), `SELECT setting_value FROM setting WHERE setting_name=$1`, name).Scan(&v)
+		v, err := dbgen.New(a.Pool).GetSetting(r.Context(), name)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			panic(err)
 		}
@@ -584,7 +579,7 @@ func Register(a *app.App) {
 		default:
 			var n int64
 			s.atomic(r.Context(), false, nil, func(tx pgx.Tx) {
-				n = must(tx.Exec(r.Context(), `UPDATE setting SET setting_value=$2 WHERE setting_name=$1`, name, val)).RowsAffected()
+				n = must(dbgen.New(tx).UpdateSetting(r.Context(), dbgen.UpdateSettingParams{Name: name, Value: val}))
 			})
 			changed(w, min(n, 1))
 			return
@@ -599,18 +594,10 @@ func Register(a *app.App) {
 	// ---- storage groups (services/quota.py) ----
 	m.HandleFunc("GET /admin/user-groups", s.legacy(nil, false, func(w http.ResponseWriter, r *http.Request, u app.User) {
 		requireAdmin(u)
-		rs := must(a.Pool.Query(r.Context(), `SELECT g.id, g.name, g.max_storage_bytes, g.is_default, (SELECT count(*) FROM "user" WHERE group_id=g.id) FROM user_group g ORDER BY g.id`))
-		defer rs.Close()
 		out := []map[string]any{}
-		for rs.Next() {
-			var id, members int64
-			var name string
-			var max *int64
-			var def bool
-			check(rs.Scan(&id, &name, &max, &def, &members))
-			out = append(out, map[string]any{"id": id, "name": name, "maxStorageBytes": max, "isDefault": def, "memberCount": members})
+		for _, g := range must(dbgen.New(a.Pool).ListUserGroups(r.Context())) {
+			out = append(out, map[string]any{"id": g.ID, "name": g.Name, "maxStorageBytes": g.MaxStorageBytes, "isDefault": g.IsDefault, "memberCount": g.MemberCount})
 		}
-		check(rs.Err())
 		httpx.JSON(w, out, 200)
 	}))
 	save := func(w http.ResponseWriter, r *http.Request, u app.User, id *int64) {
@@ -619,18 +606,18 @@ func Register(a *app.App) {
 		ctx := r.Context()
 		var out int64
 		s.atomic(ctx, true, nil, func(tx pgx.Tx) {
+			q := dbgen.New(tx)
 			if id != nil {
-				var x int64
-				if err := tx.QueryRow(ctx, `SELECT id FROM user_group WHERE id=$1 FOR UPDATE`, *id).Scan(&x); err != nil {
+				if _, err := q.LockUserGroup(ctx, *id); err != nil {
 					throw("group_not_found", 404)
 				}
 			}
 			name, limit := validName(d["name"]), storageLimit(d["maxStorageBytes"])
 			if id != nil {
-				must(tx.Exec(ctx, `UPDATE user_group SET name=$2, max_storage_bytes=$3 WHERE id=$1`, *id, name, limit))
+				check(q.UpdateUserGroup(ctx, dbgen.UpdateUserGroupParams{ID: *id, Name: name, MaxStorageBytes: limit}))
 				out = *id
 			} else {
-				check(tx.QueryRow(ctx, `INSERT INTO user_group (name, max_storage_bytes) VALUES ($1,$2) RETURNING id`, name, limit).Scan(&out))
+				out = must(q.InsertUserGroup(ctx, dbgen.InsertUserGroupParams{Name: name, MaxStorageBytes: limit}))
 			}
 		})
 		httpx.JSON(w, out, 200)
@@ -648,14 +635,18 @@ func Register(a *app.App) {
 		target, ok := integer(d["reassignTo"])
 		ctx := r.Context()
 		s.atomic(ctx, true, nil, func(tx pgx.Tx) {
-			var isDefault bool
-			var x int64
-			if !ok || target == id || tx.QueryRow(ctx, `SELECT is_default FROM user_group WHERE id=$1`, id).Scan(&isDefault) != nil || isDefault ||
-				tx.QueryRow(ctx, `SELECT id FROM user_group WHERE id=$1`, target).Scan(&x) != nil {
+			q := dbgen.New(tx)
+			if !ok || target == id {
 				throw("invalid_group_reassignment", 400)
 			}
-			must(tx.Exec(ctx, `UPDATE "user" SET group_id=$2 WHERE group_id=$1`, id, target))
-			must(tx.Exec(ctx, `DELETE FROM user_group WHERE id=$1`, id))
+			if group, err := q.GetUserGroup(ctx, id); err != nil || group.IsDefault {
+				throw("invalid_group_reassignment", 400)
+			}
+			if _, err := q.GetUserGroup(ctx, target); err != nil {
+				throw("invalid_group_reassignment", 400)
+			}
+			check(q.ReassignUserGroup(ctx, dbgen.ReassignUserGroupParams{FromGroup: id, ToGroup: target}))
+			check(q.DeleteUserGroup(ctx, id))
 		})
 		httpx.JSON(w, 1, 200)
 	}))
@@ -668,21 +659,29 @@ func Register(a *app.App) {
 		s.atomic(ctx, true, &target, func(tx pgx.Tx) {
 			g, gok := integer(d["groupId"])
 			override, bok := d["storageOverride"].(bool)
-			var x int64
-			if !gok || !bok || tx.QueryRow(ctx, `SELECT id FROM user_group WHERE id=$1`, g).Scan(&x) != nil {
+			q := dbgen.New(tx)
+			if !gok || !bok {
 				throw("invalid_storage_settings", 400)
 			}
-			var limit any
+			if _, err := q.GetUserGroup(ctx, g); err != nil {
+				throw("invalid_storage_settings", 400)
+			}
+			var limit *int64
 			if override {
 				limit = storageLimit(d["maxStorageBytes"])
 			}
-			must(tx.Exec(ctx, `UPDATE "user" SET group_id=$2, storage_override=$3, max_storage_bytes=$4 WHERE user_id=$1`, target, g, override, limit))
-			rs := must(tx.Query(ctx, `SELECT `+userCols+` FROM "user" u WHERE user_id=$1`, target))
-			defer rs.Close()
-			if rs.Next() {
-				check(row.scan(rs))
+			check(q.UpdateUserStorage(ctx, dbgen.UpdateUserStorageParams{UserID: target, GroupID: g, StorageOverride: override, MaxStorageBytes: limit}))
+			if updated, err := q.GetAdminUser(ctx, target); err == nil {
+				row = userFromGet(updated)
 			}
 		})
 		httpx.JSON(w, s.projection(ctx, row), 200)
 	}))
+}
+
+func deref(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }

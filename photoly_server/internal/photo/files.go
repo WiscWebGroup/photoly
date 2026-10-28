@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -97,8 +98,8 @@ func (s *Service) Now() time.Time {
 
 // Setting is BaseService.setting.
 func (s *Service) Setting(ctx context.Context, q DB, name, def string) string {
-	var v *string
-	if err := q.QueryRow(ctx, `SELECT setting_value FROM setting WHERE setting_name=$1`, name).Scan(&v); err != nil || v == nil {
+	v, err := dbgen.New(q).GetSetting(ctx, name)
+	if err != nil || v == nil {
 		return def
 	}
 	return *v
@@ -300,7 +301,8 @@ func (s *Service) Atomic(ctx context.Context, uid int64, fn func(tx pgx.Tx, u Us
 		return err
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
-	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock_shared(74831003)`); err != nil {
+	q := dbgen.New(tx)
+	if err = q.LockPolicyShared(ctx); err != nil {
 		return err
 	}
 	var u UserRow
@@ -308,14 +310,13 @@ func (s *Service) Atomic(ctx context.Context, uid int64, fn func(tx pgx.Tx, u Us
 	var isOverride bool
 	if uid != 0 {
 		u.ID = uid
-		err = tx.QueryRow(ctx, `SELECT u.uuid, u.used_bytes, u.storage_override, u.max_storage_bytes, g.max_storage_bytes
-			FROM "user" u LEFT JOIN user_group g ON g.id=u.group_id WHERE u.user_id=$1 FOR UPDATE OF u`, uid).
-			Scan(&u.UUID, &used, &isOverride, &override, &group)
+		row, err := q.GetUserStorageForUpdate(ctx, uid)
 		if err == pgx.ErrNoRows {
 			return Bad()
 		} else if err != nil {
 			return err
 		}
+		u.UUID, used, isOverride, override, group = deref(row.Uuid), row.UsedBytes, row.StorageOverride, row.OverrideBytes, row.GroupBytes
 		if used == nil {
 			n := s.Usage(u.UUID)
 			used = &n
@@ -337,7 +338,7 @@ func (s *Service) Atomic(ctx context.Context, uid int64, fn func(tx pgx.Tx, u Us
 		if n < 0 {
 			n = 0
 		}
-		if _, err = tx.Exec(ctx, `UPDATE "user" SET used_bytes=$1 WHERE user_id=$2`, n, uid); err != nil {
+		if err = q.SetUserUsedBytes(ctx, dbgen.SetUserUsedBytesParams{UsedBytes: n, UserID: uid}); err != nil {
 			return err
 		}
 	}

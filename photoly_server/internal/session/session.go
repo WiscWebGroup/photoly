@@ -8,11 +8,14 @@ import (
 	"time"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Store implements user/legacy.SessionStore (same table: photoly_session, see migrations).
 type Store struct{ Pool *pgxpool.Pool }
+
+func (s Store) q() *dbgen.Queries { return dbgen.New(s.Pool) }
 
 func newToken() string {
 	b := make([]byte, 16)
@@ -26,8 +29,7 @@ func (s Store) Create(ctx context.Context, uid int64, days int) (string, error) 
 	token := newToken()
 	// Zero days stays accepted and yields an immediately expired session, like Flask.
 	if days > 0 {
-		_, err := s.Pool.Exec(ctx, `INSERT INTO photoly_session VALUES ($1,$2, now() + make_interval(days => $3))`, token, uid, days)
-		return token, err
+		return token, s.q().CreateSession(ctx, dbgen.CreateSessionParams{Token: token, UserID: uid, Days: int64(days)})
 	}
 	return token, nil
 }
@@ -38,15 +40,11 @@ func (s Store) Lookup(ctx context.Context, token string) (app.User, bool) {
 	if token == "" {
 		return u, false
 	}
-	var email, role *string
-	var uuid *string
-	err := s.Pool.QueryRow(ctx, `SELECT u.user_id, u.uuid, u.email, u.role FROM photoly_session s
-		JOIN "user" u ON u.user_id=s.user_id WHERE s.token=$1 AND s.expires_at>now()`, token).Scan(&u.ID, &uuid, &email, &role)
+	row, err := s.q().LookupSession(ctx, token)
 	if err != nil {
 		return u, false
 	}
-	u.UUID, u.Email, u.Role = deref(uuid), deref(email), deref(role)
-	return u, true
+	return app.User{ID: row.UserID, UUID: deref(row.Uuid), Email: deref(row.Email), Role: deref(row.Role)}, true
 }
 
 func deref(p *string) string {
@@ -63,12 +61,12 @@ func (s Store) Identify(ctx context.Context, token string) (int64, bool) {
 
 func (s Store) Delete(ctx context.Context, token string) {
 	if token != "" {
-		_, _ = s.Pool.Exec(ctx, `DELETE FROM photoly_session WHERE token=$1`, token)
+		_ = s.q().DeleteSession(ctx, token)
 	}
 }
 
 func (s Store) RevokeUser(ctx context.Context, uid int64) {
-	_, _ = s.Pool.Exec(ctx, `DELETE FROM photoly_session WHERE user_id=$1`, uid)
+	_ = s.q().DeleteUserSessions(ctx, uid)
 }
 
 // Sweep deletes expired rows hourly until ctx ends.
@@ -80,7 +78,7 @@ func (s Store) Sweep(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			_, _ = s.Pool.Exec(ctx, `DELETE FROM photoly_session WHERE expires_at<=now()`)
+			_ = s.q().DeleteExpiredSessions(ctx)
 		}
 	}
 }

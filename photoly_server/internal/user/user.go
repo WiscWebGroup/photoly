@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/user/legacy"
 	"github.com/jackc/pgx/v5"
 )
@@ -51,17 +52,23 @@ func Register(a *app.App) {
 
 type svc struct{ a *app.App }
 
+func deref(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
 func (s *svc) setting(ctx context.Context, name, def string) string {
-	var v *string
-	if err := s.a.Pool.QueryRow(ctx, `SELECT setting_value FROM setting WHERE setting_name=$1`, name).Scan(&v); err != nil || v == nil {
+	v, err := dbgen.New(s.a.Pool).GetSetting(ctx, name)
+	if err != nil || v == nil {
 		return def
 	}
 	return *v
 }
 
 func (s *svc) emailTaken(ctx context.Context, q legacy.DB, email string) (bool, error) {
-	var n int
-	err := q.QueryRow(ctx, `SELECT count(*) FROM "user" WHERE lower(email)=$1`, strings.ToLower(email)).Scan(&n)
+	n, err := dbgen.New(q).CountUsersByEmail(ctx, strings.ToLower(email))
 	return n > 0, err
 }
 
@@ -119,20 +126,19 @@ func (s *svc) signUp(w http.ResponseWriter, r *http.Request, _ int64) (any, erro
 		} else if taken {
 			return legacy.Bad()
 		}
-		var aiDefault bool
-		_ = tx.QueryRow(ctx, `SELECT coalesce((desired->>'new_user_default')::boolean, false) FROM ai_control_state WHERE name='global'`).Scan(&aiDefault)
+		q := dbgen.New(tx)
+		aiDefault, _ := q.NewUserAIDefault(ctx)
 		now := legacy.Now()
-		err := tx.QueryRow(ctx, `INSERT INTO "user"(user_name,email,password,role,uuid,create_date,group_id,used_bytes,ai_search_enabled)
-			VALUES ($1,$2,$3,'user',$4,$5,(SELECT id FROM user_group WHERE is_default),0,$6) RETURNING user_id`,
-			name, email, legacy.HashPassword(password), legacy.NewUUID(), now, aiDefault).Scan(&uid)
+		var err error
+		uid, err = q.InsertUser(ctx, dbgen.InsertUserParams{UserName: name, Role: "user", Email: email, Password: legacy.HashPassword(password),
+			Uuid: legacy.NewUUID(), CreateDate: now, AiSearchEnabled: aiDefault})
 		if err != nil {
 			return err
 		}
-		if _, err = tx.Exec(ctx, `INSERT INTO namespace(ns_name,ns_parent_id,user_id) VALUES ('/',-1,$1)`, uid); err != nil {
+		if err = q.InsertRootNamespace(ctx, uid); err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO gallery(ga_name,user_id,create_date,cover_id,cover_color) VALUES ('My Favorite',$1,$2,2,'#FFFFFF')`, uid, now)
-		return err
+		return q.InsertFavoriteGallery(ctx, dbgen.InsertFavoriteGalleryParams{UserID: uid, CreateDate: now})
 	})
 	if err != nil {
 		return nil, err
@@ -155,9 +161,8 @@ func (s *svc) signIn(w http.ResponseWriter, r *http.Request, _ int64) (any, erro
 	default:
 		return tokErr("Invalid Email or Password", 400), nil
 	}
-	var uid int64
-	var hash *string
-	err = s.a.Pool.QueryRow(ctx, `SELECT user_id, password FROM "user" WHERE lower(email)=$1`, strings.ToLower(em)).Scan(&uid, &hash)
+	u, err := dbgen.New(s.a.Pool).GetUserLogin(ctx, strings.ToLower(em))
+	hash, uid := u.Password, u.UserID
 	pw, ok := data["password"].(string)
 	if err != nil || !ok || hash == nil || *hash == "" || !legacy.CheckPassword(*hash, pw) {
 		if err != nil && err != pgx.ErrNoRows {
@@ -174,16 +179,12 @@ func (s *svc) signOut(w http.ResponseWriter, r *http.Request, _ int64) (any, err
 }
 
 func (s *svc) info(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
-	var id int64
-	var name, email, role, uuid *string
-	var created *time.Time
-	err := s.a.Pool.QueryRow(r.Context(), `SELECT user_id,user_name,email,create_date,role,uuid FROM "user" WHERE user_id=$1`, uid).
-		Scan(&id, &name, &email, &created, &role, &uuid)
+	u, err := dbgen.New(s.a.Pool).GetUserInfo(r.Context(), uid)
 	if err != nil {
 		return nil, err
 	}
-	return legacy.Res{V: map[string]any{"userId": id, "userName": name, "email": email, "createDate": legacy.ISO(created),
-		"role": role, "password": nil, "uuid": uuid}, Code: 200}, nil
+	return legacy.Res{V: map[string]any{"userId": u.UserID, "userName": u.UserName, "email": u.Email, "createDate": legacy.ISO(u.CreateDate),
+		"role": u.Role, "password": nil, "uuid": u.Uuid}, Code: 200}, nil
 }
 
 func (s *svc) storage(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
@@ -191,26 +192,20 @@ func (s *svc) storage(w http.ResponseWriter, r *http.Request, uid int64) (any, e
 	if err := legacy.Atomic(ctx, s.a.Pool, s.a.Cfg.UploadFolder, uid, false, func(pgx.Tx, *legacy.Files, *legacy.LockedUser) error { return nil }); err != nil {
 		return nil, err
 	}
-	var used *int64
-	var override bool
-	var max, glimit *int64
-	var gid int64
-	var gname string
-	err := s.a.Pool.QueryRow(ctx, `SELECT u.used_bytes,u.storage_override,u.max_storage_bytes,g.id,g.name,g.max_storage_bytes
-		FROM "user" u JOIN user_group g ON g.id=u.group_id WHERE u.user_id=$1`, uid).Scan(&used, &override, &max, &gid, &gname, &glimit)
+	st, err := dbgen.New(s.a.Pool).GetUserStorage(ctx, uid)
 	if err != nil {
 		return nil, err
 	}
-	limit, source := glimit, "group"
-	if override {
-		limit, source = max, "user"
+	limit, source := st.GroupMaxStorageBytes, "group"
+	if st.StorageOverride {
+		limit, source = st.MaxStorageBytes, "user"
 	}
 	var u int64
-	if used != nil {
-		u = *used
+	if st.UsedBytes != nil {
+		u = *st.UsedBytes
 	}
-	return legacy.Res{V: map[string]any{"usedBytes": u, "capacityBytes": limit, "groupId": gid, "groupName": gname,
-		"storageOverride": override, "maxStorageBytes": max, "quotaSource": source,
+	return legacy.Res{V: map[string]any{"usedBytes": u, "capacityBytes": limit, "groupId": st.GroupID, "groupName": st.GroupName,
+		"storageOverride": st.StorageOverride, "maxStorageBytes": st.MaxStorageBytes, "quotaSource": source,
 		"overQuota": limit != nil && u > *limit}, Code: 200}, nil
 }
 
@@ -239,8 +234,8 @@ func (s *svc) updateField(field, argName string) legacy.Handler {
 					return legacy.Err(-2, 400)
 				}
 			case "password":
-				var hash *string
-				if err := tx.QueryRow(ctx, `SELECT password FROM "user" WHERE user_id=$1`, uid).Scan(&hash); err != nil {
+				hash, err := dbgen.New(tx).GetUserPassword(ctx, uid)
+				if err != nil {
 					return err
 				}
 				if !oldPresent || old == "" || hash == nil || !legacy.CheckPassword(*hash, old) {
@@ -255,8 +250,15 @@ func (s *svc) updateField(field, argName string) legacy.Handler {
 					return legacy.Bad()
 				}
 			}
-			_, err := tx.Exec(ctx, `UPDATE "user" SET `+field+`=$2 WHERE user_id=$1`, uid, val)
-			return err
+			q := dbgen.New(tx)
+			switch field {
+			case "email":
+				return q.UpdateUserEmail(ctx, dbgen.UpdateUserEmailParams{UserID: uid, Value: &val})
+			case "password":
+				return q.UpdateUserPassword(ctx, dbgen.UpdateUserPasswordParams{UserID: uid, Value: &val})
+			default:
+				return q.UpdateUserName(ctx, dbgen.UpdateUserNameParams{UserID: uid, Value: &val})
+			}
 		})
 		if err != nil {
 			return nil, err
@@ -290,10 +292,11 @@ func (s *svc) updateAvatar(w http.ResponseWriter, r *http.Request, uid int64) (a
 }
 
 func (s *svc) avatar(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
-	var uuid string
-	if err := s.a.Pool.QueryRow(r.Context(), `SELECT uuid FROM "user" WHERE user_id=$1`, uid).Scan(&uuid); err != nil {
+	uuidp, err := dbgen.New(s.a.Pool).GetUserUUID(r.Context(), uid)
+	if err != nil {
 		return nil, err
 	}
+	uuid := deref(uuidp)
 	p, err := legacy.MediaPath(s.a.Cfg.UploadFolder, uuid, uuid+".jpg")
 	if err != nil {
 		return nil, err
@@ -313,32 +316,24 @@ func (s *svc) delete(w http.ResponseWriter, r *http.Request, uid int64) (any, er
 	root := s.a.Cfg.UploadFolder
 	count := 0
 	err := legacy.Atomic(ctx, s.a.Pool, root, uid, false, func(tx pgx.Tx, f *legacy.Files, u *legacy.LockedUser) error {
-		rows, err := tx.Query(ctx, `SELECT photo_id FROM photo WHERE user_id=$1 ORDER BY photo_id`, uid)
+		q := dbgen.New(tx)
+		ids, err := q.ListUserPhotoIDs(ctx, uid)
 		if err != nil {
 			return err
 		}
-		var ids []int64
-		for rows.Next() {
-			var id int64
-			if err := rows.Scan(&id); err != nil {
-				return err
-			}
-			ids = append(ids, id)
-		}
-		rows.Close()
 		n, err := legacy.DeletePhotos(ctx, tx, f, root, u, ids)
 		if err != nil {
 			return err
 		}
 		count += n
-		for _, t := range []string{"namespace", "tag", "gallery"} {
-			ct, err := tx.Exec(ctx, `DELETE FROM `+t+` WHERE user_id=$1`, uid)
+		for _, del := range []func(context.Context, int64) (int64, error){q.DeleteUserNamespaces, q.DeleteUserTags, q.DeleteUserGalleries} {
+			n, err := del(ctx, uid)
 			if err != nil {
 				return err
 			}
-			count += int(ct.RowsAffected())
+			count += int(n)
 		}
-		if _, err = tx.Exec(ctx, `DELETE FROM cred WHERE user_id=$1`, uid); err != nil {
+		if _, err = q.DeleteUserCreds(ctx, uid); err != nil {
 			return err
 		}
 		p, err := legacy.MediaPath(root, u.UUID, u.UUID+".jpg")
@@ -348,7 +343,7 @@ func (s *svc) delete(w http.ResponseWriter, r *http.Request, uid int64) (any, er
 		if _, err = f.Remove(p); err != nil {
 			return err
 		}
-		if _, err = tx.Exec(ctx, `DELETE FROM "user" WHERE user_id=$1`, uid); err != nil {
+		if _, err = q.DeleteUser(ctx, uid); err != nil {
 			return err
 		}
 		u.Gone = true

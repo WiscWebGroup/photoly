@@ -6,41 +6,24 @@ import (
 	"encoding/json"
 	"math"
 	"net/http"
-	"time"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/user/legacy"
 	"github.com/jackc/pgx/v5"
 )
 
 type svc struct{ a *app.App }
 
-// kind describes tag or gallery rows (services/catalog.py is generic over both).
-type kind struct {
-	table, pk, cols, idArg string
-	scan                   func(pgx.Row) (map[string]any, error)
-	smartCol               string
-}
+// kind selects tag or gallery rows (services/catalog.py is generic over both).
+type kind struct{ table, idArg string }
 
-var tagKind = kind{"tag", "tag_id", "tag_id, user_id, tag_name", "tagId", func(r pgx.Row) (map[string]any, error) {
-	var id, uid int64
-	var name *string
-	if err := r.Scan(&id, &uid, &name); err != nil {
-		return nil, err
-	}
-	return map[string]any{"tagId": id, "userId": uid, "tagName": name}, nil
-}, "tag_id"}
+var (
+	tagKind     = kind{"tag", "tagId"}
+	galleryKind = kind{"gallery", "gaId"}
+)
 
-var galleryKind = kind{"gallery", "ga_id", "ga_id, ga_name, user_id, create_date, cover_id, cover_color", "gaId", func(r pgx.Row) (map[string]any, error) {
-	var id int64
-	var name, color *string
-	var uid, cover *int64
-	var created *time.Time
-	if err := r.Scan(&id, &name, &uid, &created, &cover, &color); err != nil {
-		return nil, err
-	}
-	return map[string]any{"gaId": id, "gaName": name, "userId": uid, "createDate": legacy.ISO(created), "coverId": cover, "coverColor": color}, nil
-}, "ga_id"}
+func (k kind) isGallery() bool { return k.table == "gallery" }
 
 func Register(a *app.App) {
 	_ = legacy.UseDefaultSessions(context.Background(), a.Pool)
@@ -83,7 +66,21 @@ func Register(a *app.App) {
 func includeSmart(r *http.Request) bool { return r.URL.Query().Get("includeSmart") == "true" }
 
 func (s *svc) list(ctx context.Context, k kind, uid int64, limit, offset int64) ([]map[string]any, error) {
-	return legacy.Rows(ctx, s.a.Pool, k.scan, `SELECT `+k.cols+` FROM `+k.table+` WHERE user_id=$1 ORDER BY `+k.pk+` LIMIT $2 OFFSET $3`, uid, limit, offset)
+	q := dbgen.New(s.a.Pool)
+	out := []map[string]any{}
+	if k.isGallery() {
+		rows, err := q.ListGalleries(ctx, dbgen.ListGalleriesParams{UserID: uid, RowLimit: limit, RowOffset: offset})
+		for _, g := range rows {
+			out = append(out, map[string]any{"gaId": g.GaID, "gaName": g.GaName, "userId": g.UserID, "createDate": legacy.ISO(g.CreateDate),
+				"coverId": g.CoverID, "coverColor": g.CoverColor})
+		}
+		return out, err
+	}
+	rows, err := q.ListTags(ctx, dbgen.ListTagsParams{UserID: uid, RowLimit: limit, RowOffset: offset})
+	for _, t := range rows {
+		out = append(out, map[string]any{"tagId": t.TagID, "userId": t.UserID, "tagName": t.TagName})
+	}
+	return out, err
 }
 
 // decorate adds the opt-in "smart" provenance object (services.smart.decorate).
@@ -91,33 +88,36 @@ func (s *svc) decorate(ctx context.Context, k kind, rows []map[string]any) ([]ma
 	if len(rows) == 0 {
 		return []map[string]any{}, nil
 	}
-	idKey := k.idArg
 	keys := make([]int64, len(rows))
 	for i, r := range rows {
-		keys[i] = r[idKey].(int64)
+		keys[i] = r[k.idArg].(int64)
 	}
-	q, err := s.a.Pool.Query(ctx, `SELECT `+k.smartCol+`, item_id, source, name, custom_name, suppressed, basis FROM smart_item WHERE `+k.smartCol+` = ANY($1)`, keys)
+	params := dbgen.ListSmartItemsForParams{TagIds: []int64{}, GaIds: []int64{}}
+	if k.isGallery() {
+		params.GaIds = keys
+	} else {
+		params.TagIds = keys
+	}
+	smart, err := dbgen.New(s.a.Pool).ListSmartItemsFor(ctx, params)
 	if err != nil {
 		return nil, err
 	}
-	defer q.Close()
 	items := map[int64]map[string]any{}
-	for q.Next() {
-		var key, id int64
-		var source, name string
-		var custom *string
-		var sup bool
-		var basis []byte
-		if err := q.Scan(&key, &id, &source, &name, &custom, &sup, &basis); err != nil {
-			return nil, err
+	for _, it := range smart {
+		key := it.TagID
+		if k.isGallery() {
+			key = it.GaID
 		}
-		n := name
-		if custom != nil && *custom != "" {
-			n = *custom
+		if key == nil {
+			continue
+		}
+		n := it.Name
+		if it.CustomName != nil && *it.CustomName != "" {
+			n = *it.CustomName
 		}
 		var b any
-		_ = json.Unmarshal(basis, &b)
-		items[key] = map[string]any{"id": id, "source": source, "name": n, "suppressed": sup, "basis": b}
+		_ = json.Unmarshal(it.Basis, &b)
+		items[*key] = map[string]any{"id": it.ItemID, "source": it.Source, "name": n, "suppressed": it.Suppressed, "basis": b}
 	}
 	for i, r := range rows {
 		if it, ok := items[keys[i]]; ok {
@@ -127,7 +127,7 @@ func (s *svc) decorate(ctx context.Context, k kind, rows []map[string]any) ([]ma
 		}
 		rows[i] = r
 	}
-	return rows, q.Err()
+	return rows, nil
 }
 
 func (s *svc) all(k kind) legacy.Handler {
@@ -151,8 +151,12 @@ func (s *svc) paged(k kind) legacy.Handler {
 			return nil, legacy.Bad()
 		}
 		ctx := r.Context()
-		var total int64
-		if err := s.a.Pool.QueryRow(ctx, `SELECT count(*) FROM `+k.table+` WHERE user_id=$1`, uid).Scan(&total); err != nil {
+		count := dbgen.New(s.a.Pool).CountTags
+		if k.isGallery() {
+			count = dbgen.New(s.a.Pool).CountGalleries
+		}
+		total, err := count(ctx, uid)
+		if err != nil {
 			return nil, err
 		}
 		var out []map[string]any
@@ -170,22 +174,22 @@ func (s *svc) paged(k kind) legacy.Handler {
 	}
 }
 
-func optInt(v any) (any, error) {
+func optInt(v any) (*int64, error) {
 	if v == nil {
 		return nil, nil
 	}
 	if n, ok := legacy.Int(v); ok && legacy.InInt32(n) {
-		return n, nil
+		return &n, nil
 	}
 	return nil, legacy.Bad()
 }
 
-func optStr(v any) (any, error) {
+func optStr(v any) (*string, error) {
 	if v == nil {
 		return nil, nil
 	}
 	if s, ok := v.(string); ok && len([]rune(s)) <= 255 {
-		return s, nil
+		return &s, nil
 	}
 	return nil, legacy.Bad()
 }
@@ -198,7 +202,8 @@ func (s *svc) insert(k kind) legacy.Handler {
 		}
 		ctx := r.Context()
 		err = legacy.Atomic(ctx, s.a.Pool, s.a.Cfg.UploadFolder, uid, false, func(tx pgx.Tx, _ *legacy.Files, _ *legacy.LockedUser) error {
-			if k.table == "gallery" {
+			q := dbgen.New(tx)
+			if k.isGallery() {
 				name, err := legacy.ValidName(data["gaName"], false)
 				if err != nil {
 					return err
@@ -211,20 +216,18 @@ func (s *svc) insert(k kind) legacy.Handler {
 				if err != nil {
 					return err
 				}
-				_, err = tx.Exec(ctx, `INSERT INTO gallery(user_id,ga_name,create_date,cover_id,cover_color) VALUES ($1,$2,$3,$4,$5)`, uid, name, legacy.Now(), cover, color)
-				return err
+				return q.InsertGallery(ctx, dbgen.InsertGalleryParams{UserID: uid, GaName: name, CreateDate: legacy.Now(), CoverID: cover, CoverColor: color})
 			}
 			name, err := legacy.ValidName(data["tagName"], false)
 			if err != nil {
 				return err
 			}
-			_, err = tx.Exec(ctx, `INSERT INTO tag(user_id,tag_name) VALUES ($1,$2)`, uid, name)
-			return err
+			return q.InsertTag(ctx, dbgen.InsertTagParams{UserID: uid, TagName: name})
 		})
 		if err != nil {
 			return nil, err
 		}
-		if k.table == "gallery" {
+		if k.isGallery() {
 			return legacy.Res{V: true, Code: 200}, nil
 		}
 		return legacy.Changed(1, 1), nil
@@ -233,22 +236,27 @@ func (s *svc) insert(k kind) legacy.Handler {
 
 // smartItem finds the smart_item bound to a tag or gallery.
 func smartItem(ctx context.Context, tx pgx.Tx, k kind, key int64) (id, owner int64, found bool, err error) {
-	err = tx.QueryRow(ctx, `SELECT item_id, user_id FROM smart_item WHERE `+k.smartCol+`=$1`, key).Scan(&id, &owner)
+	p := dbgen.GetSmartItemForParams{}
+	if k.isGallery() {
+		p.GaID = &key
+	} else {
+		p.TagID = &key
+	}
+	row, err := dbgen.New(tx).GetSmartItemFor(ctx, p)
 	if err == pgx.ErrNoRows {
 		return 0, 0, false, nil
 	}
-	return id, owner, err == nil, err
+	return row.ItemID, row.UserID, err == nil, err
 }
 
 // smartRename is services.smart.rename with the object's current (already updated) values.
-func smartRename(ctx context.Context, tx pgx.Tx, k kind, item int64, name string, cover, color any) error {
-	if k.table == "gallery" {
+func smartRename(ctx context.Context, tx pgx.Tx, k kind, item int64, name string, cover *int64, color *string) error {
+	q := dbgen.New(tx)
+	if k.isGallery() {
 		cj, _ := json.Marshal(map[string]any{"cover_id": cover, "cover_color": color})
-		_, err := tx.Exec(ctx, `UPDATE smart_item SET custom_name=$2, cover=$3::jsonb WHERE item_id=$1`, item, name, string(cj))
-		return err
+		return q.RenameSmartItemWithCover(ctx, dbgen.RenameSmartItemWithCoverParams{ItemID: item, CustomName: name, Cover: cj})
 	}
-	_, err := tx.Exec(ctx, `UPDATE smart_item SET custom_name=$2 WHERE item_id=$1`, item, name)
-	return err
+	return q.RenameSmartItem(ctx, dbgen.RenameSmartItemParams{ItemID: item, CustomName: name})
 }
 
 func (s *svc) update(k kind) legacy.Handler {
@@ -260,31 +268,32 @@ func (s *svc) update(k kind) legacy.Handler {
 		ctx := r.Context()
 		err = legacy.Atomic(ctx, s.a.Pool, s.a.Cfg.UploadFolder, uid, false, func(tx pgx.Tx, _ *legacy.Files, _ *legacy.LockedUser) error {
 			id, ok := legacy.Int(data[k.idArg])
-			if err := legacy.Owned(ctx, tx, k.table, k.pk, id, ok, uid, -1, 400); err != nil {
+			if err := legacy.Owned(ctx, tx, k.table, id, ok, uid, -1, 400); err != nil {
 				return err
 			}
+			q := dbgen.New(tx)
 			var name string
-			var cover, color any
+			var cover *int64
+			var color *string
 			var err error
-			if k.table == "gallery" {
+			if k.isGallery() {
 				if name, err = legacy.ValidName(data["gaName"], false); err != nil {
 					return err
 				}
-				color, cover = data["coverColor"], data["coverId"]
-				if color, err = optStr(color); err != nil {
+				if color, err = optStr(data["coverColor"]); err != nil {
 					return err
 				}
-				if cover, err = optInt(cover); err != nil {
+				if cover, err = optInt(data["coverId"]); err != nil {
 					return err
 				}
-				if _, err = tx.Exec(ctx, `UPDATE gallery SET ga_name=$2, cover_color=$3, cover_id=$4 WHERE ga_id=$1`, id, name, color, cover); err != nil {
+				if err = q.UpdateGallery(ctx, dbgen.UpdateGalleryParams{GaID: id, GaName: name, CoverColor: color, CoverID: cover}); err != nil {
 					return err
 				}
 			} else {
 				if name, err = legacy.ValidName(data["tagName"], false); err != nil {
 					return err
 				}
-				if _, err = tx.Exec(ctx, `UPDATE tag SET tag_name=$2 WHERE tag_id=$1`, id, name); err != nil {
+				if err = q.UpdateTag(ctx, dbgen.UpdateTagParams{TagID: id, TagName: name}); err != nil {
 					return err
 				}
 			}
@@ -309,38 +318,41 @@ func (s *svc) delete(k kind) legacy.Handler {
 		}
 		ctx := r.Context()
 		err = legacy.Atomic(ctx, s.a.Pool, s.a.Cfg.UploadFolder, uid, false, func(tx pgx.Tx, _ *legacy.Files, _ *legacy.LockedUser) error {
-			if err := legacy.Owned(ctx, tx, k.table, k.pk, id, ok, uid, -1, 400); err != nil {
+			if err := legacy.Owned(ctx, tx, k.table, id, ok, uid, -1, 400); err != nil {
 				return err
 			}
+			q := dbgen.New(tx)
 			item, owner, found, err := smartItem(ctx, tx, k, id)
 			if err != nil {
 				return err
 			}
 			if found { // services.smart.dismiss: keep a suppressed, renamed record
 				var name string
-				var cover, color any
-				if k.table == "gallery" {
-					var cv *int64
-					var cl *string
-					if err := tx.QueryRow(ctx, `SELECT ga_name, cover_id, cover_color FROM gallery WHERE ga_id=$1`, id).Scan(&name, &cv, &cl); err != nil {
+				var cover *int64
+				var color *string
+				if k.isGallery() {
+					g, err := q.GetGallery(ctx, id)
+					if err != nil {
 						return err
 					}
-					cover, color = cv, cl
-				} else if err := tx.QueryRow(ctx, `SELECT tag_name FROM tag WHERE tag_id=$1`, id).Scan(&name); err != nil {
+					name, cover, color = deref(g.GaName), g.CoverID, g.CoverColor
+				} else if name, err = q.GetTagName(ctx, id); err != nil {
 					return err
 				}
 				if err := smartRename(ctx, tx, k, item, name, cover, color); err != nil {
 					return err
 				}
-				if _, err := tx.Exec(ctx, `UPDATE smart_item SET suppressed=true, ga_id=NULL, tag_id=NULL WHERE item_id=$1`, item); err != nil {
+				if err := q.SuppressSmartItem(ctx, item); err != nil {
 					return err
 				}
-				if _, err := tx.Exec(ctx, `UPDATE smart_preference SET revision=revision+1 WHERE user_id=$1`, owner); err != nil {
+				if err := q.BumpSmartRevision(ctx, owner); err != nil {
 					return err
 				}
 			}
-			_, err = tx.Exec(ctx, `DELETE FROM `+k.table+` WHERE `+k.pk+`=$1`, id)
-			return err
+			if k.isGallery() {
+				return q.DeleteGallery(ctx, id)
+			}
+			return q.DeleteTag(ctx, id)
 		})
 		if err != nil {
 			return nil, err
@@ -355,48 +367,42 @@ func (s *svc) downloadGallery(w http.ResponseWriter, r *http.Request, uid int64)
 	if err != nil {
 		return nil, err
 	}
-	if err := legacy.Owned(ctx, s.a.Pool, "gallery", "ga_id", id, ok, uid, -1, 400); err != nil {
+	if err := legacy.Owned(ctx, s.a.Pool, "gallery", id, ok, uid, -1, 400); err != nil {
 		return nil, err
 	}
-	var gname, uuid string
-	if err := s.a.Pool.QueryRow(ctx, `SELECT g.ga_name, u.uuid FROM gallery g, "user" u WHERE g.ga_id=$1 AND u.user_id=$2`, id, uid).Scan(&gname, &uuid); err != nil {
-		return nil, err
-	}
-	rows, err := s.a.Pool.Query(ctx, `SELECT p.photo_id, p.photo_uuid, p.photo_name, p.format FROM photo p
-		JOIN gallery_photo gp ON gp.photo_id=p.photo_id WHERE gp.ga_id=$1 AND p.user_id=$2 ORDER BY p.photo_id`, id, uid)
+	q := dbgen.New(s.a.Pool)
+	owner, err := q.GetGalleryDownloadOwner(ctx, dbgen.GetGalleryDownloadOwnerParams{GaID: id, UserID: uid})
 	if err != nil {
 		return nil, err
 	}
-	type ph struct {
-		id                 int64
-		uuid, name, format string
+	photos, err := q.ListGalleryDownloadPhotos(ctx, dbgen.ListGalleryDownloadPhotosParams{GaID: id, UserID: uid})
+	if err != nil {
+		return nil, err
 	}
-	var photos []ph
-	for rows.Next() {
-		var p ph
-		if err := rows.Scan(&p.id, &p.uuid, &p.name, &p.format); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		photos = append(photos, p)
-	}
-	rows.Close()
+	gname, uuid := owner.GaName, owner.Uuid
 	name, err := legacy.ValidName(gname, false)
 	if err != nil {
 		return nil, err
 	}
 	var entries []legacy.Entry
 	for _, p := range photos {
-		pn, err := legacy.ValidName(p.name, false)
+		pn, err := legacy.ValidName(p.PhotoName, false)
 		if err != nil {
 			return nil, err
 		}
-		path, err := legacy.MediaPath(s.a.Cfg.UploadFolder, uuid, p.uuid+"."+p.format)
+		path, err := legacy.MediaPath(s.a.Cfg.UploadFolder, uuid, p.PhotoUuid+"."+p.Format)
 		if err != nil {
 			return nil, err
 		}
-		entries = append(entries, legacy.Entry{Path: path, Name: name + "/" + pn + "." + p.format, ID: p.id})
+		entries = append(entries, legacy.Entry{Path: path, Name: name + "/" + pn + "." + p.Format, ID: p.PhotoID})
 	}
 	legacy.ServeArchive(w, r, entries)
 	return legacy.Done{}, nil
+}
+
+func deref(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }

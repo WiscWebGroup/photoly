@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -45,8 +46,7 @@ func (s pgSessions) Create(ctx context.Context, uid int64, days int) (string, er
 	token := NewUUID()
 	// A duration of zero stays accepted, producing an immediately expired session.
 	if days > 0 {
-		_, err := s.pool.Exec(ctx, `INSERT INTO photoly_session VALUES ($1,$2, now() + make_interval(days => $3))`, token, uid, days)
-		return token, err
+		return token, dbgen.New(s.pool).CreateSession(ctx, dbgen.CreateSessionParams{Token: token, UserID: uid, Days: int64(days)})
 	}
 	return token, nil
 }
@@ -55,18 +55,16 @@ func (s pgSessions) Identify(ctx context.Context, token string) (int64, bool) {
 	if token == "" {
 		return 0, false
 	}
-	var id int64
-	err := s.pool.QueryRow(ctx, `SELECT s.user_id FROM photoly_session s JOIN "user" u ON u.user_id=s.user_id
-		WHERE s.token=$1 AND s.expires_at>now()`, token).Scan(&id)
-	return id, err == nil
+	row, err := dbgen.New(s.pool).LookupSession(ctx, token)
+	return row.UserID, err == nil
 }
 
 func (s pgSessions) Delete(ctx context.Context, token string) {
 	if token != "" {
-		_, _ = s.pool.Exec(ctx, `DELETE FROM photoly_session WHERE token=$1`, token)
+		_ = dbgen.New(s.pool).DeleteSession(ctx, token)
 	}
 }
 
 func (s pgSessions) RevokeUser(ctx context.Context, uid int64) {
-	_, _ = s.pool.Exec(ctx, `DELETE FROM photoly_session WHERE user_id=$1`, uid)
+	_ = dbgen.New(s.pool).DeleteUserSessions(ctx, uid)
 }
