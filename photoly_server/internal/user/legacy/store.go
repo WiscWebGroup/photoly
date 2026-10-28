@@ -13,6 +13,7 @@ import (
 
 	dbpkg "github.com/WiscWebGroup/photoly/photoly_server/internal/db"
 	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -120,6 +121,7 @@ func DeletePhotos(ctx context.Context, tx pgx.Tx, f *Files, root string, u *Lock
 
 // ServeFile is controllers.common.binary for an existing file.
 func ServeFile(w http.ResponseWriter, r *http.Request, path, mime, download string) {
+	storage.Fetch(path)
 	fh, err := os.Open(path)
 	st, e2 := os.Stat(path)
 	if err != nil || e2 != nil || !st.Mode().IsRegular() {
@@ -154,6 +156,7 @@ func ServeArchive(w http.ResponseWriter, r *http.Request, entries []Entry) {
 	zw := zip.NewWriter(tmp)
 	names := map[string]bool{}
 	for _, e := range entries {
+		storage.Fetch(e.Path)
 		st, err := os.Stat(e.Path)
 		if err != nil || !st.Mode().IsRegular() {
 			w.WriteHeader(404)

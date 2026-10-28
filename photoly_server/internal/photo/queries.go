@@ -15,6 +15,7 @@ import (
 	"time"
 
 	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -131,7 +132,7 @@ func (s *Service) ByDate(ctx context.Context, uid int64, order string, limit int
 		return nil, Bad()
 	}
 	args := []any{uid, imageFormatList()}
-	where := `p.user_id=$1 AND lower(p.format)=ANY($2)`
+	where := `p.user_id=$1 AND photo_visible(p.storage_id, p.user_id) AND lower(p.format)=ANY($2)`
 	arg := func(v any) string { args = append(args, v); return fmt.Sprintf("$%d", len(args)) }
 	if day != nil {
 		if *day == "undated" {
@@ -443,7 +444,7 @@ func (s *Service) SearchSmart(ctx context.Context, uid int64, query string, ok b
 			WHERE t.user_id=$1 AND tp.user_id=$1 GROUP BY tp.photo_id) t ON t.photo_id=p.photo_id
 		LEFT JOIN (SELECT gp.photo_id, max(` + match("g.ga_name") + `) AS score FROM gallery_photo gp JOIN gallery g ON g.ga_id=gp.ga_id
 			WHERE g.user_id=$1 GROUP BY gp.photo_id) g ON g.photo_id=p.photo_id
-		WHERE p.user_id=$1 AND ` + score + ` > 0 ORDER BY ` + score + ` DESC, p.photo_id LIMIT 100`
+		WHERE p.user_id=$1 AND photo_visible(p.storage_id, p.user_id) AND ` + score + ` > 0 ORDER BY ` + score + ` DESC, p.photo_id LIMIT 100`
 	return s.allJSON(ctx, sql, args...)
 }
 
@@ -742,7 +743,7 @@ func (s *Service) PhotoPath(ctx context.Context, uid, photoID int64, thumbnail b
 	return path, nil
 }
 
-func isFile(p string) bool { return fileSize(p) > 0 || regular(p) }
+func isFile(p string) bool { return storage.Fetch(p) && (fileSize(p) > 0 || regular(p)) }
 
 // PreviewPath is PhotoService.preview_path (HEIC covers use the generated JPEG).
 func (s *Service) PreviewPath(ctx context.Context, uid, photoID int64, thumbnail bool) (string, error) {

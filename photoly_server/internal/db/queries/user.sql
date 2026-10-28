@@ -28,7 +28,7 @@ SELECT user_id, password FROM "user" WHERE lower(email) = @email::text;
 SELECT user_id, user_name, email, create_date, role, uuid FROM "user" WHERE user_id = @user_id::int;
 
 -- name: GetUserStorage :one
-SELECT u.used_bytes, u.storage_override, u.max_storage_bytes,
+SELECT u.used_bytes, u.storage_override, u.max_storage_bytes, u.show_other_storage,
        g.id AS group_id, g.name AS group_name, g.max_storage_bytes AS group_max_storage_bytes
 FROM "user" u
 JOIN user_group g ON g.id = u.group_id
@@ -69,3 +69,6 @@ DELETE FROM cred WHERE user_id = @user_id::int;
 
 -- name: DeleteUser :execrows
 DELETE FROM "user" WHERE user_id = @user_id::int;
+
+-- name: SetShowOtherStorage :exec
+UPDATE "user" SET show_other_storage = @show::bool WHERE user_id = @user_id::int;

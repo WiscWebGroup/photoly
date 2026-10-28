@@ -214,7 +214,7 @@ const listGalleryDownloadPhotos = `-- name: ListGalleryDownloadPhotos :many
 SELECT p.photo_id, p.photo_uuid::text AS photo_uuid, p.photo_name::text AS photo_name, p.format::text AS format
 FROM photo p
 JOIN gallery_photo gp ON gp.photo_id = p.photo_id
-WHERE gp.ga_id = $1::int AND p.user_id = $2::int
+WHERE gp.ga_id = $1::int AND p.user_id = $2::int AND photo_visible(p.storage_id, p.user_id)
 ORDER BY p.photo_id
 `
 
@@ -261,7 +261,7 @@ SELECT p.photo_id, p.photo_name, p.format, p.ns_id, p.token, p.photo_uuid, p.upl
        e.extra_photo_gps_lat, e.extra_photo_gps_lon, e.extra_photo_taken_date
 FROM photo p
 JOIN photo_extra e ON e.f_photo_id = p.photo_id
-WHERE p.user_id = $1::int
+WHERE p.user_id = $1::int AND photo_visible(p.storage_id, p.user_id)
   AND ($2::int IS NULL
        OR EXISTS (SELECT 1 FROM gallery_photo gp WHERE gp.photo_id = p.photo_id AND gp.ga_id = $2::int))
 ORDER BY p.photo_id
@@ -321,7 +321,7 @@ const listMapPlaces = `-- name: ListMapPlaces :many
 SELECT p.photo_id, e.extra_photo_gps_lat::float8 AS lat, e.extra_photo_gps_lon::float8 AS lon
 FROM photo p
 JOIN photo_extra e ON e.f_photo_id = p.photo_id
-WHERE p.user_id = $1::int AND e.extra_photo_gps_lat IS NOT NULL AND e.extra_photo_gps_lon IS NOT NULL
+WHERE p.user_id = $1::int AND photo_visible(p.storage_id, p.user_id) AND e.extra_photo_gps_lat IS NOT NULL AND e.extra_photo_gps_lon IS NOT NULL
 ORDER BY p.photo_id
 `
 

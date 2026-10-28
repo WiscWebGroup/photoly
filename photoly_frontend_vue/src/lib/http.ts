@@ -29,7 +29,11 @@ export interface Envelope<T> {
 
 /** A well-formed backend reply whose `msgCode` was not 200. */
 export class ApiError extends Error {
-  constructor(public msgCode: number) {
+  constructor(
+    public msgCode: number,
+    /** The envelope's `t`, which carries the reason for some failures. */
+    public detail?: unknown,
+  ) {
     super(`Request failed with msgCode ${msgCode}`)
   }
 }
@@ -37,6 +41,6 @@ export class ApiError extends Error {
 /** Sends the request and returns the envelope's `t`; throws `ApiError` unless `msgCode` is 200. */
 export async function call<T = null>(config: AxiosRequestConfig): Promise<T> {
   const { data } = await http.request<Envelope<T>>(config)
-  if (data.msgCode !== 200) throw new ApiError(data.msgCode)
+  if (data.msgCode !== 200) throw new ApiError(data.msgCode, data.t)
   return data.t
 }

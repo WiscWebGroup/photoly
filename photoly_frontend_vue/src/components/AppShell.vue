@@ -139,6 +139,9 @@ const iconButton =
               :style="{ width: `${storage.percent.value}%` }"
             />
           </div>
+          <p v-if="storage.usage.value.backend" class="text-muted-foreground text-[11px]">
+            Using {{ storage.usage.value.backend }}
+          </p>
         </div>
         <div class="flex items-center gap-1 border-t pt-3">
           <router-link

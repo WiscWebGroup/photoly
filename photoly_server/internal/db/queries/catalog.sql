@@ -66,7 +66,7 @@ WHERE g.ga_id = @ga_id::int AND u.user_id = @user_id::int;
 SELECT p.photo_id, p.photo_uuid::text AS photo_uuid, p.photo_name::text AS photo_name, p.format::text AS format
 FROM photo p
 JOIN gallery_photo gp ON gp.photo_id = p.photo_id
-WHERE gp.ga_id = @ga_id::int AND p.user_id = @user_id::int
+WHERE gp.ga_id = @ga_id::int AND p.user_id = @user_id::int AND photo_visible(p.storage_id, p.user_id)
 ORDER BY p.photo_id;
 
 -- A gallery id of NULL lists every geotagged photo of the user.
@@ -76,7 +76,7 @@ SELECT p.photo_id, p.photo_name, p.format, p.ns_id, p.token, p.photo_uuid, p.upl
        e.extra_photo_gps_lat, e.extra_photo_gps_lon, e.extra_photo_taken_date
 FROM photo p
 JOIN photo_extra e ON e.f_photo_id = p.photo_id
-WHERE p.user_id = @user_id::int
+WHERE p.user_id = @user_id::int AND photo_visible(p.storage_id, p.user_id)
   AND (sqlc.narg(ga_id)::int IS NULL
        OR EXISTS (SELECT 1 FROM gallery_photo gp WHERE gp.photo_id = p.photo_id AND gp.ga_id = sqlc.narg(ga_id)::int))
 ORDER BY p.photo_id;
@@ -85,5 +85,5 @@ ORDER BY p.photo_id;
 SELECT p.photo_id, e.extra_photo_gps_lat::float8 AS lat, e.extra_photo_gps_lon::float8 AS lon
 FROM photo p
 JOIN photo_extra e ON e.f_photo_id = p.photo_id
-WHERE p.user_id = @user_id::int AND e.extra_photo_gps_lat IS NOT NULL AND e.extra_photo_gps_lon IS NOT NULL
+WHERE p.user_id = @user_id::int AND photo_visible(p.storage_id, p.user_id) AND e.extra_photo_gps_lat IS NOT NULL AND e.extra_photo_gps_lon IS NOT NULL
 ORDER BY p.photo_id;

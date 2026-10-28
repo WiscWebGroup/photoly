@@ -159,7 +159,7 @@ func (q *Queries) GetUserPassword(ctx context.Context, userID int64) (*string, e
 }
 
 const getUserStorage = `-- name: GetUserStorage :one
-SELECT u.used_bytes, u.storage_override, u.max_storage_bytes,
+SELECT u.used_bytes, u.storage_override, u.max_storage_bytes, u.show_other_storage,
        g.id AS group_id, g.name AS group_name, g.max_storage_bytes AS group_max_storage_bytes
 FROM "user" u
 JOIN user_group g ON g.id = u.group_id
@@ -170,6 +170,7 @@ type GetUserStorageRow struct {
 	UsedBytes            *int64
 	StorageOverride      bool
 	MaxStorageBytes      *int64
+	ShowOtherStorage     bool
 	GroupID              int64
 	GroupName            string
 	GroupMaxStorageBytes *int64
@@ -182,6 +183,7 @@ func (q *Queries) GetUserStorage(ctx context.Context, userID int64) (GetUserStor
 		&i.UsedBytes,
 		&i.StorageOverride,
 		&i.MaxStorageBytes,
+		&i.ShowOtherStorage,
 		&i.GroupID,
 		&i.GroupName,
 		&i.GroupMaxStorageBytes,
@@ -290,6 +292,20 @@ func (q *Queries) NewUserAIDefault(ctx context.Context) (bool, error) {
 	var column_1 bool
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const setShowOtherStorage = `-- name: SetShowOtherStorage :exec
+UPDATE "user" SET show_other_storage = $1::bool WHERE user_id = $2::int
+`
+
+type SetShowOtherStorageParams struct {
+	Show   bool
+	UserID int64
+}
+
+func (q *Queries) SetShowOtherStorage(ctx context.Context, arg SetShowOtherStorageParams) error {
+	_, err := q.db.Exec(ctx, setShowOtherStorage, arg.Show, arg.UserID)
+	return err
 }
 
 const updateUserEmail = `-- name: UpdateUserEmail :exec

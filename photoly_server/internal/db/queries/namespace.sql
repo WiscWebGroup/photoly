@@ -37,7 +37,7 @@ SELECT p.photo_uuid::text AS photo_uuid, p.format::text AS format,
 FROM photo p
 LEFT JOIN photo_extra e ON e.f_photo_id = p.photo_id
 LEFT JOIN photo_media m ON m.photo_id = p.photo_id
-WHERE p.user_id = @user_id::int AND p.ns_id IN (SELECT ns_id FROM d)
+WHERE p.user_id = @user_id::int AND p.ns_id IN (SELECT ns_id FROM d) AND photo_visible(p.storage_id, p.user_id)
 ORDER BY p.photo_id;
 
 -- name: InsertNamespace :exec
@@ -53,7 +53,7 @@ UPDATE namespace SET ns_parent_id = @parent_id::int WHERE ns_id = @ns_id::int;
 SELECT ns_id, ns_name FROM namespace WHERE user_id = @user_id::int AND ns_parent_id = @parent_id::int ORDER BY ns_id;
 
 -- name: ListPhotoIDsInNamespace :many
-SELECT photo_id FROM photo WHERE user_id = @user_id::int AND ns_id = @ns_id::int ORDER BY photo_id;
+SELECT photo_id FROM photo WHERE user_id = @user_id::int AND ns_id = @ns_id::int AND photo_visible(storage_id, user_id) ORDER BY photo_id;
 
 -- name: DeleteNamespace :exec
 DELETE FROM namespace WHERE ns_id = @ns_id::int;
@@ -62,5 +62,5 @@ DELETE FROM namespace WHERE ns_id = @ns_id::int;
 SELECT p.photo_id, p.photo_uuid::text AS photo_uuid, p.photo_name, p.format::text AS format, coalesce(m.live, false)::bool AS live
 FROM photo p
 LEFT JOIN photo_media m ON m.photo_id = p.photo_id
-WHERE p.user_id = @user_id::int AND p.ns_id = @ns_id::int
+WHERE p.user_id = @user_id::int AND p.ns_id = @ns_id::int AND photo_visible(p.storage_id, p.user_id)
 ORDER BY p.photo_id;

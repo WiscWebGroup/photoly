@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Copy,
   Cpu,
+  HardDrive,
   Key,
   KeyRound,
   LogOut,
@@ -41,6 +42,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import SmartOrganizationSettings from '@/components/SmartOrganizationSettings.vue'
+import StorageVisibilitySetting from '@/components/StorageVisibilitySetting.vue'
 import AiDeviceSettings from '@/components/ai/AiDeviceSettings.vue'
 import { useBrowserAiStore } from '@/stores/browserAi'
 import AvatarCropper from '@/components/AvatarCropper.vue'
@@ -69,12 +71,11 @@ const allSections = [
   { id: 'profile', label: 'Profile' },
   { id: 'password', label: 'Password' },
   { id: 'smart', label: 'Smart Tag' },
+  { id: 'storage', label: 'Storage' },
   { id: 'ai', label: 'AI on this device' },
   { id: 'api', label: 'API tokens' },
 ]
-const sections = computed(() =>
-  allSections.filter((s) => s.id !== 'ai' || hasAiSettings.value),
-)
+const sections = computed(() => allSections.filter((s) => s.id !== 'ai' || hasAiSettings.value))
 const activeSection = ref('profile')
 function jump(id: string) {
   activeSection.value = id
@@ -354,7 +355,10 @@ onMounted(() => {
             v-for="row in [
               { id: 'password', label: 'Password', icon: KeyRound, meta: '' },
               { id: 'smart', label: 'Smart Tag', icon: Sparkles, meta: '' },
-              ...(hasAiSettings ? [{ id: 'ai', label: 'AI on this device', icon: Cpu, meta: '' }] : []),
+              { id: 'storage', label: 'Storage', icon: HardDrive, meta: '' },
+              ...(hasAiSettings
+                ? [{ id: 'ai', label: 'AI on this device', icon: Cpu, meta: '' }]
+                : []),
               { id: 'api', label: 'API tokens', icon: Key, meta: String(credentials.length || '') },
             ]"
             :key="row.id"
@@ -561,6 +565,24 @@ onMounted(() => {
         </p>
       </div>
       <SmartOrganizationSettings class="max-w-[560px]" />
+    </section>
+
+    <section
+      v-show="showSection('storage')"
+      id="storage"
+      aria-labelledby="storage-h"
+      class="grid scroll-mt-14 gap-x-12 gap-y-5 border-b pb-8 max-md:border-b-0 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]"
+    >
+      <div>
+        <h2
+          id="storage-h"
+          class="mb-1 text-base font-semibold max-md:text-2xl max-md:leading-8 max-md:tracking-[-0.01em]"
+        >
+          Storage
+        </h2>
+        <p class="text-muted-foreground text-sm">Choose which storage your library lists.</p>
+      </div>
+      <StorageVisibilitySetting />
     </section>
 
     <div v-if="hasAiSettings" v-show="showSection('ai')" id="ai" class="scroll-mt-14">

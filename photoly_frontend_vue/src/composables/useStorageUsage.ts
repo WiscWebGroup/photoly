@@ -7,6 +7,8 @@ export interface StorageUsage {
   capacityBytes: number | null
   quotaSource?: 'user' | 'group'
   overQuota?: boolean
+  /** Label of the storage backend currently holding media, e.g. "S3-compatible". */
+  backend?: string
 }
 
 const UNITS = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']

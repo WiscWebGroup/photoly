@@ -9,42 +9,42 @@ SELECT * FROM photo WHERE photo_id = @photo_id::int AND user_id = @user_id::int;
 
 -- name: ListPhotosByNamespace :many
 SELECT * FROM photo
-WHERE user_id = @user_id::int AND ns_id IS NOT DISTINCT FROM sqlc.narg(ns_id)::int
+WHERE user_id = @user_id::int AND ns_id IS NOT DISTINCT FROM sqlc.narg(ns_id)::int AND photo_visible(storage_id, user_id)
 ORDER BY photo_id;
 
 -- name: ListPhotosByGallery :many
 SELECT p.* FROM photo p JOIN gallery_photo g ON g.photo_id = p.photo_id
-WHERE g.ga_id = @ga_id::int AND p.user_id = @user_id::int
+WHERE g.ga_id = @ga_id::int AND p.user_id = @user_id::int AND photo_visible(p.storage_id, p.user_id)
 ORDER BY p.photo_id;
 
 -- Photos carrying every one of tag_ids.
 -- name: ListPhotosByTags :many
 SELECT * FROM photo
-WHERE user_id = @user_id::int AND photo_id IN (
+WHERE user_id = @user_id::int AND photo_visible(storage_id, user_id) AND photo_id IN (
 	SELECT tp.photo_id FROM tag_photo tp
 	WHERE tp.user_id = @user_id::int AND tp.tag_id = ANY(@tag_ids::int[])
 	GROUP BY tp.photo_id HAVING count(DISTINCT tp.tag_id) = @tag_count::bigint)
 ORDER BY photo_id;
 
 -- name: SearchPhotosByName :many
-SELECT * FROM photo WHERE user_id = @user_id::int AND photo_name ILIKE @pattern::text ORDER BY photo_id;
+SELECT * FROM photo WHERE user_id = @user_id::int AND photo_visible(storage_id, user_id) AND photo_name ILIKE @pattern::text ORDER BY photo_id;
 
 -- name: SearchPhotosByNamespace :many
 SELECT * FROM photo
-WHERE user_id = @user_id::int
+WHERE user_id = @user_id::int AND photo_visible(storage_id, user_id)
   AND ns_id IN (SELECT ns_id FROM namespace WHERE user_id = @user_id::int AND ns_name ILIKE @pattern::text)
 ORDER BY photo_id;
 
 -- name: SearchPhotosByGallery :many
 SELECT * FROM photo
-WHERE user_id = @user_id::int
+WHERE user_id = @user_id::int AND photo_visible(storage_id, user_id)
   AND photo_id IN (SELECT gp.photo_id FROM gallery_photo gp JOIN gallery g ON g.ga_id = gp.ga_id
                    WHERE g.user_id = @user_id::int AND g.ga_name ILIKE @pattern::text)
 ORDER BY photo_id;
 
 -- name: SearchPhotosByTag :many
 SELECT * FROM photo
-WHERE user_id = @user_id::int
+WHERE user_id = @user_id::int AND photo_visible(storage_id, user_id)
   AND photo_id IN (SELECT tp.photo_id FROM tag_photo tp JOIN tag t ON t.tag_id = tp.tag_id
                    WHERE t.user_id = @user_id::int AND t.tag_name ILIKE @pattern::text)
 ORDER BY photo_id;
@@ -53,34 +53,34 @@ ORDER BY photo_id;
 -- day is '' for photos without any date.
 SELECT coalesce(to_char(date(coalesce(e.extra_photo_taken_date, p.upload_date)), 'YYYY-MM-DD'), '')::text AS day, count(p.photo_id) AS n
 FROM photo p LEFT JOIN photo_extra e ON e.f_photo_id = p.photo_id
-WHERE p.user_id = @user_id::int AND lower(p.format) = ANY(@formats::text[])
+WHERE p.user_id = @user_id::int AND photo_visible(p.storage_id, p.user_id) AND lower(p.format) = ANY(@formats::text[])
 GROUP BY day ORDER BY day;
 
 -- name: ListMonthPreviewLatest :many
 SELECT p.photo_id FROM photo p LEFT JOIN photo_extra e ON e.f_photo_id = p.photo_id
-WHERE p.user_id = @user_id::int AND lower(p.format) = ANY(@formats::text[])
+WHERE p.user_id = @user_id::int AND photo_visible(p.storage_id, p.user_id) AND lower(p.format) = ANY(@formats::text[])
   AND coalesce(e.extra_photo_taken_date, p.upload_date) >= @since::timestamp
   AND (sqlc.narg(until)::timestamp IS NULL OR coalesce(e.extra_photo_taken_date, p.upload_date) < sqlc.narg(until)::timestamp)
 ORDER BY coalesce(e.extra_photo_taken_date, p.upload_date) DESC, p.photo_id DESC LIMIT 10;
 
 -- name: ListMonthPreviewOldest :many
 SELECT p.photo_id FROM photo p LEFT JOIN photo_extra e ON e.f_photo_id = p.photo_id
-WHERE p.user_id = @user_id::int AND lower(p.format) = ANY(@formats::text[])
+WHERE p.user_id = @user_id::int AND photo_visible(p.storage_id, p.user_id) AND lower(p.format) = ANY(@formats::text[])
   AND coalesce(e.extra_photo_taken_date, p.upload_date) >= @since::timestamp
   AND (sqlc.narg(until)::timestamp IS NULL OR coalesce(e.extra_photo_taken_date, p.upload_date) < sqlc.narg(until)::timestamp)
 ORDER BY coalesce(e.extra_photo_taken_date, p.upload_date) ASC, p.photo_id ASC LIMIT 10;
 
 -- name: ListFolderCovers :many
 SELECT ns_id::int AS key, photo_id, format FROM photo
-WHERE user_id = @user_id::int AND ns_id = ANY(@keys::int[]) ORDER BY photo_id DESC;
+WHERE user_id = @user_id::int AND photo_visible(storage_id, user_id) AND ns_id = ANY(@keys::int[]) ORDER BY photo_id DESC;
 
 -- name: ListGalleryCovers :many
 SELECT l.ga_id::int AS key, p.photo_id, p.format FROM photo p JOIN gallery_photo l ON l.photo_id = p.photo_id
-WHERE p.user_id = @user_id::int AND l.ga_id = ANY(@keys::int[]) ORDER BY p.photo_id DESC;
+WHERE p.user_id = @user_id::int AND photo_visible(p.storage_id, p.user_id) AND l.ga_id = ANY(@keys::int[]) ORDER BY p.photo_id DESC;
 
 -- name: ListTagCovers :many
 SELECT l.tag_id::int AS key, p.photo_id, p.format FROM photo p JOIN tag_photo l ON l.photo_id = p.photo_id
-WHERE p.user_id = @user_id::int AND l.tag_id = ANY(@keys::int[]) ORDER BY p.photo_id DESC;
+WHERE p.user_id = @user_id::int AND photo_visible(p.storage_id, p.user_id) AND l.tag_id = ANY(@keys::int[]) ORDER BY p.photo_id DESC;
 
 -- name: UpsertManualSmartMember :exec
 INSERT INTO smart_member (item_id, photo_id, content_version, manual)

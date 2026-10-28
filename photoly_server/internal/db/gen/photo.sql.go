@@ -88,7 +88,7 @@ func (q *Queries) GalleryPhotoExists(ctx context.Context, arg GalleryPhotoExists
 }
 
 const getPhoto = `-- name: GetPhoto :one
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256 FROM photo WHERE photo_id = $1::int
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo WHERE photo_id = $1::int
 `
 
 func (q *Queries) GetPhoto(ctx context.Context, photoID int64) (Photo, error) {
@@ -106,12 +106,13 @@ func (q *Queries) GetPhoto(ctx context.Context, photoID int64) (Photo, error) {
 		&i.UserID,
 		&i.ContentVersion,
 		&i.ContentSha256,
+		&i.StorageID,
 	)
 	return i, err
 }
 
 const getPhotoByUUID = `-- name: GetPhotoByUUID :one
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256 FROM photo WHERE photo_uuid = $1::text
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo WHERE photo_uuid = $1::text
 `
 
 func (q *Queries) GetPhotoByUUID(ctx context.Context, photoUuid string) (Photo, error) {
@@ -129,6 +130,7 @@ func (q *Queries) GetPhotoByUUID(ctx context.Context, photoUuid string) (Photo, 
 		&i.UserID,
 		&i.ContentVersion,
 		&i.ContentSha256,
+		&i.StorageID,
 	)
 	return i, err
 }
@@ -220,7 +222,7 @@ func (q *Queries) GetPhotoOCR(ctx context.Context, photoID int64) (GetPhotoOCRRo
 }
 
 const getUserPhoto = `-- name: GetUserPhoto :one
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256 FROM photo WHERE photo_id = $1::int AND user_id = $2::int
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo WHERE photo_id = $1::int AND user_id = $2::int
 `
 
 type GetUserPhotoParams struct {
@@ -243,6 +245,7 @@ func (q *Queries) GetUserPhoto(ctx context.Context, arg GetUserPhotoParams) (Pho
 		&i.UserID,
 		&i.ContentVersion,
 		&i.ContentSha256,
+		&i.StorageID,
 	)
 	return i, err
 }
@@ -396,7 +399,7 @@ func (q *Queries) InsertTagPhoto(ctx context.Context, arg InsertTagPhotoParams) 
 const listDateSummary = `-- name: ListDateSummary :many
 SELECT coalesce(to_char(date(coalesce(e.extra_photo_taken_date, p.upload_date)), 'YYYY-MM-DD'), '')::text AS day, count(p.photo_id) AS n
 FROM photo p LEFT JOIN photo_extra e ON e.f_photo_id = p.photo_id
-WHERE p.user_id = $1::int AND lower(p.format) = ANY($2::text[])
+WHERE p.user_id = $1::int AND photo_visible(p.storage_id, p.user_id) AND lower(p.format) = ANY($2::text[])
 GROUP BY day ORDER BY day
 `
 
@@ -433,7 +436,7 @@ func (q *Queries) ListDateSummary(ctx context.Context, arg ListDateSummaryParams
 
 const listFolderCovers = `-- name: ListFolderCovers :many
 SELECT ns_id::int AS key, photo_id, format FROM photo
-WHERE user_id = $1::int AND ns_id = ANY($2::int[]) ORDER BY photo_id DESC
+WHERE user_id = $1::int AND photo_visible(storage_id, user_id) AND ns_id = ANY($2::int[]) ORDER BY photo_id DESC
 `
 
 type ListFolderCoversParams struct {
@@ -469,7 +472,7 @@ func (q *Queries) ListFolderCovers(ctx context.Context, arg ListFolderCoversPara
 
 const listGalleryCovers = `-- name: ListGalleryCovers :many
 SELECT l.ga_id::int AS key, p.photo_id, p.format FROM photo p JOIN gallery_photo l ON l.photo_id = p.photo_id
-WHERE p.user_id = $1::int AND l.ga_id = ANY($2::int[]) ORDER BY p.photo_id DESC
+WHERE p.user_id = $1::int AND photo_visible(p.storage_id, p.user_id) AND l.ga_id = ANY($2::int[]) ORDER BY p.photo_id DESC
 `
 
 type ListGalleryCoversParams struct {
@@ -505,7 +508,7 @@ func (q *Queries) ListGalleryCovers(ctx context.Context, arg ListGalleryCoversPa
 
 const listMonthPreviewLatest = `-- name: ListMonthPreviewLatest :many
 SELECT p.photo_id FROM photo p LEFT JOIN photo_extra e ON e.f_photo_id = p.photo_id
-WHERE p.user_id = $1::int AND lower(p.format) = ANY($2::text[])
+WHERE p.user_id = $1::int AND photo_visible(p.storage_id, p.user_id) AND lower(p.format) = ANY($2::text[])
   AND coalesce(e.extra_photo_taken_date, p.upload_date) >= $3::timestamp
   AND ($4::timestamp IS NULL OR coalesce(e.extra_photo_taken_date, p.upload_date) < $4::timestamp)
 ORDER BY coalesce(e.extra_photo_taken_date, p.upload_date) DESC, p.photo_id DESC LIMIT 10
@@ -545,7 +548,7 @@ func (q *Queries) ListMonthPreviewLatest(ctx context.Context, arg ListMonthPrevi
 
 const listMonthPreviewOldest = `-- name: ListMonthPreviewOldest :many
 SELECT p.photo_id FROM photo p LEFT JOIN photo_extra e ON e.f_photo_id = p.photo_id
-WHERE p.user_id = $1::int AND lower(p.format) = ANY($2::text[])
+WHERE p.user_id = $1::int AND photo_visible(p.storage_id, p.user_id) AND lower(p.format) = ANY($2::text[])
   AND coalesce(e.extra_photo_taken_date, p.upload_date) >= $3::timestamp
   AND ($4::timestamp IS NULL OR coalesce(e.extra_photo_taken_date, p.upload_date) < $4::timestamp)
 ORDER BY coalesce(e.extra_photo_taken_date, p.upload_date) ASC, p.photo_id ASC LIMIT 10
@@ -654,8 +657,8 @@ func (q *Queries) ListPhotoTags(ctx context.Context, arg ListPhotoTagsParams) ([
 }
 
 const listPhotosByGallery = `-- name: ListPhotosByGallery :many
-SELECT p.photo_id, p.photo_name, p.upload_date, p.format, p.ns_id, p.visibility, p.token, p.photo_uuid, p.user_id, p.content_version, p.content_sha256 FROM photo p JOIN gallery_photo g ON g.photo_id = p.photo_id
-WHERE g.ga_id = $1::int AND p.user_id = $2::int
+SELECT p.photo_id, p.photo_name, p.upload_date, p.format, p.ns_id, p.visibility, p.token, p.photo_uuid, p.user_id, p.content_version, p.content_sha256, p.storage_id FROM photo p JOIN gallery_photo g ON g.photo_id = p.photo_id
+WHERE g.ga_id = $1::int AND p.user_id = $2::int AND photo_visible(p.storage_id, p.user_id)
 ORDER BY p.photo_id
 `
 
@@ -685,6 +688,7 @@ func (q *Queries) ListPhotosByGallery(ctx context.Context, arg ListPhotosByGalle
 			&i.UserID,
 			&i.ContentVersion,
 			&i.ContentSha256,
+			&i.StorageID,
 		); err != nil {
 			return nil, err
 		}
@@ -697,8 +701,8 @@ func (q *Queries) ListPhotosByGallery(ctx context.Context, arg ListPhotosByGalle
 }
 
 const listPhotosByNamespace = `-- name: ListPhotosByNamespace :many
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256 FROM photo
-WHERE user_id = $1::int AND ns_id IS NOT DISTINCT FROM $2::int
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo
+WHERE user_id = $1::int AND ns_id IS NOT DISTINCT FROM $2::int AND photo_visible(storage_id, user_id)
 ORDER BY photo_id
 `
 
@@ -728,6 +732,7 @@ func (q *Queries) ListPhotosByNamespace(ctx context.Context, arg ListPhotosByNam
 			&i.UserID,
 			&i.ContentVersion,
 			&i.ContentSha256,
+			&i.StorageID,
 		); err != nil {
 			return nil, err
 		}
@@ -740,8 +745,8 @@ func (q *Queries) ListPhotosByNamespace(ctx context.Context, arg ListPhotosByNam
 }
 
 const listPhotosByTags = `-- name: ListPhotosByTags :many
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256 FROM photo
-WHERE user_id = $1::int AND photo_id IN (
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo
+WHERE user_id = $1::int AND photo_visible(storage_id, user_id) AND photo_id IN (
 	SELECT tp.photo_id FROM tag_photo tp
 	WHERE tp.user_id = $1::int AND tp.tag_id = ANY($2::int[])
 	GROUP BY tp.photo_id HAVING count(DISTINCT tp.tag_id) = $3::bigint)
@@ -776,6 +781,7 @@ func (q *Queries) ListPhotosByTags(ctx context.Context, arg ListPhotosByTagsPara
 			&i.UserID,
 			&i.ContentVersion,
 			&i.ContentSha256,
+			&i.StorageID,
 		); err != nil {
 			return nil, err
 		}
@@ -789,7 +795,7 @@ func (q *Queries) ListPhotosByTags(ctx context.Context, arg ListPhotosByTagsPara
 
 const listTagCovers = `-- name: ListTagCovers :many
 SELECT l.tag_id::int AS key, p.photo_id, p.format FROM photo p JOIN tag_photo l ON l.photo_id = p.photo_id
-WHERE p.user_id = $1::int AND l.tag_id = ANY($2::int[]) ORDER BY p.photo_id DESC
+WHERE p.user_id = $1::int AND photo_visible(p.storage_id, p.user_id) AND l.tag_id = ANY($2::int[]) ORDER BY p.photo_id DESC
 `
 
 type ListTagCoversParams struct {
@@ -915,8 +921,8 @@ func (q *Queries) ReplacePhotoContent(ctx context.Context, arg ReplacePhotoConte
 }
 
 const searchPhotosByGallery = `-- name: SearchPhotosByGallery :many
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256 FROM photo
-WHERE user_id = $1::int
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo
+WHERE user_id = $1::int AND photo_visible(storage_id, user_id)
   AND photo_id IN (SELECT gp.photo_id FROM gallery_photo gp JOIN gallery g ON g.ga_id = gp.ga_id
                    WHERE g.user_id = $1::int AND g.ga_name ILIKE $2::text)
 ORDER BY photo_id
@@ -948,6 +954,7 @@ func (q *Queries) SearchPhotosByGallery(ctx context.Context, arg SearchPhotosByG
 			&i.UserID,
 			&i.ContentVersion,
 			&i.ContentSha256,
+			&i.StorageID,
 		); err != nil {
 			return nil, err
 		}
@@ -960,7 +967,7 @@ func (q *Queries) SearchPhotosByGallery(ctx context.Context, arg SearchPhotosByG
 }
 
 const searchPhotosByName = `-- name: SearchPhotosByName :many
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256 FROM photo WHERE user_id = $1::int AND photo_name ILIKE $2::text ORDER BY photo_id
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo WHERE user_id = $1::int AND photo_visible(storage_id, user_id) AND photo_name ILIKE $2::text ORDER BY photo_id
 `
 
 type SearchPhotosByNameParams struct {
@@ -989,6 +996,7 @@ func (q *Queries) SearchPhotosByName(ctx context.Context, arg SearchPhotosByName
 			&i.UserID,
 			&i.ContentVersion,
 			&i.ContentSha256,
+			&i.StorageID,
 		); err != nil {
 			return nil, err
 		}
@@ -1001,8 +1009,8 @@ func (q *Queries) SearchPhotosByName(ctx context.Context, arg SearchPhotosByName
 }
 
 const searchPhotosByNamespace = `-- name: SearchPhotosByNamespace :many
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256 FROM photo
-WHERE user_id = $1::int
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo
+WHERE user_id = $1::int AND photo_visible(storage_id, user_id)
   AND ns_id IN (SELECT ns_id FROM namespace WHERE user_id = $1::int AND ns_name ILIKE $2::text)
 ORDER BY photo_id
 `
@@ -1033,6 +1041,7 @@ func (q *Queries) SearchPhotosByNamespace(ctx context.Context, arg SearchPhotosB
 			&i.UserID,
 			&i.ContentVersion,
 			&i.ContentSha256,
+			&i.StorageID,
 		); err != nil {
 			return nil, err
 		}
@@ -1045,8 +1054,8 @@ func (q *Queries) SearchPhotosByNamespace(ctx context.Context, arg SearchPhotosB
 }
 
 const searchPhotosByTag = `-- name: SearchPhotosByTag :many
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256 FROM photo
-WHERE user_id = $1::int
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo
+WHERE user_id = $1::int AND photo_visible(storage_id, user_id)
   AND photo_id IN (SELECT tp.photo_id FROM tag_photo tp JOIN tag t ON t.tag_id = tp.tag_id
                    WHERE t.user_id = $1::int AND t.tag_name ILIKE $2::text)
 ORDER BY photo_id
@@ -1078,6 +1087,7 @@ func (q *Queries) SearchPhotosByTag(ctx context.Context, arg SearchPhotosByTagPa
 			&i.UserID,
 			&i.ContentVersion,
 			&i.ContentSha256,
+			&i.StorageID,
 		); err != nil {
 			return nil, err
 		}

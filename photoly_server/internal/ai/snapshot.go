@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -75,6 +76,7 @@ func snapshotPhoto(ctx context.Context, pool *pgxpool.Pool, root string, photoID
 	if err != nil {
 		return nil, err
 	}
+	storage.Fetch(path)
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fail("image_missing", 404)
