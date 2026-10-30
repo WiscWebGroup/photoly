@@ -69,7 +69,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import type { Photo } from '@/composables/usePhotos'
 import { vCollapse } from '@/lib/collapse'
-import { download } from '@/lib/download'
+import { download, downloadNative } from '@/lib/download'
 import { isEditable } from '@/lib/imageEdit'
 import { call } from '@/lib/http'
 import { mediaKind } from '@/lib/media'
@@ -147,9 +147,7 @@ async function retryLive() {
 }
 function downloadLive() {
   if (!info.value) return
-  void download(`/photo/downloadLive/${auth.token}`, `${info.value.photoName}.zip`, {
-    params: { photoId: info.value.photoId },
-  }).catch(() => toast.error('Download failed'))
+  downloadNative(`/photo/downloadLive/${auth.token}`, { photoId: info.value.photoId })
 }
 const desktop = useMediaQuery('(min-width: 768px)')
 const selected = ref<Photo | null>(null)

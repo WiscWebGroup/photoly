@@ -4,11 +4,17 @@ import { call } from '@/lib/http'
 export interface Folder {
   nsId: number
   nsName: string
+  sourceId?: number
+  sourceType?: 'local' | 's3' | 'webdav'
+  isMount?: boolean
+  canMove?: boolean
+  canRename?: boolean
+  canDelete?: boolean
 }
 
 /** The backend rejects these; HomePart used to repeat this check inline. */
 export function isValidFolderName(name: string | null) {
-  return !!name && name !== 'root' && name !== '/'
+  return !!name && name !== '.' && name !== '..' && !/[\/\\\0]/.test(name)
 }
 
 /** The folder being browsed: its children and breadcrumb path, plus folder mutations. */
@@ -25,6 +31,7 @@ export function useFolders() {
       call<Folder[]>({ url: '/namespace/getChildren', params: { parentId: nsId } }),
       call<Folder[]>({ url: '/namespace/trace', params: { nsId } }),
     ])
+    current.value = path.value.at(-1) ?? current.value
   }
 
   async function open(nsId: number, nsName = '') {
@@ -39,7 +46,11 @@ export function useFolders() {
   }
 
   async function create(nsName: string) {
-    await call({ method: 'post', url: '/namespace/insert', data: { nsParentId: current.value?.nsId, nsName } })
+    await call({
+      method: 'post',
+      url: '/namespace/insert',
+      data: { nsParentId: current.value?.nsId, nsName },
+    })
     await refresh()
   }
 

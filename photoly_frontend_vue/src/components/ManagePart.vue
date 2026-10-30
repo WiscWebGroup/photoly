@@ -42,7 +42,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import SmartOrganizationSettings from '@/components/SmartOrganizationSettings.vue'
-import StorageVisibilitySetting from '@/components/StorageVisibilitySetting.vue'
+import StorageSourcesSetting from '@/components/StorageSourcesSetting.vue'
 import AiDeviceSettings from '@/components/ai/AiDeviceSettings.vue'
 import { useBrowserAiStore } from '@/stores/browserAi'
 import AvatarCropper from '@/components/AvatarCropper.vue'
@@ -580,9 +580,11 @@ onMounted(() => {
         >
           Storage
         </h2>
-        <p class="text-muted-foreground text-sm">Choose which storage your library lists.</p>
+        <p class="text-muted-foreground text-sm">
+          Manage your local library and personal S3 connection.
+        </p>
       </div>
-      <StorageVisibilitySetting />
+      <StorageSourcesSetting />
     </section>
 
     <div v-if="hasAiSettings" v-show="showSection('ai')" id="ai" class="scroll-mt-14">

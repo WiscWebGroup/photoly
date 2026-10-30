@@ -64,6 +64,10 @@ Scroll down in the viewer to load **Similar photos and videos**. Each item has i
 
 **Smart Tag** requires global AI, administrator Smart Tag, user AI permission and personal Smart Tag to be enabled. Both Smart Tag switches default off. It runs inside the existing scheduler process, with no extra container or model inference. Turning it off retains editable results. See [rules, controls and offline city attribution](docs/smart-tag.md).
 
+### Real folders and personal S3
+
+The local library mirrors each user’s actual UUID directory. External changes are scanned automatically; users can connect one personal S3 bucket as a cloud folder alongside local content. This release requires a fresh library and refuses old flat-layout media. See [layout, synchronization, S3, downloads and deployment](docs/real-folders.md).
+
 ### Bulk uploads and storage groups
 
 Files, folders and ZIPs can be uploaded in unlimited-count batches. The global Upload activity panel stays available while browsing. Each account inherits a default 50 GB group quota, with administrator-managed groups and personal overrides. See [uploads, storage, migration and worker operations](docs/uploads-storage.md).

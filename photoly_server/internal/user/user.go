@@ -39,7 +39,7 @@ func Register(a *app.App) {
 	m.HandleFunc("POST /user/signOut", noAuthRes.Wrap(a, s.signOut))
 	m.HandleFunc("GET /user/getInfo", resultOpt.Wrap(a, s.info))
 	m.HandleFunc("GET /user/getStorage", resultOpt.Wrap(a, s.storage))
-	m.HandleFunc("POST /user/updateStorageVisibility", resultOpt.Wrap(a, s.storageVisibility))
+	s.registerSources()
 	m.HandleFunc("POST /user/updateUsername", resultOpt.Wrap(a, s.updateField("user_name", "username")))
 	m.HandleFunc("POST /user/updateEmail", resultOpt.Wrap(a, s.updateField("email", "email")))
 	m.HandleFunc("POST /user/updatePassword", resultOpt.Wrap(a, s.updateField("password", "newPass")))
@@ -122,7 +122,7 @@ func (s *svc) signUp(w http.ResponseWriter, r *http.Request, _ int64) (any, erro
 		name = &n
 	}
 	var uid int64
-	err = legacy.Atomic(ctx, s.a.Pool, s.a.Cfg.UploadFolder, 0, false, func(tx pgx.Tx, _ *legacy.Files, _ *legacy.LockedUser) error {
+	err = legacy.Atomic(ctx, s.a.Pool, s.a.Cfg.UploadFolder, 0, false, func(tx pgx.Tx, f *legacy.Files, _ *legacy.LockedUser) error {
 		if taken, err := s.emailTaken(ctx, tx, email); err != nil {
 			return err
 		} else if taken {
@@ -139,6 +139,20 @@ func (s *svc) signUp(w http.ResponseWriter, r *http.Request, _ int64) (any, erro
 		}
 		if err = q.InsertRootNamespace(ctx, uid); err != nil {
 			return err
+		}
+		var accountUUID string
+		if err = tx.QueryRow(ctx, `SELECT uuid FROM "user" WHERE user_id=$1`, uid).Scan(&accountUUID); err != nil {
+			return err
+		}
+		accountDir, e := storage.SafePath(s.a.Cfg.UploadFolder, accountUUID)
+		if e != nil {
+			return e
+		}
+		if e = f.Mkdir(accountDir); e != nil {
+			return e
+		}
+		if e = storage.RecordRootIdentity(ctx, tx, uid, accountDir); e != nil {
+			return e
 		}
 		return q.InsertFavoriteGallery(ctx, dbgen.InsertFavoriteGalleryParams{UserID: uid, CreateDate: now})
 	})
@@ -207,7 +221,7 @@ func (s *svc) storage(w http.ResponseWriter, r *http.Request, uid int64) (any, e
 		u = *st.UsedBytes
 	}
 	return legacy.Res{V: map[string]any{"usedBytes": u, "capacityBytes": limit, "groupId": st.GroupID, "groupName": st.GroupName,
-		"storageOverride": st.StorageOverride, "maxStorageBytes": st.MaxStorageBytes, "quotaSource": source, "backend": backendLabel(), "showOtherStorage": st.ShowOtherStorage,
+		"storageOverride": st.StorageOverride, "maxStorageBytes": st.MaxStorageBytes, "quotaSource": source, "backend": "Local disk",
 		"overQuota": limit != nil && u > *limit}, Code: 200}, nil
 }
 
@@ -281,7 +295,7 @@ func (s *svc) updateAvatar(w http.ResponseWriter, r *http.Request, uid int64) (a
 		return nil, err
 	}
 	err = legacy.Atomic(r.Context(), s.a.Pool, s.a.Cfg.UploadFolder, uid, false, func(tx pgx.Tx, f *legacy.Files, u *legacy.LockedUser) error {
-		p, err := legacy.MediaPath(s.a.Cfg.UploadFolder, u.UUID, u.UUID+".jpg")
+		p, err := legacy.MediaPath(r.Context(), s.a.Pool, s.a.Cfg.UploadFolder, u.UUID, u.UUID+".jpg")
 		if err != nil {
 			return err
 		}
@@ -299,7 +313,7 @@ func (s *svc) avatar(w http.ResponseWriter, r *http.Request, uid int64) (any, er
 		return nil, err
 	}
 	uuid := deref(uuidp)
-	p, err := legacy.MediaPath(s.a.Cfg.UploadFolder, uuid, uuid+".jpg")
+	p, err := legacy.MediaPath(r.Context(), s.a.Pool, s.a.Cfg.UploadFolder, uuid, uuid+".jpg")
 	if err != nil {
 		return nil, err
 	}
@@ -338,11 +352,14 @@ func (s *svc) delete(w http.ResponseWriter, r *http.Request, uid int64) (any, er
 		if _, err = q.DeleteUserCreds(ctx, uid); err != nil {
 			return err
 		}
-		p, err := legacy.MediaPath(root, u.UUID, u.UUID+".jpg")
+		p, err := legacy.MediaPath(r.Context(), s.a.Pool, root, u.UUID, u.UUID+".jpg")
 		if err != nil {
 			return err
 		}
 		if _, err = f.Remove(p); err != nil {
+			return err
+		}
+		if err = legacy.RemoveUserFiles(f, root, u.UUID); err != nil {
 			return err
 		}
 		if _, err = q.DeleteUser(ctx, uid); err != nil {
@@ -363,24 +380,4 @@ func isFile(p string) bool {
 	storage.Fetch(p)
 	st, err := os.Stat(p)
 	return err == nil && st.Mode().IsRegular()
-}
-
-// backendLabel names the storage backend currently holding new media.
-func backendLabel() string {
-	if d, ok := storage.Lookup(storage.ActiveDriver()); ok {
-		return d.Label
-	}
-	return storage.ActiveDriver()
-}
-
-// storageVisibility sets whether the account also lists media stored on inactive backends.
-func (s *svc) storageVisibility(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
-	v, ok := legacy.Arg(r, "show")
-	if !ok || (v != "true" && v != "false") {
-		return nil, legacy.Bad()
-	}
-	if err := dbgen.New(s.a.Pool).SetShowOtherStorage(r.Context(), dbgen.SetShowOtherStorageParams{Show: v == "true", UserID: uid}); err != nil {
-		return nil, err
-	}
-	return legacy.Res{V: 1, Code: 200}, nil
 }

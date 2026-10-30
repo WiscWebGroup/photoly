@@ -7,11 +7,11 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"unicode"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/httpx"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 )
 
 // rc is a result with an explicit msgCode (default 200).
@@ -104,7 +104,7 @@ func (s *Service) BinaryHandler(mode string, fn func(w http.ResponseWriter, r *h
 
 // serveFile is controllers.common.binary: send_file(conditional=True) with no-store caching.
 func serveFile(w http.ResponseWriter, r *http.Request, path, mime, download string) error {
-	f, err := os.Open(path)
+	f, err := storage.OpenFile(path)
 	if err != nil {
 		return Err(nil, 404)
 	}

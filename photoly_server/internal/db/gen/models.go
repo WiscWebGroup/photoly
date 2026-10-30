@@ -77,11 +77,23 @@ type GalleryPhoto struct {
 	PhotoID *int64
 }
 
+type MediaAsset struct {
+	PhotoID     int64
+	Role        string
+	Filename    string
+	DisplayName string
+}
+
 type Namespace struct {
-	NsID       int64
-	NsName     *string
-	NsParentID *int64
-	UserID     *int64
+	NsID         int64
+	NsName       *string
+	NsParentID   *int64
+	UserID       *int64
+	SourceID     int64
+	SourceType   string
+	IsMount      bool
+	FsIdentity   string
+	MissingScans int64
 }
 
 type NamespacePhoto struct {
@@ -103,6 +115,12 @@ type Photo struct {
 	ContentVersion int64
 	ContentSha256  *string
 	StorageID      string
+	SourceID       int64
+	FileName       string
+	FsIdentity     string
+	FsSize         int64
+	FsMtime        int64
+	MissingScans   int64
 }
 
 type PhotoEmbeddingState struct {
@@ -223,19 +241,28 @@ type SmartPreference struct {
 	UpdatedAt         *time.Time
 }
 
-type StorageConfig struct {
-	ID        int64
-	Driver    string
-	Config    []byte
-	Secret    []byte
-	UpdatedAt time.Time
-	BackendID string
+type StorageObservation struct {
+	SourceID int64
+	Path     string
+	Identity string
+	Size     int64
+	Mtime    int64
 }
 
-type StorageDriverConfig struct {
-	Driver string
-	Config []byte
-	Secret []byte
+type StorageSource struct {
+	ID           int64
+	UserID       int64
+	Kind         string
+	IsDefault    bool
+	RootPath     string
+	Config       []byte
+	Secret       []byte
+	Enabled      bool
+	Revision     int64
+	RootIdentity string
+	ScanStatus   string
+	ScanError    *string
+	ScannedAt    *time.Time
 }
 
 type Tag struct {
@@ -285,19 +312,18 @@ type UploadItem struct {
 }
 
 type User struct {
-	UserID           int64
-	UserName         *string
-	Email            *string
-	CreateDate       *time.Time
-	Role             *string
-	Password         *string
-	Uuid             *string
-	AiSearchEnabled  bool
-	GroupID          int64
-	StorageOverride  bool
-	MaxStorageBytes  *int64
-	UsedBytes        *int64
-	ShowOtherStorage bool
+	UserID          int64
+	UserName        *string
+	Email           *string
+	CreateDate      *time.Time
+	Role            *string
+	Password        *string
+	Uuid            *string
+	AiSearchEnabled bool
+	GroupID         int64
+	StorageOverride bool
+	MaxStorageBytes *int64
+	UsedBytes       *int64
 }
 
 type UserAiPreference struct {

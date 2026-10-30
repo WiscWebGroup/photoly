@@ -10,3 +10,13 @@ export async function download(url: string, filename: string, config: AxiosReque
   a.click()
   setTimeout(() => URL.revokeObjectURL(a.href), 1000)
 }
+
+/** Let the browser stream large archives to its download manager. */
+export function downloadNative(url: string, params: Record<string, string | number> = {}) {
+  const a = document.createElement('a')
+  a.href = http.getUri({ url, params })
+  a.download = ''
+  document.body.append(a)
+  a.click()
+  a.remove()
+}

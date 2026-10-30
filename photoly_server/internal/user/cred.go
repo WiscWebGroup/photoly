@@ -227,7 +227,7 @@ func (s *svc) credRender(w http.ResponseWriter, r *http.Request, _ int64) (any, 
 	if err != nil {
 		return nil, err
 	}
-	p, err := legacy.MediaPath(s.a.Cfg.UploadFolder, owner, u+"."+format)
+	p, err := legacy.MediaPath(r.Context(), s.a.Pool, s.a.Cfg.UploadFolder, owner, u+"."+format)
 	if err != nil {
 		return nil, err
 	}

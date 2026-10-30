@@ -3,11 +3,10 @@ package migrations
 import (
 	"context"
 	"errors"
-	"io/fs"
-	"path/filepath"
 	"time"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/user/legacy"
 	"github.com/jackc/pgx/v5"
 )
@@ -81,21 +80,9 @@ func Seed(ctx context.Context, conn *pgx.Conn, cfg app.Config) error {
 	}
 	rows.Close()
 	for _, x := range pending {
-		if _, err := tx.Exec(ctx, `UPDATE "user" SET used_bytes=$2 WHERE user_id=$1`, x.id, dirSize(filepath.Join(cfg.UploadFolder, x.uuid))); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE "user" SET used_bytes=$2 WHERE user_id=$1`, x.id, storage.Usage(cfg.UploadFolder, x.uuid)); err != nil {
 			return err
 		}
 	}
 	return tx.Commit(ctx)
-}
-
-func dirSize(root string) (n int64) {
-	_ = filepath.WalkDir(root, func(_ string, d fs.DirEntry, err error) error {
-		if err == nil && !d.IsDir() {
-			if info, e := d.Info(); e == nil {
-				n += info.Size()
-			}
-		}
-		return nil
-	})
-	return
 }

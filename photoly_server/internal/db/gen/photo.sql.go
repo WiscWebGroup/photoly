@@ -88,7 +88,7 @@ func (q *Queries) GalleryPhotoExists(ctx context.Context, arg GalleryPhotoExists
 }
 
 const getPhoto = `-- name: GetPhoto :one
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo WHERE photo_id = $1::int
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id, source_id, file_name, fs_identity, fs_size, fs_mtime, missing_scans FROM photo WHERE photo_id = $1::int AND photo_visible(storage_id,user_id)
 `
 
 func (q *Queries) GetPhoto(ctx context.Context, photoID int64) (Photo, error) {
@@ -107,12 +107,18 @@ func (q *Queries) GetPhoto(ctx context.Context, photoID int64) (Photo, error) {
 		&i.ContentVersion,
 		&i.ContentSha256,
 		&i.StorageID,
+		&i.SourceID,
+		&i.FileName,
+		&i.FsIdentity,
+		&i.FsSize,
+		&i.FsMtime,
+		&i.MissingScans,
 	)
 	return i, err
 }
 
 const getPhotoByUUID = `-- name: GetPhotoByUUID :one
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo WHERE photo_uuid = $1::text
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id, source_id, file_name, fs_identity, fs_size, fs_mtime, missing_scans FROM photo WHERE photo_uuid = $1::text
 `
 
 func (q *Queries) GetPhotoByUUID(ctx context.Context, photoUuid string) (Photo, error) {
@@ -131,6 +137,12 @@ func (q *Queries) GetPhotoByUUID(ctx context.Context, photoUuid string) (Photo, 
 		&i.ContentVersion,
 		&i.ContentSha256,
 		&i.StorageID,
+		&i.SourceID,
+		&i.FileName,
+		&i.FsIdentity,
+		&i.FsSize,
+		&i.FsMtime,
+		&i.MissingScans,
 	)
 	return i, err
 }
@@ -222,7 +234,7 @@ func (q *Queries) GetPhotoOCR(ctx context.Context, photoID int64) (GetPhotoOCRRo
 }
 
 const getUserPhoto = `-- name: GetUserPhoto :one
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo WHERE photo_id = $1::int AND user_id = $2::int
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id, source_id, file_name, fs_identity, fs_size, fs_mtime, missing_scans FROM photo WHERE photo_id = $1::int AND user_id = $2::int
 `
 
 type GetUserPhotoParams struct {
@@ -246,6 +258,12 @@ func (q *Queries) GetUserPhoto(ctx context.Context, arg GetUserPhotoParams) (Pho
 		&i.ContentVersion,
 		&i.ContentSha256,
 		&i.StorageID,
+		&i.SourceID,
+		&i.FileName,
+		&i.FsIdentity,
+		&i.FsSize,
+		&i.FsMtime,
+		&i.MissingScans,
 	)
 	return i, err
 }
@@ -657,7 +675,7 @@ func (q *Queries) ListPhotoTags(ctx context.Context, arg ListPhotoTagsParams) ([
 }
 
 const listPhotosByGallery = `-- name: ListPhotosByGallery :many
-SELECT p.photo_id, p.photo_name, p.upload_date, p.format, p.ns_id, p.visibility, p.token, p.photo_uuid, p.user_id, p.content_version, p.content_sha256, p.storage_id FROM photo p JOIN gallery_photo g ON g.photo_id = p.photo_id
+SELECT p.photo_id, p.photo_name, p.upload_date, p.format, p.ns_id, p.visibility, p.token, p.photo_uuid, p.user_id, p.content_version, p.content_sha256, p.storage_id, p.source_id, p.file_name, p.fs_identity, p.fs_size, p.fs_mtime, p.missing_scans FROM photo p JOIN gallery_photo g ON g.photo_id = p.photo_id
 WHERE g.ga_id = $1::int AND p.user_id = $2::int AND photo_visible(p.storage_id, p.user_id)
 ORDER BY p.photo_id
 `
@@ -689,6 +707,12 @@ func (q *Queries) ListPhotosByGallery(ctx context.Context, arg ListPhotosByGalle
 			&i.ContentVersion,
 			&i.ContentSha256,
 			&i.StorageID,
+			&i.SourceID,
+			&i.FileName,
+			&i.FsIdentity,
+			&i.FsSize,
+			&i.FsMtime,
+			&i.MissingScans,
 		); err != nil {
 			return nil, err
 		}
@@ -701,7 +725,7 @@ func (q *Queries) ListPhotosByGallery(ctx context.Context, arg ListPhotosByGalle
 }
 
 const listPhotosByNamespace = `-- name: ListPhotosByNamespace :many
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id, source_id, file_name, fs_identity, fs_size, fs_mtime, missing_scans FROM photo
 WHERE user_id = $1::int AND ns_id IS NOT DISTINCT FROM $2::int AND photo_visible(storage_id, user_id)
 ORDER BY photo_id
 `
@@ -733,6 +757,12 @@ func (q *Queries) ListPhotosByNamespace(ctx context.Context, arg ListPhotosByNam
 			&i.ContentVersion,
 			&i.ContentSha256,
 			&i.StorageID,
+			&i.SourceID,
+			&i.FileName,
+			&i.FsIdentity,
+			&i.FsSize,
+			&i.FsMtime,
+			&i.MissingScans,
 		); err != nil {
 			return nil, err
 		}
@@ -745,7 +775,7 @@ func (q *Queries) ListPhotosByNamespace(ctx context.Context, arg ListPhotosByNam
 }
 
 const listPhotosByTags = `-- name: ListPhotosByTags :many
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id, source_id, file_name, fs_identity, fs_size, fs_mtime, missing_scans FROM photo
 WHERE user_id = $1::int AND photo_visible(storage_id, user_id) AND photo_id IN (
 	SELECT tp.photo_id FROM tag_photo tp
 	WHERE tp.user_id = $1::int AND tp.tag_id = ANY($2::int[])
@@ -782,6 +812,12 @@ func (q *Queries) ListPhotosByTags(ctx context.Context, arg ListPhotosByTagsPara
 			&i.ContentVersion,
 			&i.ContentSha256,
 			&i.StorageID,
+			&i.SourceID,
+			&i.FileName,
+			&i.FsIdentity,
+			&i.FsSize,
+			&i.FsMtime,
+			&i.MissingScans,
 		); err != nil {
 			return nil, err
 		}
@@ -921,7 +957,7 @@ func (q *Queries) ReplacePhotoContent(ctx context.Context, arg ReplacePhotoConte
 }
 
 const searchPhotosByGallery = `-- name: SearchPhotosByGallery :many
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id, source_id, file_name, fs_identity, fs_size, fs_mtime, missing_scans FROM photo
 WHERE user_id = $1::int AND photo_visible(storage_id, user_id)
   AND photo_id IN (SELECT gp.photo_id FROM gallery_photo gp JOIN gallery g ON g.ga_id = gp.ga_id
                    WHERE g.user_id = $1::int AND g.ga_name ILIKE $2::text)
@@ -955,6 +991,12 @@ func (q *Queries) SearchPhotosByGallery(ctx context.Context, arg SearchPhotosByG
 			&i.ContentVersion,
 			&i.ContentSha256,
 			&i.StorageID,
+			&i.SourceID,
+			&i.FileName,
+			&i.FsIdentity,
+			&i.FsSize,
+			&i.FsMtime,
+			&i.MissingScans,
 		); err != nil {
 			return nil, err
 		}
@@ -967,7 +1009,7 @@ func (q *Queries) SearchPhotosByGallery(ctx context.Context, arg SearchPhotosByG
 }
 
 const searchPhotosByName = `-- name: SearchPhotosByName :many
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo WHERE user_id = $1::int AND photo_visible(storage_id, user_id) AND photo_name ILIKE $2::text ORDER BY photo_id
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id, source_id, file_name, fs_identity, fs_size, fs_mtime, missing_scans FROM photo WHERE user_id = $1::int AND photo_visible(storage_id, user_id) AND photo_name ILIKE $2::text ORDER BY photo_id
 `
 
 type SearchPhotosByNameParams struct {
@@ -997,6 +1039,12 @@ func (q *Queries) SearchPhotosByName(ctx context.Context, arg SearchPhotosByName
 			&i.ContentVersion,
 			&i.ContentSha256,
 			&i.StorageID,
+			&i.SourceID,
+			&i.FileName,
+			&i.FsIdentity,
+			&i.FsSize,
+			&i.FsMtime,
+			&i.MissingScans,
 		); err != nil {
 			return nil, err
 		}
@@ -1009,7 +1057,7 @@ func (q *Queries) SearchPhotosByName(ctx context.Context, arg SearchPhotosByName
 }
 
 const searchPhotosByNamespace = `-- name: SearchPhotosByNamespace :many
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id, source_id, file_name, fs_identity, fs_size, fs_mtime, missing_scans FROM photo
 WHERE user_id = $1::int AND photo_visible(storage_id, user_id)
   AND ns_id IN (SELECT ns_id FROM namespace WHERE user_id = $1::int AND ns_name ILIKE $2::text)
 ORDER BY photo_id
@@ -1042,6 +1090,12 @@ func (q *Queries) SearchPhotosByNamespace(ctx context.Context, arg SearchPhotosB
 			&i.ContentVersion,
 			&i.ContentSha256,
 			&i.StorageID,
+			&i.SourceID,
+			&i.FileName,
+			&i.FsIdentity,
+			&i.FsSize,
+			&i.FsMtime,
+			&i.MissingScans,
 		); err != nil {
 			return nil, err
 		}
@@ -1054,7 +1108,7 @@ func (q *Queries) SearchPhotosByNamespace(ctx context.Context, arg SearchPhotosB
 }
 
 const searchPhotosByTag = `-- name: SearchPhotosByTag :many
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id, source_id, file_name, fs_identity, fs_size, fs_mtime, missing_scans FROM photo
 WHERE user_id = $1::int AND photo_visible(storage_id, user_id)
   AND photo_id IN (SELECT tp.photo_id FROM tag_photo tp JOIN tag t ON t.tag_id = tp.tag_id
                    WHERE t.user_id = $1::int AND t.tag_name ILIKE $2::text)
@@ -1088,6 +1142,12 @@ func (q *Queries) SearchPhotosByTag(ctx context.Context, arg SearchPhotosByTagPa
 			&i.ContentVersion,
 			&i.ContentSha256,
 			&i.StorageID,
+			&i.SourceID,
+			&i.FileName,
+			&i.FsIdentity,
+			&i.FsSize,
+			&i.FsMtime,
+			&i.MissingScans,
 		); err != nil {
 			return nil, err
 		}

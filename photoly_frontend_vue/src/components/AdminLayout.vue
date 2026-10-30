@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, HardDrive, Server, Sparkles, Users } from '@lucide/vue'
+import { ArrowLeft, Server, Sparkles, Users } from '@lucide/vue'
 import UploadButton from '@/components/UploadButton.vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 
@@ -9,7 +9,6 @@ const nav = [
   { to: '/thepersonincharge/dashboard', label: 'Overview', icon: Server },
   { to: '/thepersonincharge/usermanage', label: 'Users', icon: Users },
   { to: '/thepersonincharge/ai', label: 'AI', icon: Sparkles },
-  { to: '/thepersonincharge/storage', label: 'Storage', icon: HardDrive },
 ]
 
 const link =
@@ -86,7 +85,7 @@ const pill =
     <!-- Mobile bottom tab bar -->
     <nav
       aria-label="Admin"
-      class="bg-card grid shrink-0 grid-cols-5 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
+      class="bg-card grid shrink-0 grid-cols-4 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <router-link
         v-for="item in nav"

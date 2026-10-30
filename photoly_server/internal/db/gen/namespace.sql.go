@@ -19,7 +19,7 @@ func (q *Queries) DeleteNamespace(ctx context.Context, nsID int64) error {
 }
 
 const getNamespace = `-- name: GetNamespace :one
-SELECT ns_id, ns_name, ns_parent_id, user_id FROM namespace WHERE ns_id = $1::int
+SELECT ns_id, ns_name, ns_parent_id, user_id, source_id, source_type, is_mount, fs_identity, missing_scans FROM namespace WHERE ns_id = $1::int
 `
 
 func (q *Queries) GetNamespace(ctx context.Context, nsID int64) (Namespace, error) {
@@ -30,6 +30,11 @@ func (q *Queries) GetNamespace(ctx context.Context, nsID int64) (Namespace, erro
 		&i.NsName,
 		&i.NsParentID,
 		&i.UserID,
+		&i.SourceID,
+		&i.SourceType,
+		&i.IsMount,
+		&i.FsIdentity,
+		&i.MissingScans,
 	)
 	return i, err
 }
@@ -49,7 +54,7 @@ const getNamespaceSummary = `-- name: GetNamespaceSummary :one
 WITH RECURSIVE d(ns_id) AS (
     SELECT n.ns_id FROM namespace n WHERE n.ns_id = $1::int AND n.user_id = $2::int
     UNION
-    SELECT n.ns_id FROM namespace n JOIN d ON n.ns_parent_id = d.ns_id WHERE n.user_id = $2::int
+    SELECT n.ns_id FROM namespace n JOIN d ON n.ns_parent_id = d.ns_id WHERE n.user_id = $2::int AND EXISTS(SELECT 1 FROM storage_source s WHERE s.id=n.source_id AND s.enabled)
 )
 SELECT (SELECT ns_name FROM namespace WHERE namespace.ns_id = $1::int) AS ns_name,
        (SELECT uuid FROM "user" WHERE user_id = $2::int)::text AS uuid,
@@ -75,7 +80,7 @@ func (q *Queries) GetNamespaceSummary(ctx context.Context, arg GetNamespaceSumma
 }
 
 const getRootNamespace = `-- name: GetRootNamespace :one
-SELECT ns_id, ns_name, ns_parent_id, user_id FROM namespace WHERE user_id = $1::int AND ns_parent_id = -1 LIMIT 1
+SELECT ns_id, ns_name, ns_parent_id, user_id, source_id, source_type, is_mount, fs_identity, missing_scans FROM namespace WHERE user_id = $1::int AND ns_parent_id = -1 LIMIT 1
 `
 
 func (q *Queries) GetRootNamespace(ctx context.Context, userID int64) (Namespace, error) {
@@ -86,6 +91,11 @@ func (q *Queries) GetRootNamespace(ctx context.Context, userID int64) (Namespace
 		&i.NsName,
 		&i.NsParentID,
 		&i.UserID,
+		&i.SourceID,
+		&i.SourceType,
+		&i.IsMount,
+		&i.FsIdentity,
+		&i.MissingScans,
 	)
 	return i, err
 }
@@ -140,8 +150,9 @@ func (q *Queries) ListChildNamespaceNames(ctx context.Context, arg ListChildName
 }
 
 const listChildNamespaces = `-- name: ListChildNamespaces :many
-SELECT ns_id, ns_name, ns_parent_id, user_id FROM namespace
+SELECT ns_id, ns_name, ns_parent_id, user_id, source_id, source_type, is_mount, fs_identity, missing_scans FROM namespace
 WHERE user_id = $1::int AND ns_parent_id IS NOT DISTINCT FROM $2::int
+AND EXISTS(SELECT 1 FROM storage_source s WHERE s.id=namespace.source_id AND s.enabled)
 ORDER BY ns_id
 `
 
@@ -164,6 +175,11 @@ func (q *Queries) ListChildNamespaces(ctx context.Context, arg ListChildNamespac
 			&i.NsName,
 			&i.NsParentID,
 			&i.UserID,
+			&i.SourceID,
+			&i.SourceType,
+			&i.IsMount,
+			&i.FsIdentity,
+			&i.MissingScans,
 		); err != nil {
 			return nil, err
 		}
@@ -223,7 +239,7 @@ func (q *Queries) ListNamespaceDownloadPhotos(ctx context.Context, arg ListNames
 }
 
 const listNamespacePhotos = `-- name: ListNamespacePhotos :many
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id FROM photo WHERE user_id = $1::int AND ns_id = $2::int ORDER BY photo_id
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id, source_id, file_name, fs_identity, fs_size, fs_mtime, missing_scans FROM photo WHERE user_id = $1::int AND ns_id = $2::int ORDER BY photo_id
 `
 
 type ListNamespacePhotosParams struct {
@@ -253,6 +269,12 @@ func (q *Queries) ListNamespacePhotos(ctx context.Context, arg ListNamespacePhot
 			&i.ContentVersion,
 			&i.ContentSha256,
 			&i.StorageID,
+			&i.SourceID,
+			&i.FileName,
+			&i.FsIdentity,
+			&i.FsSize,
+			&i.FsMtime,
+			&i.MissingScans,
 		); err != nil {
 			return nil, err
 		}
@@ -268,7 +290,7 @@ const listNamespaceTreePhotos = `-- name: ListNamespaceTreePhotos :many
 WITH RECURSIVE d(ns_id) AS (
     SELECT n.ns_id FROM namespace n WHERE n.ns_id = $2::int AND n.user_id = $1::int
     UNION
-    SELECT n.ns_id FROM namespace n JOIN d ON n.ns_parent_id = d.ns_id WHERE n.user_id = $1::int
+    SELECT n.ns_id FROM namespace n JOIN d ON n.ns_parent_id = d.ns_id WHERE n.user_id = $1::int AND EXISTS(SELECT 1 FROM storage_source s WHERE s.id=n.source_id AND s.enabled)
 )
 SELECT p.photo_uuid::text AS photo_uuid, p.format::text AS format,
        (m.photo_id IS NOT NULL)::bool AS has_media, (e.f_photo_id IS NOT NULL)::bool AS has_extra,

@@ -17,7 +17,10 @@ beforeEach(() => {
 })
 
 describe('isValidFolderName', () => {
-  it.each([null, '', 'root', '/'])('rejects %j', (name) => expect(isValidFolderName(name)).toBe(false))
+  it('allows a real directory named root', () => expect(isValidFolderName('root')).toBe(true))
+  it.each([null, '', '.', '..', '/', 'a/b'])('rejects %j', (name) =>
+    expect(isValidFolderName(name)).toBe(false),
+  )
   it('accepts a normal name', () => expect(isValidFolderName('Trips')).toBe(true))
 })
 
@@ -43,7 +46,11 @@ describe('useFolders', () => {
     await folders.openRoot()
     calls.length = 0
     await folders.create('Pets')
-    expect(calls[0]).toMatchObject({ method: 'POST', path: '/namespace/insert', body: { nsParentId: 1, nsName: 'Pets' } })
+    expect(calls[0]).toMatchObject({
+      method: 'POST',
+      path: '/namespace/insert',
+      body: { nsParentId: 1, nsName: 'Pets' },
+    })
     expect(calls.map((c) => c.path)).toContain('/namespace/getChildren')
   })
 
@@ -53,7 +60,9 @@ describe('useFolders', () => {
     const folders = useFolders()
     await folders.openRoot()
     await folders.remove(2)
-    expect(calls.find((c) => c.path === '/namespace/delete')).toMatchObject({ query: { nsId: '2' } })
+    expect(calls.find((c) => c.path === '/namespace/delete')).toMatchObject({
+      query: { nsId: '2' },
+    })
   })
 
   it('throws ApiError when the backend refuses', async () => {

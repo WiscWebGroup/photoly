@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -305,6 +304,10 @@ func (s *svc) createUser(ctx context.Context, tx pgx.Tx, data map[string]any, ro
 	uid := must(q.InsertUser(ctx, dbgen.InsertUserParams{UserName: name, Email: email, Password: legacy.HashPassword(password), Role: role,
 		Uuid: photo.NewUUID(), CreateDate: naive, AiSearchEnabled: aiDefault}))
 	check(q.InsertRootNamespace(ctx, uid))
+	accountUUID := must(q.GetUserUUID(ctx, uid))
+	dir := must(storage.SafePath(s.a.Cfg.UploadFolder, deref(accountUUID)))
+	check(os.MkdirAll(dir, 0755))
+	check(storage.RecordRootIdentity(ctx, tx, uid, dir))
 	check(q.InsertFavoriteGallery(ctx, dbgen.InsertFavoriteGalleryParams{UserID: uid, CreateDate: naive}))
 }
 
@@ -331,7 +334,7 @@ func storageLimit(v any) *int64 {
 func Register(a *app.App) {
 	s := &svc{a}
 	m := a.Mux
-	s.registerStorage()
+
 	get := func(p string, missing any, page bool, fn func(w http.ResponseWriter, r *http.Request, u app.User)) {
 		m.HandleFunc("GET "+p, s.legacy(missing, page, fn))
 	}
@@ -487,19 +490,30 @@ func Register(a *app.App) {
 			return
 		}
 		check(err)
-		uid := deref(uuid)
+		_ = uuid
 		var count int64
-		s.atomic(ctx, false, &id, func(tx pgx.Tx) {
+		check(legacy.Atomic(ctx, a.Pool, a.Cfg.UploadFolder, id, false, func(tx pgx.Tx, f *legacy.Files, u *legacy.LockedUser) error {
 			q := dbgen.New(tx)
-			for _, del := range []func(context.Context, int64) (int64, error){q.DeleteUserPhotos, q.DeleteUserNamespaces, q.DeleteUserTags,
-				q.DeleteUserGalleries, q.DeleteUserCreds, q.DeleteUser} {
-				count += must(del(ctx, id))
+			ids, err := q.ListUserPhotoIDs(ctx, id)
+			if err != nil {
+				return err
 			}
-		})
-		if uid != "" && !strings.ContainsAny(uid, "/\\") && uid != "." && uid != ".." {
-			_ = os.RemoveAll(filepath.Join(a.Cfg.UploadFolder, uid))
-			storage.DeleteUser(uid)
-		}
+			if _, err = legacy.DeletePhotos(ctx, tx, f, a.Cfg.UploadFolder, u, ids); err != nil {
+				return err
+			}
+			if err = legacy.RemoveUserFiles(f, a.Cfg.UploadFolder, u.UUID); err != nil {
+				return err
+			}
+			for _, del := range []func(context.Context, int64) (int64, error){q.DeleteUserPhotos, q.DeleteUserNamespaces, q.DeleteUserTags, q.DeleteUserGalleries, q.DeleteUserCreds, q.DeleteUser} {
+				n, e := del(ctx, id)
+				if e != nil {
+					return e
+				}
+				count += n
+			}
+			u.Gone = true
+			return nil
+		}))
 		_ = dbgen.New(a.Pool).DeleteUserSessions(ctx, id)
 		changed(w, count)
 	})

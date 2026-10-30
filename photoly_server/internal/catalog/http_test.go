@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -155,10 +156,10 @@ func TestTagGalleryNamespaceFlow(t *testing.T) {
 		t.Fatalf("name = %v", got)
 	}
 	// cycle: move Europe under France
-	if m := u1.JSON("POST", "/namespace/updateParent", map[string]any{"nsId": europe["nsId"], "nsParentId": france["nsId"]}); m["t"] != -1.0 {
+	if m := u1.JSON("POST", "/namespace/updateParent", map[string]any{"nsId": europe["nsId"], "nsParentId": france["nsId"]}); m["t"] != "folder_cycle" {
 		t.Fatalf("cycle = %v", m)
 	}
-	if m := u1.JSON("POST", "/namespace/updateName", map[string]any{"nsId": rootNs, "nsName": "r"}); m["t"] != -1.0 {
+	if m := u1.JSON("POST", "/namespace/updateName", map[string]any{"nsId": rootNs, "nsName": "r"}); m["t"] != "protected_folder" {
 		t.Fatalf("rename root = %v", m)
 	}
 	u1.Want(u1.JSON("POST", "/namespace/updateName", map[string]any{"nsId": france["nsId"], "nsName": "Francia"}), 200)
@@ -166,14 +167,17 @@ func TestTagGalleryNamespaceFlow(t *testing.T) {
 	// photos with files in France, details + download + delete
 	uid := q("uid")
 	for i, n := range []string{"p1", "p2"} {
-		pid := q(`INSERT INTO photo(photo_name,upload_date,format,ns_id,visibility,token,photo_uuid,user_id) VALUES ('same','2024-05-06 07:08:09','jpg',$1,0,$2,$3,$4) RETURNING photo_id`,
-			int64(france["nsId"].(float64)), "tk"+n, n, uid)
+		pid := q(`INSERT INTO photo(photo_name,upload_date,format,ns_id,visibility,token,photo_uuid,user_id) VALUES ($5,'2024-05-06 07:08:09','jpg',$1,0,$2,$3,$4) RETURNING photo_id`,
+			int64(france["nsId"].(float64)), "tk"+n, n, uid, []string{"same", "same (1)"}[i])
+		original := []string{"same.jpg", "same (1).jpg"}[i]
+		q(`INSERT INTO media_asset(photo_id,role,filename) VALUES($1,'original',$2),($1,'thumbnail','thumbnail.jpg'),($1,'preview','preview.jpg'),($1,'live_original',$3),($1,'live_preview','live.mp4') RETURNING 1`, pid, original, n+"_live.mov")
+		os.MkdirAll(filepath.Join(root, ".assets", uuid, n), 0755)
 		q(`INSERT INTO photo_extra(f_photo_id,extra_photo_gps_lat,extra_photo_gps_lon,extra_photo_camera,extra_photo_taken_date) VALUES ($1,48.8566,2.3522,$2,'2024-05-06 07:08:09') RETURNING 1`, pid, []string{"Canon  R5", "canon r5"}[i])
-		if err := os.WriteFile(filepath.Join(root, uuid, n+".jpg"), []byte("0123456789"), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(root, uuid, "Europe", "Francia", original), []byte("0123456789"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		if i == 0 {
-			os.WriteFile(filepath.Join(root, uuid, n+"_thumbnail.jpg"), []byte("abc"), 0o644)
+			os.WriteFile(filepath.Join(root, ".assets", uuid, n, "thumbnail.jpg"), []byte("abc"), 0o644)
 		}
 		if i == 0 {
 			q(`INSERT INTO gallery_photo(ga_id,photo_id) VALUES ($1,$2) RETURNING 1`, int64(g["gaId"].(float64)), pid)
@@ -218,9 +222,11 @@ func TestTagGalleryNamespaceFlow(t *testing.T) {
 	}
 	var names []string
 	for _, f := range zr.File {
-		names = append(names, f.Name)
+		if !f.FileInfo().IsDir() {
+			names = append(names, f.Name)
+		}
 	}
-	if len(names) != 2 || names[0] != "Europe/Francia/same.jpg" || names[1] == names[0] {
+	if len(names) != 2 || !slices.Contains(names, "Europe/Francia/same.jpg") || names[1] == names[0] {
 		t.Fatalf("zip names = %v", names)
 	}
 	if code, _ := anon.Do("GET", "/namespace/downloadNs/bad?nsId=1", "", nil); code != 403 {
@@ -233,11 +239,11 @@ func TestTagGalleryNamespaceFlow(t *testing.T) {
 	if zr, err = zip.NewReader(bytes.NewReader(body), int64(len(body))); code != 200 || err != nil || len(zr.File) != 1 || zr.File[0].Name != "Trip2/same.jpg" {
 		t.Fatalf("gallery zip: %d %v", code, err)
 	}
-	os.Remove(filepath.Join(root, uuid, "p2.jpg"))
+	os.Remove(filepath.Join(root, uuid, "Europe", "Francia", "same (1).jpg"))
 	if code, _ := anon.Do("GET", "/namespace/downloadNs/"+u1.Token+"?nsId="+id(europe["nsId"]), "", nil); code != 404 {
 		t.Fatalf("zip with missing file = %d", code)
 	}
-	os.WriteFile(filepath.Join(root, uuid, "p2.jpg"), []byte("0123456789"), 0o644)
+	os.WriteFile(filepath.Join(root, uuid, "Europe", "Francia", "same (1).jpg"), []byte("0123456789"), 0o644)
 
 	// delete subtree: root refused; Europe removes 2 namespaces + 3 files
 	if m := u1.JSON("POST", "/namespace/delete?nsId="+strconv.FormatInt(rootNs, 10), nil); m["t"] != -1.0 || m["msgCode"] != 400.0 {
@@ -247,7 +253,7 @@ func TestTagGalleryNamespaceFlow(t *testing.T) {
 	if m["t"] != 5.0 || m["msgCode"] != 200.0 {
 		t.Fatalf("delete ns = %v", m)
 	}
-	if _, err := os.Stat(filepath.Join(root, uuid, "p1.jpg")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(root, uuid, "Europe", "Francia", "same.jpg")); !os.IsNotExist(err) {
 		t.Fatal("photo file not removed")
 	}
 	if q(`SELECT used_bytes FROM "user" WHERE user_id=$1`, uid) != 0 {

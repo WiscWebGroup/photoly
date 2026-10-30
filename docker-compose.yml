@@ -31,6 +31,7 @@ services:
       UPLOAD_DISK_RESERVE_BYTES: ${UPLOAD_DISK_RESERVE_BYTES:-536870912}
       STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:-}
       STORAGE_CACHE_TTL: ${STORAGE_CACHE_TTL:-24h}
+      STORAGE_SCAN_INTERVAL: ${STORAGE_SCAN_INTERVAL:-60s}
     volumes:
       - ./upload_data:/photoly
       - photoly_models:/var/lib/photoly

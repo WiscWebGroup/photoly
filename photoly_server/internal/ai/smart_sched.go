@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -241,7 +242,7 @@ func (s *SmartSched) batch(ctx context.Context, t *Task, uid int64) error {
 					ORDER BY p.photo_id LIMIT 1`, uid).Scan(&pid, &ver, &puid, &format, &owner)
 				switch {
 				case err == nil:
-					path, perr := mediaPath(s.root, owner, puid, format)
+					path, perr := storage.Resolve(ctx, tx, s.root, owner, puid, "original")
 					if perr != nil {
 						path = ""
 					}

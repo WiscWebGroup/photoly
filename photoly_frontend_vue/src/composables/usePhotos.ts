@@ -6,6 +6,7 @@ export interface Photo {
   photoName: string
   format?: string
   nsId?: number
+  sourceId?: number
   uploadDate?: string
   timelineDate?: string | null
   dateSource?: 'taken' | 'upload' | null

@@ -9,24 +9,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-func mediaPath(root, userUUID, photoUUID, format string) (string, error) {
-	name := photoUUID + "." + format
-	for _, part := range []string{userUUID, name} {
-		if part == "" || part == "." || part == ".." || strings.ContainsAny(part, "/\\\x00") {
-			return "", fail("image_missing", 404)
-		}
-	}
-	return filepath.Join(root, userUUID, name), nil
-}
 
 func readBounded(r io.Reader) ([]byte, error) {
 	data, err := io.ReadAll(io.LimitReader(r, maxImageBytes+1))
@@ -72,12 +59,12 @@ func snapshotPhoto(ctx context.Context, pool *pgxpool.Pool, root string, photoID
 	if !enabled || (version != nil && cv != *version) {
 		return nil, fail("stale_content", 409)
 	}
-	path, err := mediaPath(root, ownerUUID, photoUUID, format)
+	path, err := storage.Resolve(ctx, tx, root, ownerUUID, photoUUID, "original")
 	if err != nil {
 		return nil, err
 	}
 	storage.Fetch(path)
-	f, err := os.Open(path)
+	f, err := storage.OpenFile(path)
 	if err != nil {
 		return nil, fail("image_missing", 404)
 	}

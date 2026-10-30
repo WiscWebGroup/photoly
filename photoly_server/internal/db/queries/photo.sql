@@ -1,5 +1,5 @@
 -- name: GetPhoto :one
-SELECT * FROM photo WHERE photo_id = @photo_id::int;
+SELECT * FROM photo WHERE photo_id = @photo_id::int AND photo_visible(storage_id,user_id);
 
 -- name: GetPhotoByUUID :one
 SELECT * FROM photo WHERE photo_uuid = @photo_uuid::text;

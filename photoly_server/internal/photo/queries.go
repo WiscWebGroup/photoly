@@ -217,7 +217,7 @@ func (s *Service) ByDate(ctx context.Context, uid int64, order string, limit int
 	for rows.Next() {
 		var p Photo
 		var taken, stamp *time.Time
-		if err := rows.Scan(&p.ID, &p.Name, &p.UploadDate, &p.Format, &p.NsID, &p.Visibility, &p.Token, &p.UUID, &p.UserID, &p.ContentVersion, &taken, &stamp); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.UploadDate, &p.Format, &p.NsID, &p.Visibility, &p.Token, &p.UUID, &p.UserID, &p.ContentVersion, &p.SourceID, &taken, &stamp); err != nil {
 			return nil, err
 		}
 		if int64(len(items)) == limit {
@@ -651,7 +651,7 @@ func (s *Service) Update(ctx context.Context, uid int64, data map[string]any) (i
 			if err != nil {
 				return err
 			}
-			if err = dbgen.New(tx).RenamePhoto(ctx, dbgen.RenamePhotoParams{Name: name, PhotoID: id}); err != nil {
+			if _, err = storage.RehomePhoto(ctx, tx, f, s.Root, uid, id, 0, name); err != nil {
 				return err
 			}
 		}
@@ -694,7 +694,8 @@ func (s *Service) Move(ctx context.Context, uid, photoID, ns int64) (int, error)
 		if err := s.Owned(ctx, tx, "namespace", ns, uid, -1, 400); err != nil {
 			return err
 		}
-		return dbgen.New(tx).MovePhoto(ctx, dbgen.MovePhotoParams{NsID: ns, PhotoID: photoID})
+		_, err := storage.RehomePhoto(ctx, tx, f, s.Root, uid, photoID, ns, "")
+		return err
 	})
 	return 1, err
 }
@@ -728,12 +729,12 @@ func (s *Service) PhotoPath(ctx context.Context, uid, photoID int64, thumbnail b
 	if err != nil {
 		return "", err
 	}
-	path, err := s.MediaPath(uu, p.UUID, p.Format, thumbnail)
+	path, err := s.MediaPath(ctx, s.Pool, uu, p.UUID, p.Format, thumbnail)
 	if err != nil {
 		return "", err
 	}
 	if thumbnail && !isFile(path) {
-		if path, err = s.MediaPath(uu, p.UUID, p.Format, false); err != nil {
+		if path, err = s.MediaPath(ctx, s.Pool, uu, p.UUID, p.Format, false); err != nil {
 			return "", err
 		}
 	}
@@ -757,7 +758,7 @@ func (s *Service) PreviewPath(ctx context.Context, uid, photoID int64, thumbnail
 			if err != nil {
 				return "", err
 			}
-			ap, err := s.AssetPath(uu, p.UUID, "preview")
+			ap, err := s.AssetPath(ctx, s.Pool, uu, p.UUID, "preview")
 			if err != nil {
 				return "", err
 			}
@@ -807,11 +808,16 @@ func (s *Service) SharedPath(ctx context.Context, path, token string, hasPath, h
 	if err != nil {
 		return "", err
 	}
-	canonical, err := s.MediaPath(uu, p.UUID, p.Format, thumbnail)
+	canonical, err := s.MediaPath(ctx, s.Pool, uu, p.UUID, p.Format, thumbnail)
 	if err != nil {
 		return "", err
 	}
-	if userUUID != uu || filename != baseName(canonical) {
+	expected := p.UUID
+	if thumbnail {
+		expected += "_thumbnail"
+	}
+	expected += "." + p.Format
+	if userUUID != uu || filename != expected {
 		return "", Err(nil, 403)
 	}
 	if !isFile(canonical) {
@@ -819,7 +825,7 @@ func (s *Service) SharedPath(ctx context.Context, path, token string, hasPath, h
 	}
 	if !thumbnail {
 		if has, err := dbgen.New(s.Pool).GetPhotoHasPreview(ctx, p.ID); err == nil && has {
-			return s.AssetPath(uu, p.UUID, "preview")
+			return s.AssetPath(ctx, s.Pool, uu, p.UUID, "preview")
 		}
 	}
 	return canonical, nil

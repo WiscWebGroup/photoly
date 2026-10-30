@@ -4,7 +4,8 @@ import { toast } from 'vue-sonner'
 import { ChevronDown } from '@lucide/vue'
 import MediaGrid from '@/components/MediaGrid.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { startDrag } from '@/composables/dragDrop'
+import { startDrag, dragging } from '@/composables/dragDrop'
+import { useStorageRevision } from '@/composables/useStorageRevision'
 import MoveToShowFolder from '@/components/MoveToShowFolder.vue'
 import MediaTaskDialog from '@/components/MediaTaskDialog.vue'
 import PhotoViewer from '@/components/PhotoViewer.vue'
@@ -112,6 +113,15 @@ const movePicker = ref<InstanceType<typeof MoveToShowFolder>>()
 const moving = ref<Photo[]>([])
 
 const checked = computed(() => photos.value.filter((p) => p.checked))
+useStorageRevision(
+  () => emit('queryPhotos'),
+  () =>
+    props.nsOrNot ||
+    selectMode.value ||
+    checked.value.length > 0 ||
+    !!viewing.value ||
+    dragging.value,
+)
 
 /** "Saturday, 1 June 2024" for an ISO date, or '' when there isn't one. */
 function formatDay(iso?: string) {
@@ -268,6 +278,10 @@ function detachChecked() {
 }
 
 function askMove(targets: Photo[]) {
+  if (new Set(targets.map((p) => p.sourceId)).size > 1) {
+    toast.error('Select media from one storage source to move.')
+    return
+  }
   moving.value = targets
   movePicker.value?.openModal()
 }
@@ -293,9 +307,15 @@ function selectPhoto(photo: Photo) {
 
 function dragPhoto(e: DragEvent, photo: Photo) {
   const multi = selectMode.value && photo.checked
+  if (multi && new Set(checked.value.map((p) => p.sourceId)).size > 1) {
+    e.preventDefault()
+    toast.error('Select media from one storage source to move.')
+    return
+  }
   startDrag(
     e,
     {
+      sourceId: photo.sourceId,
       folders: multi ? (props.dragFolders ?? []) : [],
       photos: multi ? checked.value.map((p) => p.photoId) : [photo.photoId],
     },
@@ -334,6 +354,10 @@ defineExpose({
   setChecked,
   deleteChecked,
   moveChecked(targetNsId: number) {
+    if (new Set(checked.value.map((p) => p.sourceId)).size > 1) {
+      toast.error('Select media from one storage source to move.')
+      return
+    }
     moving.value = [...checked.value]
     return moveChosen(targetNsId)
   },
@@ -521,6 +545,7 @@ defineExpose({
     <MoveToShowFolder
       ref="movePicker"
       :count="moving.length"
+      :source-id="moving[0]?.sourceId"
       :item-name="moving.length === 1 ? `${moving[0]!.photoName}.${moving[0]!.format}` : undefined"
       @move-to-update="moveChosen"
     />

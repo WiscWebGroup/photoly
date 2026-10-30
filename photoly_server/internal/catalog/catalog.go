@@ -390,7 +390,7 @@ func (s *svc) downloadGallery(w http.ResponseWriter, r *http.Request, uid int64)
 		if err != nil {
 			return nil, err
 		}
-		path, err := legacy.MediaPath(s.a.Cfg.UploadFolder, uuid, p.PhotoUuid+"."+p.Format)
+		path, err := legacy.MediaPath(r.Context(), s.a.Pool, s.a.Cfg.UploadFolder, uuid, p.PhotoUuid+"."+p.Format)
 		if err != nil {
 			return nil, err
 		}

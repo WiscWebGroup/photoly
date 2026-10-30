@@ -4,6 +4,7 @@ import { watchDebounced } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import {
   Check,
+  Cloud,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -67,9 +68,10 @@ import { isValidFolderName, useFolders, type Folder as FolderInfo } from '@/comp
 import { usePhotos } from '@/composables/usePhotos'
 import { useCovers } from '@/composables/useCovers'
 import { viewMode } from '@/composables/useViewMode'
-import { download } from '@/lib/download'
+import { downloadNative } from '@/lib/download'
+import { useStorageRevision } from '@/composables/useStorageRevision'
 import { photoUrl } from '@/lib/photoUrl'
-import { call } from '@/lib/http'
+import { call, ApiError } from '@/lib/http'
 import { mediaKind } from '@/lib/media'
 import { cn } from '@/lib/utils'
 import { useRoute } from 'vue-router'
@@ -136,7 +138,7 @@ const summary = computed(() => {
 const { covers, refresh: refreshCovers } = useCovers('folder')
 watchDebounced(
   [folders.children, library.photos],
-  () => refreshCovers(folders.children.value.map((f) => f.nsId)),
+  () => refreshCovers(folders.children.value.filter((f) => !f.isMount).map((f) => f.nsId)),
   { debounce: 60 },
 )
 
@@ -200,17 +202,21 @@ const selected = ref<number[]>([])
 watch(selectMode, (on) => on || (selected.value = []))
 const confirmDeleteSelected = ref(false)
 
-const toggleSelected = (id: number) =>
-  (selected.value = selected.value.includes(id)
+function toggleSelected(id: number) {
+  if (folders.children.value.find((f) => f.nsId === id)?.isMount) return
+  selected.value = selected.value.includes(id)
     ? selected.value.filter((s) => s !== id)
-    : [...selected.value, id])
+    : [...selected.value, id]
+}
 
 function openFolder(folder: FolderInfo) {
-  if (selectMode.value) toggleSelected(folder.nsId)
-  else go(folder.nsId, folder.nsName)
+  if (selectMode.value) {
+    if (!folder.isMount) toggleSelected(folder.nsId)
+  } else go(folder.nsId, folder.nsName)
 }
 
 function selectFolder(folder: FolderInfo) {
+  if (folder.isMount) return
   toggleSelected(folder.nsId)
   selectMode.value = true
 }
@@ -223,7 +229,7 @@ function clearSelection() {
 }
 
 function selectAll() {
-  selected.value = folders.children.value.map((f) => f.nsId)
+  selected.value = folders.children.value.filter((f) => !f.isMount).map((f) => f.nsId)
   mediaList.value?.setChecked(true)
 }
 
@@ -353,10 +359,15 @@ async function moveFolder(parentId: number) {
 const dragOver = ref<number | null>(null)
 
 function dragFolder(e: DragEvent, folder: FolderInfo) {
+  if (folder.isMount) {
+    e.preventDefault()
+    return
+  }
   const multi = selectMode.value && selected.value.includes(folder.nsId)
   startDrag(
     e,
     {
+      sourceId: folder.sourceId,
       folders: multi ? selected.value : [folder.nsId],
       photos: multi ? (mediaList.value?.checkedIds() ?? []) : [],
     },
@@ -379,7 +390,17 @@ function dropOn(target: number) {
       const raw = e.dataTransfer?.getData(DRAG_TYPE)
       if (!raw) return
       e.preventDefault()
-      const { folders: dragged, photos }: DragPayload = JSON.parse(raw)
+      const { folders: dragged, photos, sourceId }: DragPayload = JSON.parse(raw)
+      const destination = [...folders.children.value, ...folders.path.value].find(
+        (f) => f.nsId === target,
+      )
+      if (
+        destination?.sourceId !== undefined &&
+        destination.sourceId !== (sourceId ?? folders.current.value?.sourceId)
+      ) {
+        toast.error('Moving between storage sources is not supported.')
+        return
+      }
       const folderIds = dragged.filter((id) => id !== target)
       const photoIds = target === nsId.value ? [] : photos
       if (!folderIds.length && !photoIds.length) return
@@ -399,29 +420,30 @@ function dropOn(target: number) {
 }
 
 // --- Download a folder ----------------------------------------------------------------------------
-const downloading = ref(false)
-let abort = new AbortController()
-
-async function downloadFolder(folder: FolderInfo) {
-  abort = new AbortController()
-  downloading.value = true
-  try {
-    await download(`/namespace/downloadNs/${auth.token}`, `${folder.nsName}.zip`, {
-      params: { nsId: folder.nsId },
-      signal: abort.signal,
-    })
-  } catch (e) {
-    if (!abort.signal.aborted) toast.error(String(e))
-  } finally {
-    downloading.value = false
-  }
+function downloadFolder(folder: FolderInfo) {
+  downloadNative(`/namespace/downloadNs/${encodeURIComponent(auth.token ?? '')}`, {
+    nsId: folder.nsId,
+  })
 }
 
-function abortDownload() {
-  abort.abort()
-  downloading.value = false
-  toast.warning('Download Request Canceled')
-}
+useStorageRevision(
+  async () => {
+    try {
+      await folders.refresh()
+    } catch (e) {
+      if (!(e instanceof ApiError) || ![400, 404, 409].includes(e.msgCode)) throw e
+      await folders.openRoot()
+      mediaList.value?.updateNsId(nsId.value)
+    }
+    await queryPhotos()
+  },
+  () =>
+    selectMode.value ||
+    !!selectedCount.value ||
+    !!renaming.value ||
+    !!deleting.value ||
+    dragging.value,
+)
 
 // Upload state belongs to the application, so navigating never cancels a transfer.
 function startUpload() {
@@ -547,14 +569,19 @@ watch(
                             'border-primary ring-primary ring-1',
                         )
                       "
-                      draggable="true"
+                      :draggable="!folder.isMount"
                       v-bind="dropOn(folder.nsId)"
                       @dragstart="dragFolder($event, folder)"
                       @click="openFolder(folder)"
                       @contextmenu.stop
                     >
                       <span
-                        v-if="viewMode === 'grid' && covers.get(folder.nsId)?.ids.length"
+                        v-if="folder.isMount && viewMode === 'grid'"
+                        class="grid h-24 place-items-center bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 sm:h-32"
+                        ><Cloud class="size-10" aria-hidden="true"
+                      /></span>
+                      <span
+                        v-else-if="viewMode === 'grid' && covers.get(folder.nsId)?.ids.length"
                         class="bg-muted grid h-24 grid-cols-[2fr_1fr] grid-rows-2 gap-0.5 sm:h-32"
                         aria-hidden="true"
                       >
@@ -582,7 +609,11 @@ watch(
                           class="absolute size-10 scale-0 stroke-[1.5] transition-transform duration-300 group-hover:scale-100"
                         />
                       </span>
-                      <Folder v-else class="text-primary size-4 shrink-0" aria-hidden="true" />
+                      <Cloud
+                        v-else-if="folder.isMount"
+                        class="size-4 shrink-0 text-sky-600"
+                        aria-hidden="true"
+                      /><Folder v-else class="text-primary size-4 shrink-0" aria-hidden="true" />
                       <span
                         :class="
                           viewMode === 'grid'
@@ -597,7 +628,11 @@ watch(
                               : 'flex min-w-0 flex-1 items-baseline gap-2'
                           "
                         >
-                          <span class="truncate font-medium" :title="folder.nsName">{{
+                          <span
+                            v-if="folder.isMount"
+                            class="mr-1 rounded bg-sky-100 px-1 text-xs text-sky-800 dark:bg-sky-950 dark:text-sky-200"
+                            >S3</span
+                          ><span class="truncate font-medium" :title="folder.nsName">{{
                             folder.nsName
                           }}</span>
                           <span
@@ -630,22 +665,25 @@ watch(
                     </button>
                   </ContextMenuTrigger>
                   <ContextMenuContent>
-                    <ContextMenuItem @select="selectFolder(folder)">
+                    <ContextMenuItem :disabled="folder.isMount" @select="selectFolder(folder)">
                       <SquareCheck /> {{ selected.includes(folder.nsId) ? 'Deselect' : 'Select' }}
                     </ContextMenuItem>
                     <ContextMenuItem @select="showDetails(folder)"
                       ><Info /> Details</ContextMenuItem
                     >
-                    <ContextMenuItem @select="startRename(folder)"
+                    <ContextMenuItem :disabled="folder.isMount" @select="startRename(folder)"
                       ><Pencil /> Rename</ContextMenuItem
                     >
                     <ContextMenuItem @select="downloadFolder(folder)"
                       ><Download /> Download</ContextMenuItem
                     >
-                    <ContextMenuItem @select="startMove(folder)"
+                    <ContextMenuItem :disabled="folder.isMount" @select="startMove(folder)"
                       ><FolderInput /> Move To</ContextMenuItem
                     >
-                    <ContextMenuItem variant="destructive" @select="deleting = folder"
+                    <ContextMenuItem
+                      variant="destructive"
+                      :disabled="folder.isMount"
+                      @select="deleting = folder"
                       ><Trash2 /> Delete</ContextMenuItem
                     >
                   </ContextMenuContent>
@@ -785,7 +823,9 @@ watch(
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Rename Folder</DialogTitle>
-          <DialogDescription class="sr-only">Choose a new name for {{ renaming?.nsName }}.</DialogDescription>
+          <DialogDescription class="sr-only"
+            >Choose a new name for {{ renaming?.nsName }}.</DialogDescription
+          >
         </DialogHeader>
         <form class="flex flex-col gap-2" @submit.prevent="renameFolder">
           <Label for="rename-folder">Name</Label>
@@ -803,7 +843,8 @@ watch(
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {{ deleting?.nsName }}?</AlertDialogTitle>
           <AlertDialogDescription>
-            Every photo and folder inside it is deleted too. This can't be undone.
+            Every file and folder inside it, including non-media files not shown in Photoly, will be
+            deleted. This can't be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -828,25 +869,10 @@ watch(
       </AlertDialogContent>
     </AlertDialog>
 
-    <Dialog :open="downloading">
-      <DialogContent :show-close-button="false" @interact-outside.prevent @escape-key-down.prevent>
-        <DialogHeader>
-          <DialogTitle>Download Folder</DialogTitle>
-          <DialogDescription class="flex items-center gap-2"
-            ><Loader2 class="size-4 animate-spin" /> Preparing your download…</DialogDescription
-          >
-        </DialogHeader>
-        <DialogFooter
-          ><Button variant="outline" class="w-full" @click="abortDownload"
-            >Abort Download</Button
-          ></DialogFooter
-        >
-      </DialogContent>
-    </Dialog>
-
     <MoveToShowFolder
       ref="movePicker"
       :original-ns-id="movingFolder?.nsId"
+      :source-id="folders.current.value?.sourceId"
       :disable-org-ns-id="true"
       :count="movingFolder ? 1 : selectedCount"
       :item-name="movingFolder?.nsName"
