@@ -15,18 +15,22 @@ import (
 
 // Source identifies a user's durable storage, independently of the current request.
 type Source struct {
-	ID      int64
-	UserID  int64
-	Kind    string
-	Root    string
-	Enabled bool
-	Config  []byte
-	Secret  []byte
+	ID            int64
+	UserID        int64
+	Kind          string
+	Root          string
+	Enabled       bool
+	Config        []byte
+	Secret        []byte
+	ManagedBy     string
+	Default       bool
+	ConfigVersion int64
+	Revision      int64
 }
 
 func GetSource(ctx context.Context, q dbgen.DBTX, id int64) (Source, error) {
 	var s Source
-	err := q.QueryRow(ctx, `SELECT id,user_id,kind,root_path,enabled,config,secret FROM storage_source WHERE id=$1`, id).Scan(&s.ID, &s.UserID, &s.Kind, &s.Root, &s.Enabled, &s.Config, &s.Secret)
+	err := q.QueryRow(ctx, `SELECT id,user_id,kind,root_path,enabled,config,secret,managed_by,is_default,config_version,revision FROM storage_source WHERE id=$1`, id).Scan(&s.ID, &s.UserID, &s.Kind, &s.Root, &s.Enabled, &s.Config, &s.Secret, &s.ManagedBy, &s.Default, &s.ConfigVersion, &s.Revision)
 	if err == nil && !s.Enabled && ctx.Value(inactiveKey{}) != true {
 		err = errors.New("storage_source_disabled")
 	}
@@ -73,8 +77,47 @@ func SafePath(root string, parts ...string) (string, error) {
 }
 
 func SourceRoot(root string, s Source) (string, error) {
+	if s.External() && s.Kind == "local" {
+		v, e := SourceValues(s)
+		if e != nil {
+			return "", e
+		}
+		// Recheck the allowlist and every path component each time; never recreate a mount.
+		roots, e := LocalRoots()
+		if e != nil {
+			return "", e
+		}
+		for _, r := range roots {
+			if r.ID == v["root_id"] {
+				parts, e := ValidateRelative(v["relative_path"])
+				if e != nil {
+					return "", e
+				}
+				base, e := NoLinks(r.Path)
+				if e != nil {
+					return "", e
+				}
+				p, e := StrictPath(base, parts...)
+				if e != nil {
+					return "", e
+				}
+				if p != s.Root {
+					return "", errors.New("local_root_configuration_changed")
+				}
+				st, e := os.Lstat(p)
+				if e != nil {
+					return "", e
+				}
+				if !st.IsDir() {
+					return "", errors.New("storage_folder_unavailable")
+				}
+				return p, nil
+			}
+		}
+		return "", errors.New("unknown_local_root")
+	}
 	if filepath.IsAbs(s.Root) {
-		return "", errors.New("external_storage_not_supported")
+		return "", errors.New("invalid_storage_root")
 	}
 	return SafePath(root, s.Root)
 }
@@ -83,6 +126,19 @@ func SourceRoot(root string, s Source) (string, error) {
 // is the user's root. No descendant stores an absolute path.
 func Folder(ctx context.Context, q dbgen.DBTX, root string, id int64) (string, Source, error) {
 	requestedID := id
+	if _, transaction := q.(interface{ StorageMutation() }); transaction {
+		var sid int64
+		if e := q.QueryRow(ctx, `SELECT source_id FROM namespace WHERE ns_id=$1`, id).Scan(&sid); e != nil {
+			return "", Source{}, e
+		}
+		source, e := GetSource(ctx, q, sid)
+		if e != nil {
+			return "", source, e
+		}
+		if e = LockSource(ctx, q, source); e != nil {
+			return "", source, e
+		}
+	}
 	canonical, e := canonicalRoot(root)
 	if e != nil {
 		return "", Source{}, e
@@ -118,6 +174,34 @@ func Folder(ctx context.Context, q dbgen.DBTX, root string, id int64) (string, S
 		parts = append(parts, name)
 		id = parent
 	}
+	for i, j := 0, len(parts)-1; i < j; i, j = i+1, j-1 {
+		parts[i], parts[j] = parts[j], parts[i]
+	}
+	if source.Tree() {
+		key := strings.Join(parts, "/")
+		if _, writing := q.(interface{ StorageMutation() }); !writing {
+			return key, source, nil
+		}
+		d, e := TreeSource(source)
+		if e != nil {
+			return "", source, e
+		}
+		info, e := d.Property(ctx, key)
+		if e != nil {
+			return "", source, e
+		}
+		if !info.Directory {
+			return "", source, errors.New("not_a_directory")
+		}
+		var expected string
+		if e = q.QueryRow(ctx, `SELECT CASE WHEN n.ns_parent_id=-1 OR n.is_mount THEN s.root_identity ELSE n.fs_identity END FROM namespace n JOIN storage_source s ON s.id=n.source_id WHERE n.ns_id=$1`, requestedID).Scan(&expected); e != nil {
+			return "", source, e
+		}
+		if expected != "" && info.Identity != expected {
+			return "", source, errors.New("folder_identity_changed")
+		}
+		return key, source, nil
+	}
 	if source.Kind != "local" {
 		return "", source, nil
 	}
@@ -125,15 +209,7 @@ func Folder(ctx context.Context, q dbgen.DBTX, root string, id int64) (string, S
 	if err != nil {
 		return "", source, err
 	}
-	for i, j := 0, len(parts)-1; i < j; i, j = i+1, j-1 {
-		parts[i], parts[j] = parts[j], parts[i]
-	}
-	// Validate the source directory too, rather than resolving a user-created link.
-	rel, err := filepath.Rel(root, base)
-	if err != nil {
-		return "", source, err
-	}
-	p, err := SafePath(root, append([]string{rel}, parts...)...)
+	p, err := StrictPath(base, parts...)
 	if err != nil {
 		return "", source, err
 	}
@@ -145,7 +221,7 @@ func Folder(ctx context.Context, q dbgen.DBTX, root string, id int64) (string, S
 		return "", source, errors.New("not_a_directory")
 	}
 	var expected string
-	if err = q.QueryRow(ctx, `SELECT CASE WHEN n.ns_parent_id=-1 THEN s.root_identity ELSE n.fs_identity END FROM namespace n JOIN storage_source s ON s.id=n.source_id WHERE n.ns_id=$1`, requestedID).Scan(&expected); err != nil {
+	if err = q.QueryRow(ctx, `SELECT CASE WHEN n.ns_parent_id=-1 OR n.is_mount THEN s.root_identity ELSE n.fs_identity END FROM namespace n JOIN storage_source s ON s.id=n.source_id WHERE n.ns_id=$1`, requestedID).Scan(&expected); err != nil {
 		return "", source, err
 	}
 	if expected != "" && expected != Identity(st) {
@@ -157,11 +233,14 @@ func Folder(ctx context.Context, q dbgen.DBTX, root string, id int64) (string, S
 // AvailableName checks both indexed and unindexed disk entries. The actual
 // installation also uses a no-replace rename, protecting external writers.
 func AvailableName(ctx context.Context, q dbgen.DBTX, root string, ns int64, name string, exceptPhoto, exceptFolder int64) (string, error) {
-	if !ValidComponent(name) {
+	if !ValidComponent(name) || name == SystemDirectory {
 		return "", errors.New("invalid_file_name")
 	}
 	dir, s, err := Folder(ctx, q, root, ns)
 	if err != nil {
+		return "", err
+	}
+	if err = LockSource(ctx, q, s); err != nil {
 		return "", err
 	}
 	ext := filepath.Ext(name)
@@ -189,6 +268,18 @@ func AvailableName(ctx context.Context, q dbgen.DBTX, root string, ns int64, nam
 				return "", e
 			}
 		}
+		if !taken && s.Tree() {
+			st, e := SourceStore(s)
+			if e != nil {
+				return "", e
+			}
+			_, e = st.Stat(ctx, strings.TrimPrefix(dir+"/"+candidate, "/"))
+			if e == nil {
+				taken = true
+			} else if !errors.Is(e, ErrNotFound) {
+				return "", e
+			}
+		}
 		if !taken {
 			return candidate, nil
 		}
@@ -196,14 +287,17 @@ func AvailableName(ctx context.Context, q dbgen.DBTX, root string, ns int64, nam
 }
 
 type location struct {
-	store Store
-	key   string
+	store   Store
+	key     string
+	version string
+	photoID int64
+	role    string
 }
 
 var locations sync.Map // absolute cache path -> immutable source-specific location
 
 func Bind(path string, store Store, key string) {
-	locations.Store(filepath.Clean(path), location{store, key})
+	locations.Store(filepath.Clean(path), location{store: store, key: key})
 }
 func remoteLocation(path string) (location, bool) {
 	v, ok := locations.Load(filepath.Clean(path))
@@ -224,9 +318,9 @@ func Resolve(ctx context.Context, q dbgen.DBTX, root, owner, photoUUID, role str
 		return "", e
 	}
 	root = canonical
-	var pid, ns, sid int64
-	var filename string
-	err := q.QueryRow(ctx, `SELECT p.photo_id,p.ns_id,p.source_id,a.filename FROM photo p JOIN "user" u USING(user_id) JOIN media_asset a USING(photo_id) WHERE u.uuid=$1 AND p.photo_uuid=$2 AND a.role=$3`, owner, photoUUID, role).Scan(&pid, &ns, &sid, &filename)
+	var pid, ns, sid, contentVersion int64
+	var filename, version string
+	err := q.QueryRow(ctx, `SELECT p.photo_id,coalesce(a.namespace_id,p.ns_id),p.source_id,a.filename,a.version,p.content_version FROM photo p JOIN "user" u USING(user_id) JOIN media_asset a USING(photo_id) WHERE u.uuid=$1 AND p.photo_uuid=$2 AND a.role=$3`, owner, photoUUID, role).Scan(&pid, &ns, &sid, &filename, &version, &contentVersion)
 	if err != nil {
 		return "", err
 	}
@@ -234,17 +328,25 @@ func Resolve(ctx context.Context, q dbgen.DBTX, root, owner, photoUUID, role str
 	if err != nil {
 		return "", err
 	}
-	if s.Kind == "local" {
+	if s.Kind == "local" || s.Tree() {
 		if role == "original" || role == "live_original" {
 			dir, _, err := Folder(ctx, q, root, ns)
 			if err != nil {
 				return "", err
 			}
-			rel, e := filepath.Rel(root, dir)
+			if s.Kind == "local" {
+				return StrictPath(dir, filename)
+			}
+			p, e := SafePath(root, ".remote", owner, fmt.Sprint(sid), photoUUID, fmt.Sprint(contentVersion), filename)
 			if e != nil {
 				return "", e
 			}
-			return SafePath(root, append(strings.Split(rel, string(filepath.Separator)), filename)...)
+			st, e := SourceStore(s)
+			if e != nil {
+				return "", e
+			}
+			locations.Store(filepath.Clean(p), location{store: st, key: strings.TrimPrefix(dir+"/"+filename, "/"), version: version, photoID: pid, role: role})
+			return p, nil
 		}
 		return SafePath(root, ".assets", owner, photoUUID, filename)
 	}
@@ -268,7 +370,7 @@ func ResolveLegacyName(ctx context.Context, q dbgen.DBTX, root, owner, name stri
 	if name == owner+".jpg" {
 		return AvatarPath(root, owner)
 	}
-	if !ValidComponent(name) {
+	if !ValidComponent(name) || name == SystemDirectory {
 		return "", errors.New("invalid_file_name")
 	}
 	stem := strings.TrimSuffix(name, filepath.Ext(name))
@@ -346,6 +448,9 @@ type inactiveKey struct{}
 
 func AssetPaths(ctx context.Context, q dbgen.DBTX, root string, pid int64) ([]string, error) {
 	ctx = context.WithValue(ctx, inactiveKey{}, true)
+	if e := LockPhoto(ctx, q, pid); e != nil {
+		return nil, e
+	}
 	var owner, uuid string
 	if err := q.QueryRow(ctx, `SELECT u.uuid,p.photo_uuid FROM photo p JOIN "user" u USING(user_id) WHERE photo_id=$1`, pid).Scan(&owner, &uuid); err != nil {
 		return nil, err
@@ -354,8 +459,16 @@ func AssetPaths(ctx context.Context, q dbgen.DBTX, root string, pid int64) ([]st
 	if err := q.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM photo_media WHERE photo_id=$1 AND live)`, pid).Scan(&live); err != nil {
 		return nil, err
 	}
+	var kind, managed string
+	if err := q.QueryRow(ctx, `SELECT s.kind,s.managed_by FROM photo p JOIN storage_source s ON s.id=p.source_id WHERE p.photo_id=$1`, pid).Scan(&kind, &managed); err != nil {
+		return nil, err
+	}
+	preserve := ctx.Value(preserveKey{}) == true && (kind == "webdav" || kind == "smb" || kind == "local" && managed == "admin")
 	paths := []string{}
 	for _, role := range []string{"original", "thumbnail", "preview", "live_original", "live_preview"} {
+		if preserve && (role == "original" || role == "live_original") {
+			continue
+		}
 		if role == "live_original" && !live {
 			continue
 		}
@@ -380,6 +493,9 @@ func CreateFolder(ctx context.Context, q dbgen.DBTX, f *Files, root string, uid,
 	if err != nil {
 		return 0, "", err
 	}
+	if err = LockSource(ctx, q, s); err != nil {
+		return 0, "", err
+	}
 	if s.UserID != uid {
 		return 0, "", errors.New("folder_not_owned")
 	}
@@ -396,6 +512,15 @@ func CreateFolder(ctx context.Context, q dbgen.DBTX, f *Files, root string, uid,
 			if err != nil {
 				return 0, "", err
 			}
+		}
+	}
+	if s.Tree() {
+		d, e := TreeSource(s)
+		if e != nil {
+			return 0, "", e
+		}
+		if e = f.TreeMkdir(ctx, d, strings.TrimPrefix(dir+"/"+name, "/")); e != nil {
+			return 0, "", e
 		}
 	}
 	var id int64

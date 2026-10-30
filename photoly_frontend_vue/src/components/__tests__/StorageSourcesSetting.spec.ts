@@ -20,6 +20,8 @@ const state = {
 beforeEach(() => {
   localStorage.setItem('HRD-Token', 'tok')
   server.use(
+    http.get(`${API}/user/storage/webdav`, () => ok([])),
+    http.get(`${API}/user/storage/smb`, () => ok([])),
     http.get(`${API}/user/storage/s3`, () => ok(state)),
     http.get(`${API}/user/storage/sources`, () =>
       ok([
@@ -35,7 +37,7 @@ describe('personal storage', () => {
     expect(field('Endpoint').value).toBe('s3.example')
     expect(field('Secret key').type).toBe('password')
     expect(field('Access key').value).toBe('')
-    expect(pageText()).toContain('Scan: ready')
+    expect(pageText()).toContain('Scan complete')
     expect(pageText()).not.toContain('Show media from other storage')
   })
   it('tests and saves only the signed-in user connection', async () => {

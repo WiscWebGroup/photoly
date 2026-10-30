@@ -9,13 +9,13 @@ Directory moves move the whole directory, including files Photoly does not list.
 Photoly keeps stable database folder and photo IDs for tags, albums, sharing and
 metadata. Local paths are resolved from the storage source and folder tree.
 Thumbnails, previews and avatars live in `.assets/<user_uuid>/`; expendable S3
-cache lives in `.remote/<user_uuid>/<source_id>/`. Neither directory appears in
+and WebDAV cache lives in `.remote/<user_uuid>/<source_id>/`. Neither directory appears in
 the library. Back up the database, user directories and `.assets` together.
 
-## Fresh libraries only
+## Upgrading from the old flat layout
 
 Migration `00008_real_folders` refuses a database containing old-layout media or
-non-root virtual folders. It does not move or delete them. This release has no
+non-root virtual folders. It does not move or delete them. There is no
 old-layout media migration or schema downgrade. Keep the old deployment and its
 matching database/media backup; initialize this version with a **new database
 and new upload directory**. Do not run `down -v` to upgrade an existing library.
@@ -80,17 +80,14 @@ remotely and do not consume the local user quota. Cached downloads expire after
 `STORAGE_CACHE_TTL` (default `24h`, `0` disables eviction); cache files in an active
 write transaction are protected from eviction.
 
-Cross-source moves, importing existing bucket objects, multiple S3 connections,
-external local mounts and WebDAV are not supported in this release. The
-`storage_source`/`namespace` model reserves separate source types and root
-locations for future mounts without implementing connection endpoints for them.
+Cross-source moves, importing existing bucket objects and multiple S3 connections remain unsupported. Migration 9 adds [multiple external local mounts and WebDAV sources](external-storage.md) without resetting existing real-folder libraries.
 
 ## Downloads and APIs
 
 Folder ZIPs preserve actual names, hierarchy, empty directories and non-media
 files. Local archives exclude application assets and symbolic links. Remote
 archives include original media and Live Photo original attachments. A `/root`
-archive includes enabled S3 content beneath its mount label. Missing indexed
+archive includes all enabled sources beneath their mount labels. Missing indexed
 originals or read failures abort archive creation before a response is sent.
 Archives are built in temporary disk space and removed after serving or
 cancellation. The browser download manager handles the response without keeping

@@ -158,42 +158,50 @@ func (s *Service) atomic(ctx context.Context, uid int64, scan bool, fn func(tx p
 	}
 	ok := false
 	defer files.Close()
+	files.SetContext(ctx)
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
+	tx = storage.WriteTransaction(tx)
 	defer func() {
 		if !ok {
 			files.Rollback()
 		}
 		_ = tx.Rollback(context.WithoutCancel(ctx))
+		if !ok && (files.RecoveryRequired() || storage.NeedsRescan(err)) {
+			_, _ = s.Pool.Exec(context.WithoutCancel(ctx), `UPDATE storage_source SET scan_requested=true,scan_status='error',scan_error='File operation failed; scan requested. Retained workspaces may need inspection.' WHERE user_id=$1 AND kind<>'s3'`, uid)
+		}
 	}()
 	q := dbgen.New(tx)
 	if err = q.LockPolicyShared(ctx); err != nil {
 		return err
 	}
 	var u UserRow
-	var used, override, group *int64
+	var override, group *int64
 	var isOverride bool
 	if uid != 0 {
 		u.ID = uid
-		row, err := q.GetUserStorageForUpdate(ctx, uid)
-		if err == pgx.ErrNoRows {
-			return Bad()
-		} else if err != nil {
+		if err = tx.QueryRow(ctx, `SELECT uuid FROM "user" WHERE user_id=$1 FOR KEY SHARE`, uid).Scan(&u.UUID); err != nil {
 			return err
-		}
-		u.UUID, used, isOverride, override, group = deref(row.Uuid), row.UsedBytes, row.StorageOverride, row.OverrideBytes, row.GroupBytes
-		if used == nil {
-			n := s.Usage(u.UUID)
-			used = &n
 		}
 	}
 	before := s.Usage(u.UUID)
 	if err = fn(tx, u, files); err != nil {
 		return err
 	}
+	if err = files.Flush(ctx); err != nil {
+		return err
+	}
+	if err = files.RecordVersions(ctx, tx); err != nil {
+		return err
+	}
 	if uid != 0 {
+		row, e := q.GetUserStorageForUpdate(ctx, uid)
+		if e != nil {
+			return e
+		}
+		isOverride, override, group = row.StorageOverride, row.OverrideBytes, row.GroupBytes
 		after := s.Usage(u.UUID)
 		delta := after - before
 		limit := group
@@ -210,9 +218,6 @@ func (s *Service) atomic(ctx context.Context, uid int64, scan bool, fn func(tx p
 		if err = q.SetUserUsedBytes(ctx, dbgen.SetUserUsedBytesParams{UsedBytes: n, UserID: uid}); err != nil {
 			return err
 		}
-	}
-	if err = files.Flush(ctx); err != nil {
-		return err
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return err

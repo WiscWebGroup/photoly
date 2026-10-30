@@ -166,7 +166,7 @@ SELECT pg_advisory_unlock(@key::bigint)::boolean;
 -- name: GetUserStorageForUpdate :one
 SELECT u.uuid, u.used_bytes, u.storage_override, u.max_storage_bytes AS override_bytes, g.max_storage_bytes AS group_bytes
 FROM "user" u LEFT JOIN user_group g ON g.id = u.group_id
-WHERE u.user_id = @user_id::int FOR UPDATE OF u;
+WHERE u.user_id = @user_id::int FOR NO KEY UPDATE OF u;
 
 -- name: SetUserUsedBytes :exec
 UPDATE "user" SET used_bytes = @used_bytes::bigint WHERE user_id = @user_id::int;

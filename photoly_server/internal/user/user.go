@@ -331,13 +331,13 @@ func (s *svc) delete(w http.ResponseWriter, r *http.Request, uid int64) (any, er
 	ctx := r.Context()
 	root := s.a.Cfg.UploadFolder
 	count := 0
-	err := legacy.Atomic(ctx, s.a.Pool, root, uid, false, func(tx pgx.Tx, f *legacy.Files, u *legacy.LockedUser) error {
+	err := legacy.Atomic(storage.ExclusiveUser(ctx), s.a.Pool, root, uid, false, func(tx pgx.Tx, f *legacy.Files, u *legacy.LockedUser) error {
 		q := dbgen.New(tx)
 		ids, err := q.ListUserPhotoIDs(ctx, uid)
 		if err != nil {
 			return err
 		}
-		n, err := legacy.DeletePhotos(ctx, tx, f, root, u, ids)
+		n, err := legacy.DeletePhotos(storage.PreserveExternal(ctx), tx, f, root, u, ids)
 		if err != nil {
 			return err
 		}

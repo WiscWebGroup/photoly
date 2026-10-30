@@ -5,7 +5,7 @@ export interface Folder {
   nsId: number
   nsName: string
   sourceId?: number
-  sourceType?: 'local' | 's3' | 'webdav'
+  sourceType?: 'local' | 's3' | 'webdav' | 'smb'
   isMount?: boolean
   canMove?: boolean
   canRename?: boolean

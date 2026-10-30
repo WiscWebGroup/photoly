@@ -587,7 +587,7 @@ func (s *Service) pair(ctx context.Context, uid int64, it *itemRow, ident, work,
 		if err != nil {
 			return err
 		}
-		if _, err = tx.Exec(ctx, `UPDATE media_asset SET display_name=$2,filename=CASE WHEN $3 THEN $2 ELSE filename END WHERE photo_id=$1 AND role='live_original'`, p.ID, liveName, source.Kind == "local"); err != nil {
+		if _, err = tx.Exec(ctx, `UPDATE media_asset SET display_name=$2,filename=CASE WHEN $3 THEN $2 ELSE filename END WHERE photo_id=$1 AND role='live_original'`, p.ID, liveName, source.Kind != "s3"); err != nil {
 			return err
 		}
 		put := func(src, role string) error {
@@ -601,7 +601,18 @@ func (s *Service) pair(ctx context.Context, uid int64, it *itemRow, ident, work,
 			}
 			defer r.Close()
 			if role == "live_original" {
-				_, err = f.InstallNew(r, dest)
+				var sha string
+				sha, err = f.InstallNew(r, dest)
+				if err == nil {
+					_, err = tx.Exec(ctx, `UPDATE media_asset SET content_sha256=$2 WHERE photo_id=$1 AND role='live_original'`, p.ID, sha)
+				}
+				if err == nil && source.Kind == "local" {
+					if st, e := os.Lstat(dest); e == nil {
+						_, err = tx.Exec(ctx, `UPDATE media_asset SET fs_identity=$2,fs_size=$3,fs_mtime=$4 WHERE photo_id=$1 AND role='live_original'`, p.ID, storage.Identity(st), st.Size(), st.ModTime().UnixNano())
+					} else {
+						err = e
+					}
+				}
 			} else {
 				_, err = f.Install(r, dest)
 			}

@@ -78,10 +78,18 @@ type GalleryPhoto struct {
 }
 
 type MediaAsset struct {
-	PhotoID     int64
-	Role        string
-	Filename    string
-	DisplayName string
+	PhotoID        int64
+	Role           string
+	Filename       string
+	DisplayName    string
+	NamespaceID    *int64
+	Version        string
+	ContentVersion int64
+	FsIdentity     string
+	FsSize         int64
+	FsMtime        int64
+	ContentSha256  string
+	MissingScans   int64
 }
 
 type Namespace struct {
@@ -121,6 +129,7 @@ type Photo struct {
 	FsSize         int64
 	FsMtime        int64
 	MissingScans   int64
+	RemoteVersion  string
 }
 
 type PhotoEmbeddingState struct {
@@ -247,22 +256,57 @@ type StorageObservation struct {
 	Identity string
 	Size     int64
 	Mtime    int64
+	Version  string
+}
+
+type StorageScanFailure struct {
+	SourceID    int64
+	Path        string
+	Error       string
+	AttemptedAt time.Time
+}
+
+type StorageScanJob struct {
+	ID          int64
+	SourceID    int64
+	NamespaceID *int64
+	Force       bool
+	State       string
+	CreatedAt   time.Time
+	FinishedAt  *time.Time
+	Error       *string
 }
 
 type StorageSource struct {
-	ID           int64
-	UserID       int64
-	Kind         string
-	IsDefault    bool
-	RootPath     string
-	Config       []byte
-	Secret       []byte
-	Enabled      bool
-	Revision     int64
-	RootIdentity string
-	ScanStatus   string
-	ScanError    *string
-	ScannedAt    *time.Time
+	ID             int64
+	UserID         int64
+	Kind           string
+	IsDefault      bool
+	RootPath       string
+	Config         []byte
+	Secret         []byte
+	Enabled        bool
+	Revision       int64
+	RootIdentity   string
+	ScanStatus     string
+	ScanError      *string
+	ScannedAt      *time.Time
+	ManagedBy      string
+	DisplayName    string
+	ScanInterval   int64
+	ConfigVersion  int64
+	ScanRequested  bool
+	ScanForce      bool
+	ScanStartedAt  *time.Time
+	ScanFinishedAt *time.Time
+	ScanCompleted  int64
+	ScanTotal      int64
+	ScanRetries    int64
+	ScanPhase      string
+	ScanDiscovered int64
+	ScanWaiting    int64
+	ScanUnchanged  int64
+	FullScannedAt  *time.Time
 }
 
 type Tag struct {

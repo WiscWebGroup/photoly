@@ -406,6 +406,9 @@ func (s *svc) nsDelete(w http.ResponseWriter, r *http.Request, uid int64) (any, 
 		if err != nil {
 			return err
 		}
+		if err = storage.LockSource(ctx, tx, source); err != nil {
+			return err
+		}
 		tree, err := s.tree(ctx, tx, uid, id)
 		if err != nil {
 			return err
@@ -429,6 +432,15 @@ func (s *svc) nsDelete(w http.ResponseWriter, r *http.Request, uid int64) (any, 
 		if source.Kind == "local" {
 			if _, err = f.Remove(dir); err != nil {
 				return err
+			}
+		}
+		if source.Tree() {
+			d, e := storage.TreeSource(source)
+			if e != nil {
+				return e
+			}
+			if e = f.TreeRemove(ctx, d, dir, ""); e != nil {
+				return e
 			}
 		}
 		return nil
@@ -495,6 +507,12 @@ func (s *svc) nsDownload(w http.ResponseWriter, r *http.Request, uid int64) (any
 				if ctx.Err() != nil {
 					return ctx.Err()
 				}
+				if d.Name() == storage.SystemDirectory {
+					if d.IsDir() {
+						return filepath.SkipDir
+					}
+					return nil
+				}
 				if d.Type()&os.ModeSymlink != 0 {
 					return nil
 				}
@@ -514,6 +532,46 @@ func (s *svc) nsDownload(w http.ResponseWriter, r *http.Request, uid int64) (any
 			})
 			if err != nil {
 				return nil, err
+			}
+		} else if source.Tree() {
+			if localCovered[source.ID] {
+				continue
+			}
+			localCovered[source.ID] = true
+			d, e := storage.TreeSource(source)
+			if e != nil {
+				return nil, e
+			}
+			temp, e := os.MkdirTemp("", "photoly-dav-archive-")
+			if e != nil {
+				return nil, e
+			}
+			defer os.RemoveAll(temp)
+			entries = append(entries, legacy.Entry{Name: n.path, Dir: true})
+			e = d.Walk(ctx, dir, func(item storage.TreeEntry) error {
+				rel := strings.TrimPrefix(strings.TrimPrefix(item.Path, dir), "/")
+				name := n.path + "/" + rel
+				if item.Directory {
+					entries = append(entries, legacy.Entry{Name: name, Dir: true})
+					return nil
+				}
+				out, e := os.CreateTemp(temp, "asset-")
+				if e != nil {
+					return e
+				}
+				e = d.CopyTo(ctx, item.Path, out, item)
+				closeErr := out.Close()
+				if e != nil {
+					return e
+				}
+				if closeErr != nil {
+					return closeErr
+				}
+				entries = append(entries, legacy.Entry{Path: out.Name(), Name: name})
+				return nil
+			})
+			if e != nil {
+				return nil, e
 			}
 		} else {
 			entries = append(entries, legacy.Entry{Name: n.path, Dir: true})

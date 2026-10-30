@@ -11,6 +11,9 @@ import (
 )
 
 func RehomeFolder(ctx context.Context, q dbgen.DBTX, f *Files, root string, uid, id, parent int64, newName string) (string, error) {
+	if e := LockNamespace(ctx, q, id); e != nil {
+		return "", e
+	}
 	var oldParent, owner int64
 	var name string
 	var mount bool
@@ -40,6 +43,9 @@ func RehomeFolder(ctx context.Context, q dbgen.DBTX, f *Files, root string, uid,
 	if err != nil {
 		return "", err
 	}
+	if e := SameSourceTarget(ctx, q, s, parent); e != nil {
+		return "", e
+	}
 	dst, t, err := Folder(ctx, q, root, parent)
 	if err != nil {
 		return "", err
@@ -53,6 +59,22 @@ func RehomeFolder(ctx context.Context, q dbgen.DBTX, f *Files, root string, uid,
 	name, err = AvailableName(ctx, q, root, parent, name, 0, id)
 	if err != nil {
 		return "", err
+	}
+	if err = LockSource(ctx, q, s); err != nil {
+		return "", err
+	}
+	if s.Tree() {
+		d, e := TreeSource(s)
+		if e != nil {
+			return "", e
+		}
+		info, e := d.Property(ctx, src)
+		if e != nil {
+			return "", e
+		}
+		if e = f.TreeMove(ctx, d, src, strings.TrimPrefix(dst+"/"+name, "/"), info.Version); e != nil {
+			return "", e
+		}
 	}
 	if s.Kind == "local" {
 		for {
@@ -74,6 +96,9 @@ func RehomeFolder(ctx context.Context, q dbgen.DBTX, f *Files, root string, uid,
 }
 
 func RehomePhoto(ctx context.Context, q dbgen.DBTX, f *Files, root string, uid, pid, parent int64, newStem string) (string, error) {
+	if e := LockPhoto(ctx, q, pid); e != nil {
+		return "", e
+	}
 	var ns, owner int64
 	var filename, uuid, userUUID, format string
 	err := q.QueryRow(ctx, `SELECT p.ns_id,p.user_id,p.file_name,p.photo_uuid,u.uuid,p.format FROM photo p JOIN "user" u USING(user_id) WHERE photo_id=$1`, pid).Scan(&ns, &owner, &filename, &uuid, &userUUID, &format)
@@ -101,6 +126,9 @@ func RehomePhoto(ctx context.Context, q dbgen.DBTX, f *Files, root string, uid, 
 	if err != nil {
 		return "", err
 	}
+	if e := SameSourceTarget(ctx, q, source, parent); e != nil {
+		return "", e
+	}
 	dir, target, err := Folder(ctx, q, root, parent)
 	if err != nil {
 		return "", err
@@ -111,6 +139,63 @@ func RehomePhoto(ctx context.Context, q dbgen.DBTX, f *Files, root string, uid, 
 	name, err := AvailableName(ctx, q, root, parent, newStem, pid, 0)
 	if err != nil {
 		return "", err
+	}
+	if err = LockSource(ctx, q, source); err != nil {
+		return "", err
+	}
+	if source.Tree() {
+		oldDir, _, e := Folder(ctx, q, root, ns)
+		if e != nil {
+			return "", e
+		}
+		d, e := TreeSource(source)
+		if e != nil {
+			return "", e
+		}
+		rows, e := q.Query(ctx, `SELECT a.role,a.filename,a.version,coalesce(a.namespace_id,$2) FROM media_asset a WHERE a.photo_id=$1 AND (a.role='original' OR a.role='live_original' AND EXISTS(SELECT 1 FROM photo_media WHERE photo_id=$1 AND live))`, pid, ns)
+		if e != nil {
+			return "", e
+		}
+		type asset struct {
+			role, name, version string
+			ns                  int64
+		}
+		var assets []asset
+		for rows.Next() {
+			var a asset
+			if e = rows.Scan(&a.role, &a.name, &a.version, &a.ns); e != nil {
+				rows.Close()
+				return "", e
+			}
+			assets = append(assets, a)
+		}
+		e = rows.Err()
+		rows.Close()
+		if e != nil {
+			return "", e
+		}
+		for _, a := range assets {
+			targetName := name
+			if a.role == "live_original" {
+				targetName, e = AvailableName(ctx, q, root, parent, strings.TrimSuffix(name, filepath.Ext(name))+"_live.mov", pid, 0)
+				if e != nil {
+					return "", e
+				}
+			}
+			assetDir := oldDir
+			if a.ns != ns {
+				assetDir, _, e = Folder(ctx, q, root, a.ns)
+				if e != nil {
+					return "", e
+				}
+			}
+			if e = f.TreeMove(ctx, d, strings.TrimPrefix(assetDir+"/"+a.name, "/"), strings.TrimPrefix(dir+"/"+targetName, "/"), a.version); e != nil {
+				return "", e
+			}
+			if _, e = q.Exec(ctx, `UPDATE media_asset SET filename=$2,display_name=$2,namespace_id=$4 WHERE photo_id=$1 AND role=$3`, pid, targetName, a.role, parent); e != nil {
+				return "", e
+			}
+		}
 	}
 	if source.Kind == "local" {
 		src, err := Resolve(ctx, q, root, userUUID, uuid, "original")
@@ -130,7 +215,7 @@ func RehomePhoto(ctx context.Context, q dbgen.DBTX, f *Files, root string, uid, 
 				return "", err
 			}
 		}
-		if _, err = q.Exec(ctx, `UPDATE media_asset SET filename=$2,display_name=$2 WHERE photo_id=$1 AND role='original'`, pid, name); err != nil {
+		if _, err = q.Exec(ctx, `UPDATE media_asset SET filename=$2,display_name=$2,namespace_id=$3 WHERE photo_id=$1 AND role='original'`, pid, name, parent); err != nil {
 			return "", err
 		}
 		var isLive bool
@@ -150,7 +235,7 @@ func RehomePhoto(ctx context.Context, q dbgen.DBTX, f *Files, root string, uid, 
 				if err = f.Move(live, filepath.Join(dir, liveName)); err != nil {
 					return "", err
 				}
-				if _, err = q.Exec(ctx, `UPDATE media_asset SET filename=$2,display_name=$2 WHERE photo_id=$1 AND role='live_original'`, pid, liveName); err != nil {
+				if _, err = q.Exec(ctx, `UPDATE media_asset SET filename=$2,display_name=$2,namespace_id=$3 WHERE photo_id=$1 AND role='live_original'`, pid, liveName, parent); err != nil {
 					return "", err
 				}
 			} else if !os.IsNotExist(e) {

@@ -50,7 +50,7 @@ func snapshotPhoto(ctx context.Context, pool *pgxpool.Pool, root string, photoID
 		return nil, err
 	}
 	var enabled bool
-	if err = tx.QueryRow(ctx, `SELECT ai_search_enabled, uuid FROM "user" WHERE user_id=$1 FOR UPDATE`, owner).Scan(&enabled, &ownerUUID); err != nil {
+	if err = tx.QueryRow(ctx, `SELECT ai_search_enabled, uuid FROM "user" WHERE user_id=$1 FOR KEY SHARE`, owner).Scan(&enabled, &ownerUUID); err != nil {
 		return nil, fail("stale_content", 409)
 	}
 	if err = tx.QueryRow(ctx, `SELECT content_version, content_sha256 FROM photo WHERE photo_id=$1`, photoID).Scan(&cv, &sha); err != nil {
@@ -63,17 +63,20 @@ func snapshotPhoto(ctx context.Context, pool *pgxpool.Pool, root string, photoID
 	if err != nil {
 		return nil, err
 	}
-	storage.Fetch(path)
+	// Release database locks before any remote read. Content hashes and the
+	// consumer's version fence reject a replacement racing this snapshot.
+	if err = tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	if err = storage.FetchError(ctx, path); err != nil {
+		return nil, fail("image_missing", 404)
+	}
 	f, err := storage.OpenFile(path)
 	if err != nil {
 		return nil, fail("image_missing", 404)
 	}
 	defer f.Close()
-	// Writers replace immutable inodes while holding the same user lock; the open
-	// descriptor stays valid across a later rename or delete.
-	if err = tx.Commit(ctx); err != nil {
-		return nil, err
-	}
+
 	snap := &Snapshot{UserID: int64(owner), Version: cv}
 	expected := ""
 	if sha != nil {

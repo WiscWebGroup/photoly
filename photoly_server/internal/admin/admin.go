@@ -333,6 +333,7 @@ func storageLimit(v any) *int64 {
 // Register mounts the /admin routes.
 func Register(a *app.App) {
 	s := &svc{a}
+	s.registerLocalStorage()
 	m := a.Mux
 
 	get := func(p string, missing any, page bool, fn func(w http.ResponseWriter, r *http.Request, u app.User)) {
@@ -492,13 +493,13 @@ func Register(a *app.App) {
 		check(err)
 		_ = uuid
 		var count int64
-		check(legacy.Atomic(ctx, a.Pool, a.Cfg.UploadFolder, id, false, func(tx pgx.Tx, f *legacy.Files, u *legacy.LockedUser) error {
+		check(legacy.Atomic(storage.ExclusiveUser(ctx), a.Pool, a.Cfg.UploadFolder, id, false, func(tx pgx.Tx, f *legacy.Files, u *legacy.LockedUser) error {
 			q := dbgen.New(tx)
 			ids, err := q.ListUserPhotoIDs(ctx, id)
 			if err != nil {
 				return err
 			}
-			if _, err = legacy.DeletePhotos(ctx, tx, f, a.Cfg.UploadFolder, u, ids); err != nil {
+			if _, err = legacy.DeletePhotos(storage.PreserveExternal(ctx), tx, f, a.Cfg.UploadFolder, u, ids); err != nil {
 				return err
 			}
 			if err = legacy.RemoveUserFiles(f, a.Cfg.UploadFolder, u.UUID); err != nil {

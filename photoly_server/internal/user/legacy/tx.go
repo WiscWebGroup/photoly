@@ -48,14 +48,19 @@ func Atomic(ctx context.Context, pool *pgxpool.Pool, root string, uid int64, pol
 	}
 	f := &Files{base}
 	defer f.Close()
+	f.SetContext(ctx)
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
+	tx = storage.WriteTransaction(tx)
 	defer func() {
 		if err != nil {
 			f.Rollback()
 			_ = tx.Rollback(context.WithoutCancel(ctx))
+			if f.RecoveryRequired() || storage.NeedsRescan(err) {
+				_, _ = pool.Exec(context.WithoutCancel(ctx), `UPDATE storage_source SET scan_requested=true,scan_status='error',scan_error='File operation failed; scan requested. Retained workspaces may need inspection.' WHERE user_id=$1 AND kind<>'s3'`, uid)
+			}
 		}
 	}()
 	lock := "pg_advisory_xact_lock_shared"
@@ -73,7 +78,7 @@ func Atomic(ctx context.Context, pool *pgxpool.Pool, root string, uid int64, pol
 		var max *int64
 		var group int64
 		e := tx.QueryRow(ctx, `SELECT uuid, used_bytes, storage_override, max_storage_bytes, group_id
-			FROM "user" WHERE user_id=$1 FOR UPDATE`, uid).Scan(&u.UUID, &used, &override, &max, &group)
+			FROM "user" WHERE user_id=$1 `+storage.UserLockMode(ctx), uid).Scan(&u.UUID, &used, &override, &max, &group)
 		if e == pgx.ErrNoRows {
 			err = Bad()
 			return err
@@ -91,11 +96,7 @@ func Atomic(ctx context.Context, pool *pgxpool.Pool, root string, uid int64, pol
 		} else if err = tx.QueryRow(ctx, `SELECT max_storage_bytes FROM user_group WHERE id=$1`, group).Scan(&u.Limit); err != nil {
 			return err
 		}
-		if used == nil {
-			if _, err = tx.Exec(ctx, `UPDATE "user" SET used_bytes=$2 WHERE user_id=$1`, uid, u.Used); err != nil {
-				return err
-			}
-		}
+
 	}
 	var before int64
 	if u != nil {
@@ -104,7 +105,16 @@ func Atomic(ctx context.Context, pool *pgxpool.Pool, root string, uid int64, pol
 	if err = fn(tx, f, u); err != nil {
 		return err
 	}
+	if err = f.Flush(ctx); err != nil {
+		return err
+	}
+	if err = f.RecordVersions(ctx, tx); err != nil {
+		return err
+	}
 	if u != nil && !u.Gone {
+		if _, err = tx.Exec(ctx, `SELECT user_id FROM "user" WHERE user_id=$1 FOR NO KEY UPDATE`, uid); err != nil {
+			return err
+		}
 		after := Usage(root, u.UUID)
 		delta := after - before
 		if delta > 0 && u.Limit != nil && after > *u.Limit {
@@ -118,9 +128,6 @@ func Atomic(ctx context.Context, pool *pgxpool.Pool, root string, uid int64, pol
 		if _, err = tx.Exec(ctx, `UPDATE "user" SET used_bytes=$2 WHERE user_id=$1`, uid, n); err != nil {
 			return err
 		}
-	}
-	if err = f.Flush(ctx); err != nil {
-		return err
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return err

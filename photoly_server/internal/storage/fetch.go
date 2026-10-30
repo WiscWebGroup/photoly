@@ -100,6 +100,39 @@ func SweepSources(ctx context.Context, q dbgen.DBTX, root string) {
 				}
 				rows.Close()
 			}
+			// DAV cache filenames contain only local asset IDs/content versions. They
+			// need no remote request to expire, including after restart or while offline.
+			davRows, e := q.Query(ctx, `SELECT s.id,u.uuid FROM storage_source s JOIN "user" u USING(user_id) WHERE s.kind IN('webdav','smb')`)
+			if e == nil {
+				for davRows.Next() {
+					var sid int64
+					var owner string
+					if davRows.Scan(&sid, &owner) != nil {
+						break
+					}
+					base, e := SafePath(root, ".remote", owner, fmt.Sprint(sid))
+					if e != nil {
+						continue
+					}
+					_ = filepath.WalkDir(base, func(p string, d os.DirEntry, e error) error {
+						if e != nil || !d.Type().IsRegular() {
+							return nil
+						}
+						st, e := d.Info()
+						if e != nil || time.Since(st.ModTime()) <= ttl {
+							return nil
+						}
+						cacheMu.Lock()
+						defer cacheMu.Unlock()
+						if _, pinned := cachePins.Load(p); !pinned {
+							_ = removeEntry(p)
+							locations.Delete(p)
+						}
+						return nil
+					})
+				}
+				davRows.Close()
+			}
 			locations.Range(func(key, value any) bool {
 				p := key.(string)
 				loc := value.(location)

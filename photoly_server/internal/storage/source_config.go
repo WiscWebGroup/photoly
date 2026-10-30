@@ -32,7 +32,7 @@ func SourceStore(s Source) (Store, error) {
 func SealValues(v map[string]string) ([]byte, []byte, error) {
 	plain, secret := map[string]string{}, map[string]string{}
 	for k, val := range v {
-		if k == "secret_key" || k == "access_key" {
+		if k == "secret_key" || k == "access_key" || k == "username" || k == "password" || k == "domain" {
 			secret[k] = val
 		} else {
 			plain[k] = val
@@ -42,10 +42,21 @@ func SealValues(v map[string]string) ([]byte, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	if len(secret) == 0 {
+		return p, nil, nil
+	}
 	b, err := json.Marshal(secret)
 	if err != nil {
 		return nil, nil, err
 	}
 	sealed, err := seal(b)
 	return p, sealed, err
+}
+
+func (s Source) Tree() bool { return s.Kind == "webdav" || s.Kind == "smb" }
+func NewTree(kind string, v map[string]string) (TreeStore, error) {
+	if kind == "smb" {
+		return NewSMB(v)
+	}
+	return NewDAV(v)
 }

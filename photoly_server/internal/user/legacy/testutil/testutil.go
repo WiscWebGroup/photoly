@@ -78,12 +78,14 @@ func New(t *testing.T) *app.App {
 		t.Fatal(err)
 	}
 	_, file, _, _ := runtime.Caller(0)
-	migration, e := os.ReadFile(filepath.Join(filepath.Dir(file), "../../../migrations/sql/00008_real_folders.sql"))
-	if e != nil {
-		t.Fatal(e)
-	}
-	if _, e = pool.Exec(context.Background(), strings.Split(string(migration), "-- +goose Down")[0]); e != nil {
-		t.Fatal(e)
+	for _, name := range []string{"00008_real_folders.sql", "00009_external_sources.sql"} {
+		migration, e := os.ReadFile(filepath.Join(filepath.Dir(file), "../../../migrations/sql/"+name))
+		if e != nil {
+			t.Fatal(e)
+		}
+		if _, e = pool.Exec(context.Background(), strings.Split(string(migration), "-- +goose Down")[0]); e != nil {
+			t.Fatal(e)
+		}
 	}
 	legacy.Sessions = nil
 	if err := legacy.UseDefaultSessions(context.Background(), pool); err != nil {

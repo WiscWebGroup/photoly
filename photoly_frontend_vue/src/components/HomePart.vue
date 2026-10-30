@@ -5,6 +5,10 @@ import { toast } from 'vue-sonner'
 import {
   Check,
   Cloud,
+  HardDrive,
+  Network,
+  Server,
+  RefreshCw,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -24,6 +28,7 @@ import {
   Upload,
   X,
 } from '@lucide/vue'
+import StorageScanProgress from '@/components/StorageScanProgress.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import MediaList from '@/components/MediaList.vue'
 import FolderDetails from '@/components/FolderDetails.vue'
@@ -355,6 +360,19 @@ async function moveFolder(parentId: number) {
   ])
 }
 
+const mountIcon = (type?: string) =>
+  type === 'smb' ? Server : type === 'webdav' ? Network : type === 'local' ? HardDrive : Cloud
+const mountLabel = (type?: string) =>
+  type === 'smb' ? 'SMB' : type === 'webdav' ? 'WebDAV' : type === 'local' ? '本机挂载' : 'S3'
+const mountColor = (type?: string) =>
+  type === 'smb'
+    ? 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300'
+    : type === 'webdav'
+      ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+      : type === 'local'
+        ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+        : 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
+
 // --- Drag a folder or photo onto a folder (or breadcrumb) to move it ------------------------------
 const dragOver = ref<number | null>(null)
 
@@ -426,7 +444,7 @@ function downloadFolder(folder: FolderInfo) {
   })
 }
 
-useStorageRevision(
+const scanState = useStorageRevision(
   async () => {
     try {
       await folders.refresh()
@@ -444,6 +462,31 @@ useStorageRevision(
     !!deleting.value ||
     dragging.value,
 )
+
+const sourceStatus = computed(() =>
+  scanState.sources.value.find((s) => s.sourceId === folders.current.value?.sourceId),
+)
+const requestingScan = ref(false)
+async function refreshFolder() {
+  const sourceId = folders.current.value?.sourceId
+  if (!sourceId || requestingScan.value) return
+  requestingScan.value = true
+  try {
+    await call({
+      url: `/user/storage/sources/${sourceId}/scan`,
+      method: 'post',
+      data: { nsId: nsId.value },
+    })
+    toast.success('Folder scan queued')
+    await scanState.poll()
+  } catch (e) {
+    toast.error(
+      e instanceof ApiError && typeof e.detail === 'string' ? e.detail : 'Could not request scan',
+    )
+  } finally {
+    requestingScan.value = false
+  }
+}
 
 // Upload state belongs to the application, so navigating never cancels a transfer.
 function startUpload() {
@@ -497,6 +540,15 @@ watch(
       </nav>
     </div>
 
+    <div
+      v-if="!isRoot && sourceStatus && sourceStatus.sourceType !== 's3'"
+      class="space-y-2 border-b px-4 py-3 md:px-10"
+    >
+      <Button variant="outline" size="sm" :disabled="requestingScan" @click="refreshFolder"
+        ><RefreshCw class="size-4" /> Refresh this folder</Button
+      >
+      <StorageScanProgress :status="sourceStatus" />
+    </div>
     <div v-if="nsId === -1" class="flex justify-center py-24" role="status" aria-label="Loading">
       <Loader2 class="text-muted-foreground size-8 animate-spin" />
     </div>
@@ -577,8 +629,12 @@ watch(
                     >
                       <span
                         v-if="folder.isMount && viewMode === 'grid'"
-                        class="grid h-24 place-items-center bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 sm:h-32"
-                        ><Cloud class="size-10" aria-hidden="true"
+                        class="grid h-24 place-items-center sm:h-32"
+                        :class="mountColor(folder.sourceType)"
+                        ><component
+                          :is="mountIcon(folder.sourceType)"
+                          class="size-10"
+                          aria-hidden="true"
                       /></span>
                       <span
                         v-else-if="viewMode === 'grid' && covers.get(folder.nsId)?.ids.length"
@@ -609,9 +665,11 @@ watch(
                           class="absolute size-10 scale-0 stroke-[1.5] transition-transform duration-300 group-hover:scale-100"
                         />
                       </span>
-                      <Cloud
+                      <component
+                        :is="mountIcon(folder.sourceType)"
                         v-else-if="folder.isMount"
-                        class="size-4 shrink-0 text-sky-600"
+                        class="size-4 shrink-0"
+                        :class="mountColor(folder.sourceType)"
                         aria-hidden="true"
                       /><Folder v-else class="text-primary size-4 shrink-0" aria-hidden="true" />
                       <span
@@ -630,8 +688,9 @@ watch(
                         >
                           <span
                             v-if="folder.isMount"
-                            class="mr-1 rounded bg-sky-100 px-1 text-xs text-sky-800 dark:bg-sky-950 dark:text-sky-200"
-                            >S3</span
+                            class="mr-1 rounded px-1 text-xs"
+                            :class="mountColor(folder.sourceType)"
+                            >{{ mountLabel(folder.sourceType) }}</span
                           ><span class="truncate font-medium" :title="folder.nsName">{{
                             folder.nsName
                           }}</span>
@@ -844,7 +903,8 @@ watch(
           <AlertDialogTitle>Delete {{ deleting?.nsName }}?</AlertDialogTitle>
           <AlertDialogDescription>
             Every file and folder inside it, including non-media files not shown in Photoly, will be
-            deleted. This can't be undone.
+            deleted. On shared mounts, this also affects other users of the actual folder. This
+            can't be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -859,7 +919,8 @@ watch(
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {{ plural(selectedCount, 'item') }}?</AlertDialogTitle>
           <AlertDialogDescription>
-            Selected folders are deleted with everything inside them. This can't be undone.
+            Selected folders are deleted with everything inside them, including non-media files.
+            Shared mounts also affect other users of the actual folder. This can't be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

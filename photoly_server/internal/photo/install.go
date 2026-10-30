@@ -315,6 +315,9 @@ func (s *Service) removeAssets(ctx context.Context, tx pgx.Tx, f *Files, userUUI
 
 // DeleteRecord removes the photo's files and rows (PhotoService.delete_record).
 func (s *Service) DeleteRecord(ctx context.Context, tx pgx.Tx, f *Files, u UserRow, p *Photo) error {
+	if e := storage.LockPhoto(ctx, tx, p.ID); e != nil {
+		return e
+	}
 	if _, err := s.removeAssets(ctx, tx, f, u.UUID, p); err != nil {
 		return err
 	}

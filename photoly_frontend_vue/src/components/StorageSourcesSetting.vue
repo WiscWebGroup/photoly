@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import StorageScanProgress from './StorageScanProgress.vue'
+import { useStorageRevision } from '@/composables/useStorageRevision'
+import ExternalStorageSettings from './ExternalStorageSettings.vue'
 import { Cloud, RefreshCw } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
@@ -25,27 +28,19 @@ interface Settings {
   fields: Field[]
   canSave: boolean
 }
-interface Source {
-  sourceId: number
-  sourceType: string
-  scanStatus: string
-  scannedAt: string | null
-  scanError: string | null
-}
 const settings = ref<Settings>()
 const values = ref<Record<string, string | boolean>>({})
 const enabled = ref(true)
 const busy = ref(false)
-const sources = ref<Source[]>([])
+const { sources, poll } = useStorageRevision(
+  () => {},
+  () => false,
+)
 const failure = ref('')
 async function load() {
   try {
-    const [state, list] = await Promise.all([
-      call<Settings>({ url: '/user/storage/s3' }),
-      call<Source[]>({ url: '/user/storage/sources' }),
-    ])
+    const [state] = await Promise.all([call<Settings>({ url: '/user/storage/s3' }), poll()])
     settings.value = state
-    sources.value = list
     enabled.value = state.configured ? state.enabled : true
     values.value = Object.fromEntries(
       state.fields.map((f) => [
@@ -80,6 +75,14 @@ async function submit(test: boolean) {
     busy.value = false
   }
 }
+async function scanLocal(id: number) {
+  try {
+    await call({ url: `/user/storage/sources/${id}/scan`, method: 'post', data: {} })
+    await poll()
+  } catch {
+    toast.error('Could not request scan')
+  }
+}
 onMounted(load)
 </script>
 
@@ -95,13 +98,15 @@ onMounted(load)
         v-for="source in sources.filter((s) => s.sourceType === 'local')"
         :key="source.sourceId"
       >
-        <p class="mt-2 text-sm" role="status">
-          Scan: {{ source.scanStatus
-          }}<span v-if="source.scannedAt">
-            · {{ new Date(source.scannedAt).toLocaleString() }}</span
-          >
-        </p>
-        <p v-if="source.scanError" class="text-destructive text-sm">{{ source.scanError }}</p>
+        <p class="mt-2 font-medium">{{ source.name || 'Photoly' }}</p>
+        <StorageScanProgress :status="source" />
+        <Button
+          v-if="source.enabled"
+          size="sm"
+          variant="outline"
+          @click="scanLocal(source.sourceId)"
+          >Scan source</Button
+        >
       </template>
       <Button class="mt-2" size="sm" variant="outline" @click="load"
         ><RefreshCw class="size-4" /> Refresh status</Button
@@ -170,5 +175,6 @@ onMounted(load)
         ><Button type="submit" :disabled="busy || !settings.canSave">Save</Button>
       </div>
     </form>
+    <ExternalStorageSettings />
   </section>
 </template>

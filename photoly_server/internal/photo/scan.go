@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,7 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
 	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/jackc/pgx/v5"
@@ -26,6 +24,7 @@ type diskEntry struct {
 	size, mtime    int64
 	dir            bool
 	sha            string
+	version        string
 }
 type indexedFolder struct {
 	id, parent           int64
@@ -33,10 +32,10 @@ type indexedFolder struct {
 	missing              int
 }
 type indexedPhoto struct {
-	id, ns                                  int64
-	uuid, name, format, identity, path, sha string
-	size, mtime                             int64
-	missing                                 int
+	id, ns                                           int64
+	uuid, name, format, identity, path, sha, version string
+	size, mtime                                      int64
+	missing                                          int
 }
 
 func ScanInterval() time.Duration {
@@ -47,46 +46,6 @@ func ScanInterval() time.Duration {
 	}
 	return time.Minute
 }
-func ScanWorker(ctx context.Context, a *app.App) {
-	s := For(a)
-	run := func() {
-		rows, e := a.Pool.Query(ctx, `SELECT user_id FROM storage_source WHERE is_default AND enabled ORDER BY id`)
-		if e != nil {
-			log.Printf("storage scan: %v", e)
-			return
-		}
-		var ids []int64
-		for rows.Next() {
-			var id int64
-			if e = rows.Scan(&id); e != nil {
-				break
-			}
-			ids = append(ids, id)
-		}
-		rows.Close()
-		for _, id := range ids {
-			if ctx.Err() != nil {
-				return
-			}
-			if e = s.Scan(ctx, id); e != nil {
-				log.Printf("storage scan user %d: %v", id, e)
-				_, _ = a.Pool.Exec(ctx, `UPDATE storage_source SET scan_status='error',scan_error=$2 WHERE user_id=$1 AND is_default`, id, e.Error())
-			}
-		}
-	}
-	run()
-	timer := time.NewTicker(ScanInterval())
-	defer timer.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-timer.C:
-			run()
-		}
-	}
-}
-
 func hashFile(p string) (string, error) {
 	f, e := storage.OpenFile(p)
 	if e != nil {
@@ -106,55 +65,30 @@ func unchanged(p string, e diskEntry) bool {
 
 // Scan serializes its reconciliation with app mutations using the same user row
 // lock. External changes are revalidated before commit. No originals are copied.
-func (s *Service) Scan(ctx context.Context, uid int64) error {
+func (s *Service) reconcileSource(ctx context.Context, snap *sourceSnapshot) error {
+	uid := snap.source.UserID
 	return s.atomic(ctx, uid, true, func(tx pgx.Tx, u UserRow, f *Files) error {
-		var sid, rootID int64
-		var rootIdentity string
-		if e := tx.QueryRow(ctx, `SELECT s.id,n.ns_id,s.root_identity FROM storage_source s JOIN namespace n ON n.source_id=s.id AND n.ns_parent_id=-1 WHERE s.user_id=$1 AND s.is_default AND s.enabled`, uid).Scan(&sid, &rootID, &rootIdentity); e != nil {
+		sid, rootID, root, identity, source, entries := snap.source.ID, snap.rootID, snap.root, snap.identity, snap.source, snap.entries
+		if e := storage.LockSource(ctx, tx, source); e != nil {
 			return e
 		}
-		root, source, e := storage.Folder(ctx, tx, s.Root, rootID)
+		current, e := storage.GetSource(ctx, tx, sid)
 		if e != nil {
 			return e
 		}
-		fi, e := os.Lstat(root)
-		if e != nil {
+		if current.ConfigVersion != source.ConfigVersion || current.Revision != source.Revision {
+			return errors.New("stale_scan_retry")
+		}
+		if e = snap.verifyRemote(ctx); e != nil {
 			return e
 		}
-		if !fi.IsDir() {
-			return errors.New("storage root is not a directory")
-		}
-		identity := storage.Identity(fi)
-		if rootIdentity != "" && rootIdentity != identity {
-			return errors.New("storage root identity changed")
-		}
-		entries := map[string]diskEntry{}
-		e = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			if d.Type()&os.ModeSymlink != 0 {
-				return nil
-			}
-			info, err := d.Info()
-			if err != nil {
-				return err
-			}
-			if !info.IsDir() && !info.Mode().IsRegular() {
-				return nil
-			}
-			rel, err := filepath.Rel(root, p)
-			if err != nil {
-				return err
-			}
-			entries[rel] = diskEntry{path: rel, identity: storage.Identity(info), size: info.Size(), mtime: info.ModTime().UnixNano(), dir: info.IsDir()}
-			return nil
-		})
-		if e != nil {
+		if _, e = tx.Exec(ctx, `DELETE FROM storage_scan_failure WHERE source_id=$1 AND ($2='' OR path=$2 OR left(path,length($2)+1)=$2||'/')`, sid, snap.scope); e != nil {
 			return e
+		}
+		for p, message := range snap.failures {
+			if _, e = tx.Exec(ctx, `INSERT INTO storage_scan_failure(source_id,path,error) VALUES($1,$2,$3)`, sid, p, message); e != nil {
+				return e
+			}
 		}
 		// Reserve identities across the complete snapshot before any path fallback.
 		// An old name can be reused while its original inode moves elsewhere.
@@ -171,7 +105,7 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 		folders := map[int64]*indexedFolder{}
 		byFolderIdentity := map[string][]*indexedFolder{}
 		byFolderPath := map[string]*indexedFolder{}
-		rows, e := tx.Query(ctx, `SELECT ns_id,ns_parent_id,ns_name,fs_identity,missing_scans FROM namespace WHERE source_id=$1 AND NOT is_mount`, sid)
+		rows, e := tx.Query(ctx, `SELECT ns_id,ns_parent_id,ns_name,fs_identity,missing_scans FROM namespace WHERE source_id=$1`, sid)
 		if e != nil {
 			return e
 		}
@@ -191,7 +125,7 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 		var folderPath func(int64) string
 		folderPath = func(id int64) string {
 			v := folders[id]
-			if v == nil || v.parent == -1 {
+			if v == nil || v.parent == -1 || id == rootID {
 				return "."
 			}
 			if v.path != "" {
@@ -202,6 +136,9 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 		}
 		for id, v := range folders {
 			v.path = folderPath(id)
+			if !snap.contains(v.path) {
+				continue
+			}
 			byFolderPath[v.path] = v
 			if v.identity != "" {
 				byFolderIdentity[v.identity] = append(byFolderIdentity[v.identity], v)
@@ -211,17 +148,28 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 		var photos []*indexedPhoto
 		byPhotoIdentity := map[string][]*indexedPhoto{}
 		byPhotoPath := map[string]*indexedPhoto{}
-		rows, e = tx.Query(ctx, `SELECT photo_id,ns_id,photo_uuid,file_name,format,fs_identity,fs_size,fs_mtime,missing_scans,coalesce(content_sha256,'') FROM photo WHERE source_id=$1`, sid)
+		outsideIDs := map[string]bool{}
+		outsideHashes := map[string]bool{}
+		rows, e = tx.Query(ctx, `SELECT photo_id,ns_id,photo_uuid,file_name,format,fs_identity,fs_size,fs_mtime,missing_scans,coalesce(content_sha256,''),remote_version FROM photo WHERE source_id=$1`, sid)
 		if e != nil {
 			return e
 		}
 		for rows.Next() {
 			v := &indexedPhoto{}
-			if e = rows.Scan(&v.id, &v.ns, &v.uuid, &v.name, &v.format, &v.identity, &v.size, &v.mtime, &v.missing, &v.sha); e != nil {
+			if e = rows.Scan(&v.id, &v.ns, &v.uuid, &v.name, &v.format, &v.identity, &v.size, &v.mtime, &v.missing, &v.sha, &v.version); e != nil {
 				rows.Close()
 				return e
 			}
 			v.path = filepath.Join(folderPath(v.ns), v.name)
+			if !snap.contains(v.path) {
+				if v.identity != "" {
+					outsideIDs[v.identity] = true
+				}
+				if v.sha != "" {
+					outsideHashes[v.sha] = true
+				}
+				continue
+			}
 			photos = append(photos, v)
 			byPhotoPath[v.path] = v
 			if v.identity != "" {
@@ -235,7 +183,7 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 		}
 		var dirs []string
 		for p, v := range entries {
-			if v.dir && p != "." {
+			if v.dir && p != "." && snap.contains(p) {
 				dirs = append(dirs, p)
 			}
 		}
@@ -248,6 +196,12 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 		})
 		currentDirs := map[string]int64{".": rootID}
 		seenFolders := map[int64]bool{rootID: true}
+		for id, v := range folders {
+			if !snap.contains(v.path) {
+				seenFolders[id] = true
+				currentDirs[v.path] = id
+			}
+		}
 		// Move a virtual mount label aside if an external directory takes it.
 		for _, p := range dirs {
 			if filepath.Dir(p) != "." {
@@ -261,7 +215,11 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 			if err != nil {
 				return err
 			}
-			name, err := storage.AvailableName(ctx, tx, s.Root, rootID, "S3", 0, mountID)
+			var label string
+			if err = tx.QueryRow(ctx, `SELECT ns_name FROM namespace WHERE ns_id=$1`, mountID).Scan(&label); err != nil {
+				return err
+			}
+			name, err := storage.AvailableName(ctx, tx, s.Root, rootID, label, 0, mountID)
 			if err != nil {
 				return err
 			}
@@ -298,7 +256,7 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 		}
 		// Only live originals actually attached to a Live Photo are excluded from indexing.
 		livePaths := map[string]bool{}
-		rows, e = tx.Query(ctx, `SELECT p.ns_id,a.filename FROM photo p JOIN media_asset a USING(photo_id) JOIN photo_media m USING(photo_id) WHERE p.source_id=$1 AND a.role='live_original' AND m.live`, sid)
+		rows, e = tx.Query(ctx, `SELECT coalesce(a.namespace_id,p.ns_id),a.filename FROM photo p JOIN media_asset a USING(photo_id) JOIN photo_media m USING(photo_id) WHERE p.source_id=$1 AND a.role='live_original' AND m.live`, sid)
 		if e != nil {
 			return e
 		}
@@ -316,14 +274,22 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 			}
 		}
 		rows.Close()
+		for _, a := range snap.attachments {
+			if a.found != "" {
+				livePaths[a.found] = true
+			}
+		}
+		for _, movie := range snap.pairs {
+			livePaths[movie] = true
+		}
 		observations := map[string]diskEntry{}
-		rows, e = tx.Query(ctx, `SELECT path,identity,size,mtime FROM storage_observation WHERE source_id=$1`, sid)
+		rows, e = tx.Query(ctx, `SELECT path,identity,size,mtime,version FROM storage_observation WHERE source_id=$1`, sid)
 		if e != nil {
 			return e
 		}
 		for rows.Next() {
 			var v diskEntry
-			if e = rows.Scan(&v.path, &v.identity, &v.size, &v.mtime); e != nil {
+			if e = rows.Scan(&v.path, &v.identity, &v.size, &v.mtime, &v.version); e != nil {
 				rows.Close()
 				return e
 			}
@@ -333,6 +299,9 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 		candidates := map[string]diskEntry{}
 		seenPhotos := map[int64]bool{}
 		for path, ent := range entries {
+			if !ent.dir && byPhotoPath[path] == nil && (outsideIDs[ent.identity] || outsideHashes[ent.sha]) {
+				return errors.New("stale_scan_retry")
+			}
 			if ent.dir || livePaths[path] {
 				continue
 			}
@@ -341,7 +310,7 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 				continue
 			}
 			old := byPhotoPath[path]
-			if old != nil && old.identity == ent.identity && old.size == ent.size && old.mtime == ent.mtime {
+			if old != nil && old.identity == ent.identity && old.size == ent.size && old.mtime == ent.mtime && old.version == ent.version && !snap.force && (snap.tree == nil || ent.version != "" || ent.mtime != 0) {
 				seenPhotos[old.id] = true
 				if old.missing != 0 {
 					if _, e = tx.Exec(ctx, `UPDATE photo SET missing_scans=0 WHERE photo_id=$1`, old.id); e != nil {
@@ -352,7 +321,7 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 			}
 			if vs := byPhotoIdentity[ent.identity]; ent.identity != "" && len(vs) == 1 && len(identityPaths[ent.identity]) == 1 {
 				v := vs[0]
-				if v.size == ent.size && v.mtime == ent.mtime && v.sha != "" {
+				if v.size == ent.size && v.mtime == ent.mtime && v.version == ent.version && v.sha != "" && !snap.force {
 					// A namespace-only move of already indexed, stable content needs no
 					// processing delay, and must release the old name in this commit.
 					ent.sha = v.sha
@@ -361,10 +330,10 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 				}
 			}
 			prev, ok := observations[path]
-			if _, e = tx.Exec(ctx, `INSERT INTO storage_observation(source_id,path,identity,size,mtime) VALUES($1,$2,$3,$4,$5) ON CONFLICT(source_id,path) DO UPDATE SET identity=EXCLUDED.identity,size=EXCLUDED.size,mtime=EXCLUDED.mtime`, sid, path, ent.identity, ent.size, ent.mtime); e != nil {
+			if _, e = tx.Exec(ctx, `INSERT INTO storage_observation(source_id,path,identity,size,mtime,version) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(source_id,path) DO UPDATE SET identity=EXCLUDED.identity,size=EXCLUDED.size,mtime=EXCLUDED.mtime,version=EXCLUDED.version`, sid, path, ent.identity, ent.size, ent.mtime, ent.version); e != nil {
 				return e
 			}
-			if !ok || prev.identity != ent.identity || prev.size != ent.size || prev.mtime != ent.mtime {
+			if !ok || prev.identity != ent.identity || prev.size != ent.size || prev.mtime != ent.mtime || prev.version != ent.version {
 				if old != nil && !reservedElsewhere(old.identity, path) {
 					seenPhotos[old.id] = true
 				}
@@ -373,12 +342,11 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 				}
 				continue
 			}
-			ent.sha, e = hashFile(filepath.Join(root, path))
-			if e != nil {
-				return e
-			}
-			if !unchanged(filepath.Join(root, path), ent) {
-				return errors.New("file changed during scan")
+			if snap.failures[path] != "" || ent.sha == "" {
+				if old != nil {
+					seenPhotos[old.id] = true
+				}
+				continue
 			}
 			candidates[path] = ent
 		}
@@ -429,21 +397,47 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 				}
 			}
 			changed := old.sha != ent.sha
-			if _, e = tx.Exec(ctx, `UPDATE photo SET ns_id=$2,file_name=$3,photo_name=$4,format=$5,fs_identity=$6,fs_size=$7,fs_mtime=$8,missing_scans=0,content_sha256=$9::text,content_version=content_version+CASE WHEN content_sha256 IS DISTINCT FROM $9::text THEN 1 ELSE 0 END WHERE photo_id=$1`, old.id, ns, name, strings.TrimSuffix(name, filepath.Ext(name)), strings.TrimPrefix(filepath.Ext(name), "."), ent.identity, ent.size, ent.mtime, ent.sha); e != nil {
+			if _, e = tx.Exec(ctx, `UPDATE photo SET ns_id=$2,file_name=$3,photo_name=$4,format=$5,fs_identity=$6,fs_size=$7,fs_mtime=$8,missing_scans=0,content_sha256=$9::text,content_version=content_version+CASE WHEN content_sha256 IS DISTINCT FROM $9::text THEN 1 ELSE 0 END,remote_version=$10 WHERE photo_id=$1`, old.id, ns, name, strings.TrimSuffix(name, filepath.Ext(name)), strings.TrimPrefix(filepath.Ext(name), "."), ent.identity, ent.size, ent.mtime, ent.sha, ent.version); e != nil {
 				return e
 			}
-			if _, e = tx.Exec(ctx, `UPDATE media_asset SET filename=$2 WHERE photo_id=$1 AND role='original'`, old.id, name); e != nil {
+			if _, e = tx.Exec(ctx, `UPDATE media_asset SET filename=$2,display_name=$2,version=$3,namespace_id=$4 WHERE photo_id=$1 AND role='original'`, old.id, name, ent.version, ns); e != nil {
 				return e
 			}
 			if changed {
-				if e = s.indexDerivatives(ctx, tx, f, u, old.id, old.uuid, filepath.Join(root, path)); e != nil {
+				if e = s.indexDerivatives(ctx, tx, f, u, old.id, old.uuid, snap.originals[path], snap.prepared[path]); e != nil {
 					return fmt.Errorf("index %s: %w", path, e)
 				}
 			}
-			if !unchanged(filepath.Join(root, path), ent) {
+			if snap.tree == nil && !unchanged(filepath.Join(root, path), ent) {
 				return errors.New("file changed during processing")
 			}
+			if movie, paired := snap.pairs[path]; paired {
+				movieEnt := entries[movie]
+				movieNS := currentDirs[filepath.Dir(movie)]
+				if _, e = tx.Exec(ctx, `UPDATE media_asset SET namespace_id=$2,filename=$3,display_name=$3,version=$4,fs_identity=$5,fs_size=$6,fs_mtime=$7,content_sha256=$8,content_version=content_version+1 WHERE photo_id=$1 AND role='live_original'`, old.id, movieNS, filepath.Base(movie), movieEnt.version, movieEnt.identity, movieEnt.size, movieEnt.mtime, movieEnt.sha); e != nil {
+					return e
+				}
+				status := "failed"
+				var failure any = "live_preview_processing_failed"
+				if preview := snap.livePreviews[path]; preview != "" {
+					dest, e := storage.Resolve(ctx, tx, s.Root, u.UUID, old.uuid, "live_preview")
+					if e != nil {
+						return e
+					}
+					if _, e = f.InstallFile(preview, dest); e != nil {
+						return e
+					}
+					status = "ready"
+					failure = nil
+				}
+				if _, e = tx.Exec(ctx, `UPDATE photo_media SET live=true,live_status=$2,live_error=$3 WHERE photo_id=$1`, old.id, status, failure); e != nil {
+					return e
+				}
+			}
 			seenPhotos[old.id] = true
+		}
+		if e = s.commitScanAttachments(ctx, tx, f, u, snap, currentDirs); e != nil {
+			return e
 		}
 		// A failed walk/processing never reaches deletion. Recheck absent paths now.
 		for _, v := range photos {
@@ -454,6 +448,10 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 				continue
 			}
 			st, err := os.Lstat(filepath.Join(root, v.path))
+			if snap.tree != nil {
+				st = nil
+				err = os.ErrNotExist
+			}
 			if err == nil && st.Mode().IsRegular() || err != nil && !os.IsNotExist(err) && !errors.Is(err, syscall.ENOTDIR) {
 				return errors.New("library changed during scan")
 			}
@@ -486,6 +484,10 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 		sort.Slice(missing, func(i, j int) bool { return len(missing[i].path) > len(missing[j].path) })
 		for _, v := range missing {
 			st, err := os.Lstat(filepath.Join(root, v.path))
+			if snap.tree != nil {
+				st = nil
+				err = os.ErrNotExist
+			}
 			if err == nil && st.IsDir() || err != nil && !os.IsNotExist(err) && !errors.Is(err, syscall.ENOTDIR) {
 				return errors.New("directory changed during scan")
 			}
@@ -501,7 +503,7 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 		// Verify every observed directory still names the same inode. A detached mount
 		// or rename during the scan must never be committed as a complete snapshot.
 		for path, ent := range entries {
-			if !ent.dir {
+			if !ent.dir || snap.tree != nil {
 				continue
 			}
 			fi, e := os.Lstat(filepath.Join(root, path))
@@ -510,41 +512,24 @@ func (s *Service) Scan(ctx context.Context, uid int64) error {
 			}
 		}
 		for path := range observations {
+			if !snap.contains(path) {
+				continue
+			}
 			if _, present := entries[path]; !present {
 				if _, e = tx.Exec(ctx, `DELETE FROM storage_observation WHERE source_id=$1 AND path=$2`, sid, path); e != nil {
 					return e
 				}
 			}
 		}
-		_, e = tx.Exec(ctx, `UPDATE storage_source SET root_identity=$2,scan_status='ready',scan_error=NULL,scanned_at=now() WHERE id=$1`, source.ID, identity)
+		_, e = tx.Exec(ctx, `UPDATE storage_source SET root_identity=$2,scan_status='ready',scan_error=NULL,scanned_at=now(),scan_retries=(SELECT count(*) FROM storage_scan_failure WHERE source_id=$1) WHERE id=$1`, source.ID, identity)
 		return e
 	})
 }
 
-func (s *Service) indexDerivatives(ctx context.Context, tx pgx.Tx, f *Files, u UserRow, pid int64, uuid, path string) error {
-	// Decode a private snapshot: external media tools must not follow a path that
-	// an outside writer swaps for a symlink after the directory walk.
-	in, err := storage.OpenFile(path)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	snapshot := filepath.Join(f.Work(), "scan-source"+filepath.Ext(path))
-	out, err := os.Create(snapshot)
-	if err != nil {
-		return err
-	}
-	_, err = io.Copy(out, in)
-	if e := out.Close(); err == nil {
-		err = e
-	}
-	defer os.Remove(snapshot)
-	if err != nil {
-		return err
-	}
-	prep, err := s.Prepare(ctx, snapshot, f.Work())
-	if err != nil {
-		return err
+func (s *Service) indexDerivatives(ctx context.Context, tx pgx.Tx, f *Files, u UserRow, pid int64, uuid, path string, prep *Prepared) error {
+	var err error
+	if prep == nil {
+		return errors.New("scan_media_not_prepared")
 	}
 	for role, src := range map[string]string{"thumbnail": prep.Thumbnail, "preview": prep.Preview} {
 		dest, e := storage.Resolve(ctx, tx, s.Root, u.UUID, uuid, role)

@@ -98,3 +98,7 @@ for parameters, pagination and response schemas. Dates itself requires no schema
 ### Media tools
 
 Right-click an image and choose **Format Convert** to save a JPEG, PNG or GIF copy in its actual folder. GIFs animate in the viewer; newly uploaded Apple Live Photo pairs have a LIVE playback control and original-pair ZIP download. Upload pickers accept pasted images with Cmd+V / Ctrl+V. Administrators can enable **Online Download** in Settings; the download icon appears immediately left of Upload. See [format support, pairing, security limits and upgrade instructions](docs/media-tools.md).
+
+See [external local mounts and WebDAV](docs/external-storage.md) for multi-source setup, Docker mounts, scanning and file retention.
+
+Personal Storage supports multiple WebDAV and SMB connections, plus administrator-assigned local mounts. Folder pages show indexing progress and offer recursive folder refresh. See [external storage deployment and testing](docs/external-storage.md).

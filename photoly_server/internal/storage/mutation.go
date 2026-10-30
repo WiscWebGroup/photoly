@@ -11,8 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // Files holds compensatable disk and remote changes for one database transaction.
@@ -25,6 +23,9 @@ type Files struct {
 	remoteUndo     []func() error
 	pinned         map[string]bool
 	rollbackFailed bool
+	extraWork      []string
+	remoteCleanup  []func() error
+	ctx            context.Context
 }
 
 func NewFiles(root string) (*Files, error) {
@@ -52,7 +53,10 @@ func (f *Files) Close() {
 	}
 	cacheMu.Unlock()
 	if !f.rollbackFailed {
-		_ = os.RemoveAll(f.work)
+		_ = removeTree(f.work)
+		for _, p := range f.extraWork {
+			_ = removeTree(p)
+		}
 	}
 }
 func (f *Files) Rollback() {
@@ -97,7 +101,12 @@ func (f *Files) Move(src, dst string) error {
 }
 func (f *Files) Remove(p string) (int, error) {
 	f.pin(p)
-	if _, ok := remoteLocation(p); ok {
+	if loc, ok := remoteLocation(p); ok {
+		if d, ok := loc.store.(TreeStore); ok {
+			if err := f.TreeRemove(f.context(), d, loc.key, loc.version); err != nil {
+				return 0, err
+			}
+		}
 		if err := FetchError(context.Background(), p); err != nil && !errors.Is(err, ErrNotFound) && !os.IsNotExist(err) {
 			return 0, err
 		}
@@ -108,7 +117,10 @@ func (f *Files) Remove(p string) (int, error) {
 		}
 		return 0, err
 	}
-	backup := filepath.Join(f.work, uuid.NewString())
+	backup, err := f.stageFor(p)
+	if err != nil {
+		return 0, err
+	}
 	if err := RenameNoReplace(p, backup); err != nil {
 		return 0, err
 	}
@@ -116,7 +128,7 @@ func (f *Files) Remove(p string) (int, error) {
 		f.before[p] = backup
 	}
 	f.undo = append(f.undo, func() error {
-		if err := mkdirAll(filepath.Dir(p)); err != nil {
+		if err := f.ensureParent(p); err != nil {
 			return err
 		}
 		return RenameNoReplace(backup, p)
@@ -124,8 +136,11 @@ func (f *Files) Remove(p string) (int, error) {
 	return 1, nil
 }
 func (f *Files) Install(r io.Reader, dest string) (string, error) {
-	tmp := filepath.Join(f.work, uuid.NewString())
-	out, err := os.Create(tmp)
+	tmp, err := f.stageFor(dest)
+	if err != nil {
+		return "", err
+	}
+	out, err := createFile(tmp)
 	if err != nil {
 		return "", err
 	}
@@ -137,7 +152,7 @@ func (f *Files) Install(r io.Reader, dest string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err = mkdirAll(filepath.Dir(dest)); err != nil {
+	if err = f.ensureParent(dest); err != nil {
 		return "", err
 	}
 	if _, err = f.Remove(dest); err != nil {
@@ -168,8 +183,11 @@ func (f *Files) InstallNew(r io.Reader, dest string) (string, error) {
 
 // InstallUnique stages once and retries a collision without rereading the upload.
 func (f *Files) InstallUnique(r io.Reader, dest string, next func() (string, error)) (string, string, error) {
-	tmp := filepath.Join(f.work, uuid.NewString())
-	out, err := os.Create(tmp)
+	tmp, err := f.stageFor(dest)
+	if err != nil {
+		return "", "", err
+	}
+	out, err := createFile(tmp)
 	if err != nil {
 		return "", "", err
 	}
@@ -181,7 +199,7 @@ func (f *Files) InstallUnique(r io.Reader, dest string, next func() (string, err
 	if err != nil {
 		return "", "", err
 	}
-	if err = mkdirAll(filepath.Dir(dest)); err != nil {
+	if err = f.ensureParent(dest); err != nil {
 		return "", "", err
 	}
 	for {
@@ -217,6 +235,12 @@ func (f *Files) Flush(ctx context.Context) error {
 	for p, backup := range f.before {
 		loc, ok := remoteLocation(p)
 		if !ok {
+			continue
+		}
+		if d, ok := loc.store.(TreeStore); ok {
+			if e := f.flushTree(ctx, p, loc, d); e != nil {
+				return e
+			}
 			continue
 		}
 		restore := func() error {
@@ -256,8 +280,15 @@ func (f *Files) Flush(ctx context.Context) error {
 	}
 	return nil
 }
-func (f *Files) Commit()       { f.remoteUndo = nil }
-func (f *Files) Changed() bool { return len(f.undo) > 0 }
+func (f *Files) Commit() {
+	f.remoteUndo = nil
+	for _, fn := range f.remoteCleanup {
+		if err := fn(); err != nil {
+			log.Printf("storage backup cleanup failed: %v", err)
+		}
+	}
+}
+func (f *Files) Changed() bool { return len(f.undo) > 0 || len(f.remoteUndo) > 0 }
 
 // Delta remains useful to callers accounting a subset of files.
 func (f *Files) Delta(dir string) int64 {

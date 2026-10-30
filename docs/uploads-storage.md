@@ -12,7 +12,8 @@ The Upload button beside the desktop search control (and in mobile/admin headers
 
 ## Deployment and synchronization
 
-The Go server runs the upload worker and local directory scanner in the same process.
+The Go server runs the upload worker and per-source scanner in the same process.
+See [external local mounts and WebDAV](external-storage.md) for multiple bindings, deployment allowlists, synchronization and file-retention behavior.
 See [real folders and personal S3](real-folders.md) before deploying this version:
 old flat-layout libraries cannot be upgraded in place. `photoly migrate` applies
 the schema for a fresh library; `photoly serve` also migrates on startup.
@@ -32,7 +33,7 @@ library before removing orphaned files. Do not delete active upload source files
 
 User Management has Users and Groups tabs. Each account belongs to one group. The group's Max Storage is **per member**, not a shared pool. The protected default group starts at **50 GB (50,000,000,000 bytes)** and receives new accounts. Administrators can rename it or change its quota. Deleting another group requires a replacement group for all its members.
 
-A personal override can specify a finite limit or unlimited storage; turning the override off restores inheritance. Limits include all local user files, local derivatives and avatars. Personal S3 objects, remote cache, temporary sources, PostgreSQL and AI indexes are excluded. Administrators obey their own effective limits. Changing group membership/limits is serialized with file mutations; concurrent uploads cannot overspend a user's limit. Reducing a quota retains existing files; an over-quota account can read/download/delete and replace content when this does not increase usage.
+A personal override can specify a finite limit or unlimited storage; turning the override off restores inheritance. Limits include all local user files, local derivatives and avatars. External local/WebDAV originals, personal S3 objects, remote cache, temporary sources, PostgreSQL and AI indexes are excluded. Administrators obey their own effective limits. Changing group membership/limits is serialized with file mutations; concurrent uploads cannot overspend a user's limit. Reducing a quota retains existing files; an over-quota account can read/download/delete and replace content when this does not increase usage.
 
 Legacy photo and credential upload routes remain compatible and enforce the same quotas. New upload endpoints use the existing `{msgCode,t}` envelope: inspect `msgCode` even for HTTP 200. `/uploads` creates/lists batches, `/{batch_id}/items` registers/lists entries, `/{batch_id}/items/{item_id}/content` receives raw bytes, and `finish`, `cancel`, `retry` operate on a batch. Batch/item UUIDs make retries idempotent. All upload queries/actions require the owning login session. Administrative group and personal quota operations are documented in `/docs/`; `/user/getStorage` now reports the effective account limit (`null` means unlimited), its source and over-quota state.
 
