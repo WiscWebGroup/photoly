@@ -260,10 +260,13 @@ type StorageObservation struct {
 }
 
 type StorageScanFailure struct {
-	SourceID    int64
-	Path        string
-	Error       string
-	AttemptedAt time.Time
+	SourceID         int64
+	Path             string
+	Error            string
+	AttemptedAt      time.Time
+	FileVersion      string
+	Retryable        bool
+	ProcessorVersion string
 }
 
 type StorageScanJob struct {

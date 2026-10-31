@@ -40,3 +40,28 @@ it('defers changed revisions while selecting and stops polling when unmounted', 
   await vi.advanceTimersByTimeAsync(15_000)
   expect(refresh).toHaveBeenCalledTimes(1)
 })
+
+it('shares polling between consumers and defers each list independently', async () => {
+  vi.useFakeTimers()
+  vi.spyOn(document, 'hidden', 'get').mockReturnValue(false)
+  let revision = 1
+  vi.mocked(call).mockClear()
+  vi.mocked(call).mockImplementation(async () => [{ sourceId: 1, revision, enabled: true }])
+  const refresh = vi.fn()
+  const component = defineComponent({
+    setup() {
+      useStorageRevision(refresh, () => false)
+      return () => null
+    },
+  })
+  const a = mount(component),
+    b = mount(component)
+  await flushPromises()
+  expect(call).toHaveBeenCalledTimes(1)
+  revision++
+  await vi.advanceTimersByTimeAsync(16000)
+  expect(call).toHaveBeenCalledTimes(2)
+  expect(refresh).toHaveBeenCalledTimes(2)
+  a.unmount()
+  b.unmount()
+})

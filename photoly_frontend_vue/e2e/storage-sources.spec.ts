@@ -116,6 +116,10 @@ test('SMB shows indexing progress and refreshes only the current folder', async 
   const mount = page.locator('[data-folder-id="9"]')
   await expect(mount.locator('.text-teal-700').first()).toBeVisible()
   await mount.click()
+  await page
+    .getByRole('button', { name: 'Storage activity', exact: true })
+    .filter({ visible: true })
+    .click()
   await expect(page.getByText('Reading media information and generating previews')).toBeVisible()
   await expect(page.getByRole('progressbar', { name: 'Media indexing progress' })).toHaveAttribute(
     'value',
@@ -124,6 +128,6 @@ test('SMB shows indexing progress and refreshes only the current folder', async 
   await page.getByRole('button', { name: 'Refresh this folder' }).click()
   await expect
     .poll(() => calls.filter((c) => c.path === '/user/storage/sources/9/scan').map((c) => c.body))
-    .toEqual([{ nsId: 9 }])
+    .toEqual([{ nsId: 9, force: false }])
   await expect(page.getByText('Scan queued', { exact: false }).first()).toBeVisible()
 })

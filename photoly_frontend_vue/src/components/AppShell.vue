@@ -7,6 +7,8 @@ import { CalendarDays, Camera, Images, LogOut, Map, Search, Tag } from '@lucide/
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
 import OnlineDownloadButton from '@/components/OnlineDownloadButton.vue'
 import UploadButton from '@/components/UploadButton.vue'
+import StorageActivity from '@/components/StorageActivity.vue'
+import { resetStorageState } from '@/composables/useStorageRevision'
 import { useUploadsStore } from '@/stores/uploads'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import { useProfile } from '@/composables/useProfile'
@@ -15,6 +17,7 @@ import { useAuthStore } from '@/stores/auth'
 import { cn } from '@/lib/utils'
 
 const auth = useAuthStore()
+watch(() => auth.token, resetStorageState)
 const router = useRouter()
 const route = useRoute()
 const { profile, load } = useProfile()
@@ -184,7 +187,9 @@ const iconButton =
           class="h-[22px] invert dark:invert-0"
         />
       </router-link>
-      <div class="ml-auto flex items-center gap-1"><OnlineDownloadButton /><UploadButton /></div>
+      <div class="ml-auto flex items-center gap-1">
+        <OnlineDownloadButton /><UploadButton /><StorageActivity />
+      </div>
       <router-link
         to="/home/ManagePart"
         aria-label="Account"
@@ -208,7 +213,7 @@ const iconButton =
           ><kbd class="rounded border px-1 text-xs">/</kbd></router-link
         >
         <OnlineDownloadButton />
-        <UploadButton />
+        <UploadButton /><StorageActivity />
       </header>
       <main class="min-h-0 flex-1 overflow-auto"><slot /></main>
     </div>

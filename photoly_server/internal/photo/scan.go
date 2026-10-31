@@ -86,7 +86,11 @@ func (s *Service) reconcileSource(ctx context.Context, snap *sourceSnapshot) err
 			return e
 		}
 		for p, message := range snap.failures {
-			if _, e = tx.Exec(ctx, `INSERT INTO storage_scan_failure(source_id,path,error) VALUES($1,$2,$3)`, sid, p, message); e != nil {
+			attempted := time.Now()
+			if previous, ok := snap.deferredFailures[p]; ok {
+				attempted = previous.Attempted
+			}
+			if _, e = tx.Exec(ctx, `INSERT INTO storage_scan_failure(source_id,path,error,file_version,retryable,processor_version,attempted_at) VALUES($1,$2,$3,$4,$5,$6,$7)`, sid, p, message, entries[p].fingerprint(), retryScanFailure(message), scanProcessorVersion, attempted); e != nil {
 				return e
 			}
 		}
@@ -448,14 +452,14 @@ func (s *Service) reconcileSource(ctx context.Context, snap *sourceSnapshot) err
 				continue
 			}
 			st, err := os.Lstat(filepath.Join(root, v.path))
-			if snap.tree != nil {
+			if snap.tree != nil || snap.excluded(v.path) {
 				st = nil
 				err = os.ErrNotExist
 			}
 			if err == nil && st.Mode().IsRegular() || err != nil && !os.IsNotExist(err) && !errors.Is(err, syscall.ENOTDIR) {
 				return errors.New("library changed during scan")
 			}
-			if v.missing < 1 {
+			if v.missing < 1 && !snap.excluded(v.path) {
 				if _, e = tx.Exec(ctx, `UPDATE photo SET missing_scans=missing_scans+1 WHERE photo_id=$1`, v.id); e != nil {
 					return e
 				}
@@ -484,14 +488,14 @@ func (s *Service) reconcileSource(ctx context.Context, snap *sourceSnapshot) err
 		sort.Slice(missing, func(i, j int) bool { return len(missing[i].path) > len(missing[j].path) })
 		for _, v := range missing {
 			st, err := os.Lstat(filepath.Join(root, v.path))
-			if snap.tree != nil {
+			if snap.tree != nil || snap.excluded(v.path) {
 				st = nil
 				err = os.ErrNotExist
 			}
 			if err == nil && st.IsDir() || err != nil && !os.IsNotExist(err) && !errors.Is(err, syscall.ENOTDIR) {
 				return errors.New("directory changed during scan")
 			}
-			if v.missing < 1 {
+			if v.missing < 1 && !snap.excluded(v.path) {
 				_, e = tx.Exec(ctx, `UPDATE namespace SET missing_scans=missing_scans+1 WHERE ns_id=$1`, v.id)
 			} else {
 				_, e = tx.Exec(ctx, `DELETE FROM namespace WHERE ns_id=$1 AND NOT EXISTS(SELECT 1 FROM photo WHERE ns_id=$1) AND NOT EXISTS(SELECT 1 FROM namespace WHERE ns_parent_id=$1)`, v.id)

@@ -8,7 +8,6 @@ import {
   HardDrive,
   Network,
   Server,
-  RefreshCw,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -28,7 +27,7 @@ import {
   Upload,
   X,
 } from '@lucide/vue'
-import StorageScanProgress from '@/components/StorageScanProgress.vue'
+import { storageFolder } from '@/composables/useStorageRevision'
 import EmptyState from '@/components/EmptyState.vue'
 import MediaList from '@/components/MediaList.vue'
 import FolderDetails from '@/components/FolderDetails.vue'
@@ -140,6 +139,22 @@ const summary = computed(() => {
 
 // Folder cards show a mosaic of what's inside and how many items; refetched when the folder's
 // children change or photos move in or out of it.
+watch(
+  () =>
+    [
+      folders.current.value?.nsId,
+      folders.current.value?.sourceId,
+      folders.current.value?.nsName,
+    ] as const,
+  ([id, sourceId, name]) => {
+    storageFolder.value = id && sourceId ? { nsId: id, sourceId, name: name || 'Library' } : null
+  },
+  { immediate: true },
+)
+onUnmounted(() => {
+  storageFolder.value = null
+})
+
 const { covers, refresh: refreshCovers } = useCovers('folder')
 watchDebounced(
   [folders.children, library.photos],
@@ -444,7 +459,7 @@ function downloadFolder(folder: FolderInfo) {
   })
 }
 
-const scanState = useStorageRevision(
+useStorageRevision(
   async () => {
     try {
       await folders.refresh()
@@ -462,31 +477,6 @@ const scanState = useStorageRevision(
     !!deleting.value ||
     dragging.value,
 )
-
-const sourceStatus = computed(() =>
-  scanState.sources.value.find((s) => s.sourceId === folders.current.value?.sourceId),
-)
-const requestingScan = ref(false)
-async function refreshFolder() {
-  const sourceId = folders.current.value?.sourceId
-  if (!sourceId || requestingScan.value) return
-  requestingScan.value = true
-  try {
-    await call({
-      url: `/user/storage/sources/${sourceId}/scan`,
-      method: 'post',
-      data: { nsId: nsId.value },
-    })
-    toast.success('Folder scan queued')
-    await scanState.poll()
-  } catch (e) {
-    toast.error(
-      e instanceof ApiError && typeof e.detail === 'string' ? e.detail : 'Could not request scan',
-    )
-  } finally {
-    requestingScan.value = false
-  }
-}
 
 // Upload state belongs to the application, so navigating never cancels a transfer.
 function startUpload() {
@@ -540,15 +530,6 @@ watch(
       </nav>
     </div>
 
-    <div
-      v-if="!isRoot && sourceStatus && sourceStatus.sourceType !== 's3'"
-      class="space-y-2 border-b px-4 py-3 md:px-10"
-    >
-      <Button variant="outline" size="sm" :disabled="requestingScan" @click="refreshFolder"
-        ><RefreshCw class="size-4" /> Refresh this folder</Button
-      >
-      <StorageScanProgress :status="sourceStatus" />
-    </div>
     <div v-if="nsId === -1" class="flex justify-center py-24" role="status" aria-label="Loading">
       <Loader2 class="text-muted-foreground size-8 animate-spin" />
     </div>

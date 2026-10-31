@@ -71,8 +71,25 @@ WHERE p.user_id = @user_id::int AND photo_visible(p.storage_id, p.user_id) AND l
 ORDER BY coalesce(e.extra_photo_taken_date, p.upload_date) ASC, p.photo_id ASC LIMIT 10;
 
 -- name: ListFolderCovers :many
-SELECT ns_id::int AS key, photo_id, format FROM photo
-WHERE user_id = @user_id::int AND photo_visible(storage_id, user_id) AND ns_id = ANY(@keys::int[]) ORDER BY photo_id DESC;
+WITH RECURSIVE dirs AS (
+ SELECT n.ns_id AS key,n.ns_id,0 AS depth FROM namespace n JOIN storage_source s ON s.id=n.source_id
+ WHERE n.user_id = @user_id::int AND n.ns_id=ANY(@keys::int[]) AND s.enabled
+ UNION ALL
+ SELECT d.key,n.ns_id,d.depth+1 FROM dirs d JOIN namespace n ON n.ns_parent_id=d.ns_id
+ JOIN storage_source s ON s.id=n.source_id WHERE n.user_id = @user_id::int AND s.enabled
+), candidates AS (
+ SELECT d.key,p.photo_id,d.depth FROM dirs d JOIN photo p ON p.ns_id=d.ns_id
+ WHERE p.user_id = @user_id::int AND photo_visible(p.storage_id,p.user_id)
+ AND lower(p.format)=ANY(@formats::text[])
+)
+SELECT n.ns_id::int AS key,
+ ((SELECT count(*) FROM namespace c JOIN storage_source s ON s.id=c.source_id WHERE c.ns_parent_id=n.ns_id AND c.user_id = @user_id::int AND s.enabled)
+ +(SELECT count(*) FROM photo p WHERE p.ns_id=n.ns_id AND p.user_id = @user_id::int AND photo_visible(p.storage_id,p.user_id)))::bigint AS count,
+ ARRAY(SELECT c.photo_id FROM candidates c WHERE c.key=n.ns_id
+ AND (c.depth=0 OR NOT EXISTS(SELECT 1 FROM candidates direct WHERE direct.key=n.ns_id AND direct.depth=0))
+ ORDER BY c.depth,c.photo_id DESC LIMIT 3)::int[] AS cover_ids
+FROM namespace n JOIN storage_source s ON s.id=n.source_id
+WHERE n.user_id = @user_id::int AND n.ns_id=ANY(@keys::int[]) AND s.enabled ORDER BY n.ns_id;
 
 -- name: ListGalleryCovers :many
 SELECT l.ga_id::int AS key, p.photo_id, p.format FROM photo p JOIN gallery_photo l ON l.photo_id = p.photo_id

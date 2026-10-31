@@ -29,6 +29,7 @@ type sourceSnapshot struct {
 	scope                string
 	job                  storage.ScanJob
 	waiting              int
+	deferredFailures     map[string]savedScanFailure
 	attachments          []*scanAttachment
 	tree                 storage.TreeStore
 }
@@ -137,7 +138,7 @@ func (s *Service) ScanSource(ctx context.Context, id int64) (err error) {
 		}
 		var message any
 		if len(snap.failures) > 0 {
-			message = fmt.Sprintf("%d media files need retry", len(snap.failures))
+			message = fmt.Sprintf("%d media files need attention", len(snap.failures))
 		}
 		if err != nil {
 			status = "error"
@@ -199,6 +200,9 @@ func (s *Service) ScanSource(ctx context.Context, id int64) (err error) {
 		snap.identity = info.Identity
 		snap.entries["."] = diskEntry{path: ".", dir: true, identity: info.Identity, version: info.Version}
 		if e = snap.tree.Walk(ctx, snap.scope, func(v storage.TreeEntry) error {
+			if v.Directory && snap.excluded(v.Path) {
+				return filepath.SkipDir
+			}
 			snap.entries[v.Path] = diskEntry{path: v.Path, identity: v.Identity, size: v.Size, mtime: v.Modified, dir: v.Directory, version: v.Version}
 			reportDiscovery()
 			return nil
@@ -218,7 +222,7 @@ func (s *Service) ScanSource(ctx context.Context, id int64) (err error) {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			if d.Name() == storage.SystemDirectory {
+			if d.Name() == storage.SystemDirectory || (!snap.source.Default && d.IsDir() && recycleComponent(d.Name())) {
 				if d.IsDir() {
 					return filepath.SkipDir
 				}
@@ -323,6 +327,10 @@ func (s *Service) ScanSource(ctx context.Context, id int64) (err error) {
 	if e = s.loadScanAttachments(ctx, snap); e != nil {
 		return e
 	}
+	snap.deferredFailures, e = s.previousScanFailures(ctx, id)
+	if e != nil {
+		return e
+	}
 	completed := 0
 	tasks := map[string]diskEntry{}
 	unchangedCount := 0
@@ -330,6 +338,11 @@ func (s *Service) ScanSource(ctx context.Context, id int64) (err error) {
 		if !snap.contains(p) || ent.dir || !ImageFormats[suffixOf(p)] && !VideoFormats[suffixOf(p)] {
 			continue
 		}
+		if failure, ok := snap.deferredFailures[p]; ok && !snap.force && !failure.Retryable && failure.Processor == scanProcessorVersion && failure.Version == ent.fingerprint() {
+			snap.failures[p] = failure.Code
+			continue
+		}
+		delete(snap.deferredFailures, p)
 		old, exists := knownByPath[p]
 		if exists && !snap.force && old.identity == ent.identity && old.size == ent.size && old.mtime == ent.mtime && old.version == ent.version && (snap.tree == nil || ent.version != "" || ent.mtime != 0) {
 			unchangedCount++
@@ -495,6 +508,9 @@ func (snap *sourceSnapshot) verifyRemote(ctx context.Context) error {
 			return errors.New("storage_root_identity_changed")
 		}
 		if e = snap.tree.Walk(ctx, snap.scope, func(v storage.TreeEntry) error {
+			if v.Directory && snap.excluded(v.Path) {
+				return filepath.SkipDir
+			}
 			check[v.Path] = diskEntry{path: v.Path, identity: v.Identity, version: v.Version, size: v.Size, mtime: v.Modified, dir: v.Directory}
 			return nil
 		}); e != nil {

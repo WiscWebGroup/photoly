@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -505,6 +506,9 @@ func walkTree(ctx context.Context, d TreeStore, root string, visit func(TreeEntr
 				identities[v.Identity] = true
 			}
 			if e = visit(v); e != nil {
+				if v.Directory && errors.Is(e, filepath.SkipDir) {
+					continue
+				}
 				return e
 			}
 			if v.Directory {

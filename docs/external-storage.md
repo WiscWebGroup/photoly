@@ -144,3 +144,39 @@ For an actual NAS, set `SMB_TEST_ENV_FILE` to a protected local file containing
 unique child directories, keep pre-existing files untouched, and remove their
 fixtures. Never commit the credential file. S3 regression uses the existing
 `PHOTOLY_TEST_S3_*` settings; Nextcloud uses `PHOTOLY_TEST_WEBDAV_*`.
+
+## Storage activity and file issues
+
+The server icon to the right of Upload opens Storage activity on desktop and mobile.
+It shows all owned sources, with current-folder recursive refresh, whole-source scan,
+and forced content verification. S3 displays its enabled state without a scan action.
+Folder cards count direct subfolders plus direct media; covers fall back to descendant
+images when the folder has no direct image. Map opens the same full photo viewer as Photos.
+S3 is closed by default when unconfigured. Disabling a configured connection persists
+immediately and keeps saved location/credentials; re-enabling verifies those credentials.
+
+External scanners skip directories named `@Recycle`, `#recycle`, and `$RECYCLE.BIN`
+(case-insensitive), including nested occurrences. They do not skip arbitrary hidden
+folders. A successful full scan removes previously indexed recycle content and its
+local derivatives without deleting external originals. Failed enumeration cannot do so.
+Migration 11 adds versioned indexing failures, preserving existing sources and media.
+Invalid/oversized files stop automatically retrying while unchanged. File changes,
+processor upgrades, and forced verification retry them; transient failures retry normally.
+The authenticated paginated `/user/storage/sources/{sourceId}/failures` endpoint exposes
+relative paths and sanitized reasons. `scanAutomaticRetries` and `scanBlocked` distinguish
+transient failures from files requiring attention; `scanRetries` remains their total.
+
+## Large still images
+
+Images above the full-decoder limit of 50 million pixels use an isolated libvips preview
+process for JPEG, PNG, TIFF, WebP and HEIC/HEIF. The preview path accepts at most 250 million
+pixels, retains the original and metadata, and produces a 400px thumbnail and a 2560px
+maximum-side preview. Animated/multipage large inputs are rejected explicitly.
+Docker images include `libvips-tools` and `util-linux`; Linux uses `prlimit` with a 2 GiB
+address-space cap, 120 CPU seconds and 512 MiB output file limit. One large preview runs
+at a time per backend, with a 120-second wall deadline, two libvips threads and 64 MiB
+operation cache threshold (the cache threshold alone is not a process memory cap).
+A missing processor or exceeded resource budget appears as an actionable file issue.
+AI embeddings and OCR consume generated previews when available. Original downloads
+retain their full resolution. Full-resolution editing/conversion retains its existing
+pixel guard. Never remove that guard to enable large previews.

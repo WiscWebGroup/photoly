@@ -78,7 +78,7 @@ func New(t *testing.T) *app.App {
 		t.Fatal(err)
 	}
 	_, file, _, _ := runtime.Caller(0)
-	for _, name := range []string{"00008_real_folders.sql", "00009_external_sources.sql"} {
+	for _, name := range []string{"00008_real_folders.sql", "00009_external_sources.sql", "00010_smb_scans.sql", "00011_scan_failures.sql"} {
 		migration, e := os.ReadFile(filepath.Join(filepath.Dir(file), "../../../migrations/sql/"+name))
 		if e != nil {
 			t.Fatal(e)

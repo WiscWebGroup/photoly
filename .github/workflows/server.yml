@@ -66,6 +66,7 @@ jobs:
         with:
           go-version-file: photoly_server/go.mod
           cache-dependency-path: photoly_server/go.sum
+      - run: sudo apt-get update && sudo apt-get install -y libvips-tools util-linux ffmpeg libheif-examples libimage-exiftool-perl
       # Generated code in internal/db/gen must match internal/db/queries and the migrations.
       # Keep generated queries reproducible with the pinned sqlc version.
       - run: GOTOOLCHAIN=auto go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate && git diff --exit-code -- internal/db/gen

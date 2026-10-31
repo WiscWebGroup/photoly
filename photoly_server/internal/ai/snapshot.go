@@ -63,6 +63,17 @@ func snapshotPhoto(ctx context.Context, pool *pgxpool.Pool, root string, photoID
 	if err != nil {
 		return nil, err
 	}
+	previewPath := ""
+	var hasPreview bool
+	if err = tx.QueryRow(ctx, `SELECT coalesce((SELECT has_preview FROM photo_media WHERE photo_id=$1),false)`, photoID).Scan(&hasPreview); err != nil {
+		return nil, err
+	}
+	if hasPreview && !isVideo(format) {
+		previewPath, err = storage.Resolve(ctx, tx, root, ownerUUID, photoUUID, "preview")
+		if err != nil {
+			return nil, err
+		}
+	}
 	// Release database locks before any remote read. Content hashes and the
 	// consumer's version fence reject a replacement racing this snapshot.
 	if err = tx.Commit(ctx); err != nil {
@@ -86,13 +97,35 @@ func snapshotPhoto(ctx context.Context, pool *pgxpool.Pool, root string, photoID
 		snap.Hash, snap.Frames, err = snapshotVideo(ctx, f, expected)
 		return snap, err
 	}
-	data, err := readBounded(f)
-	if err != nil {
-		return nil, err
+	if previewPath != "" {
+		hash := sha256.New()
+		if _, err = io.Copy(hash, f); err != nil {
+			return nil, err
+		}
+		snap.Hash = hex.EncodeToString(hash.Sum(nil))
+	} else {
+		data, e := readBounded(f)
+		if e != nil {
+			return nil, e
+		}
+		snap.Data, snap.Hash = data, sha256hex(data)
 	}
-	snap.Data, snap.Hash = data, sha256hex(data)
 	if expected != "" && snap.Hash != expected {
 		return nil, fail("content_hash_mismatch", 409)
+	}
+	if previewPath != "" {
+		if err = storage.FetchError(ctx, previewPath); err != nil {
+			return nil, fail("image_missing", 404)
+		}
+		preview, e := storage.OpenFile(previewPath)
+		if e != nil {
+			return nil, fail("image_missing", 404)
+		}
+		snap.Data, err = readBounded(preview)
+		preview.Close()
+		if err != nil {
+			return nil, err
+		}
 	}
 	return snap, nil
 }

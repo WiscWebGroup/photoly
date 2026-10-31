@@ -6,6 +6,10 @@ import L from 'leaflet'
 import { toast } from 'vue-sonner'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
+import PhotoViewer from '@/components/PhotoViewer.vue'
+import MoveToShowFolder from '@/components/MoveToShowFolder.vue'
+import type { Photo } from '@/composables/usePhotos'
+import { useStorageRevision } from '@/composables/useStorageRevision'
 import MapDates, { type DateRange } from '@/components/MapDates.vue'
 import { Flame, Images, MapPin } from '@lucide/vue'
 import { useLeafletMap } from '@/composables/useLeafletMap'
@@ -17,6 +21,13 @@ import { cn } from '@/lib/utils'
 interface MapPhoto {
   photo_id: number
   photo_name: string
+  format?: string
+  ns_id?: number
+  source_id?: number
+  visibility?: number
+  token?: string
+  photo_uuid?: string
+  upload_date?: string
   extra_photo_gps_lat?: number
   extra_photo_gps_lon?: number
   extra_photo_taken_date?: string
@@ -42,7 +53,98 @@ const mobile = useMediaQuery('(max-width: 767px)')
 const mapEl = ref<HTMLElement | null>(null)
 const map = useLeafletMap(mapEl, [19, 10], 3)
 const loading = ref(true)
-const viewing = ref<MapPhoto | null>(null)
+const viewing = ref<Photo | null>(null)
+const viewerPhotos = ref<Photo[]>([])
+const viewerPath = ref('')
+const movePicker = ref<InstanceType<typeof MoveToShowFolder>>()
+const moving = ref<Photo | null>(null)
+const asPhoto = (p: MapPhoto): Photo => ({
+  photoId: p.photo_id,
+  photoName: p.photo_name,
+  format: p.format,
+  nsId: p.ns_id,
+  sourceId: p.source_id,
+  visibility: p.visibility,
+  token: p.token,
+  photoUuid: p.photo_uuid,
+  uploadDate: p.upload_date,
+})
+async function navigatePhoto(photo: Photo) {
+  viewing.value = photo
+  viewerPath.value = ''
+  if (photo.nsId === undefined) return
+  try {
+    const path = await call<{ nsName: string }[]>({
+      url: '/namespace/trace',
+      params: { nsId: photo.nsId },
+    })
+    if (viewing.value?.photoId === photo.photoId)
+      viewerPath.value =
+        '/root' +
+        path
+          .slice(1)
+          .map((n) => `/${n.nsName}`)
+          .join('')
+  } catch {
+    /* The viewer still works if its directory is no longer available. */
+  }
+}
+function viewMapPhoto(photo: MapPhoto) {
+  viewerPhotos.value = (
+    browsing.value?.photos.some((p) => p.photo_id === photo.photo_id)
+      ? browsing.value.photos
+      : placeOf(photo.photo_id)?.photos || [photo]
+  ).map(asPhoto)
+  browsing.value = null
+  void navigatePhoto(asPhoto(photo))
+}
+async function reloadMap() {
+  const selectedId = selected.value?.photos[0]?.photo_id
+  all.value = await call<MapPhoto[]>({ url: '/photo-extra/getGlobalMapPhoto' })
+  const byId = new Map(all.value.map((p) => [p.photo_id, asPhoto(p)]))
+  viewerPhotos.value = viewerPhotos.value.flatMap((p) => byId.get(p.photoId) || [])
+  if (viewing.value) viewing.value = byId.get(viewing.value.photoId) || null
+  rebuild()
+  if (selectedId) selected.value = placeOf(selectedId) || null
+}
+async function viewerChanged() {
+  try {
+    await reloadMap()
+  } catch {
+    toast.error('Could not refresh map photos')
+  }
+}
+function askMove(photo: Photo) {
+  moving.value = photo
+  movePicker.value?.openModal()
+}
+async function moveChosen(nsId: number) {
+  if (!moving.value) return
+  try {
+    await call({
+      method: 'post',
+      url: '/photo/changeNamespace',
+      params: { photoId: moving.value.photoId, nsId },
+    })
+    await reloadMap()
+    if (viewing.value) await navigatePhoto(viewing.value)
+  } catch {
+    toast.error('Could not move photo')
+  }
+}
+async function deleteViewed(photo: Photo) {
+  const at = viewerPhotos.value.findIndex((p) => p.photoId === photo.photoId)
+  const next = viewerPhotos.value[at + 1] || viewerPhotos.value[at - 1]
+  try {
+    await call({ method: 'post', url: '/photo/delete', params: { photoId: photo.photoId } })
+    await reloadMap()
+    if (next) await navigatePhoto(next)
+    else viewing.value = null
+  } catch {
+    toast.error('Could not delete photo')
+  }
+}
+useStorageRevision(reloadMap, () => !!viewing.value || !!browsing.value)
 const all = shallowRef<MapPhoto[]>([])
 const towns = shallowRef(new Map<number, string>())
 const styles = [
@@ -193,13 +295,13 @@ function popupFor(pl: Place) {
     const open = el('button', { type: 'button' })
     open.setAttribute('aria-label', `View ${photo.photo_name}`)
     open.append(thumb(photo))
-    open.onclick = () => (viewing.value = photo)
+    open.onclick = () => viewMapPhoto(photo)
     grid.append(open)
   }
   const actions = el('div', { className: 'photo-popup-actions' })
   if (pl.photos.length === 1) {
     const see = el('button', { type: 'button', textContent: 'See Photo' })
-    see.onclick = () => (viewing.value = pl.photos[0]!)
+    see.onclick = () => viewMapPhoto(pl.photos[0]!)
     actions.append(see)
   } else {
     const all = el('button', { type: 'button', textContent: `View all ${pl.photos.length}` })
@@ -486,7 +588,7 @@ const sheetPeers = computed(() => inView.value.slice(0, 8))
               :key="p.photo_id"
               type="button"
               :aria-label="`View ${p.photo_name}`"
-              @click="viewing = p"
+              @click="viewMapPhoto(p)"
             >
               <img
                 :src="photoUrl(p.photo_id, 'renderThumbnail')"
@@ -535,7 +637,7 @@ const sheetPeers = computed(() => inView.value.slice(0, 8))
             :key="p.photo_id"
             type="button"
             :aria-label="`View ${p.photo_name}`"
-            @click="viewing = p"
+            @click="viewMapPhoto(p)"
           >
             <img
               :src="photoUrl(p.photo_id, 'renderThumbnail')"
@@ -548,18 +650,26 @@ const sheetPeers = computed(() => inView.value.slice(0, 8))
       </DialogContent>
     </Dialog>
 
-    <Dialog :open="!!viewing" @update:open="viewing = null">
-      <DialogContent class="max-w-[85vw] p-2 sm:max-w-3xl">
-        <DialogTitle class="sr-only">{{ viewing?.photo_name }}</DialogTitle>
-        <DialogDescription class="sr-only">Full-size photo</DialogDescription>
-        <img
-          v-if="viewing"
-          :src="photoUrl(viewing.photo_id)"
-          :alt="viewing.photo_name"
-          class="max-h-[85vh] w-full rounded-md object-contain"
-        />
-      </DialogContent>
-    </Dialog>
+    <PhotoViewer
+      :photo="viewing"
+      :photos="viewerPhotos"
+      :ns-path="viewerPath"
+      context="Map"
+      manage
+      @close="viewing = null"
+      @navigate="navigatePhoto"
+      @changed="viewerChanged"
+      @move="askMove"
+      @delete="deleteViewed"
+    />
+    <MoveToShowFolder
+      ref="movePicker"
+      :count="1"
+      :source-id="moving?.sourceId"
+      :original-ns-id="moving?.nsId"
+      :item-name="moving?.photoName"
+      @move-to-update="moveChosen"
+    />
   </div>
 </template>
 

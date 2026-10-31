@@ -30,8 +30,9 @@ const phase = computed(() => props.status.scanPhase || props.status.scanStatus)
         status.scanTotal || 0
       }}
       media processed · {{ status.scanUnchanged || 0 }} unchanged ·
-      {{ status.scanWaiting || 0 }} waiting for stability · {{ status.scanRetries || 0 }} awaiting
-      retry
+      {{ status.scanWaiting || 0 }} waiting for stability ·
+      {{ status.scanAutomaticRetries ?? status.scanRetries ?? 0 }} awaiting retry ·
+      {{ status.scanBlocked || 0 }} need attention
     </p>
     <p v-if="status.scannedAt" class="text-muted-foreground">
       Last success: {{ new Date(status.scannedAt).toLocaleString() }}

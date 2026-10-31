@@ -257,7 +257,7 @@ func (q *Queries) ListGalleryDownloadPhotos(ctx context.Context, arg ListGallery
 
 const listMapPhotos = `-- name: ListMapPhotos :many
 
-SELECT p.photo_id, p.photo_name, p.format, p.ns_id, p.token, p.photo_uuid, p.upload_date,
+SELECT p.photo_id, p.photo_name, p.format, p.ns_id, p.source_id, p.visibility, p.token, p.photo_uuid, p.upload_date,
        e.extra_photo_gps_lat, e.extra_photo_gps_lon, e.extra_photo_taken_date
 FROM photo p
 JOIN photo_extra e ON e.f_photo_id = p.photo_id
@@ -277,6 +277,8 @@ type ListMapPhotosRow struct {
 	PhotoName           *string
 	Format              *string
 	NsID                *int64
+	SourceID            int64
+	Visibility          *int64
 	Token               *string
 	PhotoUuid           *string
 	UploadDate          *time.Time
@@ -300,6 +302,8 @@ func (q *Queries) ListMapPhotos(ctx context.Context, arg ListMapPhotosParams) ([
 			&i.PhotoName,
 			&i.Format,
 			&i.NsID,
+			&i.SourceID,
+			&i.Visibility,
 			&i.Token,
 			&i.PhotoUuid,
 			&i.UploadDate,

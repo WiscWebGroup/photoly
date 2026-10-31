@@ -343,13 +343,19 @@ func (s *Service) Covers(ctx context.Context, uid int64, source string, hasSourc
 	q := dbgen.New(s.Pool)
 	switch source {
 	case "folder":
-		rs, err := q.ListFolderCovers(ctx, dbgen.ListFolderCoversParams{UserID: uid, Keys: keys})
+		formats := make([]string, 0, len(ImageFormats))
+		for format := range ImageFormats {
+			formats = append(formats, format)
+		}
+		rs, err := q.ListFolderCovers(ctx, dbgen.ListFolderCoversParams{UserID: uid, Keys: keys, Formats: formats})
 		if err != nil {
 			return nil, err
 		}
+		out := make([]map[string]any, 0, len(rs))
 		for _, r := range rs {
-			rows = append(rows, coverRow{r.Key, r.PhotoID, r.Format})
+			out = append(out, map[string]any{"id": r.Key, "count": r.Count, "coverIds": r.CoverIds})
 		}
+		return out, nil
 	case "gallery":
 		rs, err := q.ListGalleryCovers(ctx, dbgen.ListGalleryCoversParams{UserID: uid, Keys: keys})
 		if err != nil {

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { http } from 'msw'
-import { API, ok, recordRequests, server } from '@/test/server'
+import { API, json, ok, recordRequests, server } from '@/test/server'
 import { button, field, mountWithApp, pageText, type } from '@/test/utils'
 import StorageSourcesSetting from '../StorageSourcesSetting.vue'
 
@@ -66,4 +66,40 @@ describe('personal storage', () => {
     await vi.waitFor(() => expect(pageText()).toContain('credential encryption'))
     expect(button('Save')!.disabled).toBe(true)
   })
+})
+
+it('keeps an unconfigured S3 closed across mounting', async () => {
+  server.use(
+    http.get(`${API}/user/storage/s3`, () => ok({ ...state, configured: false, enabled: false })),
+  )
+  mountWithApp(StorageSourcesSetting)
+  await vi.waitFor(() => expect(pageText()).toContain('Your S3 storage'))
+  expect(document.querySelector('#s3-endpoint')).toBeNull()
+  ;(document.querySelector('[aria-label="Enable S3"]') as HTMLElement).click()
+  await vi.waitFor(() => expect(document.querySelector('#s3-endpoint')).not.toBeNull())
+})
+it('saves only enabled when disabling and restores the switch after failure', async () => {
+  const requests = recordRequests()
+  let fail = false
+  server.use(
+    http.put(`${API}/user/storage/s3`, () => (fail ? json({ msgCode: 500, t: 'failure' }) : ok(1))),
+  )
+  mountWithApp(StorageSourcesSetting)
+  await vi.waitFor(() => expect(pageText()).toContain('Your S3 storage'))
+  await type(field('Endpoint'), 'unsaved.example')
+  const toggle = () => (document.querySelector('[aria-label="Enable S3"]') as HTMLElement).click()
+  toggle()
+  await vi.waitFor(() => expect(document.querySelector('#s3-endpoint')).toBeNull())
+  await vi.waitFor(() =>
+    expect(requests.find((r) => r.method === 'PUT')?.body).toEqual({ enabled: false }),
+  )
+  await vi.waitFor(() =>
+    expect(document.querySelector('[aria-label="Enable S3"]')?.hasAttribute('disabled')).toBe(
+      false,
+    ),
+  )
+  fail = true
+  toggle()
+  await vi.waitFor(() => expect(pageText()).toContain('Could not change S3 status'))
+  expect(document.querySelector('#s3-endpoint')).toBeNull()
 })

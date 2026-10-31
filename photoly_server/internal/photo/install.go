@@ -141,6 +141,9 @@ func (s *Service) Prepare(ctx context.Context, path, work string) (*Prepared, er
 	p.Decodable = true
 	animated, err := ImageInfo(ctx, path)
 	if err != nil {
+		if b, ok := BizOf(err); ok && b.Value == "image_too_many_pixels" {
+			return s.prepareLargeImage(ctx, path, work, p)
+		}
 		return nil, err
 	}
 	p.Animated = animated
@@ -262,7 +265,7 @@ func (s *Service) InstallOne(ctx context.Context, tx pgx.Tx, f *Files, u UserRow
 	}
 	if DecodableFormats[strings.ToLower(suffix)] {
 		hasPreview := false
-		if l := strings.ToLower(suffix); (l == "heic" || l == "heif") && prepared.Preview != "" {
+		if prepared.Preview != "" {
 			ap, err := s.AssetPath(ctx, tx, u.UUID, p.UUID, "preview")
 			if err != nil {
 				return nil, err
@@ -407,6 +410,9 @@ func (s *Service) Replace(ctx context.Context, uid, photoID int64, filename stri
 		}
 		thumbPath, err := s.MediaPath(ctx, tx, u.UUID, p.UUID, suffix, true)
 		if err != nil {
+			return err
+		}
+		if _, err = ImageInfo(ctx, path); err != nil {
 			return err
 		}
 		tmp := filepath.Join(f.Work(), NewUUID())

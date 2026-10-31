@@ -30,7 +30,7 @@ func TestExternalSourcesUpgrade(t *testing.T) {
 	if _, e = db.ExecContext(ctx, `INSERT INTO user_group(id,name,is_default) VALUES(991,'upgrade',false); INSERT INTO "user"(user_id,uuid,user_name,email,role,group_id) VALUES(991,'upgrade-uuid','upgrade','upgrade@example.test','user',991); INSERT INTO namespace(ns_id,ns_name,ns_parent_id,user_id) VALUES(991,'/',-1,991); INSERT INTO photo(photo_id,photo_uuid,photo_name,format,ns_id,user_id,token) VALUES(991,'stable-photo','kept','png',991,991,'stable-share'); INSERT INTO media_asset(photo_id,role,filename) VALUES(991,'original','kept.png')`); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = p.UpTo(ctx, 10); e != nil {
+	if _, e = p.UpTo(ctx, 11); e != nil {
 		t.Fatal(e)
 	}
 	var uuid, token, filename, root string
