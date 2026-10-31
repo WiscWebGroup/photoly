@@ -61,7 +61,8 @@ func SafePath(root string, parts ...string) (string, error) {
 	}
 	p := root
 	for _, part := range parts {
-		if !ValidComponent(part) {
+		// Keep the lexical containment check explicit at the path construction boundary.
+		if !filepath.IsLocal(part) || !ValidComponent(part) {
 			return "", errors.New("invalid_file_name")
 		}
 		p = filepath.Join(p, part)
@@ -233,7 +234,7 @@ func Folder(ctx context.Context, q dbgen.DBTX, root string, id int64) (string, S
 // AvailableName checks both indexed and unindexed disk entries. The actual
 // installation also uses a no-replace rename, protecting external writers.
 func AvailableName(ctx context.Context, q dbgen.DBTX, root string, ns int64, name string, exceptPhoto, exceptFolder int64) (string, error) {
-	if !ValidComponent(name) || name == SystemDirectory {
+	if !filepath.IsLocal(name) || !ValidComponent(name) || name == SystemDirectory {
 		return "", errors.New("invalid_file_name")
 	}
 	dir, s, err := Folder(ctx, q, root, ns)
@@ -370,7 +371,7 @@ func ResolveLegacyName(ctx context.Context, q dbgen.DBTX, root, owner, name stri
 	if name == owner+".jpg" {
 		return AvatarPath(root, owner)
 	}
-	if !ValidComponent(name) || name == SystemDirectory {
+	if !filepath.IsLocal(name) || !ValidComponent(name) || name == SystemDirectory {
 		return "", errors.New("invalid_file_name")
 	}
 	stem := strings.TrimSuffix(name, filepath.Ext(name))

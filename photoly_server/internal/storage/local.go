@@ -22,10 +22,10 @@ func init() {
 type Local struct{ Dir string }
 
 func (l Local) path(key string) (string, error) {
-	if !fs.ValidPath(key) {
+	if !filepath.IsLocal(key) || !fs.ValidPath(key) || key == "." {
 		return "", errors.New("invalid key")
 	}
-	return filepath.Join(l.Dir, filepath.FromSlash(key)), nil
+	return SafePath(l.Dir, strings.Split(key, "/")...)
 }
 
 func (l Local) Put(_ context.Context, key string, r io.Reader, _ int64) error {

@@ -29,8 +29,14 @@
 
 package ccm
 
+import "math"
+
 // defined in src/crypto/cipher/gcm.go
 func sliceForAppend(in []byte, n int) (head, tail []byte) {
+	// Check before adding: both slicing and allocation must see a non-overflowed length.
+	if n < 0 || n > math.MaxInt-len(in) {
+		panic("ccm: message too large")
+	}
 	if total := len(in) + n; cap(in) >= total {
 		head = in[:total]
 	} else {
