@@ -18,6 +18,7 @@ import {
   FolderOpen,
   FolderPlus,
   LayoutGrid,
+  Grid3X3,
   List,
   Loader2,
   Pencil,
@@ -71,6 +72,7 @@ import { Label } from '@/components/ui/label'
 import { isValidFolderName, useFolders, type Folder as FolderInfo } from '@/composables/useFolders'
 import { usePhotos } from '@/composables/usePhotos'
 import { useCovers } from '@/composables/useCovers'
+import { useCardSizing } from '@/composables/useCardSizing'
 import { viewMode } from '@/composables/useViewMode'
 import { downloadNative } from '@/lib/download'
 import { useStorageRevision } from '@/composables/useStorageRevision'
@@ -156,6 +158,17 @@ onUnmounted(() => {
 })
 
 const { covers, refresh: refreshCovers } = useCovers('folder')
+const folderGrid = ref<HTMLElement>()
+const { compactStyle, mobile } = useCardSizing(folderGrid, 'folder')
+// Match half of the large card's preview, metadata footer and borders.
+const compactFolderHeight = computed(
+  () =>
+    ((mobile.value ? 96 : 128) +
+      (folders.children.value.some((f) => f.isMount || covers.has(f.nsId)) ? 60 : 44) +
+      2) /
+    2,
+)
+
 watchDebounced(
   [folders.children, library.photos],
   () => refreshCovers(folders.children.value.filter((f) => !f.isMount).map((f) => f.nsId)),
@@ -574,6 +587,13 @@ watch(
             </div>
 
             <ul
+              ref="folderGrid"
+              :data-layout="viewMode"
+              :style="
+                viewMode === 'compact'
+                  ? { ...compactStyle, '--folder-height': `${compactFolderHeight}px` }
+                  : undefined
+              "
               :class="
                 viewMode === 'list'
                   ? 'flex flex-col gap-1'
@@ -583,7 +603,11 @@ watch(
               <li
                 v-for="(folder, i) in folders.children.value"
                 :key="folder.nsId"
-                :class="['animate-rise', viewMode === 'grid' && 'flex w-36 shrink-0 sm:w-auto']"
+                :class="[
+                  'animate-rise',
+                  viewMode !== 'list' && 'flex w-36 shrink-0 sm:w-auto',
+                  viewMode === 'compact' && 'compact-folder',
+                ]"
                 :style="{ animationDelay: `${Math.min(i, 12) * 30}ms` }"
               >
                 <ContextMenu>
@@ -609,8 +633,8 @@ watch(
                       @contextmenu.stop
                     >
                       <span
-                        v-if="folder.isMount && viewMode === 'grid'"
-                        class="grid h-24 place-items-center sm:h-32"
+                        v-if="folder.isMount && viewMode !== 'list'"
+                        class="folder-preview grid h-24 place-items-center sm:h-32"
                         :class="mountColor(folder.sourceType)"
                         ><component
                           :is="mountIcon(folder.sourceType)"
@@ -618,8 +642,8 @@ watch(
                           aria-hidden="true"
                       /></span>
                       <span
-                        v-else-if="viewMode === 'grid' && covers.get(folder.nsId)?.ids.length"
-                        class="bg-muted grid h-24 grid-cols-[2fr_1fr] grid-rows-2 gap-0.5 sm:h-32"
+                        v-else-if="viewMode !== 'list' && covers.get(folder.nsId)?.ids.length"
+                        class="folder-preview bg-muted grid h-24 grid-cols-[2fr_1fr] grid-rows-2 gap-0.5 sm:h-32"
                         aria-hidden="true"
                       >
                         <img
@@ -635,8 +659,8 @@ watch(
                         />
                       </span>
                       <span
-                        v-else-if="viewMode === 'grid'"
-                        class="bg-accent/60 text-primary grid h-24 place-items-center sm:h-32"
+                        v-else-if="viewMode !== 'list'"
+                        class="folder-preview bg-accent/60 text-primary grid h-24 place-items-center sm:h-32"
                         aria-hidden="true"
                       >
                         <Folder
@@ -655,21 +679,21 @@ watch(
                       /><Folder v-else class="text-primary size-4 shrink-0" aria-hidden="true" />
                       <span
                         :class="
-                          viewMode === 'grid'
-                            ? 'flex items-center gap-2 px-3.5 py-3'
+                          viewMode !== 'list'
+                            ? 'folder-caption flex min-w-0 w-full items-center gap-2 px-3.5 py-3'
                             : 'flex min-w-0 flex-1 items-center gap-2'
                         "
                       >
                         <span
                           :class="
-                            viewMode === 'grid'
+                            viewMode !== 'list'
                               ? 'flex min-w-0 flex-col'
                               : 'flex min-w-0 flex-1 items-baseline gap-2'
                           "
                         >
                           <span
                             v-if="folder.isMount"
-                            class="mr-1 rounded px-1 text-xs"
+                            class="mount-label mr-1 rounded px-1 text-xs"
                             :class="mountColor(folder.sourceType)"
                             >{{ mountLabel(folder.sourceType) }}</span
                           ><span class="truncate font-medium" :title="folder.nsName">{{
@@ -677,7 +701,7 @@ watch(
                           }}</span>
                           <span
                             v-if="covers.get(folder.nsId)"
-                            class="text-muted-foreground text-xs"
+                            class="folder-count text-muted-foreground text-xs"
                             >{{ plural(covers.get(folder.nsId)!.count, 'item') }}</span
                           >
                         </span>
@@ -730,8 +754,11 @@ watch(
                 </ContextMenu>
               </li>
               <li
-                v-if="viewMode === 'grid'"
-                class="animate-rise flex w-36 shrink-0 sm:w-auto"
+                v-if="viewMode !== 'list'"
+                :class="[
+                  'animate-rise flex w-36 shrink-0 sm:w-auto',
+                  viewMode === 'compact' && 'compact-folder',
+                ]"
                 :style="{ animationDelay: `${Math.min(folders.children.value.length, 12) * 30}ms` }"
               >
                 <!-- Stretches to the folder cards in its row; alone, as tall as an empty folder card. -->
@@ -739,7 +766,9 @@ watch(
                   type="button"
                   :class="[
                     'text-muted-foreground hover:border-primary hover:text-primary flex w-full flex-col items-center justify-center gap-2 rounded-[14px] border border-dashed text-sm transition-colors',
-                    !folders.children.value.length && 'min-h-[142px] sm:min-h-[174px]',
+                    viewMode === 'grid' &&
+                      !folders.children.value.length &&
+                      'min-h-[142px] sm:min-h-[174px]',
                   ]"
                   @click="startCreate"
                 >
@@ -805,10 +834,9 @@ watch(
       >
         <DropdownMenuItem @select="startUpload"><Upload /> Upload Photos</DropdownMenuItem>
         <DropdownMenuItem @select="startCreate"><FolderPlus /> New Folder</DropdownMenuItem>
-        <DropdownMenuItem @select="viewMode = viewMode === 'grid' ? 'list' : 'grid'"
-          ><component :is="viewMode === 'grid' ? List : LayoutGrid" />
-          {{ viewMode === 'grid' ? 'List View' : 'Grid View' }}</DropdownMenuItem
-        >
+        <DropdownMenuItem @select="viewMode = 'grid'"><LayoutGrid /> Large cards</DropdownMenuItem>
+        <DropdownMenuItem @select="viewMode = 'compact'"><Grid3X3 /> Small cards</DropdownMenuItem>
+        <DropdownMenuItem @select="viewMode = 'list'"><List /> List view</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
 
@@ -923,3 +951,58 @@ watch(
     <FolderDetails :folder="detailsFolder" @close="closeDetails" />
   </div>
 </template>
+
+<style scoped>
+.compact-folder {
+  width: 72px;
+}
+.compact-folder > button {
+  height: var(--folder-height);
+  border-radius: 8px;
+  font-size: 12px;
+  gap: 0;
+}
+.compact-folder .folder-preview {
+  height: auto;
+  min-height: 0;
+  flex: 1;
+}
+.compact-folder .folder-preview svg {
+  width: 20px;
+  height: 20px;
+}
+.compact-folder .folder-caption {
+  padding: 2px 4px;
+  gap: 0;
+  height: 32px;
+  flex-shrink: 0;
+}
+.compact-folder .folder-caption > span:first-child {
+  width: 100%;
+}
+.compact-folder .folder-caption .truncate {
+  line-height: 14px;
+}
+.compact-folder .folder-count,
+.compact-folder .mount-label {
+  font-size: 11px;
+  line-height: 14px;
+}
+.compact-folder .mount-label {
+  order: 1;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.compact-folder [role='checkbox'] {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+}
+@media (min-width: 640px) {
+  .compact-folder {
+    width: auto;
+  }
+}
+</style>

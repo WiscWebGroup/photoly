@@ -17,6 +17,8 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
+import { ref } from 'vue'
+import { useCardSizing } from '@/composables/useCardSizing'
 import { viewMode } from '@/composables/useViewMode'
 import type { Photo } from '@/composables/usePhotos'
 import { mediaKind } from '@/lib/media'
@@ -38,6 +40,8 @@ defineProps<{
   timeline?: boolean
   actions: MediaGridActions
 }>()
+const grid = ref<HTMLElement>()
+const { compactStyle } = useCardSizing(grid, 'media')
 function formatDate(iso?: string) {
   const [y, m, d] = (iso ?? '').slice(0, 10).split('-').map(Number)
   return y && m && d
@@ -51,6 +55,9 @@ function formatDate(iso?: string) {
 </script>
 <template>
   <ul
+    ref="grid"
+    :data-layout="viewMode"
+    :style="viewMode === 'compact' ? compactStyle : undefined"
     :class="
       viewMode === 'list'
         ? 'flex flex-col gap-1'
@@ -110,14 +117,17 @@ function formatDate(iso?: string) {
             >
               <component
                 :is="mediaKind(photo.format) === 'video' ? Film : File"
-                :class="viewMode === 'list' ? 'size-4' : 'size-8'"
+                :class="viewMode === 'grid' ? 'size-8' : 'size-4'"
                 aria-hidden="true"
               />
             </span>
             <span
-              v-if="viewMode === 'grid' && mediaKind(photo.format) === 'video'"
+              v-if="viewMode !== 'list' && mediaKind(photo.format) === 'video'"
               class="pointer-events-none absolute right-1.5 bottom-1.5 flex items-center gap-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[11px] leading-4 font-medium text-white"
-              ><Play class="size-2.5 fill-current" aria-hidden="true" />Video</span
+              ><Play class="size-2.5 fill-current" aria-hidden="true" /><span
+                v-if="viewMode === 'grid'"
+                >Video</span
+              ></span
             >
             <!-- The name rides along on hover in the grid, and is the row label in the list. -->
             <span
@@ -142,7 +152,11 @@ function formatDate(iso?: string) {
               :class="
                 cn(
                   'animate-in fade-in zoom-in-75 grid size-[22px] shrink-0 place-items-center rounded-full transition-colors',
-                  viewMode === 'list' ? 'order-first ml-1' : 'absolute top-2 left-2',
+                  viewMode === 'list'
+                    ? 'order-first ml-1'
+                    : viewMode === 'compact'
+                      ? 'absolute top-1 left-1'
+                      : 'absolute top-2 left-2',
                   photo.checked
                     ? 'bg-primary text-primary-foreground ring-2 ring-white'
                     : 'border-2 border-white bg-black/20 shadow-sm',

@@ -1,4 +1,5 @@
 import { onBeforeUnmount, onMounted, shallowRef, type Ref } from 'vue'
+import { useResizeObserver } from '@vueuse/core'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
@@ -28,7 +29,17 @@ export function useLeafletMap(
       map.value,
     )
   })
-  onBeforeUnmount(() => map.value?.remove())
+  let resizeFrame = 0
+  useResizeObserver(el, () => {
+    cancelAnimationFrame(resizeFrame)
+    resizeFrame = requestAnimationFrame(() =>
+      map.value?.invalidateSize({ pan: true, animate: false, debounceMoveend: true }),
+    )
+  })
+  onBeforeUnmount(() => {
+    cancelAnimationFrame(resizeFrame)
+    map.value?.remove()
+  })
 
   return map
 }

@@ -1,9 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { onKeyStroke } from '@vueuse/core'
+import { onKeyStroke, useStorage } from '@vueuse/core'
 import { toast } from 'vue-sonner'
-import { CalendarDays, Camera, Images, LogOut, Map, Search, Tag } from '@lucide/vue'
+import {
+  CalendarDays,
+  Camera,
+  Images,
+  LogOut,
+  Map,
+  Search,
+  Tag,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from '@lucide/vue'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
 import OnlineDownloadButton from '@/components/OnlineDownloadButton.vue'
 import UploadButton from '@/components/UploadButton.vue'
@@ -16,6 +26,7 @@ import { storageLabel, useStorageUsage } from '@/composables/useStorageUsage'
 import { useAuthStore } from '@/stores/auth'
 import { cn } from '@/lib/utils'
 
+const sidebarHidden = useStorage('photoly-sidebar-hidden', false)
 const auth = useAuthStore()
 watch(() => auth.token, resetStorageState)
 const router = useRouter()
@@ -88,7 +99,11 @@ const iconButton =
 <template>
   <div class="bg-background flex h-dvh flex-col md:flex-row">
     <!-- Desktop sidebar -->
-    <aside class="bg-card hidden w-58 shrink-0 flex-col gap-7 border-r px-3 pt-5 pb-4 md:flex">
+    <aside
+      v-show="!sidebarHidden"
+      id="main-sidebar"
+      class="bg-card hidden w-58 shrink-0 flex-col gap-7 border-r px-3 pt-5 pb-4 md:flex"
+    >
       <router-link
         to="/home/HomePart"
         class="flex h-8 items-center self-start rounded-md px-2.5 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -206,6 +221,21 @@ const iconButton =
       <header
         class="bg-card hidden h-14 shrink-0 items-center justify-end gap-3 border-b px-10 md:flex"
       >
+        <button
+          type="button"
+          :aria-label="sidebarHidden ? 'Show sidebar' : 'Hide sidebar'"
+          :title="sidebarHidden ? 'Show sidebar' : 'Hide sidebar'"
+          :aria-expanded="!sidebarHidden"
+          aria-controls="main-sidebar"
+          class="hover:bg-accent mr-auto grid size-9 shrink-0 place-items-center rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          @click="sidebarHidden = !sidebarHidden"
+        >
+          <component
+            :is="sidebarHidden ? PanelLeftOpen : PanelLeftClose"
+            class="size-4"
+            aria-hidden="true"
+          />
+        </button>
         <router-link
           to="/home/SearchPart"
           class="text-muted-foreground bg-background flex h-9 w-70 items-center gap-2 rounded-lg border px-3 text-sm"
