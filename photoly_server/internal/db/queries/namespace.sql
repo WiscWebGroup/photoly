@@ -5,7 +5,7 @@ SELECT * FROM namespace WHERE user_id = @user_id::int AND ns_parent_id = -1 LIMI
 SELECT * FROM namespace
 WHERE user_id = @user_id::int AND ns_parent_id IS NOT DISTINCT FROM sqlc.narg(parent_id)::int
 AND EXISTS(SELECT 1 FROM storage_source s WHERE s.id=namespace.source_id AND s.enabled)
-ORDER BY ns_id;
+ORDER BY display_order, ns_id;
 
 -- name: ListNamespacePhotos :many
 SELECT * FROM photo WHERE user_id = @user_id::int AND ns_id = @ns_id::int ORDER BY photo_id;
@@ -51,7 +51,7 @@ UPDATE namespace SET ns_name = @ns_name::text WHERE ns_id = @ns_id::int;
 UPDATE namespace SET ns_parent_id = @parent_id::int WHERE ns_id = @ns_id::int;
 
 -- name: ListChildNamespaceNames :many
-SELECT ns_id, ns_name FROM namespace WHERE user_id = @user_id::int AND ns_parent_id = @parent_id::int ORDER BY ns_id;
+SELECT ns_id, ns_name FROM namespace WHERE user_id = @user_id::int AND ns_parent_id = @parent_id::int ORDER BY display_order, ns_id;
 
 -- name: ListPhotoIDsInNamespace :many
 SELECT photo_id FROM photo WHERE user_id = @user_id::int AND ns_id = @ns_id::int AND photo_visible(storage_id, user_id) ORDER BY photo_id;

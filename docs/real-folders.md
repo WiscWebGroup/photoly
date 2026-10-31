@@ -54,7 +54,7 @@ cache are not counted toward the account quota.
 
 ## Personal S3
 
-Each account can configure one S3-compatible connection in personal **Storage**
+Each account can configure multiple S3-compatible connection in personal **Storage**
 settings: endpoint, bucket, optional prefix/region and credentials. The server
 administrator must set `STORAGE_SECRET_KEY` before credentials can be saved.
 Access and secret keys are encrypted in the database and are never returned by
@@ -123,3 +123,33 @@ S3 contract and lifecycle tests use `PHOTOLY_TEST_S3_ENDPOINT`,
 `PHOTOLY_TEST_S3_SECRET_KEY`. Use a disposable bucket on an S3-compatible server.
 Frontend checks are `pnpm typecheck`, `pnpm exec vitest run` and
 `pnpm exec playwright test e2e/storage-sources.spec.ts e2e/folder-tiles.spec.ts`.
+
+
+## Multiple S3 connections and folder display order
+
+Migration 12 upgrades existing real-folder libraries in place. Back up PostgreSQL and
+deployment configuration (including `STORAGE_SECRET_KEY`) before deployment. Existing
+source IDs, namespace IDs, credentials, media records and object keys are retained.
+The former per-user S3 uniqueness constraint is removed. Downgrading to version 11
+fails safely while more than one S3 connection belongs to an account.
+
+Personal Storage now lists S3 connections alongside the other remote connections.
+Add S3 creates a new connection; Edit opens its form and successful Save closes it.
+Alias controls the root entry name, with numeric suffixes on sibling collisions.
+An Alias-only edit needs no remote connection. Enabling or saving configuration checks
+remote access. Disable preserves files and indexing; Remove is allowed only with no
+media and no unfinished uploads, and never deletes remote objects. Existing S3 buckets
+are still not scanned. Multiple connections to the same bucket remain isolated by source ID.
+
+`GET /user/storage/s3` returns `{connections, fields, canSave}`. Use POST to create,
+PATCH/DELETE `/user/storage/s3/{sourceId}` for one owned connection, and pass `sourceId`
+to `/user/storage/s3/test` when retaining credentials. Legacy PUT is only valid with
+zero or one connection; multiple connections return a 409 business error.
+
+Folder handles reorder siblings without moving files. Drag the card itself to move
+it to another folder as before. Handles support mouse, touch, arrow keys, Home and End.
+All three browsing layouts use the same account-persistent order. New folders, newly
+scanned folders and moved-in folders append; renames preserve their position. Disabled
+mounts retain their place. `POST /namespace/order` accepts `{parentId, nsId, beforeNsId}`
+(null means append) and returns the canonical visible sibling list. Stale sibling
+references return 409; the client restores and refreshes the list.

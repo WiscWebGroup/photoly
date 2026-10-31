@@ -66,7 +66,7 @@ Scroll down in the viewer to load **Similar photos and videos**. Each item has i
 
 ### Real folders and personal S3
 
-The local library mirrors each user’s actual UUID directory. External changes are scanned automatically; users can connect one personal S3 bucket as a cloud folder alongside local content. This release requires a fresh library and refuses old flat-layout media. See [layout, synchronization, S3, downloads and deployment](docs/real-folders.md).
+The local library mirrors each user’s actual UUID directory. External changes are scanned automatically; users can connect multiple personal S3 buckets as named cloud folders alongside local content. This release requires a fresh library and refuses old flat-layout media. See [layout, synchronization, S3, downloads and deployment](docs/real-folders.md).
 
 ### Bulk uploads and storage groups
 

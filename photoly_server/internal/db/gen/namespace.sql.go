@@ -19,7 +19,7 @@ func (q *Queries) DeleteNamespace(ctx context.Context, nsID int64) error {
 }
 
 const getNamespace = `-- name: GetNamespace :one
-SELECT ns_id, ns_name, ns_parent_id, user_id, source_id, source_type, is_mount, fs_identity, missing_scans FROM namespace WHERE ns_id = $1::int
+SELECT ns_id, ns_name, ns_parent_id, user_id, source_id, source_type, is_mount, fs_identity, missing_scans, display_order FROM namespace WHERE ns_id = $1::int
 `
 
 func (q *Queries) GetNamespace(ctx context.Context, nsID int64) (Namespace, error) {
@@ -35,6 +35,7 @@ func (q *Queries) GetNamespace(ctx context.Context, nsID int64) (Namespace, erro
 		&i.IsMount,
 		&i.FsIdentity,
 		&i.MissingScans,
+		&i.DisplayOrder,
 	)
 	return i, err
 }
@@ -80,7 +81,7 @@ func (q *Queries) GetNamespaceSummary(ctx context.Context, arg GetNamespaceSumma
 }
 
 const getRootNamespace = `-- name: GetRootNamespace :one
-SELECT ns_id, ns_name, ns_parent_id, user_id, source_id, source_type, is_mount, fs_identity, missing_scans FROM namespace WHERE user_id = $1::int AND ns_parent_id = -1 LIMIT 1
+SELECT ns_id, ns_name, ns_parent_id, user_id, source_id, source_type, is_mount, fs_identity, missing_scans, display_order FROM namespace WHERE user_id = $1::int AND ns_parent_id = -1 LIMIT 1
 `
 
 func (q *Queries) GetRootNamespace(ctx context.Context, userID int64) (Namespace, error) {
@@ -96,6 +97,7 @@ func (q *Queries) GetRootNamespace(ctx context.Context, userID int64) (Namespace
 		&i.IsMount,
 		&i.FsIdentity,
 		&i.MissingScans,
+		&i.DisplayOrder,
 	)
 	return i, err
 }
@@ -116,7 +118,7 @@ func (q *Queries) InsertNamespace(ctx context.Context, arg InsertNamespaceParams
 }
 
 const listChildNamespaceNames = `-- name: ListChildNamespaceNames :many
-SELECT ns_id, ns_name FROM namespace WHERE user_id = $1::int AND ns_parent_id = $2::int ORDER BY ns_id
+SELECT ns_id, ns_name FROM namespace WHERE user_id = $1::int AND ns_parent_id = $2::int ORDER BY display_order, ns_id
 `
 
 type ListChildNamespaceNamesParams struct {
@@ -150,10 +152,10 @@ func (q *Queries) ListChildNamespaceNames(ctx context.Context, arg ListChildName
 }
 
 const listChildNamespaces = `-- name: ListChildNamespaces :many
-SELECT ns_id, ns_name, ns_parent_id, user_id, source_id, source_type, is_mount, fs_identity, missing_scans FROM namespace
+SELECT ns_id, ns_name, ns_parent_id, user_id, source_id, source_type, is_mount, fs_identity, missing_scans, display_order FROM namespace
 WHERE user_id = $1::int AND ns_parent_id IS NOT DISTINCT FROM $2::int
 AND EXISTS(SELECT 1 FROM storage_source s WHERE s.id=namespace.source_id AND s.enabled)
-ORDER BY ns_id
+ORDER BY display_order, ns_id
 `
 
 type ListChildNamespacesParams struct {
@@ -180,6 +182,7 @@ func (q *Queries) ListChildNamespaces(ctx context.Context, arg ListChildNamespac
 			&i.IsMount,
 			&i.FsIdentity,
 			&i.MissingScans,
+			&i.DisplayOrder,
 		); err != nil {
 			return nil, err
 		}

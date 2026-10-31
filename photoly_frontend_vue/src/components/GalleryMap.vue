@@ -97,7 +97,10 @@ function rebuild() {
     const img = document.createElement('img')
     img.src = photoUrl(first.photo_id, 'renderThumbnail')
     img.alt = ''
-    thumb.append(img)
+    const crop = document.createElement('div')
+    crop.className = 'gallery-map-image'
+    crop.append(img)
+    thumb.append(crop)
     if (group.photos.length > 1) {
       const badge = document.createElement('span')
       badge.textContent = String(group.photos.length)
@@ -206,7 +209,16 @@ onBeforeUnmount(() => controller?.abort())
   background: var(--muted);
   box-shadow: 0 2px 6px #0003;
 }
-.gallery-map-pin img {
+.gallery-map-image {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 6px;
+}
+.leaflet-container .gallery-map-image img {
+  display: block;
+  max-width: 100% !important;
+  max-height: 100% !important;
   width: 100%;
   height: 100%;
   object-fit: cover;

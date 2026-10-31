@@ -39,7 +39,7 @@ func Day(t *time.Time) any {
 
 // NsJSON is the wire shape of a namespace row.
 func NsJSON(n dbgen.Namespace) map[string]any {
-	return map[string]any{"nsId": n.NsID, "nsName": n.NsName, "nsParentId": n.NsParentID, "userId": n.UserID, "sourceId": n.SourceID, "sourceType": n.SourceType, "isMount": n.IsMount, "canMove": !n.IsMount && n.NsParentID != nil && *n.NsParentID != -1, "canRename": !n.IsMount && n.NsParentID != nil && *n.NsParentID != -1, "canDelete": !n.IsMount && n.NsParentID != nil && *n.NsParentID != -1}
+	return map[string]any{"nsId": n.NsID, "displayOrder": n.DisplayOrder, "nsName": n.NsName, "nsParentId": n.NsParentID, "userId": n.UserID, "sourceId": n.SourceID, "sourceType": n.SourceType, "isMount": n.IsMount, "canMove": !n.IsMount && n.NsParentID != nil && *n.NsParentID != -1, "canRename": !n.IsMount && n.NsParentID != nil && *n.NsParentID != -1, "canDelete": !n.IsMount && n.NsParentID != nil && *n.NsParentID != -1}
 }
 
 // NsListJSON maps namespace rows; the result is never nil (JSON []).

@@ -102,6 +102,7 @@ type Namespace struct {
 	IsMount      bool
 	FsIdentity   string
 	MissingScans int64
+	DisplayOrder int64
 }
 
 type NamespacePhoto struct {

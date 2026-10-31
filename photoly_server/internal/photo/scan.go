@@ -230,6 +230,9 @@ func (s *Service) reconcileSource(ctx context.Context, snap *sourceSnapshot) err
 			if _, err = tx.Exec(ctx, `UPDATE namespace SET ns_name=$2 WHERE ns_id=$1`, mountID, name); err != nil {
 				return err
 			}
+			if _, err = tx.Exec(ctx, `UPDATE storage_source SET display_name=$2,revision=revision+1 WHERE id=(SELECT source_id FROM namespace WHERE ns_id=$1)`, mountID, name); err != nil {
+				return err
+			}
 		}
 
 		for _, p := range dirs {

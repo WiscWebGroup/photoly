@@ -202,7 +202,7 @@ const iconButton =
         :title="sidebarHidden ? 'Show sidebar' : 'Hide sidebar'"
         :aria-expanded="!sidebarHidden"
         aria-controls="main-sidebar"
-        class="sidebar-toggle bg-card text-muted-foreground hover:bg-accent hover:text-foreground absolute top-5 left-full z-30 grid size-7 place-items-center rounded-full border shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        class="sidebar-toggle bg-card text-muted-foreground hover:bg-accent hover:text-foreground absolute top-3.5 left-full z-30 grid size-7 place-items-center rounded-full border shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         @click="sidebarHidden = !sidebarHidden"
       >
         <ChevronLeft class="size-4" aria-hidden="true" />

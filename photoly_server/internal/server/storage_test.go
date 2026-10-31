@@ -8,7 +8,7 @@ func TestPersonalStorageSettings(t *testing.T) {
 	f := newLibraryTest(t)
 	t.Setenv("STORAGE_SECRET_KEY", "test")
 	out := f.ok("GET", "/user/storage/s3", nil).(map[string]any)
-	if out["configured"] != false {
+	if len(out["connections"].([]any)) != 0 {
 		t.Fatal(out)
 	}
 	bad := map[string]any{"values": map[string]any{"bucket": "b"}, "enabled": true}

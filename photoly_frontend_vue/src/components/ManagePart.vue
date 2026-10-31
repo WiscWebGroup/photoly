@@ -581,7 +581,7 @@ onMounted(() => {
           Storage
         </h2>
         <p class="text-muted-foreground text-sm">
-          Manage your local library and personal S3 connection.
+          Manage your local library and external storage connections.
         </p>
       </div>
       <StorageSourcesSetting />

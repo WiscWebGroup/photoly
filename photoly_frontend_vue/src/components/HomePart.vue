@@ -4,6 +4,7 @@ import { watchDebounced } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import {
   Check,
+  GripVertical,
   Cloud,
   HardDrive,
   Network,
@@ -70,6 +71,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { isValidFolderName, useFolders, type Folder as FolderInfo } from '@/composables/useFolders'
+import { useFolderReorder } from '@/composables/useFolderReorder'
 import { usePhotos } from '@/composables/usePhotos'
 import { useCovers } from '@/composables/useCovers'
 import { useCardSizing } from '@/composables/useCardSizing'
@@ -89,6 +91,9 @@ const route = useRoute()
 
 const auth = useAuthStore()
 const folders = useFolders()
+const reorder = useFolderReorder(folders.children, folders.reorder, () =>
+  toast.error('Could not save folder order. Please try again.'),
+)
 const library = usePhotos()
 const pageLoading = ref(true)
 const pageError = ref(false)
@@ -107,6 +112,7 @@ async function closeDetails() {
 }
 
 const nsId = computed(() => folders.current.value?.nsId ?? -1)
+watch(nsId, () => reorder.cancel())
 const isRoot = computed(() => folders.path.value.length <= 1)
 /** The root folder reads as "Library" everywhere it's shown. */
 const folderName = (f: FolderInfo, i: number) => (i === 0 ? 'Library' : f.nsName)
@@ -514,7 +520,9 @@ useStorageRevision(
     !!selectedCount.value ||
     !!renaming.value ||
     !!deleting.value ||
-    dragging.value,
+    dragging.value ||
+    reorder.active.value ||
+    folders.ordering.value,
 )
 
 // Upload state belongs to the application, so navigating never cancels a transfer.
@@ -645,6 +653,7 @@ watch(
 
             <ul
               ref="folderGrid"
+              data-folder-order-grid
               :data-layout="viewMode"
               :style="
                 viewMode === 'compact'
@@ -660,13 +669,40 @@ watch(
               <li
                 v-for="(folder, i) in folders.children.value"
                 :key="folder.nsId"
+                :data-order-id="folder.nsId"
+                :data-order-edge="
+                  reorder.before.value === folder.nsId
+                    ? 'before'
+                    : reorder.before.value === null && i === folders.children.value.length - 1
+                      ? 'after'
+                      : undefined
+                "
                 :class="[
-                  'animate-rise',
+                  'animate-rise relative',
                   viewMode !== 'list' && 'flex w-36 shrink-0 sm:w-auto',
                   viewMode === 'compact' && 'compact-folder',
                 ]"
                 :style="{ animationDelay: `${Math.min(i, 12) * 30}ms` }"
               >
+                <button
+                  type="button"
+                  class="folder-reorder-handle bg-card/90 text-muted-foreground hover:text-foreground absolute top-1 right-1 z-10 grid size-7 touch-none place-items-center rounded-md border shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  :class="reorder.moving.value === folder.nsId ? 'cursor-grabbing' : 'cursor-grab'"
+                  :aria-label="`Reorder ${folder.nsName}`"
+                  title="Drag to reorder; use arrow keys to adjust, Home or End to move to an edge"
+                  :disabled="reorder.saving.value"
+                  :draggable="false"
+                  @pointerdown="reorder.down($event, folder.nsId)"
+                  @pointermove="reorder.move"
+                  @pointerup="reorder.up"
+                  @pointercancel="reorder.cancel"
+                  @lostpointercapture="reorder.cancel"
+                  @keydown="reorder.key($event, folder.nsId)"
+                  @click.stop
+                  @contextmenu.stop
+                >
+                  <GripVertical class="size-4" aria-hidden="true" />
+                </button>
                 <ContextMenu>
                   <ContextMenuTrigger as-child>
                     <button
@@ -677,7 +713,7 @@ watch(
                         cn(
                           'group bg-card relative flex w-full text-left text-sm shadow-xs transition-[border-color,box-shadow,translate] duration-200 outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
                           viewMode === 'list'
-                            ? 'hover:bg-accent h-11 items-center gap-3 rounded-lg border px-3'
+                            ? 'hover:bg-accent h-11 items-center gap-3 rounded-lg border py-0 pl-3 pr-10'
                             : 'hover:border-primary flex-col overflow-hidden rounded-[14px] border hover:-translate-y-0.5 hover:shadow-sm',
                           (selected.includes(folder.nsId) || dragOver === folder.nsId) &&
                             'border-primary ring-primary ring-1',
@@ -811,6 +847,7 @@ watch(
                 </ContextMenu>
               </li>
             </ul>
+            <p class="sr-only" role="status">{{ reorder.announcement.value }}</p>
           </section>
 
           <MediaList
@@ -982,10 +1019,42 @@ watch(
 </template>
 
 <style scoped>
+[data-order-edge]::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: 20;
+  background: var(--primary);
+  border-radius: 2px;
+  width: 3px;
+  top: 0;
+  bottom: 0;
+}
+[data-order-edge='before']::after {
+  left: -6px;
+}
+[data-order-edge='after']::after {
+  right: -6px;
+}
+[data-layout='list'] [data-order-edge]::after {
+  height: 3px;
+  width: auto;
+  left: 0;
+  right: 0;
+  bottom: auto;
+}
+[data-layout='list'] [data-order-edge='before']::after {
+  top: -3px;
+}
+[data-layout='list'] [data-order-edge='after']::after {
+  top: auto;
+  bottom: -3px;
+}
+
 .compact-folder {
   width: 72px;
 }
-.compact-folder > button {
+.compact-folder > button[data-folder-id] {
   height: var(--folder-height);
   border-radius: 8px;
   font-size: 12px;
