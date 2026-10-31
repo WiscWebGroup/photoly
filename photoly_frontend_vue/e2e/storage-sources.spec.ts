@@ -122,8 +122,8 @@ test('SMB shows indexing progress and refreshes only the current folder', async 
     .click()
   await expect(page.getByText('Reading media information and generating previews')).toBeVisible()
   await expect(page.getByRole('progressbar', { name: 'Media indexing progress' })).toHaveAttribute(
-    'value',
-    '3',
+    'aria-valuenow',
+    '37.5',
   )
   await page.getByRole('button', { name: 'Refresh this folder' }).click()
   await expect

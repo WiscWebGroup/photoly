@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { onKeyStroke, useStorage } from '@vueuse/core'
+import { onKeyStroke, useStorage, useMediaQuery } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import { CalendarDays, Camera, Images, LogOut, Map, Search, Tag, ChevronLeft } from '@lucide/vue'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
@@ -16,6 +16,7 @@ import { storageLabel, useStorageUsage } from '@/composables/useStorageUsage'
 import { useAuthStore } from '@/stores/auth'
 import { cn } from '@/lib/utils'
 
+const desktop = useMediaQuery('(min-width: 768px)')
 const sidebarHidden = useStorage('photoly-sidebar-hidden', false)
 const auth = useAuthStore()
 watch(() => auth.token, resetStorageState)
@@ -220,7 +221,9 @@ const iconButton =
         />
       </router-link>
       <div class="ml-auto flex items-center gap-1">
-        <OnlineDownloadButton /><UploadButton /><StorageActivity />
+        <OnlineDownloadButton v-if="!desktop" /><UploadButton v-if="!desktop" /><StorageActivity
+          v-if="!desktop"
+        />
       </div>
       <router-link
         to="/home/ManagePart"
@@ -244,8 +247,8 @@ const iconButton =
           ><Search class="size-4" /><span class="flex-1">Search photos</span
           ><kbd class="rounded border px-1 text-xs">/</kbd></router-link
         >
-        <OnlineDownloadButton />
-        <UploadButton /><StorageActivity />
+        <OnlineDownloadButton v-if="desktop" />
+        <UploadButton v-if="desktop" /><StorageActivity v-if="desktop" />
       </header>
       <main class="min-h-0 flex-1 overflow-auto"><slot /></main>
     </div>

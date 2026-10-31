@@ -43,15 +43,16 @@ onUnmounted(() => {
 })
 </script>
 <template>
-  <button
-    v-if="enabled"
-    type="button"
-    aria-label="Online Download"
-    title="Online Download"
-    class="hover:bg-accent grid size-9 shrink-0 place-items-center rounded-lg"
-    @click="open = true"
-  >
-    <Download class="size-4" />
-  </button>
-  <MediaTaskDialog v-model:open="open" />
+  <MediaTaskDialog v-if="enabled" v-model:open="open" popover>
+    <template #trigger>
+      <button
+        type="button"
+        aria-label="Online Download"
+        title="Online Download"
+        class="hover:bg-accent grid size-9 shrink-0 place-items-center rounded-lg"
+      >
+        <Download class="size-4" />
+      </button>
+    </template>
+  </MediaTaskDialog>
 </template>

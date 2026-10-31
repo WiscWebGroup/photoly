@@ -25,7 +25,12 @@ const placeholder = () => searchTypes.find((t) => t.value === searchType.value)?
 
 // Arriving here (the "/" shortcut included) puts the cursor in the box, except on touch screens.
 onMounted(() => {
-  if (window.matchMedia?.('(pointer: fine)').matches) input.value?.focus()
+  // A toolbar panel can open before this lazy-loaded page finishes mounting.
+  if (
+    window.matchMedia?.('(pointer: fine)').matches &&
+    !document.querySelector('[data-activity-panel]')
+  )
+    input.value?.focus()
 })
 
 const mediaList = ref<InstanceType<typeof MediaList>>()
