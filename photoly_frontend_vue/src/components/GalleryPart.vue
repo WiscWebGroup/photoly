@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useStorageRevision } from '@/composables/useStorageRevision'
+import GalleryMap from './GalleryMap.vue'
 import SmartBasis from '@/components/SmartBasis.vue'
 import SmartBadge from '@/components/SmartBadge.vue'
 import type { SmartSource } from '@/lib/smartOrganization'
@@ -188,19 +190,33 @@ const loadGalleries = async () =>
 
 const galleryPhotos = ref<Photo[]>([])
 const selecting = ref(false)
+const mapRevision = ref(0)
+let photoRequest = 0
 
 async function queryPhotos() {
+  const request = ++photoRequest
+  const gaId = selectedGaId.value
   try {
     const list = await call<Photo[]>({
       url: '/photo/getByGallery',
-      params: { gaId: selectedGaId.value },
+      params: { gaId },
     })
+    if (request !== photoRequest || gaId !== selectedGaId.value) return
     galleryPhotos.value = list
+    mapRevision.value++
     mediaList.value?.updatePhotoList(list)
   } catch {
+    if (request !== photoRequest || gaId !== selectedGaId.value) return
     toast.error('query photo Response Error!')
   }
 }
+
+useStorageRevision(
+  async () => {
+    if (selectedGaId.value > 0) await queryPhotos()
+  },
+  () => selecting.value,
+)
 
 // "Pulls from": the folders this gallery's photos live in, named on demand.
 const folderNames = ref(new Map<number, string>())
@@ -569,6 +585,15 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
       v-model:select-mode="selecting"
       @query-photos="queryPhotos"
       @do-detach="detach"
+    />
+
+    <GalleryMap
+      v-if="current"
+      :gallery-id="current.gaId"
+      :photos="galleryPhotos"
+      :revision="mapRevision"
+      :selecting="selecting"
+      @open-photo="(id) => mediaList?.openViewer(id)"
     />
 
     <AlertDialog :open="!!deleting" @update:open="deleting = null">

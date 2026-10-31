@@ -2,9 +2,9 @@ import { reactive } from 'vue'
 import { call } from '@/lib/http'
 
 export interface Cover {
-  /** Photos and videos directly inside. */
+  /** For folders: direct child folders plus direct photos and videos. */
   count: number
-  /** Up to three still images for the card mosaic, newest first. */
+  /** Up to three images; folders fall back to descendants when no direct image exists. */
   ids: number[]
 }
 

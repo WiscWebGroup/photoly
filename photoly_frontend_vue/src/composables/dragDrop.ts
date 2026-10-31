@@ -4,6 +4,7 @@ import { ref } from 'vue'
 export const DRAG_TYPE = 'application/x-photoly'
 
 export interface DragPayload {
+  sourceId?: number
   folders: number[]
   photos: number[]
 }

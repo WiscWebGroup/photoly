@@ -30,7 +30,10 @@ test('bulk uploads survive closing the panel, navigation, and history reload', a
   await expect(
     page.getByRole('dialog').getByRole('heading', { name: 'Uploads', exact: true }),
   ).toBeVisible()
-  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
+  await page
+    .locator('[data-activity-panel="uploads"]')
+    .getByRole('button', { name: 'Close', exact: true })
+    .click()
   await page
     .getByRole('link', { name: /Search/ })
     .last()

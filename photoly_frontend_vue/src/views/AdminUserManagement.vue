@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ExternalStorageSettings from '@/components/ExternalStorageSettings.vue'
 import { computed, onMounted, ref } from 'vue'
 import { KeyRound, Search, Trash2, X } from '@lucide/vue'
 import AdminStorageGroups from '@/components/AdminStorageGroups.vue'
@@ -516,7 +517,7 @@ onMounted(() =>
       </div>
     </template>
     <Dialog :open="!!storageUser" @update:open="storageUser = null"
-      ><DialogContent
+      ><DialogContent class="max-h-[90vh] overflow-y-auto"
         ><DialogHeader
           ><DialogTitle>Storage for {{ storageUser?.userName }}</DialogTitle
           ><DialogDescription
@@ -541,7 +542,11 @@ onMounted(() =>
             type="number"
             min="0"
             step="0.1" /></template
-        ><DialogFooter
+        ><ExternalStorageSettings
+          v-if="storageUser"
+          :key="storageUser.userId"
+          :admin-user-id="storageUser.userId"
+        /><DialogFooter
           ><Button variant="outline" @click="storageUser = null">Cancel</Button
           ><Button :disabled="storageSaving" @click="saveStorage"
             >Save storage</Button

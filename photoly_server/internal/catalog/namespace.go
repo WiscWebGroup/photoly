@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
@@ -147,7 +148,7 @@ func (s *svc) nsDetails(w http.ResponseWriter, r *http.Request, uid int64) (any,
 		if videoFormats[suffix] {
 			videos++
 		}
-		path := func(n string) (string, error) { return legacy.MediaPath(root, uuid, n) }
+		path := func(n string) (string, error) { return legacy.MediaPath(r.Context(), s.a.Pool, root, uuid, n) }
 		p, err := path(puuid + "." + format)
 		if err != nil {
 			return nil, err
@@ -212,21 +213,22 @@ func (s *svc) nsInsert(w http.ResponseWriter, r *http.Request, uid int64) (any, 
 		return nil, err
 	}
 	ctx := r.Context()
-	err = legacy.Atomic(ctx, s.a.Pool, s.a.Cfg.UploadFolder, uid, false, func(tx pgx.Tx, _ *legacy.Files, _ *legacy.LockedUser) error {
-		name, err := legacy.ValidName(data["nsName"], false)
-		if err != nil {
-			return err
+	var name string
+	var id int64
+	err = legacy.Atomic(ctx, s.a.Pool, s.a.Cfg.UploadFolder, uid, false, func(tx pgx.Tx, f *legacy.Files, u *legacy.LockedUser) error {
+		var e error
+		name, e = legacy.ValidName(data["nsName"], false)
+		if e != nil {
+			return e
 		}
 		pid, ok := legacy.Int(data["nsParentId"])
-		if err := s.owned(ctx, tx, pid, ok, uid, -1); err != nil {
-			return err
+		if e = s.owned(ctx, tx, pid, ok, uid, -1); e != nil {
+			return e
 		}
-		return dbgen.New(tx).InsertNamespace(ctx, dbgen.InsertNamespaceParams{NsName: name, ParentID: pid, UserID: uid})
+		id, name, e = storage.CreateFolder(ctx, tx, f.Files, s.a.Cfg.UploadFolder, uid, pid, name)
+		return e
 	})
-	if err != nil {
-		return nil, err
-	}
-	return legacy.Changed(1, 1), nil
+	return legacy.Res{V: map[string]any{"nsId": id, "nsName": name}, Code: 200}, err
 }
 
 func parentOf(ctx context.Context, db legacy.DB, id int64) (parent int64, name string, err error) {
@@ -240,78 +242,44 @@ func parentOf(ctx context.Context, db legacy.DB, id int64) (parent int64, name s
 	return parent, name, err
 }
 
-func (s *svc) nsRename(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
+func (s *svc) changeFolder(r *http.Request, uid int64, rename bool) (any, error) {
 	data, err := legacy.Body(r)
 	if err != nil {
 		return nil, err
 	}
 	ctx := r.Context()
-	err = legacy.Atomic(ctx, s.a.Pool, s.a.Cfg.UploadFolder, uid, false, func(tx pgx.Tx, _ *legacy.Files, _ *legacy.LockedUser) error {
-		id, ok := legacy.Int(data["nsId"])
-		if err := s.owned(ctx, tx, id, ok, uid, -1); err != nil {
-			return err
+	id, ok := legacy.Int(data["nsId"])
+	var name string
+	err = legacy.Atomic(ctx, s.a.Pool, s.a.Cfg.UploadFolder, uid, false, func(tx pgx.Tx, f *legacy.Files, u *legacy.LockedUser) error {
+		if e := s.owned(ctx, tx, id, ok, uid, -1); e != nil {
+			return e
 		}
-		if p, _, err := parentOf(ctx, tx, id); err != nil {
-			return err
-		} else if p == -1 {
-			return legacy.Bad()
+		var parent int64
+		var requested string
+		if rename {
+			var e error
+			requested, e = legacy.ValidName(data["nsName"], false)
+			if e != nil {
+				return e
+			}
+		} else {
+			pid, present := legacy.Int(data["nsParentId"])
+			if e := s.owned(ctx, tx, pid, present, uid, -1); e != nil {
+				return e
+			}
+			parent = pid
 		}
-		name, err := legacy.ValidName(data["nsName"], false)
-		if err != nil {
-			return err
-		}
-		return dbgen.New(tx).RenameNamespace(ctx, dbgen.RenameNamespaceParams{NsID: id, NsName: name})
+		var e error
+		name, e = storage.RehomeFolder(ctx, tx, f.Files, s.a.Cfg.UploadFolder, uid, id, parent, requested)
+		return e
 	})
-	if err != nil {
-		return nil, err
-	}
-	return legacy.Changed(1, 1), nil
+	return legacy.Res{V: map[string]any{"nsId": id, "nsName": name}, Code: 200}, err
 }
-
+func (s *svc) nsRename(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
+	return s.changeFolder(r, uid, true)
+}
 func (s *svc) nsMove(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
-	data, err := legacy.Body(r)
-	if err != nil {
-		return nil, err
-	}
-	ctx := r.Context()
-	err = legacy.Atomic(ctx, s.a.Pool, s.a.Cfg.UploadFolder, uid, false, func(tx pgx.Tx, _ *legacy.Files, _ *legacy.LockedUser) error {
-		id, ok := legacy.Int(data["nsId"])
-		if err := s.owned(ctx, tx, id, ok, uid, -1); err != nil {
-			return err
-		}
-		pid, ok := legacy.Int(data["nsParentId"])
-		if err := s.owned(ctx, tx, pid, ok, uid, -1); err != nil {
-			return err
-		}
-		if p, _, err := parentOf(ctx, tx, id); err != nil {
-			return err
-		} else if p == -1 {
-			return legacy.Bad()
-		}
-		seen := map[int64]bool{id: true}
-		for cur := pid; ; {
-			if seen[cur] {
-				return legacy.Bad()
-			}
-			seen[cur] = true
-			p, _, err := parentOf(ctx, tx, cur)
-			if err != nil {
-				return err
-			}
-			if p == -1 {
-				break
-			}
-			if err := s.owned(ctx, tx, p, true, uid, -1); err != nil {
-				return err
-			}
-			cur = p
-		}
-		return dbgen.New(tx).MoveNamespace(ctx, dbgen.MoveNamespaceParams{NsID: id, ParentID: pid})
-	})
-	if err != nil {
-		return nil, err
-	}
-	return legacy.Changed(1, 1), nil
+	return s.changeFolder(r, uid, false)
 }
 
 func (s *svc) nsTrace(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
@@ -334,7 +302,12 @@ func (s *svc) nsTrace(w http.ResponseWriter, r *http.Request, uid int64) (any, e
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, map[string]any{"nsId": id, "nsName": name})
+		row, err := dbgen.New(s.a.Pool).GetNamespace(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, legacy.NsJSON(row))
+		_ = name
 		if p == -1 {
 			break
 		}
@@ -379,6 +352,13 @@ func (s *svc) tree(ctx context.Context, db legacy.DB, uid, id int64) ([]node, er
 		}
 		names := map[string]bool{}
 		for _, c := range children {
+			var enabled bool
+			if err := db.QueryRow(ctx, `SELECT s.enabled FROM namespace n JOIN storage_source s ON s.id=n.source_id WHERE n.ns_id=$1`, c.NsID).Scan(&enabled); err != nil {
+				return nil, err
+			}
+			if !enabled {
+				continue
+			}
 			var v any
 			if c.NsName != nil {
 				v = *c.NsName
@@ -415,6 +395,20 @@ func (s *svc) nsDelete(w http.ResponseWriter, r *http.Request, uid int64) (any, 
 		} else if p == -1 {
 			return legacy.Bad()
 		}
+		var mount bool
+		if err := tx.QueryRow(ctx, `SELECT is_mount FROM namespace WHERE ns_id=$1`, id).Scan(&mount); err != nil {
+			return err
+		}
+		if mount {
+			return legacy.Err("protected_folder", 400)
+		}
+		dir, source, err := storage.Folder(ctx, tx, root, id)
+		if err != nil {
+			return err
+		}
+		if err = storage.LockSource(ctx, tx, source); err != nil {
+			return err
+		}
 		tree, err := s.tree(ctx, tx, uid, id)
 		if err != nil {
 			return err
@@ -435,6 +429,20 @@ func (s *svc) nsDelete(w http.ResponseWriter, r *http.Request, uid int64) (any, 
 			}
 			count++
 		}
+		if source.Kind == "local" {
+			if _, err = f.Remove(dir); err != nil {
+				return err
+			}
+		}
+		if source.Tree() {
+			d, e := storage.TreeSource(source)
+			if e != nil {
+				return e
+			}
+			if e = f.TreeRemove(ctx, d, dir, ""); e != nil {
+				return e
+			}
+		}
 		return nil
 	})
 	if err != nil {
@@ -449,7 +457,7 @@ func (s *svc) nsDownload(w http.ResponseWriter, r *http.Request, uid int64) (any
 	if err != nil {
 		return nil, err
 	}
-	if err := s.owned(ctx, s.a.Pool, id, ok, uid, -1); err != nil {
+	if err = s.owned(ctx, s.a.Pool, id, ok, uid, -1); err != nil {
 		return nil, err
 	}
 	uuidp, err := dbgen.New(s.a.Pool).GetUserUUID(ctx, uid)
@@ -457,39 +465,145 @@ func (s *svc) nsDownload(w http.ResponseWriter, r *http.Request, uid int64) (any
 		return nil, err
 	}
 	uuid := deref(uuidp)
-	tree, err := s.tree(ctx, s.a.Pool, uid, id)
+	nodes, err := s.tree(ctx, s.a.Pool, uid, id)
 	if err != nil {
 		return nil, err
 	}
 	var entries []legacy.Entry
-	for _, n := range tree {
-		rows, err := dbgen.New(s.a.Pool).ListNamespaceDownloadPhotos(ctx, dbgen.ListNamespaceDownloadPhotosParams{UserID: uid, NsID: n.id})
+	localCovered := map[int64]bool{}
+	for _, n := range nodes {
+		dir, source, err := storage.Folder(ctx, s.a.Pool, s.a.Cfg.UploadFolder, n.id)
 		if err != nil {
 			return nil, err
 		}
-		for _, row := range rows {
-			var v any
-			if row.PhotoName != nil {
-				v = *row.PhotoName
+		if source.Kind == "local" {
+			expected, e := dbgen.New(s.a.Pool).ListNamespaceDownloadPhotos(ctx, dbgen.ListNamespaceDownloadPhotosParams{UserID: uid, NsID: n.id})
+			if e != nil {
+				return nil, e
 			}
-			nm, err := legacy.ValidName(v, false)
+			for _, item := range expected {
+				roles := []string{"original"}
+				if item.Live {
+					roles = append(roles, "live_original")
+				}
+				for _, role := range roles {
+					p, e := storage.Resolve(ctx, s.a.Pool, s.a.Cfg.UploadFolder, uuid, item.PhotoUuid, role)
+					if e != nil {
+						return nil, e
+					}
+					if _, e = os.Lstat(p); e != nil {
+						return nil, legacy.Err("archive_source_missing", 404)
+					}
+				}
+			}
+			if localCovered[source.ID] {
+				continue
+			}
+			localCovered[source.ID] = true
+			err = filepath.WalkDir(dir, func(p string, d os.DirEntry, e error) error {
+				if e != nil {
+					return e
+				}
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				if d.Name() == storage.SystemDirectory {
+					if d.IsDir() {
+						return filepath.SkipDir
+					}
+					return nil
+				}
+				if d.Type()&os.ModeSymlink != 0 {
+					return nil
+				}
+				if !d.IsDir() && !d.Type().IsRegular() {
+					return nil
+				}
+				rel, e := filepath.Rel(dir, p)
+				if e != nil {
+					return e
+				}
+				name := n.path
+				if rel != "." {
+					name += "/" + filepath.ToSlash(rel)
+				}
+				entries = append(entries, legacy.Entry{Path: p, Name: name, Dir: d.IsDir()})
+				return nil
+			})
 			if err != nil {
 				return nil, err
 			}
-			p, err := legacy.MediaPath(s.a.Cfg.UploadFolder, uuid, row.PhotoUuid+"."+row.Format)
+		} else if source.Tree() {
+			if localCovered[source.ID] {
+				continue
+			}
+			localCovered[source.ID] = true
+			d, e := storage.TreeSource(source)
+			if e != nil {
+				return nil, e
+			}
+			temp, e := os.MkdirTemp("", "photoly-dav-archive-")
+			if e != nil {
+				return nil, e
+			}
+			defer os.RemoveAll(temp)
+			entries = append(entries, legacy.Entry{Name: n.path, Dir: true})
+			e = d.Walk(ctx, dir, func(item storage.TreeEntry) error {
+				rel := strings.TrimPrefix(strings.TrimPrefix(item.Path, dir), "/")
+				name := n.path + "/" + rel
+				if item.Directory {
+					entries = append(entries, legacy.Entry{Name: name, Dir: true})
+					return nil
+				}
+				out, e := os.CreateTemp(temp, "asset-")
+				if e != nil {
+					return e
+				}
+				e = d.CopyTo(ctx, item.Path, out, item)
+				closeErr := out.Close()
+				if e != nil {
+					return e
+				}
+				if closeErr != nil {
+					return closeErr
+				}
+				entries = append(entries, legacy.Entry{Path: out.Name(), Name: name})
+				return nil
+			})
+			if e != nil {
+				return nil, e
+			}
+		} else {
+			entries = append(entries, legacy.Entry{Name: n.path, Dir: true})
+			rows, err := dbgen.New(s.a.Pool).ListNamespaceDownloadPhotos(ctx, dbgen.ListNamespaceDownloadPhotosParams{UserID: uid, NsID: n.id})
 			if err != nil {
 				return nil, err
 			}
-			entries = append(entries, legacy.Entry{Path: p, Name: n.path + "/" + nm + "." + row.Format, ID: row.PhotoID})
-			if row.Live {
-				lp, err := legacy.MediaPath(s.a.Cfg.UploadFolder, uuid, row.PhotoUuid+"_live.mov")
+			for _, row := range rows {
+				name := deref(row.PhotoName) + "." + row.Format
+				p, err := storage.Resolve(ctx, s.a.Pool, s.a.Cfg.UploadFolder, uuid, row.PhotoUuid, "original")
 				if err != nil {
 					return nil, err
 				}
-				entries = append(entries, legacy.Entry{Path: lp, Name: n.path + "/" + nm + ".mov", ID: row.PhotoID})
+				entries = append(entries, legacy.Entry{Path: p, Name: n.path + "/" + name, ID: row.PhotoID})
+				if row.Live {
+					p, err = storage.Resolve(ctx, s.a.Pool, s.a.Cfg.UploadFolder, uuid, row.PhotoUuid, "live_original")
+					if err != nil {
+						return nil, err
+					}
+					var liveName string
+					if err = s.a.Pool.QueryRow(ctx, `SELECT coalesce(nullif(display_name,''),$2) FROM media_asset WHERE photo_id=$1 AND role='live_original'`, row.PhotoID, deref(row.PhotoName)+"_live.mov").Scan(&liveName); err != nil {
+						return nil, err
+					}
+					entries = append(entries, legacy.Entry{Path: p, Name: n.path + "/" + liveName, ID: row.PhotoID})
+				}
 			}
 		}
 	}
-	legacy.ServeArchive(w, r, entries)
+	name := "root.zip"
+	if len(nodes) > 0 {
+		name = filepath.Base(nodes[0].path) + ".zip"
+	}
+	legacy.ServeArchiveNamed(w, r, entries, name)
 	return legacy.Done{}, nil
 }

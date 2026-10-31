@@ -14,6 +14,7 @@ export const json = (body: JsonBodyType) => HttpResponse.json(body, { headers: c
 
 export const server = setupServer(
   http.get(`${API}/demo`, () => json({ msgCode: 200, t: { enabled: false } })),
+  http.get(`${API}/user/storage/sources`, () => ok([])),
   http.get(`${API}/uploads`, () =>
     json({ msgCode: 200, t: { batches: [], total: 0, maxFileBytes: 629145600 } }),
   ),
@@ -61,6 +62,7 @@ export function recordRequests() {
   server.events.on('request:start', async ({ request }) => {
     if (request.method === 'OPTIONS') return
     const url = new URL(request.url)
+    if (url.pathname.endsWith('/demo')) return // router's one-off demo-mode probe, not under test
     const text = await request.clone().text()
     let body: unknown = text
     try {

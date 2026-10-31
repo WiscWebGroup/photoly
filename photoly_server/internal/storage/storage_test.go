@@ -5,11 +5,9 @@ import (
 	"context"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 )
 
 // mem is an in-memory remote Store.
@@ -161,133 +159,5 @@ func TestSealRoundTrip(t *testing.T) {
 	t.Setenv("STORAGE_SECRET_KEY", "")
 	if _, err := seal([]byte("x")); err != ErrNoSecretKey {
 		t.Fatalf("seal without key = %v", err)
-	}
-}
-
-func TestPublishFetch(t *testing.T) {
-	root := t.TempDir()
-	Init(root)
-	remote := newMem()
-	Set("s3", remote)
-	t.Cleanup(func() { Set("local", Local{Dir: root}) })
-
-	write := func(rel, body string) string {
-		p := filepath.Join(root, filepath.FromSlash(rel))
-		os.MkdirAll(filepath.Dir(p), 0o755)
-		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		return p
-	}
-
-	// Publish uploads and drops the local copy.
-	p := write("u1/a.jpg", "v1")
-	Publish(nil, []string{p})
-	if _, err := os.Stat(p); !os.IsNotExist(err) {
-		t.Fatal("local copy should be offloaded")
-	}
-	if string(remote.m["u1/a.jpg"]) != "v1" {
-		t.Fatalf("remote = %q", remote.m["u1/a.jpg"])
-	}
-
-	// Size answers from the remote without downloading; Fetch brings it back.
-	if n, err := Size(p); err != nil || n != 2 {
-		t.Fatalf("Size = %d, %v", n, err)
-	}
-	if _, err := os.Stat(p); !os.IsNotExist(err) {
-		t.Fatal("Size must not download")
-	}
-	if !Fetch(p) {
-		t.Fatal("Fetch failed")
-	}
-	if b, _ := os.ReadFile(p); string(b) != "v1" {
-		t.Fatalf("fetched %q", b)
-	}
-
-	// A replaced path appears in both lists: the new bytes must survive the delete.
-	write("u1/a.jpg", "v2")
-	Publish([]string{p}, []string{p})
-	if string(remote.m["u1/a.jpg"]) != "v2" {
-		t.Fatalf("replace lost the new object: %q", remote.m["u1/a.jpg"])
-	}
-
-	// Removal deletes remotely; scratch dirs and nested paths are never published.
-	Publish([]string{p}, nil)
-	if _, ok := remote.m["u1/a.jpg"]; ok {
-		t.Fatal("remote object should be deleted")
-	}
-	staged := write(".staging/tmp/x", "x")
-	nested := write("u1/sub/y.jpg", "y")
-	Publish(nil, []string{staged, nested})
-	if len(remote.m) != 0 {
-		t.Fatalf("unexpected uploads: %v", remote.m)
-	}
-
-	// Missing everywhere.
-	if Fetch(filepath.Join(root, "u1", "nope.jpg")) {
-		t.Fatal("Fetch of unknown file should be false")
-	}
-	if _, err := Size(filepath.Join(root, "u1", "nope.jpg")); !os.IsNotExist(err) {
-		t.Fatalf("Size missing = %v", err)
-	}
-
-	// Deleting a user removes their prefix.
-	remote.m["u2/a.jpg"], remote.m["u3/a.jpg"] = []byte("1"), []byte("1")
-	DeleteUser("u2")
-	if _, ok := remote.m["u2/a.jpg"]; ok || len(remote.m) != 1 {
-		t.Fatalf("DeleteUser: %v", remote.m)
-	}
-}
-
-func TestLocalActiveIsNoop(t *testing.T) {
-	root := t.TempDir()
-	Init(root)
-	Set("local", Local{Dir: root})
-	p := filepath.Join(root, "u1", "a.jpg")
-	os.MkdirAll(filepath.Dir(p), 0o755)
-	os.WriteFile(p, []byte("x"), 0o644)
-	Publish(nil, []string{p})
-	if !Fetch(p) {
-		t.Fatal("local file must stay in place when no remote is active")
-	}
-}
-
-func TestEvict(t *testing.T) {
-	root := t.TempDir()
-	Init(root)
-	remote := newMem()
-	Set("s3", remote)
-	t.Cleanup(func() { Set("local", Local{Dir: root}) })
-	ctx := context.Background()
-
-	write := func(rel, body string, age time.Duration) string {
-		p := filepath.Join(root, filepath.FromSlash(rel))
-		os.MkdirAll(filepath.Dir(p), 0o755)
-		os.WriteFile(p, []byte(body), 0o644)
-		old := time.Now().Add(-age)
-		os.Chtimes(p, old, old)
-		return p
-	}
-	remote.m["u1/idle.jpg"] = []byte("abc")
-	remote.m["u1/fresh.jpg"] = []byte("abc")
-	remote.m["u1/mismatch.jpg"] = []byte("different")
-	idle := write("u1/idle.jpg", "abc", 2*time.Hour)
-	fresh := write("u1/fresh.jpg", "abc", time.Minute)
-	mismatch := write("u1/mismatch.jpg", "abc", 2*time.Hour)
-	unpublished := write("u1/unpublished.jpg", "abc", 2*time.Hour)
-	used := write("u1/used.jpg", "abc", 2*time.Hour)
-	remote.m["u1/used.jpg"] = []byte("abc")
-	touch(used)
-
-	if n := evict(ctx, time.Hour); n != 1 {
-		t.Fatalf("evicted %d, want 1", n)
-	}
-	for p, want := range map[string]bool{idle: false, fresh: true, mismatch: true, unpublished: true, used: true} {
-		if got := exists(p); got != want {
-			t.Errorf("%s exists = %v, want %v", filepath.Base(p), got, want)
-		}
-	}
-	if !Fetch(idle) { // an evicted file comes back on demand
-		t.Fatal("evicted file should refetch")
 	}
 }

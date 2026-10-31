@@ -81,7 +81,8 @@ describe('PhotoViewer', () => {
     const bodyOf = (calls: ReturnType<typeof recordRequests>, path: string) =>
       String(calls.find((c) => c.path === path)?.body)
 
-    it('renames the photo, shows the new name and tells the parent', async () => {
+    it('renames the photo, shows the collision-resolved name and tells the parent', async () => {
+      server.use(http.post(`${API}/photo/update`, () => ok({ ...photo, photoName: 'sunset (1)' })))
       const calls = recordRequests()
       const wrapper = await openEditor()
       type(input('New Name'), 'sunset')
@@ -92,7 +93,8 @@ describe('PhotoViewer', () => {
         photoId: 10,
         photoName: 'sunset',
       })
-      expect(wrapper.emitted('changed')).toHaveLength(1)
+      await vi.waitFor(() => expect(wrapper.emitted('changed')).toHaveLength(1))
+      expect(pageText()).toContain('sunset (1)')
     })
 
     it('rejects an empty name without calling the API', async () => {

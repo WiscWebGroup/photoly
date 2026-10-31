@@ -4,7 +4,8 @@ SELECT * FROM namespace WHERE user_id = @user_id::int AND ns_parent_id = -1 LIMI
 -- name: ListChildNamespaces :many
 SELECT * FROM namespace
 WHERE user_id = @user_id::int AND ns_parent_id IS NOT DISTINCT FROM sqlc.narg(parent_id)::int
-ORDER BY ns_id;
+AND EXISTS(SELECT 1 FROM storage_source s WHERE s.id=namespace.source_id AND s.enabled)
+ORDER BY display_order, ns_id;
 
 -- name: ListNamespacePhotos :many
 SELECT * FROM photo WHERE user_id = @user_id::int AND ns_id = @ns_id::int ORDER BY photo_id;
@@ -19,7 +20,7 @@ SELECT ns_name FROM namespace WHERE ns_id = @ns_id::int;
 WITH RECURSIVE d(ns_id) AS (
     SELECT n.ns_id FROM namespace n WHERE n.ns_id = @ns_id::int AND n.user_id = @user_id::int
     UNION
-    SELECT n.ns_id FROM namespace n JOIN d ON n.ns_parent_id = d.ns_id WHERE n.user_id = @user_id::int
+    SELECT n.ns_id FROM namespace n JOIN d ON n.ns_parent_id = d.ns_id WHERE n.user_id = @user_id::int AND EXISTS(SELECT 1 FROM storage_source s WHERE s.id=n.source_id AND s.enabled)
 )
 SELECT (SELECT ns_name FROM namespace WHERE namespace.ns_id = @ns_id::int) AS ns_name,
        (SELECT uuid FROM "user" WHERE user_id = @user_id::int)::text AS uuid,
@@ -29,7 +30,7 @@ SELECT (SELECT ns_name FROM namespace WHERE namespace.ns_id = @ns_id::int) AS ns
 WITH RECURSIVE d(ns_id) AS (
     SELECT n.ns_id FROM namespace n WHERE n.ns_id = @ns_id::int AND n.user_id = @user_id::int
     UNION
-    SELECT n.ns_id FROM namespace n JOIN d ON n.ns_parent_id = d.ns_id WHERE n.user_id = @user_id::int
+    SELECT n.ns_id FROM namespace n JOIN d ON n.ns_parent_id = d.ns_id WHERE n.user_id = @user_id::int AND EXISTS(SELECT 1 FROM storage_source s WHERE s.id=n.source_id AND s.enabled)
 )
 SELECT p.photo_uuid::text AS photo_uuid, p.format::text AS format,
        (m.photo_id IS NOT NULL)::bool AS has_media, (e.f_photo_id IS NOT NULL)::bool AS has_extra,
@@ -50,7 +51,7 @@ UPDATE namespace SET ns_name = @ns_name::text WHERE ns_id = @ns_id::int;
 UPDATE namespace SET ns_parent_id = @parent_id::int WHERE ns_id = @ns_id::int;
 
 -- name: ListChildNamespaceNames :many
-SELECT ns_id, ns_name FROM namespace WHERE user_id = @user_id::int AND ns_parent_id = @parent_id::int ORDER BY ns_id;
+SELECT ns_id, ns_name FROM namespace WHERE user_id = @user_id::int AND ns_parent_id = @parent_id::int ORDER BY display_order, ns_id;
 
 -- name: ListPhotoIDsInNamespace :many
 SELECT photo_id FROM photo WHERE user_id = @user_id::int AND ns_id = @ns_id::int AND photo_visible(storage_id, user_id) ORDER BY photo_id;

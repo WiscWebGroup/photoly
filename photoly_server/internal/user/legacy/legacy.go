@@ -14,6 +14,7 @@ import (
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/httpx"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -119,6 +120,8 @@ func (o Opt) run(w http.ResponseWriter, r *http.Request, uid int64, h Handler) {
 	var pg *pgconn.PgError
 	switch {
 	case errors.As(err, &biz):
+	case storage.ClientError(err):
+		biz = &Biz{err.Error(), 409}
 	case errors.As(err, &pg) && strings.HasPrefix(pg.Code, "23"):
 		biz = &Biz{-1, 400}
 	default:

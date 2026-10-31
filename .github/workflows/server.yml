@@ -66,10 +66,15 @@ jobs:
         with:
           go-version-file: photoly_server/go.mod
           cache-dependency-path: photoly_server/go.sum
+      # Ubuntu packages the HEVC encoder/decoder separately from the heif CLI tools.
+      - run: sudo apt-get update && sudo apt-get install -y libvips-tools util-linux ffmpeg libheif-examples libheif-plugin-x265 libheif-plugin-libde265 libimage-exiftool-perl
       # Generated code in internal/db/gen must match internal/db/queries and the migrations.
-      # sqlc 1.31 needs a newer Go than go.mod pins, so let this step fetch its own toolchain.
+      # Keep generated queries reproducible with the pinned sqlc version.
       - run: GOTOOLCHAIN=auto go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate && git diff --exit-code -- internal/db/gen
       - run: PGPASSWORD=ci psql -h localhost -U postgres -d photoly -c 'CREATE EXTENSION vector'
       - run: go run ./cmd/photoly migrate
       # TestWorker needs the ONNX Runtime shared library, which only the image carries.
       - run: go vet ./... && go test -skip TestWorker ./...
+      - name: Test bundled SMB crypto
+        run: go test -race ./internal/crypto/...
+        working-directory: photoly_server/third_party/go-smb2

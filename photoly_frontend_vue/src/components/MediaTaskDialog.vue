@@ -8,15 +8,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog'
+import ActivityPopover from './ActivityPopover.vue'
+import { Download } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import MoveToShowFolder from '@/components/MoveToShowFolder.vue'
 import type { Photo } from '@/composables/usePhotos'
 import { uploadCall, useUploadsStore } from '@/stores/uploads'
 import { useAuthStore } from '@/stores/auth'
 import { newUuid } from '@/lib/uuid'
-const props = defineProps<{ photo?: Photo | null }>()
+const props = defineProps<{ photo?: Photo | null; popover?: boolean }>()
 const open = defineModel<boolean>('open', { default: false })
 const route = useRoute()
 const uploads = useUploadsStore()
@@ -132,9 +133,17 @@ async function submit() {
 }
 </script>
 <template>
-  <Dialog v-model:open="open">
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
+  <component
+    :is="popover ? ActivityPopover : Dialog"
+    v-model:open="open"
+    :title="popover ? 'Online Download' : undefined"
+    :icon="popover ? Download : undefined"
+    :description="popover ? 'Save an image from a public link.' : undefined"
+    :panel="popover ? 'download' : undefined"
+  >
+    <template #trigger><slot name="trigger" /></template>
+    <component :is="popover ? 'div' : DialogContent" :class="popover ? undefined : 'sm:max-w-md'">
+      <DialogHeader v-if="!popover">
         <DialogTitle>{{ photo ? 'Format Convert' : 'Online Download' }}</DialogTitle>
         <DialogDescription class="sr-only">{{
           photo
@@ -186,12 +195,12 @@ async function submit() {
           JPEG quality 90. Transparent areas become white.
         </p>
         <p v-if="error" role="alert" class="text-destructive text-sm">{{ error }}</p>
-        <DialogFooter
-          ><Button type="button" variant="outline" @click="open = false">Cancel</Button
+        <div class="flex justify-end gap-2">
+          <Button type="button" variant="outline" @click="open = false">Cancel</Button
           ><Button type="submit" :disabled="busy || loading || !nsId">{{
             busy ? 'Queuing…' : photo ? 'Save copy' : 'Download'
-          }}</Button></DialogFooter
-        >
+          }}</Button>
+        </div>
       </form>
       <MoveToShowFolder
         v-if="!photo"
@@ -200,6 +209,6 @@ async function submit() {
         confirm="Use folder"
         @move-to-update="(id) => chooseFolder(id).catch(() => (error = 'Could not load folder'))"
       />
-    </DialogContent>
-  </Dialog>
+    </component>
+  </component>
 </template>

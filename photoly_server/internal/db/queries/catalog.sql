@@ -72,7 +72,7 @@ ORDER BY p.photo_id;
 -- A gallery id of NULL lists every geotagged photo of the user.
 
 -- name: ListMapPhotos :many
-SELECT p.photo_id, p.photo_name, p.format, p.ns_id, p.token, p.photo_uuid, p.upload_date,
+SELECT p.photo_id, p.photo_name, p.format, p.ns_id, p.source_id, p.visibility, p.token, p.photo_uuid, p.upload_date,
        e.extra_photo_gps_lat, e.extra_photo_gps_lon, e.extra_photo_taken_date
 FROM photo p
 JOIN photo_extra e ON e.f_photo_id = p.photo_id

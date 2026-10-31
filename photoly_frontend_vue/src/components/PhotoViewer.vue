@@ -35,6 +35,7 @@ import {
   Undo2,
   X,
 } from '@lucide/vue'
+import { usePhotoZoom } from '@/composables/usePhotoZoom'
 import ImageEditor from '@/components/ImageEditor.vue'
 import PhotoLabelPicker from '@/components/PhotoLabelPicker.vue'
 import PhotoText from '@/components/PhotoText.vue'
@@ -69,7 +70,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import type { Photo } from '@/composables/usePhotos'
 import { vCollapse } from '@/lib/collapse'
-import { download } from '@/lib/download'
+import { download, downloadNative } from '@/lib/download'
 import { isEditable } from '@/lib/imageEdit'
 import { call } from '@/lib/http'
 import { mediaKind } from '@/lib/media'
@@ -147,9 +148,7 @@ async function retryLive() {
 }
 function downloadLive() {
   if (!info.value) return
-  void download(`/photo/downloadLive/${auth.token}`, `${info.value.photoName}.zip`, {
-    params: { photoId: info.value.photoId },
-  }).catch(() => toast.error('Download failed'))
+  downloadNative(`/photo/downloadLive/${auth.token}`, { photoId: info.value.photoId })
 }
 const desktop = useMediaQuery('(min-width: 768px)')
 const selected = ref<Photo | null>(null)
@@ -170,6 +169,8 @@ async function closeViewer() {
     recommendations.value?.cancel() // a query landing mid-animation must not be retained
     if (isFullscreen.value) await exitFullscreen().catch(() => {})
     stopPlayback()
+    zoom.reset()
+    await nextTick()
     await playClose()
     acceptedPhoto.value = null
     emit('close')
@@ -432,6 +433,15 @@ const canSimilar = computed(
     props.allowSimilar !== false,
 )
 const canEdit = computed(() => kind.value === 'photo' && isEditable(info.value?.format))
+const zoomViewport = ref<HTMLElement>()
+const zoom = usePhotoZoom(
+  zoomViewport,
+  () => loaded.value && !livePlaying.value && !editing.value && onTop(),
+)
+watch(
+  [() => currentPhoto.value?.photoId, () => !!acceptedPhoto.value, editing, livePlaying, version],
+  zoom.reset,
+)
 const imageUrl = computed(
   () => photoUrl(info.value!.photoId) + (version.value ? `&v=${version.value}` : ''),
 )
@@ -1121,15 +1131,55 @@ const overlay = 'dark text-foreground'
                       v-show="!loaded"
                       class="aspect-[4/3] w-[min(100%,40rem)] rounded-sm bg-white/5"
                     />
-                    <img
+                    <div
                       v-show="loaded && !livePlaying"
-                      ref="mediaEl"
-                      :src="imageUrl"
-                      :alt="info.photoName"
-                      draggable="false"
-                      class="max-h-full max-w-full rounded-[2px] object-contain select-none"
-                      @load="imageLoaded"
-                    />
+                      ref="zoomViewport"
+                      class="absolute inset-x-0 inset-y-0 md:inset-x-[72px] md:top-2 md:bottom-6"
+                      data-photo-zoom
+                      :data-scale="zoom.scale.value"
+                      :class="
+                        zoom.scale.value > 1
+                          ? zoom.dragging.value
+                            ? 'overflow-hidden cursor-grabbing'
+                            : 'overflow-hidden cursor-grab'
+                          : undefined
+                      "
+                      @wheel="zoom.wheel"
+                      @pointerdown="zoom.down"
+                      @pointermove="zoom.move"
+                      @pointerup="zoom.up"
+                      @pointercancel="zoom.up"
+                      @lostpointercapture="zoom.up"
+                      @click.stop
+                    >
+                      <div
+                        class="flex h-full w-full items-center justify-center"
+                        :style="zoom.style.value"
+                      >
+                        <img
+                          ref="mediaEl"
+                          :src="imageUrl"
+                          :alt="info.photoName"
+                          draggable="false"
+                          class="max-h-full max-w-full rounded-[2px] object-contain select-none"
+                          @load="imageLoaded"
+                        />
+                      </div>
+                    </div>
+                    <div
+                      v-if="loaded && !livePlaying && zoom.scale.value > 1"
+                      class="absolute right-3 bottom-3 z-10 flex items-center gap-2 rounded-lg bg-black/70 px-3 py-2 text-xs text-white"
+                      @click.stop
+                    >
+                      <span class="tabular-nums">{{ Math.round(zoom.scale.value * 100) }}%</span>
+                      <button
+                        type="button"
+                        class="rounded px-2 py-1 hover:bg-white/20 focus-visible:ring-2"
+                        @click="zoom.reset"
+                      >
+                        Fit to window
+                      </button>
+                    </div>
                     <video
                       v-if="livePlaying && liveInfo?.live"
                       ref="liveVideo"

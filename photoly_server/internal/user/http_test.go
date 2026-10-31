@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/user/legacy/testutil"
 )
 
@@ -175,11 +176,15 @@ func TestUserAndCredFlow(t *testing.T) {
 	var ns int64
 	must(t, a.Pool.QueryRow(t.Context(), `SELECT ns_id FROM namespace WHERE user_id=$1`, uid).Scan(&ns))
 	must(t, os.MkdirAll(filepath.Join(a.Cfg.UploadFolder, uuid), 0o755))
-	for _, n := range []string{"u1.jpg", "u1_thumbnail.jpg"} {
-		must(t, os.WriteFile(filepath.Join(a.Cfg.UploadFolder, uuid, n), []byte("jpegdata"), 0o644))
+	var pid int64
+	must(t, a.Pool.QueryRow(t.Context(), `INSERT INTO photo(photo_name,upload_date,format,ns_id,visibility,token,photo_uuid,user_id) VALUES ('p',now(),'jpg',$1,0,'t1','u1',$2) RETURNING photo_id`, ns, uid).Scan(&pid))
+	must(t, storage.CreateAssets(t.Context(), a.Pool, a.Cfg.UploadFolder, pid, "u1", "p.jpg", "jpg", ns))
+	for _, role := range []string{"original", "thumbnail"} {
+		p, e := storage.Resolve(t.Context(), a.Pool, a.Cfg.UploadFolder, uuid, "u1", role)
+		must(t, e)
+		must(t, os.MkdirAll(filepath.Dir(p), 0755))
+		must(t, os.WriteFile(p, []byte("jpegdata"), 0644))
 	}
-	_, err := a.Pool.Exec(t.Context(), `INSERT INTO photo(photo_name,upload_date,format,ns_id,visibility,token,photo_uuid,user_id) VALUES ('p',now(),'jpg',$1,0,'t1','u1',$2)`, ns, uid)
-	must(t, err)
 	_, b = anon.Do("GET", "/cred/queryPhotoList/"+tok+"?nsId="+itoa(ns), "", nil)
 	if !strings.Contains(string(b), `"photoUuid":"u1"`) {
 		t.Fatalf("photo list = %s", b)
@@ -190,7 +195,7 @@ func TestUserAndCredFlow(t *testing.T) {
 	if _, b = anon.Do("POST", "/cred/deletePhoto/"+tok+"?uuid=u1", "", nil); strings.TrimSpace(string(b)) != "1" {
 		t.Fatalf("deletePhoto = %q", b)
 	}
-	if _, err := os.Stat(filepath.Join(a.Cfg.UploadFolder, uuid, "u1.jpg")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(a.Cfg.UploadFolder, uuid, "p.jpg")); !os.IsNotExist(err) {
 		t.Fatalf("file not removed: %v", err)
 	}
 

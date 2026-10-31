@@ -13,7 +13,7 @@ const skipMobile = (isMobile: boolean) =>
 
 // The empty area of the folder view opens the upload / create-folder menu.
 const openBlankMenu = (page: Page) =>
-  page.getByText('Folders', { exact: true }).click({ button: 'right' })
+  page.getByRole('heading', { name: 'Library', exact: true }).click({ button: 'right' })
 
 test.beforeEach(async ({ page }) => {
   await signIn(page)

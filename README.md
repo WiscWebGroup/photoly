@@ -64,6 +64,10 @@ Scroll down in the viewer to load **Similar photos and videos**. Each item has i
 
 **Smart Tag** requires global AI, administrator Smart Tag, user AI permission and personal Smart Tag to be enabled. Both Smart Tag switches default off. It runs inside the existing scheduler process, with no extra container or model inference. Turning it off retains editable results. See [rules, controls and offline city attribution](docs/smart-tag.md).
 
+### Real folders and personal S3
+
+The local library mirrors each user’s actual UUID directory. External changes are scanned automatically; users can connect multiple personal S3 buckets as named cloud folders alongside local content. This release requires a fresh library and refuses old flat-layout media. See [layout, synchronization, S3, downloads and deployment](docs/real-folders.md).
+
 ### Bulk uploads and storage groups
 
 Files, folders and ZIPs can be uploaded in unlimited-count batches. The global Upload activity panel stays available while browsing. Each account inherits a default 50 GB group quota, with administrator-managed groups and personal overrides. See [uploads, storage, migration and worker operations](docs/uploads-storage.md).
@@ -94,3 +98,7 @@ for parameters, pagination and response schemas. Dates itself requires no schema
 ### Media tools
 
 Right-click an image and choose **Format Convert** to save a JPEG, PNG or GIF copy in its actual folder. GIFs animate in the viewer; newly uploaded Apple Live Photo pairs have a LIVE playback control and original-pair ZIP download. Upload pickers accept pasted images with Cmd+V / Ctrl+V. Administrators can enable **Online Download** in Settings; the download icon appears immediately left of Upload. See [format support, pairing, security limits and upgrade instructions](docs/media-tools.md).
+
+See [external local mounts and WebDAV](docs/external-storage.md) for multi-source setup, Docker mounts, scanning and file retention.
+
+Personal Storage supports multiple WebDAV and SMB connections, plus administrator-assigned local mounts. Folder pages show indexing progress and offer recursive folder refresh. See [external storage deployment and testing](docs/external-storage.md).

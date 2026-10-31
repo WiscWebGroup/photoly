@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
@@ -132,7 +133,7 @@ func (s *s3Store) Check(ctx context.Context) error {
 	if !ok {
 		return fmt.Errorf("bucket %q does not exist", s.bucket)
 	}
-	probe := ".photoly-check"
+	probe := ".photoly-check-" + uuid.NewString()
 	if err := s.Put(ctx, probe, strings.NewReader("ok"), 2); err != nil {
 		return fmt.Errorf("bucket is not writable: %w", err)
 	}

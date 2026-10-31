@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -50,13 +49,15 @@ func New(ctx context.Context, cfg app.Config, openapi []byte) (*app.App, http.Ha
 		return nil, nil, err
 	}
 	storage.Init(cfg.UploadFolder)
-	if err := storage.Startup(ctx, pool); err != nil {
-		return nil, nil, fmt.Errorf("storage: %w", err)
+	if err = storage.EnsureRoots(ctx, pool, cfg.UploadFolder); err != nil {
+		pool.Close()
+		return nil, nil, err
 	}
+
 	store := session.Store{Pool: pool}
 	legacy.Sessions = store
 	go store.Sweep(ctx)
-	go storage.Sweep(ctx)
+	go storage.SweepSources(ctx, pool, cfg.UploadFolder)
 
 	mux := http.NewServeMux()
 	a := &app.App{Cfg: cfg, Pool: pool, Mux: mux}

@@ -111,3 +111,28 @@ test('map shows a marker per geotagged photo', async ({ page }) => {
   await page.getByRole('radio', { name: 'Photos' }).click()
   await expect(page.getByTitle('beach').last()).toBeVisible()
 })
+
+test('map photo opens the full Photo viewer and returns to the same map', async ({ page }) => {
+  await mockApi(page, {
+    '/photo-extra/getGlobalMapPhoto': ok([
+      {
+        photo_id: 10,
+        photo_name: 'beach',
+        format: 'jpg',
+        ns_id: 1,
+        source_id: 1,
+        extra_photo_gps_lat: 20.5,
+        extra_photo_gps_lon: 11.5,
+      },
+    ]),
+    '/photo-extra/getMapPlaces': ok([{ photoId: 10, place: 'Ghat', country: 'Libya' }]),
+  })
+  await page.goto('/home/MapPart')
+  await page.getByTitle('beach').last().click()
+  await page.getByRole('button', { name: 'View beach', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: /beach/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Download/ }).first()).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: /beach/ })).not.toBeVisible()
+  await expect(page.getByTitle('beach').last()).toBeVisible()
+})
