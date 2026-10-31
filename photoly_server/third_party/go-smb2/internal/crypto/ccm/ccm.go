@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"crypto/cipher"
 	"errors"
+	"math"
 )
 
 type ccm struct {
@@ -64,6 +65,11 @@ func (ccm *ccm) Seal(dst, nonce, plaintext, data []byte) []byte {
 	// AEAD interface doesn't provide a way to return errors.
 	// So it returns nil instead.
 	if maxUvarint(15-ccm.nonceSize) < uint64(len(plaintext)) {
+		return nil
+	}
+
+	// Account for the authentication block before adding its size to the payload.
+	if len(plaintext) > math.MaxInt-ccm.mac.Size() {
 		return nil
 	}
 

@@ -15,7 +15,8 @@ Rename intentionally replaces existing destinations and is not used by Photoly.
 When updating, review these methods and run the Samba and real NAS integration
 tests, including stale writes, destination conflicts and link replacement.
 
-`internal/crypto/ccm/util.go` also checks append lengths before integer addition,
+`internal/crypto/ccm/ccm.go` checks payload plus authentication-block length before
+addition, and `util.go` checks append lengths before integer addition,
 rejecting negative or overflowing sizes before slicing or allocating. Keep this
 guard when updating the snapshot. Run `go test -race ./internal/crypto/...` from
 this module; the parent module's `go test ./...` does not include replacement
