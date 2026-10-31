@@ -40,7 +40,10 @@ for (const width of [390, 700, 1100, 1600, 2560]) {
     await page.setViewportSize({ width, height: 1000 })
     await setup(page)
     for (const hidden of width >= 768 ? [false, true] : [false]) {
-      if (hidden) await page.getByRole('button', { name: 'Hide sidebar' }).click()
+      if (hidden) {
+        await page.getByRole('button', { name: 'Hide sidebar' }).click()
+        await expect(page.locator('.sidebar-rail')).toHaveCSS('width', '0px')
+      }
       await mode(page, 'Large cards')
       const largeFolder = (await folder(page).boundingBox())!
       const largeMedia = (await media(page).boundingBox())!
@@ -80,7 +83,14 @@ test('sidebar state and all layout modes survive reload; selections survive swit
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
   await setup(page)
+  const boundary = (await page.locator('#main-sidebar').boundingBox())!
+  const toggle = (await page.getByRole('button', { name: 'Hide sidebar' }).boundingBox())!
+  expect(toggle.x + toggle.width / 2).toBeCloseTo(boundary.x + boundary.width, 0)
   await page.getByRole('button', { name: 'Hide sidebar' }).click()
+  await expect(page.locator('.sidebar-rail')).toHaveCSS('width', '0px')
+  expect(
+    (await page.getByRole('button', { name: 'Show sidebar' }).boundingBox())!.x,
+  ).toBeGreaterThanOrEqual(0)
   await expect(page.getByRole('button', { name: 'Show sidebar' })).toHaveAttribute(
     'aria-expanded',
     'false',
