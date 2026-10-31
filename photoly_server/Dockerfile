@@ -2,7 +2,7 @@
 # Single-binary Photoly backend: `photoly serve|migrate|ai-worker|verify`.
 # Build context: photoly_server/. Runtime is debian-slim: ONNX Runtime plus the media CLIs (ffmpeg, heif-convert, exiftool, tesseract).
 
-FROM golang:1.26.10-bookworm AS build
+FROM golang:1.27.2-bookworm AS build
 ARG TARGETARCH
 # Must match the C API version onnxruntime_go (go.mod) was written for.
 ARG ORT_VERSION=1.29.0
