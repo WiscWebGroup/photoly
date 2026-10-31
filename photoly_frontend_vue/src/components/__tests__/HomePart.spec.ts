@@ -19,14 +19,14 @@ describe('HomePart', () => {
   beforeEach(() => {
     viewMode.value = 'grid'
     server.use(
-      http.get(`${API}/namespace/getRoot`, () => ok({ nsId: 1, nsName: 'root' })),
+      http.get(`${API}/namespace/getRoot`, () => ok({ nsId: 1, nsName: '..' })),
       http.get(`${API}/namespace/getChildren`, () =>
         ok([
           { nsId: 5, nsName: 'Trips' },
           { nsId: 6, nsName: 'Pets' },
         ]),
       ),
-      http.get(`${API}/namespace/trace`, () => ok([{ nsId: 1, nsName: 'root' }])),
+      http.get(`${API}/namespace/trace`, () => ok([{ nsId: 1, nsName: '..' }])),
       http.get(`${API}/photo/getByNamespace`, () => ok([])),
       http.post(`${API}/namespace/insert`, () => ok()),
       http.post(`${API}/namespace/delete`, () => ok()),
@@ -55,7 +55,7 @@ describe('HomePart', () => {
     await mountHome()
     button('New Folder').click()
     await vi.waitFor(() => input('Folder Name'))
-    type(input('Folder Name'), 'root')
+    type(input('Folder Name'), '..')
     button('Create').click()
 
     await vi.waitFor(() => expect(pageText()).toContain('Please input a valid folder name!'))
@@ -87,11 +87,11 @@ describe('HomePart', () => {
     ).toEqual(['5', '6'])
   })
 
-  it('switches the folders between grid and list layouts and remembers the choice', async () => {
+  it('switches the folders between large cards, small cards and list layouts and remembers the choice', async () => {
     await mountHome()
     const folders = () => byText('Trips').closest('ul')!
     expect(folders().className).toContain('grid')
-    expect(ariaButton('Grid view').getAttribute('aria-pressed')).toBe('true')
+    expect(ariaButton('Large cards').getAttribute('aria-pressed')).toBe('true')
 
     ariaButton('List view').click()
     await vi.waitFor(() => expect(folders().className).toContain('flex-col'))
@@ -99,7 +99,12 @@ describe('HomePart', () => {
     expect(ariaButton('List view').getAttribute('aria-pressed')).toBe('true')
     expect(localStorage.getItem('photoly-view-mode')).toBe('list')
 
-    ariaButton('Grid view').click()
+    ariaButton('Small cards').click()
+    await vi.waitFor(() => expect(folders().dataset.layout).toBe('compact'))
+    expect(ariaButton('Small cards').getAttribute('aria-pressed')).toBe('true')
+    expect(localStorage.getItem('photoly-view-mode')).toBe('compact')
+
+    ariaButton('Large cards').click()
     await vi.waitFor(() => expect(folders().className).toContain('grid'))
   })
 })

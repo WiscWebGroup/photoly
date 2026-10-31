@@ -5,8 +5,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	mimetype "mime"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -37,7 +39,7 @@ func Day(t *time.Time) any {
 
 // NsJSON is the wire shape of a namespace row.
 func NsJSON(n dbgen.Namespace) map[string]any {
-	return map[string]any{"nsId": n.NsID, "nsName": n.NsName, "nsParentId": n.NsParentID, "userId": n.UserID}
+	return map[string]any{"nsId": n.NsID, "displayOrder": n.DisplayOrder, "nsName": n.NsName, "nsParentId": n.NsParentID, "userId": n.UserID, "sourceId": n.SourceID, "sourceType": n.SourceType, "isMount": n.IsMount, "canMove": !n.IsMount && n.NsParentID != nil && *n.NsParentID != -1, "canRename": !n.IsMount && n.NsParentID != nil && *n.NsParentID != -1, "canDelete": !n.IsMount && n.NsParentID != nil && *n.NsParentID != -1}
 }
 
 // NsListJSON maps namespace rows; the result is never nil (JSON []).
@@ -52,7 +54,7 @@ func NsListJSON(rows []dbgen.Namespace) []map[string]any {
 // PhotoJSON is the wire shape of a photo row.
 func PhotoJSON(p dbgen.Photo) map[string]any {
 	return map[string]any{"photoId": p.PhotoID, "photoName": p.PhotoName, "uploadDate": ISO(p.UploadDate), "format": p.Format,
-		"nsId": p.NsID, "visibility": p.Visibility, "token": p.Token, "photoUuid": p.PhotoUuid, "userId": p.UserID}
+		"nsId": p.NsID, "visibility": p.Visibility, "token": p.Token, "photoUuid": p.PhotoUuid, "userId": p.UserID, "sourceId": p.SourceID}
 }
 
 // PhotoListJSON maps photo rows; the result is never nil (JSON []).
@@ -89,20 +91,11 @@ func DeletePhotos(ctx context.Context, tx pgx.Tx, f *Files, root string, u *Lock
 	count := 0
 	for _, id := range ids {
 		q := dbgen.New(tx)
-		file, err := q.GetPhotoFileNames(ctx, id)
+		paths, err := storage.AssetPaths(ctx, tx, root, id)
 		if err != nil {
 			return 0, err
 		}
-		names := []string{}
-		for _, s := range assetSuffixes {
-			names = append(names, file.PhotoUuid+s)
-		}
-		names = append(names, file.PhotoUuid+"."+file.Format, file.PhotoUuid+"_thumbnail."+file.Format)
-		for _, n := range names {
-			p, err := MediaPath(root, u.UUID, n)
-			if err != nil {
-				return 0, err
-			}
+		for _, p := range paths {
 			c, err := f.Remove(p)
 			if err != nil {
 				return 0, err
@@ -122,17 +115,21 @@ func DeletePhotos(ctx context.Context, tx pgx.Tx, f *Files, root string, u *Lock
 // ServeFile is controllers.common.binary for an existing file.
 func ServeFile(w http.ResponseWriter, r *http.Request, path, mime, download string) {
 	storage.Fetch(path)
-	fh, err := os.Open(path)
-	st, e2 := os.Stat(path)
-	if err != nil || e2 != nil || !st.Mode().IsRegular() {
+	fh, err := storage.OpenFile(path)
+	if err != nil {
 		w.WriteHeader(404)
 		return
 	}
 	defer fh.Close()
+	st, e2 := fh.Stat()
+	if e2 != nil || !st.Mode().IsRegular() {
+		w.WriteHeader(404)
+		return
+	}
 	w.Header().Set("Content-Type", mime)
 	w.Header().Set("Cache-Control", "private, no-store")
 	if download != "" {
-		w.Header().Set("Content-Disposition", "attachment; filename="+download)
+		w.Header().Set("Content-Disposition", mimetype.FormatMediaType("attachment", map[string]string{"filename": download}))
 	}
 	http.ServeContent(w, r, "", st.ModTime(), fh)
 }
@@ -142,11 +139,20 @@ func ServeFile(w http.ResponseWriter, r *http.Request, path, mime, download stri
 type Entry struct {
 	Path, Name string
 	ID         int64
+	Dir        bool
 }
 
 // ServeArchive is LocalStorage.archive + binary(download.zip). Any missing source is 404.
 func ServeArchive(w http.ResponseWriter, r *http.Request, entries []Entry) {
-	tmp, err := os.CreateTemp("", "photoly-zip-")
+	ServeArchiveNamed(w, r, entries, "download.zip")
+}
+func ServeArchiveNamed(w http.ResponseWriter, r *http.Request, entries []Entry, downloadName string) {
+	tempDir, err := filepath.EvalSymlinks(os.TempDir())
+	if err != nil {
+		http.Error(w, "temporary directory unavailable", 500)
+		return
+	}
+	tmp, err := os.CreateTemp(tempDir, "photoly-zip-")
 	if err != nil {
 		http.Error(w, "internal error", 500)
 		return
@@ -156,8 +162,25 @@ func ServeArchive(w http.ResponseWriter, r *http.Request, entries []Entry) {
 	zw := zip.NewWriter(tmp)
 	names := map[string]bool{}
 	for _, e := range entries {
-		storage.Fetch(e.Path)
-		st, err := os.Stat(e.Path)
+		if r.Context().Err() != nil {
+			return
+		}
+		if e.Name == "" || strings.Contains(e.Name, "\\") || strings.HasPrefix(e.Name, "/") || path.Clean(e.Name) != e.Name || strings.HasPrefix(e.Name, "../") {
+			http.Error(w, "invalid archive path", 400)
+			return
+		}
+		if e.Dir {
+			if _, err := zw.CreateHeader(&zip.FileHeader{Name: e.Name + "/", Method: zip.Store}); err != nil {
+				http.Error(w, "archive failed", 500)
+				return
+			}
+			continue
+		}
+		if err := storage.FetchError(r.Context(), e.Path); err != nil {
+			http.Error(w, "archive source unavailable", 404)
+			return
+		}
+		st, err := os.Lstat(e.Path)
 		if err != nil || !st.Mode().IsRegular() {
 			w.WriteHeader(404)
 			return
@@ -175,12 +198,12 @@ func ServeArchive(w http.ResponseWriter, r *http.Request, entries []Entry) {
 		names[name] = true
 		hdr := &zip.FileHeader{Name: name, Method: zip.Deflate, Modified: st.ModTime()}
 		fw, err := zw.CreateHeader(hdr)
-		src, e2 := os.Open(e.Path)
+		src, e2 := storage.OpenFile(e.Path)
 		if err != nil || e2 != nil {
 			w.WriteHeader(404)
 			return
 		}
-		_, cerr := io.Copy(fw, src)
+		_, cerr := io.Copy(fw, &archiveReader{r, src})
 		src.Close()
 		if cerr != nil {
 			w.WriteHeader(404)
@@ -191,5 +214,31 @@ func ServeArchive(w http.ResponseWriter, r *http.Request, entries []Entry) {
 		http.Error(w, "internal error", 500)
 		return
 	}
-	ServeFile(w, r, tmp.Name(), "application/octet-stream", "download.zip")
+	ServeFile(w, r, tmp.Name(), "application/zip", downloadName)
+}
+
+type archiveReader struct {
+	request *http.Request
+	src     io.Reader
+}
+
+func (r *archiveReader) Read(p []byte) (int, error) {
+	if e := r.request.Context().Err(); e != nil {
+		return 0, e
+	}
+	return r.src.Read(p)
+}
+
+// RemoveUserFiles also removes unindexed files and empty directories.
+func RemoveUserFiles(f *Files, root, uuid string) error {
+	for _, parts := range [][]string{{uuid}, {".assets", uuid}, {".remote", uuid}} {
+		p, e := storage.SafePath(root, parts...)
+		if e != nil {
+			return e
+		}
+		if _, e = f.Remove(p); e != nil {
+			return e
+		}
+	}
+	return nil
 }

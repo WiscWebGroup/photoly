@@ -1,6 +1,6 @@
 // Package storage is the media storage layer. Files always live under the local upload
 // root while they are being written or processed; a non-local Store (S3, …) is the
-// durable home they are published to after commit and fetched back from on demand.
+// durable home they are written to before commit and fetched back from on demand.
 package storage
 
 import (
@@ -15,7 +15,7 @@ var ErrNotFound = errors.New("storage: not found")
 
 type Info struct{ Size int64 }
 
-// Store is a durable key/value blob store. Keys are "<user_uuid>/<filename>".
+// Store is a durable key/value blob store. S3 asset keys include user, source and photo UUIDs.
 type Store interface {
 	Put(ctx context.Context, key string, r io.Reader, size int64) error
 	Get(ctx context.Context, key string) (io.ReadCloser, error) // ErrNotFound if missing
@@ -26,7 +26,7 @@ type Store interface {
 	Check(ctx context.Context) error
 }
 
-// Field describes one driver setting; the admin form is rendered from these.
+// Field describes one driver setting; the personal storage form is rendered from these.
 type Field struct {
 	Name     string `json:"name"`
 	Label    string `json:"label"`
@@ -63,8 +63,7 @@ func Drivers() []Driver {
 	return out
 }
 
-// BackendID identifies where cfg stores media: media is tagged with it, and only media tagged
-// with the active ID is listed.
+// BackendID identifies a remote location to prevent retargeting an occupied source.
 func BackendID(driver string, cfg map[string]string) string {
 	if d, ok := drivers[driver]; ok && d.ID != nil {
 		return driver + ":" + d.ID(cfg)

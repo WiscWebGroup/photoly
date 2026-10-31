@@ -1,48 +1,56 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { mockApi, ok, photo, signIn } from './mockApi'
 
-const addTile = (page: Page) =>
-  page.getByRole('listitem').getByRole('button', { name: 'New Folder', exact: true })
-
-/** Heights of the folder cards and of the "New Folder" tile after them. */
-async function heights(page: Page) {
-  const all = await page
-    .getByRole('list')
-    .filter({ has: addTile(page) })
-    .locator(':scope > li > button')
-    .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)))
-  return { cards: all.slice(0, -1), add: all.at(-1) }
-}
-
-test('"New Folder" is as tall as the folder cards at every width', async ({ page }) => {
-  await signIn(page)
-  await mockApi(page, {
-    '/namespace/getChildren': ok([
-      { nsId: 2, nsName: 'Trips' },
-      { nsId: 3, nsName: 'Family' },
-    ]),
-    // One folder shows an item count, the other doesn't.
-    '/photo/getCovers': ok([{ id: 2, count: 3, coverIds: [10, 11, 12] }]),
-    '/photo/getByNamespace': ok([photo(10, 'beach')]),
-  })
-  for (const width of [390, 700, 1100, 1600, 2560]) {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/home/HomePart')
-    await expect(addTile(page)).toBeVisible()
-    await expect
-      .poll(async () => {
-        const { cards, add } = await heights(page)
-        return `${cards.length} cards, ${cards.every((h) => h === add) ? 'same' : 'different'}`
-      }, `at ${width}px`)
-      .toBe('2 cards, same')
+for (const layout of ['grid', 'compact', 'list']) {
+  for (const [folders, media] of [
+    [false, false],
+    [true, false],
+    [false, true],
+    [true, true],
+  ]) {
+    test(`${layout}: folders=${folders}, media=${media} shows only populated sections`, async ({
+      page,
+    }) => {
+      await signIn(page)
+      await page.addInitScript((mode) => localStorage.setItem('photoly-view-mode', mode), layout)
+      await mockApi(page, {
+        '/namespace/getChildren': ok(folders ? [{ nsId: 2, nsName: 'Trips' }] : []),
+        '/photo/getByNamespace': ok(media ? [photo(10, 'Beach')] : []),
+      })
+      await page.goto('/home/HomePart')
+      await expect(page.getByLabel('Loading folder', { exact: true })).toHaveCount(0)
+      await expect(page.getByRole('heading', { name: 'Nothing Here', exact: true })).toHaveCount(
+        !folders && !media ? 1 : 0,
+      )
+      await expect(page.getByRole('heading', { name: 'Folders', exact: true })).toHaveCount(
+        folders ? 1 : 0,
+      )
+      await expect(page.getByRole('heading', { name: 'Media', exact: true })).toHaveCount(
+        media ? 1 : 0,
+      )
+      await expect(
+        page.getByRole('listitem').getByRole('button', { name: 'New Folder', exact: true }),
+      ).toHaveCount(0)
+      await expect(page.getByRole('heading', { name: 'No photos here', exact: true })).toHaveCount(
+        0,
+      )
+    })
   }
-})
-
-test('"New Folder" alone is as tall as an empty folder card', async ({ page, isMobile }) => {
+}
+test('a failed folder load shows an error and can retry, without claiming it is empty', async ({
+  page,
+}) => {
   await signIn(page)
-  await mockApi(page, { '/namespace/getChildren': ok([]) })
+  let failed = true
+  await mockApi(page, {
+    '/namespace/getChildren': () => (failed ? { msgCode: 500, t: null } : ok([])),
+  })
   await page.goto('/home/HomePart')
-  await expect(addTile(page)).toBeVisible()
-  // Preview (96px, 128px from 640px wide) + name row (44px) + border (2px).
-  expect(Math.round((await addTile(page).boundingBox())!.height)).toBe(isMobile ? 142 : 174)
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'Could not load this folder.' }),
+  ).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Nothing Here' })).toHaveCount(0)
+  failed = false
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Nothing Here' })).toBeVisible()
 })

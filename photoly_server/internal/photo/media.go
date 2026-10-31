@@ -1,8 +1,6 @@
 package photo
 
 import (
-	"archive/zip"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,6 +15,7 @@ import (
 
 	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/user/legacy"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -52,7 +51,7 @@ func (s *Service) MediaInfo(ctx context.Context, uid, photoID int64) (any, error
 	decodable := DecodableFormats[strings.ToLower(p.Format)]
 	if !has && decodable {
 		if uu, err := s.userUUID(ctx, s.Pool, uid); err == nil {
-			if path, err := s.MediaPath(uu, p.UUID, p.Format, false); err == nil && storage.Fetch(path) {
+			if path, err := s.MediaPath(ctx, s.Pool, uu, p.UUID, p.Format, false); err == nil && storage.Fetch(path) {
 				if a, err := ImageInfo(ctx, path); err == nil {
 					animated = a
 				}
@@ -282,15 +281,15 @@ func (s *Service) ProcessMedia(ctx context.Context, itemID string) error {
 		useVideo := live && (target == "gif" || kind == "live_preview")
 		var path string
 		if useVideo {
-			path, err = s.AssetPath(uu, p.UUID, "live_original")
+			path, err = s.AssetPath(ctx, s.Pool, uu, p.UUID, "live_original")
 		} else {
-			path, err = s.MediaPath(uu, p.UUID, p.Format, false)
+			path, err = s.MediaPath(ctx, s.Pool, uu, p.UUID, p.Format, false)
 		}
 		if err != nil {
 			return err
 		}
 		storage.Fetch(path)
-		in, err := os.Open(path)
+		in, err := storage.OpenFile(path)
 		if err != nil {
 			return Err("source_changed", 409)
 		}
@@ -372,7 +371,7 @@ func (s *Service) ProcessMedia(ctx context.Context, itemID string) error {
 			if live, err := q.GetPhotoLive(ctx, originalID); err != nil || !live {
 				return Err("source_changed", 409)
 			}
-			dst, err := s.AssetPath(u.UUID, original.UUID, "live_preview")
+			dst, err := s.AssetPath(ctx, tx, u.UUID, original.UUID, "live_preview")
 			if err != nil {
 				return err
 			}
@@ -442,7 +441,7 @@ func (s *Service) LivePath(ctx context.Context, uid, photoID int64) (string, err
 	if err != nil {
 		return "", err
 	}
-	path, err := s.AssetPath(uu, p.UUID, "live_preview")
+	path, err := s.AssetPath(ctx, s.Pool, uu, p.UUID, "live_preview")
 	if err != nil {
 		return "", err
 	}
@@ -452,8 +451,8 @@ func (s *Service) LivePath(ctx context.Context, uid, photoID int64) (string, err
 	return path, nil
 }
 
-// LiveArchive is MediaService.live_archive: the still and its movie in one zip.
-func (s *Service) LiveArchive(ctx context.Context, uid, photoID int64) ([]byte, error) {
+// LiveEntries resolves the still and original companion for a disk-backed ZIP.
+func (s *Service) LiveEntries(ctx context.Context, uid, photoID int64) ([]legacy.Entry, error) {
 	p, err := s.OwnedPhoto(ctx, s.Pool, photoID, uid, nil, 404)
 	if err != nil {
 		return nil, err
@@ -465,11 +464,11 @@ func (s *Service) LiveArchive(ctx context.Context, uid, photoID int64) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	still, err := s.MediaPath(uu, p.UUID, p.Format, false)
+	still, err := s.MediaPath(ctx, s.Pool, uu, p.UUID, p.Format, false)
 	if err != nil {
 		return nil, err
 	}
-	movie, err := s.AssetPath(uu, p.UUID, "live_original")
+	movie, err := s.AssetPath(ctx, s.Pool, uu, p.UUID, "live_original")
 	if err != nil {
 		return nil, err
 	}
@@ -477,39 +476,9 @@ func (s *Service) LiveArchive(ctx context.Context, uid, photoID int64) ([]byte, 
 	if p.Name != nil {
 		name = *p.Name
 	}
-	var buf bytes.Buffer
-	zw := zip.NewWriter(&buf)
-	seen := map[string]bool{}
-	for _, e := range [][2]string{{still, name + "." + p.Format}, {movie, name + ".mov"}} {
-		storage.Fetch(e[0])
-		fi, err := os.Stat(e[0])
-		if err != nil || !fi.Mode().IsRegular() {
-			return nil, Err(nil, 404)
-		}
-		cand := e[1]
-		for i := 1; seen[cand]; i++ {
-			ext := filepath.Ext(e[1])
-			cand = fmt.Sprintf("%s (%d-%d)%s", strings.TrimSuffix(e[1], ext), photoID, i, ext)
-		}
-		seen[cand] = true
-		h, _ := zip.FileInfoHeader(fi)
-		h.Name, h.Method = cand, zip.Deflate
-		w, err := zw.CreateHeader(h)
-		if err != nil {
-			return nil, err
-		}
-		in, err := os.Open(e[0])
-		if err != nil {
-			return nil, Err(nil, 404)
-		}
-		_, err = io.Copy(w, in)
-		in.Close()
-		if err != nil {
-			return nil, err
-		}
-	}
-	if err := zw.Close(); err != nil {
+	var liveName string
+	if err = s.Pool.QueryRow(ctx, `SELECT coalesce(nullif(display_name,''),filename) FROM media_asset WHERE photo_id=$1 AND role='live_original'`, photoID).Scan(&liveName); err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return []legacy.Entry{{Path: still, Name: name + "." + p.Format, ID: photoID}, {Path: movie, Name: liveName, ID: photoID}}, nil
 }

@@ -27,7 +27,7 @@ func (s *svc) mapPhotos(byGallery bool) legacy.Handler {
 		}
 		out := []map[string]any{}
 		for _, p := range rows {
-			out = append(out, map[string]any{"photo_id": p.PhotoID, "photo_name": p.PhotoName, "format": p.Format, "ns_id": p.NsID, "token": p.Token,
+			out = append(out, map[string]any{"photo_id": p.PhotoID, "photo_name": p.PhotoName, "format": p.Format, "ns_id": p.NsID, "source_id": p.SourceID, "visibility": p.Visibility, "token": p.Token,
 				"photo_uuid": p.PhotoUuid, "upload_date": legacy.Day(p.UploadDate), "extra_photo_gps_lat": p.ExtraPhotoGpsLat,
 				"extra_photo_gps_lon": p.ExtraPhotoGpsLon, "extra_photo_taken_date": legacy.Day(p.ExtraPhotoTakenDate)})
 		}

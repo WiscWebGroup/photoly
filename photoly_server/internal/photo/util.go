@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -35,6 +36,9 @@ func Bad() error { return &Biz{-1, 400} }
 
 // BizOf unwraps a BusinessError (or maps a PostgreSQL integrity error to Bad()).
 func BizOf(err error) (*Biz, bool) {
+	if storage.ClientError(err) {
+		return &Biz{err.Error(), 409}, true
+	}
 	var b *Biz
 	if errors.As(err, &b) {
 		return b, true

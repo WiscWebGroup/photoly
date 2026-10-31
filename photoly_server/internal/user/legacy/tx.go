@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
@@ -21,123 +20,9 @@ type DB interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-// Files is FileMutation: filesystem changes compensated if the transaction fails.
-type Files struct {
-	Root     string
-	work     string
-	created  []string
-	removed  [][2]string
-	original map[string]int64
-	n        int
-}
+type Files struct{ *storage.Files }
 
-func (f *Files) staging() error {
-	if f.work != "" {
-		return nil
-	}
-	if err := os.MkdirAll(filepath.Join(f.Root, ".staging"), 0o755); err != nil {
-		return err
-	}
-	w, err := os.MkdirTemp(filepath.Join(f.Root, ".staging"), "")
-	f.work = w
-	return err
-}
-
-func (f *Files) tmp() string { f.n++; return filepath.Join(f.work, NewUUID()) }
-
-func size(p string) int64 {
-	if st, err := os.Stat(p); err == nil && st.Mode().IsRegular() {
-		return st.Size()
-	}
-	return 0
-}
-
-// Install moves src into dest (replacing it) and returns nothing; errors abort the transaction.
-func (f *Files) Install(src io.Reader, dest string) error {
-	if err := f.staging(); err != nil {
-		return err
-	}
-	t := f.tmp()
-	out, err := os.Create(t)
-	if err != nil {
-		return err
-	}
-	if _, err = io.Copy(out, src); err != nil {
-		out.Close()
-		return err
-	}
-	out.Close()
-	if err = os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		return err
-	}
-	if _, err = f.Remove(dest); err != nil {
-		return err
-	}
-	if err = os.Rename(t, dest); err != nil {
-		return err
-	}
-	f.created = append(f.created, dest)
-	return nil
-}
-
-// Remove moves path aside (restorable) and reports 1 if it existed.
-func (f *Files) Remove(path string) (int, error) {
-	storage.Fetch(path) // an offloaded file must come back so it can be sized and restored
-	if f.original == nil {
-		f.original = map[string]int64{}
-	}
-	if _, ok := f.original[path]; !ok {
-		f.original[path] = size(path)
-	}
-	if _, err := os.Lstat(path); err != nil {
-		return 0, nil
-	}
-	if err := f.staging(); err != nil {
-		return 0, err
-	}
-	b := f.tmp()
-	if err := os.Rename(path, b); err != nil {
-		return 0, err
-	}
-	f.removed = append(f.removed, [2]string{path, b})
-	return 1, nil
-}
-
-// Delta is the change in bytes of the files directly inside dir.
-func (f *Files) Delta(dir string) int64 {
-	var d int64
-	for p, before := range f.original {
-		if filepath.Dir(p) == dir {
-			d += size(p) - before
-		}
-	}
-	return d
-}
-
-func (f *Files) rollback() {
-	for i := len(f.created) - 1; i >= 0; i-- {
-		os.Remove(f.created[i])
-	}
-	for i := len(f.removed) - 1; i >= 0; i-- {
-		_ = os.MkdirAll(filepath.Dir(f.removed[i][0]), 0o755)
-		_ = os.Rename(f.removed[i][1], f.removed[i][0])
-	}
-}
-
-// publish mirrors the committed changes to the remote store (no-op for local storage).
-func (f *Files) publish() {
-	removed := make([]string, len(f.removed))
-	for i, r := range f.removed {
-		removed[i] = r[0]
-	}
-	storage.Publish(removed, f.created)
-}
-
-func (f *Files) cleanup() {
-	if f.work != "" {
-		_ = os.RemoveAll(f.work)
-	}
-}
+func (f *Files) Install(r io.Reader, p string) error { _, e := f.Files.Install(r, p); return e }
 
 // LockedUser is the row locked by Atomic.
 type LockedUser struct {
@@ -151,33 +36,31 @@ type LockedUser struct {
 func (u *LockedUser) Dir(root string) string { return filepath.Join(root, u.UUID) }
 
 // Usage is LocalStorage.usage: bytes in a user's media folder.
-func Usage(root, uuid string) int64 {
-	var used int64
-	_ = filepath.WalkDir(filepath.Join(root, uuid), func(p string, d os.DirEntry, err error) error {
-		if err == nil && !d.IsDir() {
-			if info, e := d.Info(); e == nil {
-				used += info.Size()
-			}
-		}
-		return nil
-	})
-	return used
-}
+func Usage(root, uuid string) int64 { return storage.Usage(root, uuid) }
 
 // Atomic is BaseService.atomic. uid==0 takes no user lock. Quota is enforced on the
 // file delta for the locked user.
 func Atomic(ctx context.Context, pool *pgxpool.Pool, root string, uid int64, policyWrite bool,
 	fn func(tx pgx.Tx, f *Files, u *LockedUser) error) (err error) {
-	f := &Files{Root: root}
-	defer f.cleanup()
+	base, err := storage.NewFiles(root)
+	if err != nil {
+		return err
+	}
+	f := &Files{base}
+	defer f.Close()
+	f.SetContext(ctx)
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
+	tx = storage.WriteTransaction(tx)
 	defer func() {
 		if err != nil {
-			_ = tx.Rollback(ctx)
-			f.rollback()
+			f.Rollback()
+			_ = tx.Rollback(context.WithoutCancel(ctx))
+			if f.RecoveryRequired() || storage.NeedsRescan(err) {
+				_, _ = pool.Exec(context.WithoutCancel(ctx), `UPDATE storage_source SET scan_requested=true,scan_status='error',scan_error='File operation failed; scan requested. Retained workspaces may need inspection.' WHERE user_id=$1 AND kind<>'s3'`, uid)
+			}
 		}
 	}()
 	lock := "pg_advisory_xact_lock_shared"
@@ -195,7 +78,7 @@ func Atomic(ctx context.Context, pool *pgxpool.Pool, root string, uid int64, pol
 		var max *int64
 		var group int64
 		e := tx.QueryRow(ctx, `SELECT uuid, used_bytes, storage_override, max_storage_bytes, group_id
-			FROM "user" WHERE user_id=$1 FOR UPDATE`, uid).Scan(&u.UUID, &used, &override, &max, &group)
+			FROM "user" WHERE user_id=$1 `+storage.UserLockMode(ctx), uid).Scan(&u.UUID, &used, &override, &max, &group)
 		if e == pgx.ErrNoRows {
 			err = Bad()
 			return err
@@ -213,22 +96,32 @@ func Atomic(ctx context.Context, pool *pgxpool.Pool, root string, uid int64, pol
 		} else if err = tx.QueryRow(ctx, `SELECT max_storage_bytes FROM user_group WHERE id=$1`, group).Scan(&u.Limit); err != nil {
 			return err
 		}
-		if used == nil {
-			if _, err = tx.Exec(ctx, `UPDATE "user" SET used_bytes=$2 WHERE user_id=$1`, uid, u.Used); err != nil {
-				return err
-			}
-		}
+
+	}
+	var before int64
+	if u != nil {
+		before = Usage(root, u.UUID)
 	}
 	if err = fn(tx, f, u); err != nil {
 		return err
 	}
+	if err = f.Flush(ctx); err != nil {
+		return err
+	}
+	if err = f.RecordVersions(ctx, tx); err != nil {
+		return err
+	}
 	if u != nil && !u.Gone {
-		delta := f.Delta(u.Dir(root))
-		if delta > 0 && u.Limit != nil && u.Used+delta > *u.Limit {
+		if _, err = tx.Exec(ctx, `SELECT user_id FROM "user" WHERE user_id=$1 FOR NO KEY UPDATE`, uid); err != nil {
+			return err
+		}
+		after := Usage(root, u.UUID)
+		delta := after - before
+		if delta > 0 && u.Limit != nil && after > *u.Limit {
 			err = Err("storage_quota_exceeded", 413)
 			return err
 		}
-		n := u.Used + delta
+		n := after
 		if n < 0 {
 			n = 0
 		}
@@ -239,7 +132,7 @@ func Atomic(ctx context.Context, pool *pgxpool.Pool, root string, uid int64, pol
 	if err = tx.Commit(ctx); err != nil {
 		return err
 	}
-	f.publish()
+	f.Commit()
 	return nil
 }
 
@@ -257,12 +150,7 @@ func Now() time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), 0, time.UTC)
 }
 
-// MediaPath is LocalStorage.path: both parts must be plain file-name components.
-func MediaPath(root, uuid, name string) (string, error) {
-	for _, p := range []string{uuid, name} {
-		if p == "" || p == "." || p == ".." || strings.ContainsAny(p, "/\\\x00") {
-			return "", Bad()
-		}
-	}
-	return filepath.Join(root, uuid, name), nil
+// MediaPath resolves legacy public asset names through the source model.
+func MediaPath(ctx context.Context, q DB, root, uuid, name string) (string, error) {
+	return storage.ResolveLegacyName(ctx, q, root, uuid, name)
 }

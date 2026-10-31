@@ -53,6 +53,7 @@ func Register(a *app.App) {
 	m.HandleFunc("GET /namespace/getNameById", std.Wrap(a, s.nsName))
 	m.HandleFunc("POST /namespace/updateName", std.Wrap(a, s.nsRename))
 	m.HandleFunc("POST /namespace/updateParent", std.Wrap(a, s.nsMove))
+	m.HandleFunc("POST /namespace/order", m1.Wrap(a, s.nsOrder))
 	m.HandleFunc("POST /namespace/insert", m1.Wrap(a, s.nsInsert))
 	m.HandleFunc("POST /namespace/delete", std.Wrap(a, s.nsDelete))
 	m.HandleFunc("GET /namespace/trace", std.Wrap(a, s.nsTrace))
@@ -390,7 +391,7 @@ func (s *svc) downloadGallery(w http.ResponseWriter, r *http.Request, uid int64)
 		if err != nil {
 			return nil, err
 		}
-		path, err := legacy.MediaPath(s.a.Cfg.UploadFolder, uuid, p.PhotoUuid+"."+p.Format)
+		path, err := legacy.MediaPath(r.Context(), s.a.Pool, s.a.Cfg.UploadFolder, uuid, p.PhotoUuid+"."+p.Format)
 		if err != nil {
 			return nil, err
 		}

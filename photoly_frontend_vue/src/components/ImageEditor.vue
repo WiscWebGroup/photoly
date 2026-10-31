@@ -292,13 +292,13 @@ async function rename() {
   const photoName = renameTo.value.trim()
   if (!photoName) return toast.warning('Image name cannot be empty!')
   try {
-    await call({
+    const updated = await call<{ photoName: string }>({
       method: 'post',
       url: '/photo/update',
       data: { photoId: props.photo.photoId, photoName },
     })
     toast.success('Photo name changed!')
-    emit('renamed', photoName)
+    emit('renamed', updated.photoName)
   } catch {
     toast.error('change name Response Error!')
   }

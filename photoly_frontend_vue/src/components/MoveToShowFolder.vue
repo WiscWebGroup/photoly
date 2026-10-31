@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 interface TreeNode {
   id: number
   name: string
+  sourceId?: number
   disabled: boolean
   expanded: boolean
   /** `null` until the node is first expanded. */
@@ -25,6 +26,7 @@ interface TreeNode {
 }
 
 const props = defineProps<{
+  sourceId?: number
   title?: string
   originalNsId?: number
   disableOrgNsId?: boolean
@@ -44,6 +46,7 @@ const selectedNsName = ref('')
 const node = (f: FolderInfo): TreeNode => ({
   id: f.nsId,
   name: f.nsName,
+  sourceId: f.sourceId,
   disabled: !!props.disableOrgNsId && f.nsId === props.originalNsId,
   expanded: false,
   children: null,
@@ -62,8 +65,10 @@ const rows = computed(() => {
 
 async function toggle(n: TreeNode) {
   if (n.disabled) return
-  selectedNsId.value = n.id
-  selectedNsName.value = n.name
+  if (props.sourceId === undefined || n.sourceId === props.sourceId) {
+    selectedNsId.value = n.id
+    selectedNsName.value = n.name
+  }
   n.expanded = !n.expanded
   if (n.children) return
   try {
@@ -98,6 +103,10 @@ const heading = computed(
 
 defineExpose({
   openModal: () => {
+    if (root.value) {
+      root.value.children = null
+      root.value.expanded = false
+    }
     selectedNsId.value = -1
     selectedNsName.value = ''
     open.value = true
@@ -149,7 +158,12 @@ defineExpose({
               class="size-4 shrink-0"
               aria-hidden="true"
             />
-            <span class="truncate">{{ n.name }}</span>
+            <span class="truncate">{{ n.name }}</span
+            ><span
+              v-if="props.sourceId !== undefined && n.sourceId !== props.sourceId"
+              class="text-muted-foreground text-xs"
+              >Other storage</span
+            >
             <span
               v-if="n.disabled"
               class="ml-auto rounded-full border px-2 text-xs leading-5 text-muted-foreground"

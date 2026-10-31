@@ -4,6 +4,11 @@ import { watchDebounced } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import {
   Check,
+  GripVertical,
+  Cloud,
+  HardDrive,
+  Network,
+  Server,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -14,6 +19,7 @@ import {
   FolderOpen,
   FolderPlus,
   LayoutGrid,
+  Grid3X3,
   List,
   Loader2,
   Pencil,
@@ -23,6 +29,7 @@ import {
   Upload,
   X,
 } from '@lucide/vue'
+import { storageFolder } from '@/composables/useStorageRevision'
 import EmptyState from '@/components/EmptyState.vue'
 import MediaList from '@/components/MediaList.vue'
 import FolderDetails from '@/components/FolderDetails.vue'
@@ -64,12 +71,15 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { isValidFolderName, useFolders, type Folder as FolderInfo } from '@/composables/useFolders'
+import { useFolderReorder } from '@/composables/useFolderReorder'
 import { usePhotos } from '@/composables/usePhotos'
 import { useCovers } from '@/composables/useCovers'
+import { useCardSizing } from '@/composables/useCardSizing'
 import { viewMode } from '@/composables/useViewMode'
-import { download } from '@/lib/download'
+import { downloadNative } from '@/lib/download'
+import { useStorageRevision } from '@/composables/useStorageRevision'
 import { photoUrl } from '@/lib/photoUrl'
-import { call } from '@/lib/http'
+import { call, ApiError } from '@/lib/http'
 import { mediaKind } from '@/lib/media'
 import { cn } from '@/lib/utils'
 import { useRoute } from 'vue-router'
@@ -81,7 +91,12 @@ const route = useRoute()
 
 const auth = useAuthStore()
 const folders = useFolders()
+const reorder = useFolderReorder(folders.children, folders.reorder, () =>
+  toast.error('Could not save folder order. Please try again.'),
+)
 const library = usePhotos()
+const pageLoading = ref(true)
+const pageError = ref(false)
 const mediaList = ref<InstanceType<typeof MediaList>>()
 const movePicker = ref<InstanceType<typeof MoveToShowFolder>>()
 const detailsFolder = ref<FolderInfo | null>(null)
@@ -97,6 +112,7 @@ async function closeDetails() {
 }
 
 const nsId = computed(() => folders.current.value?.nsId ?? -1)
+watch(nsId, () => reorder.cancel())
 const isRoot = computed(() => folders.path.value.length <= 1)
 /** The root folder reads as "Library" everywhere it's shown. */
 const folderName = (f: FolderInfo, i: number) => (i === 0 ? 'Library' : f.nsName)
@@ -133,19 +149,48 @@ const summary = computed(() => {
 
 // Folder cards show a mosaic of what's inside and how many items; refetched when the folder's
 // children change or photos move in or out of it.
+watch(
+  () =>
+    [
+      folders.current.value?.nsId,
+      folders.current.value?.sourceId,
+      folders.current.value?.nsName,
+    ] as const,
+  ([id, sourceId, name]) => {
+    storageFolder.value = id && sourceId ? { nsId: id, sourceId, name: name || 'Library' } : null
+  },
+  { immediate: true },
+)
+onUnmounted(() => {
+  storageFolder.value = null
+})
+
 const { covers, refresh: refreshCovers } = useCovers('folder')
+const folderGrid = ref<HTMLElement>()
+const { compactStyle, mobile } = useCardSizing(folderGrid, 'folder')
+// Match half of the large card's preview, metadata footer and borders.
+const compactFolderHeight = computed(
+  () =>
+    ((mobile.value ? 96 : 128) +
+      (folders.children.value.some((f) => f.isMount || covers.has(f.nsId)) ? 60 : 44) +
+      2) /
+    2,
+)
+
 watchDebounced(
   [folders.children, library.photos],
-  () => refreshCovers(folders.children.value.map((f) => f.nsId)),
+  () => refreshCovers(folders.children.value.filter((f) => !f.isMount).map((f) => f.nsId)),
   { debounce: 60 },
 )
 
 // --- Navigation ---------------------------------------------------------------------------------
 async function queryPhotos() {
+  pageError.value = false
   try {
     await library.loadByFolder(nsId.value)
     mediaList.value?.updatePhotoList(library.photos.value)
   } catch {
+    pageError.value = true
     toast.error('query photo Response Error!')
   }
 }
@@ -153,12 +198,17 @@ async function queryPhotos() {
 async function go(id: number, name = '') {
   if (id === nsId.value) return
   selected.value = []
+  pageLoading.value = true
+  pageError.value = false
   try {
     const opened = folders.open(id, name)
     mediaList.value?.updateNsId(id)
     await Promise.all([opened, queryPhotos()])
   } catch {
+    pageError.value = true
     toast.error('query folder Response Error!')
+  } finally {
+    pageLoading.value = false
   }
 }
 
@@ -170,9 +220,26 @@ onMounted(async () => {
     mediaList.value?.updateNsId(nsId.value)
     await queryPhotos()
   } catch {
+    pageError.value = true
     toast.error('get root folder Response Error!')
+  } finally {
+    pageLoading.value = false
   }
 })
+
+async function retryContent() {
+  pageLoading.value = true
+  pageError.value = false
+  try {
+    if (nsId.value < 0) await folders.openRoot()
+    else await folders.refresh()
+    await queryPhotos()
+  } catch {
+    pageError.value = true
+  } finally {
+    pageLoading.value = false
+  }
+}
 
 /** Runs a folder mutation, then reports the outcome. Returns whether it succeeded. */
 async function mutate(action: () => Promise<unknown>, success: string, failure: string) {
@@ -200,17 +267,21 @@ const selected = ref<number[]>([])
 watch(selectMode, (on) => on || (selected.value = []))
 const confirmDeleteSelected = ref(false)
 
-const toggleSelected = (id: number) =>
-  (selected.value = selected.value.includes(id)
+function toggleSelected(id: number) {
+  if (folders.children.value.find((f) => f.nsId === id)?.isMount) return
+  selected.value = selected.value.includes(id)
     ? selected.value.filter((s) => s !== id)
-    : [...selected.value, id])
+    : [...selected.value, id]
+}
 
 function openFolder(folder: FolderInfo) {
-  if (selectMode.value) toggleSelected(folder.nsId)
-  else go(folder.nsId, folder.nsName)
+  if (selectMode.value) {
+    if (!folder.isMount) toggleSelected(folder.nsId)
+  } else go(folder.nsId, folder.nsName)
 }
 
 function selectFolder(folder: FolderInfo) {
+  if (folder.isMount) return
   toggleSelected(folder.nsId)
   selectMode.value = true
 }
@@ -223,7 +294,7 @@ function clearSelection() {
 }
 
 function selectAll() {
-  selected.value = folders.children.value.map((f) => f.nsId)
+  selected.value = folders.children.value.filter((f) => !f.isMount).map((f) => f.nsId)
   mediaList.value?.setChecked(true)
 }
 
@@ -349,14 +420,32 @@ async function moveFolder(parentId: number) {
   ])
 }
 
+const mountIcon = (type?: string) =>
+  type === 'smb' ? Server : type === 'webdav' ? Network : type === 'local' ? HardDrive : Cloud
+const mountLabel = (type?: string) =>
+  type === 'smb' ? 'SMB' : type === 'webdav' ? 'WebDAV' : type === 'local' ? '本机挂载' : 'S3'
+const mountColor = (type?: string) =>
+  type === 'smb'
+    ? 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300'
+    : type === 'webdav'
+      ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+      : type === 'local'
+        ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+        : 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
+
 // --- Drag a folder or photo onto a folder (or breadcrumb) to move it ------------------------------
 const dragOver = ref<number | null>(null)
 
 function dragFolder(e: DragEvent, folder: FolderInfo) {
+  if (folder.isMount) {
+    e.preventDefault()
+    return
+  }
   const multi = selectMode.value && selected.value.includes(folder.nsId)
   startDrag(
     e,
     {
+      sourceId: folder.sourceId,
       folders: multi ? selected.value : [folder.nsId],
       photos: multi ? (mediaList.value?.checkedIds() ?? []) : [],
     },
@@ -379,7 +468,17 @@ function dropOn(target: number) {
       const raw = e.dataTransfer?.getData(DRAG_TYPE)
       if (!raw) return
       e.preventDefault()
-      const { folders: dragged, photos }: DragPayload = JSON.parse(raw)
+      const { folders: dragged, photos, sourceId }: DragPayload = JSON.parse(raw)
+      const destination = [...folders.children.value, ...folders.path.value].find(
+        (f) => f.nsId === target,
+      )
+      if (
+        destination?.sourceId !== undefined &&
+        destination.sourceId !== (sourceId ?? folders.current.value?.sourceId)
+      ) {
+        toast.error('Moving between storage sources is not supported.')
+        return
+      }
       const folderIds = dragged.filter((id) => id !== target)
       const photoIds = target === nsId.value ? [] : photos
       if (!folderIds.length && !photoIds.length) return
@@ -399,29 +498,32 @@ function dropOn(target: number) {
 }
 
 // --- Download a folder ----------------------------------------------------------------------------
-const downloading = ref(false)
-let abort = new AbortController()
-
-async function downloadFolder(folder: FolderInfo) {
-  abort = new AbortController()
-  downloading.value = true
-  try {
-    await download(`/namespace/downloadNs/${auth.token}`, `${folder.nsName}.zip`, {
-      params: { nsId: folder.nsId },
-      signal: abort.signal,
-    })
-  } catch (e) {
-    if (!abort.signal.aborted) toast.error(String(e))
-  } finally {
-    downloading.value = false
-  }
+function downloadFolder(folder: FolderInfo) {
+  downloadNative(`/namespace/downloadNs/${encodeURIComponent(auth.token ?? '')}`, {
+    nsId: folder.nsId,
+  })
 }
 
-function abortDownload() {
-  abort.abort()
-  downloading.value = false
-  toast.warning('Download Request Canceled')
-}
+useStorageRevision(
+  async () => {
+    try {
+      await folders.refresh()
+    } catch (e) {
+      if (!(e instanceof ApiError) || ![400, 404, 409].includes(e.msgCode)) throw e
+      await folders.openRoot()
+      mediaList.value?.updateNsId(nsId.value)
+    }
+    await queryPhotos()
+  },
+  () =>
+    selectMode.value ||
+    !!selectedCount.value ||
+    !!renaming.value ||
+    !!deleting.value ||
+    dragging.value ||
+    reorder.active.value ||
+    folders.ordering.value,
+)
 
 // Upload state belongs to the application, so navigating never cancels a transfer.
 function startUpload() {
@@ -475,7 +577,12 @@ watch(
       </nav>
     </div>
 
-    <div v-if="nsId === -1" class="flex justify-center py-24" role="status" aria-label="Loading">
+    <div
+      v-if="nsId === -1 && pageLoading"
+      class="flex justify-center py-24"
+      role="status"
+      aria-label="Loading"
+    >
       <Loader2 class="text-muted-foreground size-8 animate-spin" />
     </div>
 
@@ -483,7 +590,7 @@ watch(
     <ContextMenu>
       <ContextMenuTrigger as-child>
         <div
-          v-show="nsId !== -1"
+          v-show="nsId !== -1 || pageError"
           class="flex w-full flex-1 flex-col gap-8 px-4 pt-4 pb-32 md:gap-10 md:px-10 md:pt-8"
         >
           <div class="flex flex-col gap-1">
@@ -510,7 +617,33 @@ watch(
             </PageHeader>
           </div>
 
-          <section aria-labelledby="folders-h" class="flex flex-col gap-3">
+          <p
+            v-if="pageError"
+            role="alert"
+            class="text-muted-foreground flex items-center gap-3 py-10"
+          >
+            Could not load this folder.<Button variant="outline" @click="retryContent"
+              >Retry</Button
+            >
+          </p>
+          <div
+            v-else-if="pageLoading || library.loading.value"
+            role="status"
+            aria-label="Loading folder"
+            class="flex justify-center py-10"
+          >
+            <Loader2 class="text-muted-foreground size-6 animate-spin" />
+          </div>
+          <EmptyState
+            v-else-if="!folders.children.value.length && !library.photos.value.length"
+            title="Nothing Here"
+            class="py-16"
+          />
+          <section
+            v-if="folders.children.value.length && !pageLoading && !pageError"
+            aria-labelledby="folders-h"
+            class="flex flex-col gap-3"
+          >
             <div class="flex items-baseline gap-2">
               <h2 id="folders-h" class="text-base font-semibold">Folders</h2>
               <span v-if="folders.children.value.length" class="text-muted-foreground text-sm">{{
@@ -519,6 +652,14 @@ watch(
             </div>
 
             <ul
+              ref="folderGrid"
+              data-folder-order-grid
+              :data-layout="viewMode"
+              :style="
+                viewMode === 'compact'
+                  ? { ...compactStyle, '--folder-height': `${compactFolderHeight}px` }
+                  : undefined
+              "
               :class="
                 viewMode === 'list'
                   ? 'flex flex-col gap-1'
@@ -528,9 +669,40 @@ watch(
               <li
                 v-for="(folder, i) in folders.children.value"
                 :key="folder.nsId"
-                :class="['animate-rise', viewMode === 'grid' && 'flex w-36 shrink-0 sm:w-auto']"
+                :data-order-id="folder.nsId"
+                :data-order-edge="
+                  reorder.before.value === folder.nsId
+                    ? 'before'
+                    : reorder.before.value === null && i === folders.children.value.length - 1
+                      ? 'after'
+                      : undefined
+                "
+                :class="[
+                  'animate-rise relative',
+                  viewMode !== 'list' && 'flex w-36 shrink-0 sm:w-auto',
+                  viewMode === 'compact' && 'compact-folder',
+                ]"
                 :style="{ animationDelay: `${Math.min(i, 12) * 30}ms` }"
               >
+                <button
+                  type="button"
+                  class="folder-reorder-handle bg-card/90 text-muted-foreground hover:text-foreground absolute top-1 right-1 z-10 grid size-7 touch-none place-items-center rounded-md border shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  :class="reorder.moving.value === folder.nsId ? 'cursor-grabbing' : 'cursor-grab'"
+                  :aria-label="`Reorder ${folder.nsName}`"
+                  title="Drag to reorder; use arrow keys to adjust, Home or End to move to an edge"
+                  :disabled="reorder.saving.value"
+                  :draggable="false"
+                  @pointerdown="reorder.down($event, folder.nsId)"
+                  @pointermove="reorder.move"
+                  @pointerup="reorder.up"
+                  @pointercancel="reorder.cancel"
+                  @lostpointercapture="reorder.cancel"
+                  @keydown="reorder.key($event, folder.nsId)"
+                  @click.stop
+                  @contextmenu.stop
+                >
+                  <GripVertical class="size-4" aria-hidden="true" />
+                </button>
                 <ContextMenu>
                   <ContextMenuTrigger as-child>
                     <button
@@ -541,21 +713,30 @@ watch(
                         cn(
                           'group bg-card relative flex w-full text-left text-sm shadow-xs transition-[border-color,box-shadow,translate] duration-200 outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
                           viewMode === 'list'
-                            ? 'hover:bg-accent h-11 items-center gap-3 rounded-lg border px-3'
+                            ? 'hover:bg-accent h-11 items-center gap-3 rounded-lg border py-0 pl-3 pr-10'
                             : 'hover:border-primary flex-col overflow-hidden rounded-[14px] border hover:-translate-y-0.5 hover:shadow-sm',
                           (selected.includes(folder.nsId) || dragOver === folder.nsId) &&
                             'border-primary ring-primary ring-1',
                         )
                       "
-                      draggable="true"
+                      :draggable="!folder.isMount"
                       v-bind="dropOn(folder.nsId)"
                       @dragstart="dragFolder($event, folder)"
                       @click="openFolder(folder)"
                       @contextmenu.stop
                     >
                       <span
-                        v-if="viewMode === 'grid' && covers.get(folder.nsId)?.ids.length"
-                        class="bg-muted grid h-24 grid-cols-[2fr_1fr] grid-rows-2 gap-0.5 sm:h-32"
+                        v-if="folder.isMount && viewMode !== 'list'"
+                        class="folder-preview grid h-24 place-items-center sm:h-32"
+                        :class="mountColor(folder.sourceType)"
+                        ><component
+                          :is="mountIcon(folder.sourceType)"
+                          class="size-10"
+                          aria-hidden="true"
+                      /></span>
+                      <span
+                        v-else-if="viewMode !== 'list' && covers.get(folder.nsId)?.ids.length"
+                        class="folder-preview bg-muted grid h-24 grid-cols-[2fr_1fr] grid-rows-2 gap-0.5 sm:h-32"
                         aria-hidden="true"
                       >
                         <img
@@ -571,8 +752,8 @@ watch(
                         />
                       </span>
                       <span
-                        v-else-if="viewMode === 'grid'"
-                        class="bg-accent/60 text-primary grid h-24 place-items-center sm:h-32"
+                        v-else-if="viewMode !== 'list'"
+                        class="folder-preview bg-accent/60 text-primary grid h-24 place-items-center sm:h-32"
                         aria-hidden="true"
                       >
                         <Folder
@@ -582,27 +763,38 @@ watch(
                           class="absolute size-10 scale-0 stroke-[1.5] transition-transform duration-300 group-hover:scale-100"
                         />
                       </span>
-                      <Folder v-else class="text-primary size-4 shrink-0" aria-hidden="true" />
+                      <component
+                        :is="mountIcon(folder.sourceType)"
+                        v-else-if="folder.isMount"
+                        class="size-4 shrink-0"
+                        :class="mountColor(folder.sourceType)"
+                        aria-hidden="true"
+                      /><Folder v-else class="text-primary size-4 shrink-0" aria-hidden="true" />
                       <span
                         :class="
-                          viewMode === 'grid'
-                            ? 'flex items-center gap-2 px-3.5 py-3'
+                          viewMode !== 'list'
+                            ? 'folder-caption flex min-w-0 w-full items-center gap-2 px-3.5 py-3'
                             : 'flex min-w-0 flex-1 items-center gap-2'
                         "
                       >
                         <span
                           :class="
-                            viewMode === 'grid'
+                            viewMode !== 'list'
                               ? 'flex min-w-0 flex-col'
                               : 'flex min-w-0 flex-1 items-baseline gap-2'
                           "
                         >
-                          <span class="truncate font-medium" :title="folder.nsName">{{
+                          <span
+                            v-if="folder.isMount"
+                            class="mount-label mr-1 rounded px-1 text-xs"
+                            :class="mountColor(folder.sourceType)"
+                            >{{ mountLabel(folder.sourceType) }}</span
+                          ><span class="truncate font-medium" :title="folder.nsName">{{
                             folder.nsName
                           }}</span>
                           <span
                             v-if="covers.get(folder.nsId)"
-                            class="text-muted-foreground text-xs"
+                            class="folder-count text-muted-foreground text-xs"
                             >{{ plural(covers.get(folder.nsId)!.count, 'item') }}</span
                           >
                         </span>
@@ -630,55 +822,36 @@ watch(
                     </button>
                   </ContextMenuTrigger>
                   <ContextMenuContent>
-                    <ContextMenuItem @select="selectFolder(folder)">
+                    <ContextMenuItem :disabled="folder.isMount" @select="selectFolder(folder)">
                       <SquareCheck /> {{ selected.includes(folder.nsId) ? 'Deselect' : 'Select' }}
                     </ContextMenuItem>
                     <ContextMenuItem @select="showDetails(folder)"
                       ><Info /> Details</ContextMenuItem
                     >
-                    <ContextMenuItem @select="startRename(folder)"
+                    <ContextMenuItem :disabled="folder.isMount" @select="startRename(folder)"
                       ><Pencil /> Rename</ContextMenuItem
                     >
                     <ContextMenuItem @select="downloadFolder(folder)"
                       ><Download /> Download</ContextMenuItem
                     >
-                    <ContextMenuItem @select="startMove(folder)"
+                    <ContextMenuItem :disabled="folder.isMount" @select="startMove(folder)"
                       ><FolderInput /> Move To</ContextMenuItem
                     >
-                    <ContextMenuItem variant="destructive" @select="deleting = folder"
+                    <ContextMenuItem
+                      variant="destructive"
+                      :disabled="folder.isMount"
+                      @select="deleting = folder"
                       ><Trash2 /> Delete</ContextMenuItem
                     >
                   </ContextMenuContent>
                 </ContextMenu>
               </li>
-              <li
-                v-if="viewMode === 'grid'"
-                class="animate-rise flex w-36 shrink-0 sm:w-auto"
-                :style="{ animationDelay: `${Math.min(folders.children.value.length, 12) * 30}ms` }"
-              >
-                <!-- Stretches to the folder cards in its row; alone, as tall as an empty folder card. -->
-                <button
-                  type="button"
-                  :class="[
-                    'text-muted-foreground hover:border-primary hover:text-primary flex w-full flex-col items-center justify-center gap-2 rounded-[14px] border border-dashed text-sm transition-colors',
-                    !folders.children.value.length && 'min-h-[142px] sm:min-h-[174px]',
-                  ]"
-                  @click="startCreate"
-                >
-                  <Plus class="size-5" aria-hidden="true" />
-                  New Folder
-                </button>
-              </li>
             </ul>
-            <p
-              v-if="viewMode === 'list' && !folders.children.value.length"
-              class="text-muted-foreground animate-fade text-sm"
-            >
-              No folders here yet.
-            </p>
+            <p class="sr-only" role="status">{{ reorder.announcement.value }}</p>
           </section>
 
           <MediaList
+            v-show="library.photos.value.length && !pageLoading && !pageError"
             ref="mediaList"
             :context="title"
             :ns-or-not="true"
@@ -727,10 +900,9 @@ watch(
       >
         <DropdownMenuItem @select="startUpload"><Upload /> Upload Photos</DropdownMenuItem>
         <DropdownMenuItem @select="startCreate"><FolderPlus /> New Folder</DropdownMenuItem>
-        <DropdownMenuItem @select="viewMode = viewMode === 'grid' ? 'list' : 'grid'"
-          ><component :is="viewMode === 'grid' ? List : LayoutGrid" />
-          {{ viewMode === 'grid' ? 'List View' : 'Grid View' }}</DropdownMenuItem
-        >
+        <DropdownMenuItem @select="viewMode = 'grid'"><LayoutGrid /> Large cards</DropdownMenuItem>
+        <DropdownMenuItem @select="viewMode = 'compact'"><Grid3X3 /> Small cards</DropdownMenuItem>
+        <DropdownMenuItem @select="viewMode = 'list'"><List /> List view</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
 
@@ -785,7 +957,9 @@ watch(
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Rename Folder</DialogTitle>
-          <DialogDescription class="sr-only">Choose a new name for {{ renaming?.nsName }}.</DialogDescription>
+          <DialogDescription class="sr-only"
+            >Choose a new name for {{ renaming?.nsName }}.</DialogDescription
+          >
         </DialogHeader>
         <form class="flex flex-col gap-2" @submit.prevent="renameFolder">
           <Label for="rename-folder">Name</Label>
@@ -803,7 +977,9 @@ watch(
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {{ deleting?.nsName }}?</AlertDialogTitle>
           <AlertDialogDescription>
-            Every photo and folder inside it is deleted too. This can't be undone.
+            Every file and folder inside it, including non-media files not shown in Photoly, will be
+            deleted. On shared mounts, this also affects other users of the actual folder. This
+            can't be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -818,7 +994,8 @@ watch(
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {{ plural(selectedCount, 'item') }}?</AlertDialogTitle>
           <AlertDialogDescription>
-            Selected folders are deleted with everything inside them. This can't be undone.
+            Selected folders are deleted with everything inside them, including non-media files.
+            Shared mounts also affect other users of the actual folder. This can't be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -828,25 +1005,10 @@ watch(
       </AlertDialogContent>
     </AlertDialog>
 
-    <Dialog :open="downloading">
-      <DialogContent :show-close-button="false" @interact-outside.prevent @escape-key-down.prevent>
-        <DialogHeader>
-          <DialogTitle>Download Folder</DialogTitle>
-          <DialogDescription class="flex items-center gap-2"
-            ><Loader2 class="size-4 animate-spin" /> Preparing your download…</DialogDescription
-          >
-        </DialogHeader>
-        <DialogFooter
-          ><Button variant="outline" class="w-full" @click="abortDownload"
-            >Abort Download</Button
-          ></DialogFooter
-        >
-      </DialogContent>
-    </Dialog>
-
     <MoveToShowFolder
       ref="movePicker"
       :original-ns-id="movingFolder?.nsId"
+      :source-id="folders.current.value?.sourceId"
       :disable-org-ns-id="true"
       :count="movingFolder ? 1 : selectedCount"
       :item-name="movingFolder?.nsName"
@@ -855,3 +1017,90 @@ watch(
     <FolderDetails :folder="detailsFolder" @close="closeDetails" />
   </div>
 </template>
+
+<style scoped>
+[data-order-edge]::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: 20;
+  background: var(--primary);
+  border-radius: 2px;
+  width: 3px;
+  top: 0;
+  bottom: 0;
+}
+[data-order-edge='before']::after {
+  left: -6px;
+}
+[data-order-edge='after']::after {
+  right: -6px;
+}
+[data-layout='list'] [data-order-edge]::after {
+  height: 3px;
+  width: auto;
+  left: 0;
+  right: 0;
+  bottom: auto;
+}
+[data-layout='list'] [data-order-edge='before']::after {
+  top: -3px;
+}
+[data-layout='list'] [data-order-edge='after']::after {
+  top: auto;
+  bottom: -3px;
+}
+
+.compact-folder {
+  width: 72px;
+}
+.compact-folder > button[data-folder-id] {
+  height: var(--folder-height);
+  border-radius: 8px;
+  font-size: 12px;
+  gap: 0;
+}
+.compact-folder .folder-preview {
+  height: auto;
+  min-height: 0;
+  flex: 1;
+}
+.compact-folder .folder-preview svg {
+  width: 20px;
+  height: 20px;
+}
+.compact-folder .folder-caption {
+  padding: 2px 4px;
+  gap: 0;
+  height: 32px;
+  flex-shrink: 0;
+}
+.compact-folder .folder-caption > span:first-child {
+  width: 100%;
+}
+.compact-folder .folder-caption .truncate {
+  line-height: 14px;
+}
+.compact-folder .folder-count,
+.compact-folder .mount-label {
+  font-size: 11px;
+  line-height: 14px;
+}
+.compact-folder .mount-label {
+  order: 1;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.compact-folder [role='checkbox'] {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+}
+@media (min-width: 640px) {
+  .compact-folder {
+    width: auto;
+  }
+}
+</style>

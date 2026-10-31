@@ -17,6 +17,7 @@ import (
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
 	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/photo"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -108,7 +109,7 @@ func (s *Service) materialize(it *itemRow, dest string) error {
 }
 
 // folder is UploadService.folder: create the directory chain under the batch namespace.
-func (s *Service) folder(ctx context.Context, tx pgx.Tx, b *batchRow, p string) (int64, error) {
+func (s *Service) folder(ctx context.Context, tx pgx.Tx, b *batchRow, p string, f *photo.Files) (int64, error) {
 	var base int64 = -1
 	if b.NsID != nil {
 		base = *b.NsID
@@ -146,7 +147,7 @@ func (s *Service) folder(ctx context.Context, tx pgx.Tx, b *batchRow, p string) 
 			}
 			cand, n = string(r)+tail, n+1
 		}
-		id, err := q.CreateFolder(ctx, dbgen.CreateFolderParams{NsName: cand, ParentID: parent, UserID: b.UserID})
+		id, _, err := storage.CreateFolder(ctx, tx, f, s.Root, b.UserID, parent, cand)
 		if err != nil {
 			return 0, err
 		}
@@ -443,7 +444,7 @@ func (s *Service) processImport(ctx context.Context, uid int64, it *itemRow) err
 		if err != nil || b.Cancelled || cur.State != "processing" {
 			return err
 		}
-		ns, err := s.folder(ctx, tx, b, cur.Path)
+		ns, err := s.folder(ctx, tx, b, cur.Path, f)
 		if err != nil {
 			return err
 		}
@@ -564,7 +565,7 @@ func (s *Service) pair(ctx context.Context, uid int64, it *itemRow, ident, work,
 				return err
 			}
 		}
-		ns, err := s.folder(ctx, tx, b, cover.Path)
+		ns, err := s.folder(ctx, tx, b, cover.Path, f)
 		if err != nil {
 			return err
 		}
@@ -577,8 +578,20 @@ func (s *Service) pair(ctx context.Context, uid int64, it *itemRow, ident, work,
 		if err != nil {
 			return err
 		}
+		// Preserve the incoming attachment name independently of its remote object key.
+		liveName, err := storage.AvailableName(ctx, tx, s.Root, ns, path.Base(movie.Path), p.ID, 0)
+		if err != nil {
+			return err
+		}
+		_, source, err := storage.Folder(ctx, tx, s.Root, ns)
+		if err != nil {
+			return err
+		}
+		if _, err = tx.Exec(ctx, `UPDATE media_asset SET display_name=$2,filename=CASE WHEN $3 THEN $2 ELSE filename END WHERE photo_id=$1 AND role='live_original'`, p.ID, liveName, source.Kind != "s3"); err != nil {
+			return err
+		}
 		put := func(src, role string) error {
-			dest, err := s.AssetPath(u.UUID, p.UUID, role)
+			dest, err := s.AssetPath(ctx, tx, u.UUID, p.UUID, role)
 			if err != nil {
 				return err
 			}
@@ -587,7 +600,22 @@ func (s *Service) pair(ctx context.Context, uid int64, it *itemRow, ident, work,
 				return err
 			}
 			defer r.Close()
-			_, err = f.Install(r, dest)
+			if role == "live_original" {
+				var sha string
+				sha, err = f.InstallNew(r, dest)
+				if err == nil {
+					_, err = tx.Exec(ctx, `UPDATE media_asset SET content_sha256=$2 WHERE photo_id=$1 AND role='live_original'`, p.ID, sha)
+				}
+				if err == nil && source.Kind == "local" {
+					if st, e := os.Lstat(dest); e == nil {
+						_, err = tx.Exec(ctx, `UPDATE media_asset SET fs_identity=$2,fs_size=$3,fs_mtime=$4 WHERE photo_id=$1 AND role='live_original'`, p.ID, storage.Identity(st), st.Size(), st.ModTime().UnixNano())
+					} else {
+						err = e
+					}
+				}
+			} else {
+				_, err = f.Install(r, dest)
+			}
 			return err
 		}
 		if err = put(moviePath, "live_original"); err != nil {

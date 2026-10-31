@@ -10,6 +10,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
@@ -73,6 +76,16 @@ func New(t *testing.T) *app.App {
 	})
 	if _, err := pool.Exec(context.Background(), schema); err != nil {
 		t.Fatal(err)
+	}
+	_, file, _, _ := runtime.Caller(0)
+	for _, name := range []string{"00008_real_folders.sql", "00009_external_sources.sql", "00010_smb_scans.sql", "00011_scan_failures.sql"} {
+		migration, e := os.ReadFile(filepath.Join(filepath.Dir(file), "../../../migrations/sql/"+name))
+		if e != nil {
+			t.Fatal(e)
+		}
+		if _, e = pool.Exec(context.Background(), strings.Split(string(migration), "-- +goose Down")[0]); e != nil {
+			t.Fatal(e)
+		}
 	}
 	legacy.Sessions = nil
 	if err := legacy.UseDefaultSessions(context.Background(), pool); err != nil {

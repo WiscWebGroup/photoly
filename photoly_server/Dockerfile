@@ -2,7 +2,7 @@
 # Single-binary Photoly backend: `photoly serve|migrate|ai-worker|verify`.
 # Build context: photoly_server/. Runtime is debian-slim: ONNX Runtime plus the media CLIs (ffmpeg, heif-convert, exiftool, tesseract).
 
-FROM golang:1.24.7-bookworm AS build
+FROM golang:1.26.10-bookworm AS build
 ARG TARGETARCH
 # Must match the C API version onnxruntime_go (go.mod) was written for.
 ARG ORT_VERSION=1.29.0
@@ -20,13 +20,14 @@ RUN case "$TARGETARCH" in \
     && rm -rf /tmp/ort.tgz $ort
 WORKDIR /src
 COPY go.mod go.sum ./
+COPY third_party ./third_party
 RUN go mod download
 COPY . .
 RUN go vet ./... \
     && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/photoly-bin ./cmd/photoly
 
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 ffmpeg libheif-examples \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 ffmpeg libheif-examples libvips-tools util-linux \
       libimage-exiftool-perl tesseract-ocr tesseract-ocr-eng tesseract-ocr-chi-sim tesseract-ocr-chi-tra tesseract-ocr-jpn \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -g 65532 nonroot && useradd -u 65532 -g 65532 -M -s /usr/sbin/nologin nonroot
@@ -48,7 +49,7 @@ CMD ["serve"]
 # `--build-context dbinit=database/postgres-init`; see docker-compose.yml. Photoly runs as uid 65532
 # like the standalone image, so existing ./upload_data and model volumes keep working.
 FROM pgvector/pgvector:0.8.7-pg17-bookworm@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d AS aio
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 ffmpeg libheif-examples \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 ffmpeg libheif-examples libvips-tools util-linux \
       libimage-exiftool-perl tesseract-ocr tesseract-ocr-eng tesseract-ocr-chi-sim tesseract-ocr-chi-tra tesseract-ocr-jpn \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -g 65532 nonroot && useradd -u 65532 -g 65532 -M -s /usr/sbin/nologin nonroot \

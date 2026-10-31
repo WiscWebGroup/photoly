@@ -4,11 +4,18 @@ import { call } from '@/lib/http'
 export interface Folder {
   nsId: number
   nsName: string
+  displayOrder?: number
+  sourceId?: number
+  sourceType?: 'local' | 's3' | 'webdav' | 'smb'
+  isMount?: boolean
+  canMove?: boolean
+  canRename?: boolean
+  canDelete?: boolean
 }
 
 /** The backend rejects these; HomePart used to repeat this check inline. */
 export function isValidFolderName(name: string | null) {
-  return !!name && name !== 'root' && name !== '/'
+  return !!name && name !== '.' && name !== '..' && !/[\/\\\0]/.test(name)
 }
 
 /** The folder being browsed: its children and breadcrumb path, plus folder mutations. */
@@ -18,13 +25,28 @@ export function useFolders() {
   /** Root → current. */
   const path = ref<Folder[]>([])
 
+  const ordering = ref(false)
+  let orderingParent: number | null = null
+  let mutationVersion = 0
+
   async function refresh() {
     if (!current.value) return
     const { nsId } = current.value
-    ;[children.value, path.value] = await Promise.all([
+    if (ordering.value && orderingParent === nsId) return
+    const started = mutationVersion
+    const [nextChildren, nextPath] = await Promise.all([
       call<Folder[]>({ url: '/namespace/getChildren', params: { parentId: nsId } }),
       call<Folder[]>({ url: '/namespace/trace', params: { nsId } }),
     ])
+    if (
+      current.value?.nsId !== nsId ||
+      started !== mutationVersion ||
+      (ordering.value && orderingParent === nsId)
+    )
+      return
+    children.value = nextChildren
+    path.value = nextPath
+    current.value = nextPath.at(-1) ?? current.value
   }
 
   async function open(nsId: number, nsName = '') {
@@ -39,7 +61,11 @@ export function useFolders() {
   }
 
   async function create(nsName: string) {
-    await call({ method: 'post', url: '/namespace/insert', data: { nsParentId: current.value?.nsId, nsName } })
+    await call({
+      method: 'post',
+      url: '/namespace/insert',
+      data: { nsParentId: current.value?.nsId, nsName },
+    })
     await refresh()
   }
 
@@ -58,5 +84,53 @@ export function useFolders() {
     await refresh()
   }
 
-  return { current, children, path, open, openRoot, refresh, create, rename, move, remove }
+  async function reorder(nsId: number, beforeNsId: number | null) {
+    if (!current.value || ordering.value) return
+    const parentId = current.value.nsId
+    const previous = children.value
+    const moved = previous.find((f) => f.nsId === nsId)
+    if (!moved || nsId === beforeNsId) return
+    const next = previous.filter((f) => f.nsId !== nsId)
+    const at = beforeNsId === null ? next.length : next.findIndex((f) => f.nsId === beforeNsId)
+    if (at < 0) return
+    next.splice(at, 0, moved)
+    children.value = next
+    mutationVersion++
+    orderingParent = parentId
+    ordering.value = true
+    try {
+      const actual = await call<Folder[]>({
+        method: 'post',
+        url: '/namespace/order',
+        data: { parentId, nsId, beforeNsId },
+      })
+      if (current.value?.nsId === parentId) children.value = actual
+    } catch (e) {
+      if (current.value?.nsId === parentId) children.value = previous
+      ordering.value = false
+      try {
+        await refresh()
+      } catch {
+        /* Keep the last known order if offline. */
+      }
+      throw e
+    } finally {
+      ordering.value = false
+    }
+  }
+
+  return {
+    current,
+    children,
+    path,
+    open,
+    openRoot,
+    refresh,
+    create,
+    rename,
+    move,
+    remove,
+    reorder,
+    ordering,
+  }
 }

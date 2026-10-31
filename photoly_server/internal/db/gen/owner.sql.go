@@ -32,7 +32,7 @@ func (q *Queries) GetGalleryOwner(ctx context.Context, id int64) (int64, error) 
 }
 
 const getNamespaceOwner = `-- name: GetNamespaceOwner :one
-SELECT coalesce(user_id, 0)::int AS user_id FROM namespace WHERE ns_id = $1::int
+SELECT coalesce(user_id, 0)::int AS user_id FROM namespace WHERE ns_id = $1::int AND EXISTS(SELECT 1 FROM storage_source s WHERE s.id=namespace.source_id AND s.enabled)
 `
 
 func (q *Queries) GetNamespaceOwner(ctx context.Context, id int64) (int64, error) {
@@ -44,7 +44,7 @@ func (q *Queries) GetNamespaceOwner(ctx context.Context, id int64) (int64, error
 
 const getPhotoOwner = `-- name: GetPhotoOwner :one
 
-SELECT coalesce(user_id, 0)::int AS user_id FROM photo WHERE photo_id = $1::int
+SELECT coalesce(user_id, 0)::int AS user_id FROM photo WHERE photo_id = $1::int AND photo_visible(storage_id,user_id)
 `
 
 // Owner lookups behind db.Owner; a NULL owner reads as 0, which is never a real user_id.

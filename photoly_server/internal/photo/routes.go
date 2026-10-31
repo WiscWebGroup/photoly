@@ -240,12 +240,20 @@ func Register(a *app.App) {
 		}
 		return changed(n), nil
 	}))
-	handle("POST /photo/update", changedJ(func(r *http.Request, uid int64) (int, error) {
+	handle("POST /photo/update", j(func(r *http.Request, uid int64) (any, error) {
 		d, err := body(r)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
-		return s.Update(r.Context(), uid, d)
+		if _, err = s.Update(r.Context(), uid, d); err != nil {
+			return nil, err
+		}
+		id, _ := toInt(d["photoId"])
+		p, err := s.OwnedPhoto(r.Context(), s.Pool, id, uid, nil, 400)
+		if err != nil {
+			return nil, err
+		}
+		return p.JSON(), nil
 	}))
 	handle("GET /photo/getDateSummary", j(func(r *http.Request, uid int64) (any, error) { return s.DateSummary(r.Context(), uid) }))
 	handle("GET /photo/getByDate", j(func(r *http.Request, uid int64) (any, error) {
@@ -301,16 +309,23 @@ func Register(a *app.App) {
 		}
 		return s.Covers(r.Context(), uid, src, ok, ids)
 	}))
-	handle("POST /photo/changeNamespace", changedJ(func(r *http.Request, uid int64) (int, error) {
-		p, err := qint(r, "photoId")
+	handle("POST /photo/changeNamespace", j(func(r *http.Request, uid int64) (any, error) {
+		id, err := qint(r, "photoId")
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 		ns, err := qint(r, "nsId")
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
-		return s.Move(r.Context(), uid, p, ns)
+		if _, err = s.Move(r.Context(), uid, id, ns); err != nil {
+			return nil, err
+		}
+		p, err := s.OwnedPhoto(r.Context(), s.Pool, id, uid, nil, 400)
+		if err != nil {
+			return nil, err
+		}
+		return p.JSON(), nil
 	}))
 	handle("POST /photo/addTags", changedJ(func(r *http.Request, uid int64) (int, error) {
 		p, err := qint(r, "photoId")
@@ -538,12 +553,11 @@ func Register(a *app.App) {
 		if err != nil {
 			return err
 		}
-		zipped, err := s.LiveArchive(r.Context(), uid, id)
+		entries, err := s.LiveEntries(r.Context(), uid, id)
 		if err != nil {
 			return err
 		}
-		w.Header().Set("Content-Disposition", contentDisposition("Live Photo.zip"))
-		serveReader(w, bytes.NewReader(zipped), "application/zip")
+		legacy.ServeArchiveNamed(w, r, entries, "Live Photo.zip")
 		return nil
 	}))
 	handle("GET /photo/getMonthPreview", j(func(r *http.Request, uid int64) (any, error) {

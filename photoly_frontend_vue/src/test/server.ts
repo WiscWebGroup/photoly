@@ -13,6 +13,7 @@ const cors = {
 export const json = (body: JsonBodyType) => HttpResponse.json(body, { headers: cors })
 
 export const server = setupServer(
+  http.get(`${API}/user/storage/sources`, () => ok([])),
   http.get(`${API}/uploads`, () =>
     json({ msgCode: 200, t: { batches: [], total: 0, maxFileBytes: 629145600 } }),
   ),

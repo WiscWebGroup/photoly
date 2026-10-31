@@ -10,7 +10,7 @@ import { useUploadsStore } from '@/stores/uploads'
 import AdminInferenceCard from '../AdminInferenceCard.vue'
 import AiDeviceSettings from '../AiDeviceSettings.vue'
 import BrowserModelLoading from '../BrowserModelLoading.vue'
-import UploadCenter from '@/components/UploadCenter.vue'
+import UploadActivity from '@/components/UploadActivity.vue'
 
 afterEach(() => setSharedBrowserAi(undefined))
 
@@ -183,7 +183,7 @@ describe('Search · model loading', () => {
 
 describe('Library · in-browser indexing', () => {
   it('shows "Indexing for search in this browser" with the count and the fallback note', async () => {
-    const w = mountWithApp(UploadCenter)
+    const w = mountWithApp(UploadActivity)
     const uploads = useUploadsStore(w.vm.$pinia)
     uploads.indexing = { total: 12, done: 3, failed: 0, current: 'a.jpg' }
     uploads.open = true
@@ -193,7 +193,7 @@ describe('Library · in-browser indexing', () => {
     expect(pageText()).toContain('If you close it, the server indexes the rest.')
   })
   it('names photos the server will index instead', async () => {
-    const w = mountWithApp(UploadCenter)
+    const w = mountWithApp(UploadActivity)
     const uploads = useUploadsStore(w.vm.$pinia)
     uploads.indexing = { total: 4, done: 3, failed: 1, current: '' }
     uploads.open = true

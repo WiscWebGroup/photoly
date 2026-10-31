@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -122,6 +123,19 @@ func ImageInfo(ctx context.Context, path string) (animated bool, err error) {
 	w, h, ok := imageDims(path)
 	if !ok {
 		w, h, ok = ffprobeDims(ctx, path)
+	}
+	if !ok && sniff(path) == "HEIF" {
+		// ffprobe builds without HEIF support can still use libheif's header reader.
+		probeCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		if out, err := exec.CommandContext(probeCtx, "heif-info", path).Output(); err == nil {
+			for _, line := range strings.Split(string(out), "\n") {
+				if n, _ := fmt.Sscanf(line, "image: %dx%d", &w, &h); n == 2 && w > 0 && h > 0 {
+					ok = true
+					break
+				}
+			}
+		}
 	}
 	if !ok {
 		return false, Err("invalid_image", 415)

@@ -249,12 +249,22 @@ func (s *Service) OCRRecognize(ctx context.Context, uid int64, data map[string]a
 		if err != nil {
 			return nil, err
 		}
-		path, err := s.MediaPath(uu, p.UUID, p.Format, false)
+		path, err := s.MediaPath(ctx, tx, uu, p.UUID, p.Format, false)
 		if err != nil {
 			return nil, err
 		}
+		var preview bool
+		if e := tx.QueryRow(ctx, `SELECT coalesce((SELECT has_preview FROM photo_media WHERE photo_id=$1),false)`, p.ID).Scan(&preview); e != nil {
+			return nil, e
+		}
+		if preview {
+			path, err = s.AssetPath(ctx, tx, uu, p.UUID, "preview")
+			if err != nil {
+				return nil, err
+			}
+		}
 		storage.Fetch(path)
-		f, err := os.Open(path)
+		f, err := storage.OpenFile(path)
 		if err != nil {
 			return nil, ocrFail("image_missing", 404)
 		}

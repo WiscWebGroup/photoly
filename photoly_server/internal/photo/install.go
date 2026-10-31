@@ -11,6 +11,7 @@ import (
 
 	dbpkg "github.com/WiscWebGroup/photoly/photoly_server/internal/db"
 	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -41,14 +42,15 @@ type Photo struct {
 	UUID           string
 	UserID         int64
 	ContentVersion int64
+	SourceID       int64
 }
 
-const photoCols = `p.photo_id, p.photo_name, p.upload_date, coalesce(p.format,''), p.ns_id, p.visibility, coalesce(p.token,''), coalesce(p.photo_uuid,''), coalesce(p.user_id,0), p.content_version`
+const photoCols = `p.photo_id, p.photo_name, p.upload_date, coalesce(p.format,''), p.ns_id, p.visibility, coalesce(p.token,''), coalesce(p.photo_uuid,''), coalesce(p.user_id,0), p.content_version, p.source_id`
 
 // photoFromRow adapts a photo table row; NULL text/owner columns read as their zero value.
 func photoFromRow(r dbgen.Photo) *Photo {
 	return &Photo{ID: r.PhotoID, Name: r.PhotoName, UploadDate: r.UploadDate, Format: deref(r.Format), NsID: r.NsID, Visibility: r.Visibility,
-		Token: deref(r.Token), UUID: deref(r.PhotoUuid), UserID: deref(r.UserID), ContentVersion: r.ContentVersion}
+		Token: deref(r.Token), UUID: deref(r.PhotoUuid), UserID: deref(r.UserID), ContentVersion: r.ContentVersion, SourceID: r.SourceID}
 }
 
 func deref[T any](p *T) T {
@@ -62,7 +64,7 @@ func deref[T any](p *T) T {
 // scanPhoto reads photoCols; only the hand-built queries (ByDate, SearchSmart) still need it.
 func scanPhoto(row pgx.Row) (*Photo, error) {
 	var p Photo
-	if err := row.Scan(&p.ID, &p.Name, &p.UploadDate, &p.Format, &p.NsID, &p.Visibility, &p.Token, &p.UUID, &p.UserID, &p.ContentVersion); err != nil {
+	if err := row.Scan(&p.ID, &p.Name, &p.UploadDate, &p.Format, &p.NsID, &p.Visibility, &p.Token, &p.UUID, &p.UserID, &p.ContentVersion, &p.SourceID); err != nil {
 		return nil, err
 	}
 	return &p, nil
@@ -85,7 +87,7 @@ func nilStr(p *string) any {
 // JSON is the legacy Photo projection (serialization.LEGACY_FIELDS['Photo']).
 func (p *Photo) JSON() map[string]any {
 	return map[string]any{"photoId": p.ID, "photoName": nilStr(p.Name), "uploadDate": optTime(p.UploadDate), "format": p.Format,
-		"nsId": nilInt(p.NsID), "visibility": nilInt(p.Visibility), "token": p.Token, "photoUuid": p.UUID, "userId": p.UserID}
+		"nsId": nilInt(p.NsID), "visibility": nilInt(p.Visibility), "token": p.Token, "photoUuid": p.UUID, "userId": p.UserID, "sourceId": p.SourceID}
 }
 
 // Owned is BaseService.owned: the row must exist and belong to uid.
@@ -139,6 +141,9 @@ func (s *Service) Prepare(ctx context.Context, path, work string) (*Prepared, er
 	p.Decodable = true
 	animated, err := ImageInfo(ctx, path)
 	if err != nil {
+		if b, ok := BizOf(err); ok && b.Value == "image_too_many_pixels" {
+			return s.prepareLargeImage(ctx, path, work, p)
+		}
 		return nil, err
 	}
 	p.Animated = animated
@@ -180,13 +185,62 @@ func (s *Service) InstallOne(ctx context.Context, tx pgx.Tx, f *Files, u UserRow
 	p := &Photo{Name: &stem, Format: suffix, NsID: &nsID, Visibility: &vis, Token: NewUUID(), UUID: NewUUID(), UserID: u.ID, ContentVersion: 1}
 	now := s.Now()
 	p.UploadDate = &now
-	path, err := s.MediaPath(u.UUID, p.UUID, suffix, false)
+	filename, err := storage.AvailableName(ctx, tx, s.Root, nsID, filename, 0, 0)
 	if err != nil {
 		return nil, err
 	}
-	sha, err := f.Install(content, path)
+	stem = strings.TrimSuffix(filename, filepath.Ext(filename))
+	p.Name = &stem
+	q := dbgen.New(tx)
+	p.ID, err = q.InsertPhoto(ctx, dbgen.InsertPhotoParams{PhotoName: stem, UploadDate: now, Format: suffix, NsID: nsID, Visibility: vis,
+		Token: p.Token, PhotoUuid: p.UUID, UserID: u.ID, ContentSha256: ""})
 	if err != nil {
 		return nil, err
+	}
+	if err = tx.QueryRow(ctx, `SELECT source_id FROM photo WHERE photo_id=$1`, p.ID).Scan(&p.SourceID); err != nil {
+		return nil, err
+	}
+	if err = storage.CreateAssets(ctx, tx, s.Root, p.ID, p.UUID, filename, suffix, nsID); err != nil {
+		return nil, err
+	}
+	path, err := s.MediaPath(ctx, tx, u.UUID, p.UUID, suffix, false)
+	if err != nil {
+		return nil, err
+	}
+	dir, source, err := storage.Folder(ctx, tx, s.Root, nsID)
+	if err != nil {
+		return nil, err
+	}
+	var next func() (string, error)
+	if source.Kind == "local" {
+		next = func() (string, error) {
+			name, err := storage.AvailableName(ctx, tx, s.Root, nsID, filename, p.ID, 0)
+			if err != nil {
+				return "", err
+			}
+			return filepath.Join(dir, name), nil
+		}
+	}
+	sha, actual, err := f.InstallUnique(content, path, next)
+	if err != nil {
+		return nil, err
+	}
+	if actual != path {
+		path = actual
+		filename = filepath.Base(actual)
+		stem = strings.TrimSuffix(filename, filepath.Ext(filename))
+		p.Name = &stem
+		if _, err = tx.Exec(ctx, `UPDATE photo SET file_name=$2,photo_name=$3 WHERE photo_id=$1`, p.ID, filename, stem); err != nil {
+			return nil, err
+		}
+		if _, err = tx.Exec(ctx, `UPDATE media_asset SET filename=$2,display_name=$2 WHERE photo_id=$1 AND role='original'`, p.ID, filename); err != nil {
+			return nil, err
+		}
+	}
+	if fi, e := os.Lstat(path); e == nil {
+		if _, e = tx.Exec(ctx, `UPDATE photo SET fs_identity=$2,fs_size=$3,fs_mtime=$4 WHERE photo_id=$1`, p.ID, storage.Identity(fi), fi.Size(), fi.ModTime().UnixNano()); e != nil {
+			return nil, e
+		}
 	}
 	if prepared == nil {
 		prepared, err = s.Prepare(ctx, path, f.Work())
@@ -198,7 +252,7 @@ func (s *Service) InstallOne(ctx context.Context, tx pgx.Tx, f *Files, u UserRow
 		}
 	}
 	if prepared.Thumbnail != "" {
-		tp, err := s.MediaPath(u.UUID, p.UUID, suffix, true)
+		tp, err := s.MediaPath(ctx, tx, u.UUID, p.UUID, suffix, true)
 		if err != nil {
 			return nil, err
 		}
@@ -206,16 +260,13 @@ func (s *Service) InstallOne(ctx context.Context, tx pgx.Tx, f *Files, u UserRow
 			return nil, err
 		}
 	}
-	q := dbgen.New(tx)
-	p.ID, err = q.InsertPhoto(ctx, dbgen.InsertPhotoParams{PhotoName: stem, UploadDate: now, Format: suffix, NsID: nsID, Visibility: vis,
-		Token: p.Token, PhotoUuid: p.UUID, UserID: u.ID, ContentSha256: sha})
-	if err != nil {
+	if _, err = tx.Exec(ctx, `UPDATE photo SET content_sha256=$2 WHERE photo_id=$1`, p.ID, sha); err != nil {
 		return nil, err
 	}
 	if DecodableFormats[strings.ToLower(suffix)] {
 		hasPreview := false
-		if l := strings.ToLower(suffix); (l == "heic" || l == "heif") && prepared.Preview != "" {
-			ap, err := s.AssetPath(u.UUID, p.UUID, "preview")
+		if prepared.Preview != "" {
+			ap, err := s.AssetPath(ctx, tx, u.UUID, p.UUID, "preview")
 			if err != nil {
 				return nil, err
 			}
@@ -244,8 +295,15 @@ func (s *Service) InstallOne(ctx context.Context, tx pgx.Tx, f *Files, u UserRow
 // removeAssets deletes preview/live files and the photo_media row; returns files removed.
 func (s *Service) removeAssets(ctx context.Context, tx pgx.Tx, f *Files, userUUID string, p *Photo) (int, error) {
 	n := 0
+	live, err := dbgen.New(tx).GetPhotoLive(ctx, p.ID)
+	if err != nil && err != pgx.ErrNoRows {
+		return 0, err
+	}
 	for _, role := range assetRoles {
-		ap, err := s.AssetPath(userUUID, p.UUID, role)
+		if role == "live_original" && !live {
+			continue
+		}
+		ap, err := s.AssetPath(ctx, tx, userUUID, p.UUID, role)
 		if err != nil {
 			return 0, err
 		}
@@ -260,11 +318,14 @@ func (s *Service) removeAssets(ctx context.Context, tx pgx.Tx, f *Files, userUUI
 
 // DeleteRecord removes the photo's files and rows (PhotoService.delete_record).
 func (s *Service) DeleteRecord(ctx context.Context, tx pgx.Tx, f *Files, u UserRow, p *Photo) error {
+	if e := storage.LockPhoto(ctx, tx, p.ID); e != nil {
+		return e
+	}
 	if _, err := s.removeAssets(ctx, tx, f, u.UUID, p); err != nil {
 		return err
 	}
 	for _, thumb := range []bool{false, true} {
-		path, err := s.MediaPath(u.UUID, p.UUID, p.Format, thumb)
+		path, err := s.MediaPath(ctx, tx, u.UUID, p.UUID, p.Format, thumb)
 		if err != nil {
 			return err
 		}
@@ -296,7 +357,7 @@ func (s *Service) Replace(ctx context.Context, uid, photoID int64, filename stri
 		}
 		q := dbgen.New(tx)
 		if hasPreview, _ := q.GetPhotoHasPreview(ctx, p.ID); hasPreview {
-			ap, err := s.AssetPath(u.UUID, p.UUID, "preview")
+			ap, err := s.AssetPath(ctx, tx, u.UUID, p.UUID, "preview")
 			if err != nil {
 				return err
 			}
@@ -305,7 +366,7 @@ func (s *Service) Replace(ctx context.Context, uid, photoID int64, filename stri
 			}
 		}
 		for _, thumb := range []bool{true, false} {
-			path, err := s.MediaPath(u.UUID, p.UUID, p.Format, thumb)
+			path, err := s.MediaPath(ctx, tx, u.UUID, p.UUID, p.Format, thumb)
 			if err != nil {
 				return err
 			}
@@ -313,7 +374,25 @@ func (s *Service) Replace(ctx context.Context, uid, photoID int64, filename stri
 				return err
 			}
 		}
-		path, err := s.MediaPath(u.UUID, p.UUID, suffix, false)
+		filename, err := storage.AvailableName(ctx, tx, s.Root, *p.NsID, deref(p.Name)+"."+suffix, p.ID, 0)
+		if err != nil {
+			return err
+		}
+		_, source, err := storage.Folder(ctx, tx, s.Root, *p.NsID)
+		if err != nil {
+			return err
+		}
+		originalName := filename
+		if source.Kind == "s3" {
+			originalName = "original." + suffix
+		}
+		if _, err = tx.Exec(ctx, `UPDATE photo SET file_name=$2,photo_name=$3 WHERE photo_id=$1`, p.ID, filename, strings.TrimSuffix(filename, filepath.Ext(filename))); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(ctx, `UPDATE media_asset SET filename=CASE role WHEN 'original' THEN $2 ELSE $3 END WHERE photo_id=$1 AND role IN ('original','thumbnail')`, p.ID, originalName, "thumbnail."+suffix); err != nil {
+			return err
+		}
+		path, err := s.MediaPath(ctx, tx, u.UUID, p.UUID, suffix, false)
 		if err != nil {
 			return err
 		}
@@ -329,8 +408,11 @@ func (s *Service) Replace(ctx context.Context, uid, photoID int64, filename stri
 				return err
 			}
 		}
-		thumbPath, err := s.MediaPath(u.UUID, p.UUID, suffix, true)
+		thumbPath, err := s.MediaPath(ctx, tx, u.UUID, p.UUID, suffix, true)
 		if err != nil {
+			return err
+		}
+		if _, err = ImageInfo(ctx, path); err != nil {
 			return err
 		}
 		tmp := filepath.Join(f.Work(), NewUUID())

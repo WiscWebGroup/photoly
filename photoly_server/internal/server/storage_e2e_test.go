@@ -1,212 +1,290 @@
 package server
 
 import (
+	"archive/zip"
 	"bytes"
-	"context"
 	"encoding/json"
-	"image"
-	"image/png"
-	"io"
-	"mime/multipart"
-	"net/http"
-	"net/http/httptest"
+	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/WiscWebGroup/photoly/photoly_server/internal/config"
-	"github.com/WiscWebGroup/photoly/photoly_server/internal/session"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 )
 
-// Uploads a photo with an S3 backend active and follows it through offload, serve,
-// quota and delete. Needs TEST_DATABASE_URL and the PHOTOLY_TEST_S3_* variables.
+func s3Config(t *testing.T) map[string]any {
+	t.Helper()
+	ep := os.Getenv("PHOTOLY_TEST_S3_ENDPOINT")
+	if ep == "" {
+		t.Skip("PHOTOLY_TEST_S3_ENDPOINT required")
+	}
+	return map[string]any{"enabled": true, "values": map[string]any{"endpoint": ep, "bucket": os.Getenv("PHOTOLY_TEST_S3_BUCKET"), "prefix": "source-lifecycle", "access_key": os.Getenv("PHOTOLY_TEST_S3_ACCESS_KEY"), "secret_key": os.Getenv("PHOTOLY_TEST_S3_SECRET_KEY"), "use_ssl": false, "path_style": true}}
+}
 func TestPhotoLifecycleOnS3(t *testing.T) {
-	url, ep := os.Getenv("TEST_DATABASE_URL"), os.Getenv("PHOTOLY_TEST_S3_ENDPOINT")
-	if url == "" || ep == "" {
-		t.Skip("set TEST_DATABASE_URL and PHOTOLY_TEST_S3_ENDPOINT")
-	}
+	cfg := s3Config(t)
 	t.Setenv("STORAGE_SECRET_KEY", "test-key")
-	cfg := config.Load()
-	cfg.DatabaseURL, cfg.UploadFolder = url, t.TempDir()
-	ctx := context.Background()
-	a, h, err := New(ctx, cfg, []byte("{}"))
-	if err != nil {
-		t.Fatal(err)
+	f := newLibraryTest(t)
+	f.ok("PUT", "/user/storage/s3", cfg)
+	var ns, sid int64
+	if e := f.a.Pool.QueryRow(f.ctx, `SELECT ns_id,source_id FROM namespace WHERE user_id=$1 AND is_mount`, f.uid).Scan(&ns, &sid); e != nil {
+		t.Fatal(e)
 	}
-	t.Cleanup(func() {
-		a.Pool.Exec(ctx, `UPDATE storage_config SET driver='local', backend_id='local', config='{}', secret=NULL WHERE id=1`)
-		a.Pool.Exec(ctx, `DELETE FROM storage_driver_config`)
-		storage.Set("local", storage.Local{Dir: cfg.UploadFolder})
-	})
-	srv := httptest.NewServer(h)
-	defer srv.Close()
-
-	var uid int64
+	local := f.upload(f.root, "local.png")
+	pid := f.upload(ns, "remote.png")
 	var uuid string
-	if err := a.Pool.QueryRow(ctx, `SELECT user_id, uuid FROM "user" WHERE role='admin' LIMIT 1`).Scan(&uid, &uuid); err != nil {
-		t.Fatal(err)
+	f.a.Pool.QueryRow(f.ctx, `SELECT photo_uuid FROM photo WHERE photo_id=$1`, pid).Scan(&uuid)
+	source, e := storage.GetSource(f.ctx, f.a.Pool, sid)
+	if e != nil {
+		t.Fatal(e)
 	}
-	tok, _ := session.Store{Pool: a.Pool}.Create(ctx, uid, 1)
-	do := func(method, path, ctype string, body io.Reader) (int, []byte) {
-		req, _ := http.NewRequest(method, srv.URL+path, body)
-		req.Header.Set("HRD-Token", tok)
-		if ctype != "" {
-			req.Header.Set("Content-Type", ctype)
-		}
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer resp.Body.Close()
-		b, _ := io.ReadAll(resp.Body)
-		return resp.StatusCode, b
+	st, e := storage.SourceStore(source)
+	if e != nil {
+		t.Fatal(e)
 	}
-	ok := func(b []byte) {
-		t.Helper()
-		var m map[string]any
-		if json.Unmarshal(b, &m) != nil || m["msgCode"] != 200.0 {
-			t.Fatalf("reply = %s", b)
-		}
+	key := fmt.Sprintf("%s/%d/%s/original.png", f.uuid, sid, uuid)
+	if _, e = st.Stat(f.ctx, key); e != nil {
+		t.Fatal("remote original missing", e)
 	}
-
-	// A photo that already lives on local disk before the switch.
-	var stray int64
-	if err := a.Pool.QueryRow(ctx, `INSERT INTO photo(photo_name,user_id,photo_uuid,format,storage_id) VALUES ('stray',$1,'stray-e2e','png','local') RETURNING photo_id`, uid).Scan(&stray); err != nil {
-		t.Fatal(err)
+	defer st.DeletePrefix(f.ctx, f.uuid+"/")
+	if usage := storage.Usage(f.a.Cfg.UploadFolder, f.uuid); usage <= 0 {
+		t.Fatal("local usage missing")
 	}
-	defer a.Pool.Exec(ctx, `DELETE FROM photo WHERE photo_id=$1`, stray)
-
-	cfgJSON, _ := json.Marshal(map[string]any{"driver": "s3", "values": map[string]any{
-		"endpoint": ep, "bucket": os.Getenv("PHOTOLY_TEST_S3_BUCKET"), "prefix": "e2e",
-		"access_key": os.Getenv("PHOTOLY_TEST_S3_ACCESS_KEY"), "secret_key": os.Getenv("PHOTOLY_TEST_S3_SECRET_KEY"),
-		"use_ssl": false, "path_style": true}, "confirm": true})
-	_, b := do("PUT", "/admin/storage", "application/json", bytes.NewReader(cfgJSON))
-	ok(b)
-
-	var ns int64
-	if err := a.Pool.QueryRow(ctx, `SELECT ns_id FROM namespace WHERE user_id=$1 LIMIT 1`, uid).Scan(&ns); err != nil {
-		if err = a.Pool.QueryRow(ctx, `INSERT INTO namespace(ns_name, user_id) VALUES ('e2e',$1) RETURNING ns_id`, uid).Scan(&ns); err != nil {
-			t.Fatal(err)
-		}
+	var used int64
+	f.a.Pool.QueryRow(f.ctx, `SELECT used_bytes FROM "user" WHERE user_id=$1`, f.uid).Scan(&used)
+	if used != storage.Usage(f.a.Cfg.UploadFolder, f.uuid) {
+		t.Fatal("S3 counted in local quota")
 	}
-	var used0 int64
-	a.Pool.QueryRow(ctx, `SELECT coalesce(used_bytes,0) FROM "user" WHERE user_id=$1`, uid).Scan(&used0)
-
-	img := image.NewRGBA(image.Rect(0, 0, 64, 64))
-	for i := range img.Pix {
-		img.Pix[i] = byte(i * 7)
+	// Force a real SDK GET, not a cache hit.
+	p, e := storage.Resolve(f.ctx, f.a.Pool, f.a.Cfg.UploadFolder, f.uuid, uuid, "original")
+	if e != nil {
+		t.Fatal(e)
 	}
-	var pngBytes bytes.Buffer
-	png.Encode(&pngBytes, img)
-	var body bytes.Buffer
-	mw := multipart.NewWriter(&body)
-	mw.WriteField("photo", `{"nsId":`+itoa(ns)+`}`)
-	fw, _ := mw.CreateFormFile("file", "e2e.png")
-	fw.Write(pngBytes.Bytes())
-	mw.Close()
-	_, b = do("POST", "/photo/insert", mw.FormDataContentType(), &body)
-	ok(b)
-
-	var pid int64
-	var puuid string
-	if err := a.Pool.QueryRow(ctx, `SELECT photo_id, photo_uuid FROM photo WHERE user_id=$1 ORDER BY photo_id DESC LIMIT 1`, uid).Scan(&pid, &puuid); err != nil {
-		t.Fatal(err)
+	os.Remove(p)
+	w := f.request("GET", fmt.Sprintf("/photo/render/%s?photoId=%d", f.token, pid), "", nil)
+	if w.Code != 200 || !bytes.Equal(w.Body.Bytes(), pngData()) {
+		t.Fatalf("S3 render %d %s", w.Code, w.Body.String())
 	}
-	// Only media on the active backend is listed; switching back reveals the other side.
-	visible := func(id int64) bool {
-		var n int
-		a.Pool.QueryRow(ctx, `SELECT count(*) FROM photo WHERE photo_id=$1 AND photo_visible(storage_id, user_id)`, id).Scan(&n)
-		return n == 1
+	data := f.json("GET", "/user/storage/s3", nil)
+	encoded, _ := json.Marshal(data)
+	if strings.Contains(string(encoded), os.Getenv("PHOTOLY_TEST_S3_SECRET_KEY")) {
+		t.Fatal("secret leaked")
 	}
-	if !visible(pid) || visible(stray) {
-		t.Fatalf("on s3: new visible=%v (want true), local stray visible=%v (want false)", visible(pid), visible(stray))
+	// Two sources remain visible; cross-source operations cannot relocate objects.
+	if v := f.json("POST", fmt.Sprintf("/photo/changeNamespace?photoId=%d&nsId=%d", pid, f.root), nil); v["msgCode"] == float64(200) {
+		t.Fatal("cross-source move accepted")
 	}
-	// The user can opt in to listing media from the other backends too.
-	_, b = do("POST", "/user/updateStorageVisibility", "application/x-www-form-urlencoded", strings.NewReader("show=true"))
-	ok(b)
-	if !visible(pid) || !visible(stray) {
-		t.Fatal("show-all setting should list media from every backend")
+	f.ok("PUT", "/user/storage/s3", map[string]any{"enabled": false})
+	var visible bool
+	f.a.Pool.QueryRow(f.ctx, `SELECT photo_visible(storage_id,user_id) FROM photo WHERE photo_id=$1`, pid).Scan(&visible)
+	if visible {
+		t.Fatal("disabled remote visible")
 	}
-	_, b = do("POST", "/user/updateStorageVisibility", "application/x-www-form-urlencoded", strings.NewReader("show=false"))
-	ok(b)
-	localJSON, _ := json.Marshal(map[string]any{"driver": "local", "values": map[string]any{}, "confirm": true})
-	_, b = do("PUT", "/admin/storage", "application/json", bytes.NewReader(localJSON))
-	ok(b)
-	if visible(pid) || !visible(stray) {
-		t.Fatalf("on local: new visible=%v (want false), stray visible=%v (want true)", visible(pid), visible(stray))
+	if w = f.request("GET", fmt.Sprintf("/photo/render/%s?photoId=%d", f.token, local), "", nil); w.Code != 200 {
+		t.Fatal("local hidden by S3 disable")
 	}
-	// The s3 settings were remembered: switching back needs no credentials.
-	_, b = do("GET", "/admin/storage", "", nil)
-	var saved struct {
-		T struct {
-			Saved map[string]struct {
-				Values    map[string]string `json:"values"`
-				HasSecret bool              `json:"hasSecret"`
-			} `json:"saved"`
-		} `json:"t"`
+	f.ok("PUT", "/user/storage/s3", map[string]any{"enabled": true})
+	cfg["values"].(map[string]any)["prefix"] = "different"
+	if v := f.json("PUT", "/user/storage/s3", cfg); v["msgCode"] != float64(409) {
+		t.Fatal("occupied source retargeted", v)
 	}
-	if json.Unmarshal(b, &saved) != nil || saved.T.Saved["s3"].Values["bucket"] == "" || !saved.T.Saved["s3"].HasSecret {
-		t.Fatalf("s3 settings not remembered after switching to local: %s", b)
+	// Renaming a remote folder and photo does not alter object keys.
+	folder := f.folder(ns, "remote folder")
+	f.ok("POST", "/namespace/updateName", map[string]any{"nsId": folder, "nsName": "renamed"})
+	f.ok("POST", fmt.Sprintf("/photo/changeNamespace?photoId=%d&nsId=%d", pid, folder), nil)
+	f.ok("POST", "/photo/update", map[string]any{"photoId": pid, "photoName": "new name"})
+	if _, e = st.Stat(f.ctx, key); e != nil {
+		t.Fatal("remote rename changed key", e)
 	}
-	backJSON, _ := json.Marshal(map[string]any{"driver": "s3", "values": map[string]any{
-		"endpoint": ep, "bucket": os.Getenv("PHOTOLY_TEST_S3_BUCKET"), "prefix": "e2e",
-		"access_key": os.Getenv("PHOTOLY_TEST_S3_ACCESS_KEY"), "use_ssl": false, "path_style": true}, "confirm": true})
-	_, b = do("PUT", "/admin/storage", "application/json", bytes.NewReader(backJSON))
-	ok(b)
-	if !visible(pid) || visible(stray) {
-		t.Fatal("switching back to s3 should show its media again")
+	w = f.request("GET", fmt.Sprintf("/namespace/downloadNs/%s?nsId=%d", f.token, f.root), "", nil)
+	zr, e := zip.NewReader(bytes.NewReader(w.Body.Bytes()), int64(w.Body.Len()))
+	if e != nil {
+		t.Fatalf("combined ZIP: %s %v", w.Body.String(), e)
 	}
-	remote := storage.Remote()
-	if remote == nil {
-		t.Fatal("s3 should be active")
+	names := map[string]bool{}
+	for _, entry := range zr.File {
+		names[entry.Name] = true
 	}
-	orig, thumb := uuid+"/"+puuid+".png", uuid+"/"+puuid+"_thumbnail.png"
-	for _, k := range []string{orig, thumb} {
-		if _, err := remote.Stat(ctx, k); err != nil {
-			t.Fatalf("%s not uploaded: %v", k, err)
-		}
-		if _, err := os.Stat(filepath.Join(cfg.UploadFolder, filepath.FromSlash(k))); !os.IsNotExist(err) {
-			t.Fatalf("%s should be offloaded from local disk", k)
-		}
+	if !names["root/local.png"] || !names["root/S3/renamed/new name.png"] {
+		t.Fatalf("combined source ZIP: %v", names)
 	}
-	var used1 int64
-	a.Pool.QueryRow(ctx, `SELECT coalesce(used_bytes,0) FROM "user" WHERE user_id=$1`, uid).Scan(&used1)
-	if used1 <= used0 {
-		t.Fatalf("used_bytes %d -> %d, upload should count", used0, used1)
+	f.ok("POST", fmt.Sprintf("/photo/delete?photoId=%d", pid), nil)
+	if _, e = st.Stat(f.ctx, key); e != storage.ErrNotFound {
+		t.Fatal("object remained after delete", e)
 	}
-
-	// Serving fetches the original back from S3.
-	code, got := do("GET", "/photo/render/"+tok+"?photoId="+itoa(pid), "", nil)
-	if code != 200 || !bytes.Equal(got, pngBytes.Bytes()) {
-		t.Fatalf("render = %d, %d bytes (want %d)", code, len(got), pngBytes.Len())
-	}
-	if code, got = do("GET", "/photo/renderThumbnail/"+tok+"?photoId="+itoa(pid), "", nil); code != 200 || len(got) == 0 {
-		t.Fatalf("thumbnail = %d, %d bytes", code, len(got))
-	}
-	// Listing sizes must come from S3 even when nothing is cached locally.
-	if n, err := storage.Size(filepath.Join(cfg.UploadFolder, uuid, puuid+".png")); err != nil || n != int64(pngBytes.Len()) {
-		t.Fatalf("Size = %d, %v", n, err)
-	}
-
-	// Delete: the objects go, and the quota is released even though the file was offloaded.
-	_, b = do("POST", "/photo/delete?photoId="+itoa(pid), "", strings.NewReader(""))
-	ok(b)
-	for _, k := range []string{orig, thumb} {
-		if _, err := remote.Stat(ctx, k); err != storage.ErrNotFound {
-			t.Fatalf("%s should be deleted from S3: %v", k, err)
-		}
-	}
-	var used2 int64
-	a.Pool.QueryRow(ctx, `SELECT coalesce(used_bytes,0) FROM "user" WHERE user_id=$1`, uid).Scan(&used2)
-	if used2 != used0 {
-		t.Fatalf("used_bytes after delete = %d, want %d", used2, used0)
-	}
-	if code, _ = do("GET", "/photo/render/"+tok+"?photoId="+itoa(pid), "", nil); code == 200 {
-		t.Fatal("deleted photo still served")
+	if _, e = os.Stat(filepath.Join(f.dir, "local.png")); e != nil {
+		t.Fatal(e)
 	}
 }
 
-func itoa(n int64) string { return strconv.FormatInt(n, 10) }
+func TestPersonalS3UserIsolation(t *testing.T) {
+	t.Setenv("STORAGE_SECRET_KEY", "test-key")
+	cfg := s3Config(t)
+	first, second := newLibraryTest(t), newLibraryTest(t)
+	first.ok("PUT", "/user/storage/s3", cfg)
+	cfg["values"].(map[string]any)["prefix"] = "second-account"
+	second.ok("PUT", "/user/storage/s3", cfg)
+	for _, f := range []*libraryTest{first, second} {
+		var ns, sid int64
+		if e := f.a.Pool.QueryRow(f.ctx, `SELECT ns_id,source_id FROM namespace WHERE user_id=$1 AND is_mount`, f.uid).Scan(&ns, &sid); e != nil {
+			t.Fatal(e)
+		}
+		id := f.upload(ns, "same.png")
+		if v := first.json("POST", fmt.Sprintf("/photo/changeNamespace?photoId=%d&nsId=%d", id, first.root), nil); f == second && v["msgCode"] == float64(200) {
+			t.Fatal("cross-user move accepted")
+		}
+		source, e := storage.GetSource(f.ctx, f.a.Pool, sid)
+		if e != nil {
+			t.Fatal(e)
+		}
+		st, e := storage.SourceStore(source)
+		if e != nil {
+			t.Fatal(e)
+		}
+		t.Cleanup(func() { _ = st.DeletePrefix(f.ctx, f.uuid+"/") })
+		if e := os.Mkdir(filepath.Join(f.dir, "S3"), 0755); e != nil {
+			t.Fatal(e)
+		}
+		f.scan()
+		var name string
+		if e := f.a.Pool.QueryRow(f.ctx, `SELECT ns_name FROM namespace WHERE ns_id=$1`, ns).Scan(&name); e != nil || name != "S3 (1)" {
+			t.Fatalf("external mount name collision: %q %v", name, e)
+		}
+		var alias string
+		if e := f.a.Pool.QueryRow(f.ctx, `SELECT display_name FROM storage_source WHERE id=$1`, sid).Scan(&alias); e != nil || alias != name {
+			t.Fatal("mount alias diverged", alias, name, e)
+		}
+	}
+	first.ok("PUT", "/user/storage/s3", map[string]any{"enabled": false})
+	var n int
+	if e := second.a.Pool.QueryRow(second.ctx, `SELECT count(*) FROM photo WHERE user_id=$1 AND photo_visible(storage_id,user_id)`, second.uid).Scan(&n); e != nil || n != 1 {
+		t.Fatalf("one user's settings affected another: %d %v", n, e)
+	}
+}
+
+func itoa(n int64) string { return fmt.Sprint(n) }
+
+func TestMultipleS3Connections(t *testing.T) {
+	cfg := s3Config(t)
+	t.Setenv("STORAGE_SECRET_KEY", "test-key")
+	f := newLibraryTest(t)
+	f.folder(f.root, "S3")
+	first := f.ok("POST", "/user/storage/s3", cfg).(map[string]any)
+	second := f.ok("POST", "/user/storage/s3", cfg).(map[string]any)
+	id1, id2 := int64(first["sourceId"].(float64)), int64(second["sourceId"].(float64))
+	if first["name"] != "S3 (1)" || second["name"] != "S3 (2)" || id1 == id2 {
+		t.Fatal(first, second)
+	}
+	endpoint := func(id int64) string { return fmt.Sprintf("/user/storage/s3/%d", id) }
+	list := f.ok("GET", "/user/storage/s3", nil).(map[string]any)["connections"].([]any)
+	if len(list) != 2 {
+		t.Fatal(list)
+	}
+	for _, v := range list {
+		values := v.(map[string]any)["values"].(map[string]any)
+		if values["access_key"] != nil || values["secret_key"] != nil {
+			t.Fatal("credentials returned")
+		}
+	}
+	if v := f.json("PUT", "/user/storage/s3", map[string]any{"enabled": false}); v["msgCode"] != float64(409) {
+		t.Fatal("ambiguous legacy update", v)
+	}
+	var ns1, ns2 int64
+	if e := f.a.Pool.QueryRow(f.ctx, `SELECT ns_id FROM namespace WHERE source_id=$1 AND is_mount`, id1).Scan(&ns1); e != nil {
+		t.Fatal(e)
+	}
+	if e := f.a.Pool.QueryRow(f.ctx, `SELECT ns_id FROM namespace WHERE source_id=$1 AND is_mount`, id2).Scan(&ns2); e != nil {
+		t.Fatal(e)
+	}
+	// Even identical endpoints/buckets/prefixes have independent object keys.
+	p1, p2 := f.upload(ns1, "same.png"), f.upload(ns2, "same.png")
+	for _, pair := range [][2]int64{{id1, p1}, {id2, p2}} {
+		source, e := storage.ReadSource(f.ctx, f.a.Pool, pair[0])
+		if e != nil {
+			t.Fatal(e)
+		}
+		st, e := storage.SourceStore(source)
+		if e != nil {
+			t.Fatal(e)
+		}
+		t.Cleanup(func() { _ = st.DeletePrefix(f.ctx, f.uuid+"/") })
+		var uuid string
+		if e = f.a.Pool.QueryRow(f.ctx, `SELECT photo_uuid FROM photo WHERE photo_id=$1`, pair[1]).Scan(&uuid); e != nil {
+			t.Fatal(e)
+		}
+		if _, e = st.Stat(f.ctx, fmt.Sprintf("%s/%d/%s/original.png", f.uuid, pair[0], uuid)); e != nil {
+			t.Fatal(e)
+		}
+	}
+	if v := f.json("DELETE", endpoint(id1), nil); v["msgCode"] != float64(409) {
+		t.Fatal("removed occupied source", v)
+	}
+	other := newLibraryTest(t)
+	for _, method := range []string{"PATCH", "DELETE"} {
+		if v := other.json(method, endpoint(id1), map[string]any{"name": "stolen"}); v["msgCode"] != float64(404) {
+			t.Fatal(v)
+		}
+	}
+	if v := other.json("POST", "/user/storage/s3/test", map[string]any{"sourceId": id1}); v["msgCode"] != float64(404) {
+		t.Fatal(v)
+	}
+	f.ok("POST", "/user/storage/s3/test", map[string]any{"sourceId": id1, "values": map[string]any{"access_key": "", "secret_key": ""}})
+	f.ok("PATCH", endpoint(id1), map[string]any{"enabled": false})
+	var active bool
+	if e := f.a.Pool.QueryRow(f.ctx, `SELECT enabled FROM storage_source WHERE id=$1`, id2).Scan(&active); e != nil || !active {
+		t.Fatal("disabled sibling", e)
+	}
+	f.ok("PATCH", endpoint(id1), map[string]any{"enabled": true})
+	f.ok("POST", "/namespace/order", map[string]any{"parentId": f.root, "nsId": ns2, "beforeNsId": ns1})
+	before := childIDs(f, f.root)
+	f.ok("PATCH", endpoint(id1), map[string]any{"enabled": false})
+	f.ok("PATCH", endpoint(id1), map[string]any{"enabled": true})
+	if fmt.Sprint(before) != fmt.Sprint(childIDs(f, f.root)) {
+		t.Fatal("disable changed mount order")
+	}
+	// Alias updates do not decrypt or contact the server.
+	t.Setenv("STORAGE_SECRET_KEY", "")
+	renamed := f.ok("PATCH", endpoint(id1), map[string]any{"name": "Trips"}).(map[string]any)
+	if renamed["name"] != "Trips" {
+		t.Fatal(renamed)
+	}
+	var sourceName, folderName string
+	if e := f.a.Pool.QueryRow(f.ctx, `SELECT s.display_name,n.ns_name FROM storage_source s JOIN namespace n ON n.source_id=s.id AND n.is_mount WHERE s.id=$1`, id1).Scan(&sourceName, &folderName); e != nil || sourceName != "Trips" || folderName != sourceName {
+		t.Fatal(sourceName, folderName, e)
+	}
+	t.Setenv("STORAGE_SECRET_KEY", "test-key")
+	empty := f.ok("POST", "/user/storage/s3", cfg).(map[string]any)
+	id3 := int64(empty["sourceId"].(float64))
+	source, e := storage.ReadSource(f.ctx, f.a.Pool, id3)
+	if e != nil {
+		t.Fatal(e)
+	}
+	st, e := storage.SourceStore(source)
+	if e != nil {
+		t.Fatal(e)
+	}
+	key := fmt.Sprintf("%s/%d/unmanaged.txt", f.uuid, id3)
+	if e = st.Put(f.ctx, key, strings.NewReader("keep"), 4); e != nil {
+		t.Fatal(e)
+	}
+	defer st.DeletePrefix(f.ctx, f.uuid+"/")
+	// An unsealed upload reserves the connection even before any photo exists.
+	var emptyNS int64
+	if e = f.a.Pool.QueryRow(f.ctx, `SELECT ns_id FROM namespace WHERE source_id=$1 AND is_mount`, id3).Scan(&emptyNS); e != nil {
+		t.Fatal(e)
+	}
+	batchID := fmt.Sprintf("test-%d", id3)
+	if _, e = f.a.Pool.Exec(f.ctx, `INSERT INTO upload_batch(id,user_id,ns_id,name,created_at,updated_at,folders) VALUES($1,$2,$3,'pending',now(),now(),'{}')`, batchID, f.uid, emptyNS); e != nil {
+		t.Fatal(e)
+	}
+	if v := f.json("DELETE", endpoint(id3), nil); v["msgCode"] != float64(409) {
+		t.Fatal("removed uploading source", v)
+	}
+	if _, e = f.a.Pool.Exec(f.ctx, `UPDATE upload_batch SET sealed=true WHERE id=$1`, batchID); e != nil {
+		t.Fatal(e)
+	}
+	f.ok("DELETE", endpoint(id3), nil)
+	if _, e = st.Stat(f.ctx, key); e != nil {
+		t.Fatal("removal deleted remote objects", e)
+	}
+}
