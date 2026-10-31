@@ -5,7 +5,7 @@ go 1.26.10
 require (
 	github.com/cloudsoda/go-smb2 v0.0.0-20261029174947-95daac2ef783
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.7.4
+	github.com/jackc/pgx/v5 v5.11.0
 	github.com/minio/minio-go/v7 v7.0.97
 	github.com/pgvector/pgvector-go v0.2.2
 	github.com/pressly/goose/v3 v3.24.3
