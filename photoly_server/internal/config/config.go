@@ -34,6 +34,8 @@ func Load() app.Config {
 		DatabaseURL:                  DatabaseURL(false),
 		UploadFolder:                 str("UPLOAD_FOLDER", "/photoly"),
 		AdminEmail:                   str("ADMIN_EMAIL", "admin@a.com"),
+		DemoEmail:                    os.Getenv("DEMO_EMAIL"),
+		DemoPassword:                 os.Getenv("DEMO_PASSWORD"),
 		AdminPassword:                os.Getenv("ADMIN_PASSWORD"),
 		Addr:                         str("PHOTOLY_ADDR", ":8084"),
 		PublicBaseURL:                strings.TrimRight(str("PUBLIC_BASE_URL", "http://localhost:8384"), "/"),

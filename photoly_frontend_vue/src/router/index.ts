@@ -14,7 +14,17 @@ declare module 'vue-router' {
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', name: 'welcome', component: () => import('@/views/Welcome.vue') },
+    {
+      path: '/',
+      name: 'welcome',
+      component: () => import('@/views/Welcome.vue'),
+      // The landing page is the public demo's; a regular deployment opens on the sign-in page.
+      beforeEnter: async () => {
+        const { loadDemo, useDemo } = await import('@/composables/useDemo')
+        await loadDemo()
+        if (!useDemo().enabled) return { name: 'login' }
+      },
+    },
     // Sign in and sign up share one layout, so switching between them animates instead of reloading.
     {
       path: '/auth',

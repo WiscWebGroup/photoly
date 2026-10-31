@@ -42,13 +42,14 @@ describe('AppShell', () => {
     field.remove()
   })
 
-  it('sign out signs out on the server, forgets the token and goes to the welcome page', async () => {
+  it('sign out signs out on the server, forgets the token and goes to the sign-in page', async () => {
     const calls = recordRequests()
     server.use(http.post(`${API}/user/signOut/`, () => ok()))
-    await router.push('/login')
+    await router.push('/signup')
     mountWithApp(AppShell)
     document.querySelector<HTMLButtonElement>('button[aria-label="Sign out"]')!.click()
-    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/'))
+    // `/` is the demo landing page; a regular deployment lands on sign-in.
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/login'))
     expect(calls.filter((c) => c.method === 'POST').map((c) => c.path)).toEqual(['/user/signOut/'])
     expect(localStorage.getItem('HRD-Token')).toBeNull()
   })

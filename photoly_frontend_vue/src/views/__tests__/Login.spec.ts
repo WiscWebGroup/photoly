@@ -23,7 +23,8 @@ describe('Login', () => {
     await flushPromises()
 
     expect(pageText()).toContain('Please input correct email and password format!')
-    expect(calls).toEqual([])
+    // The demo-mode probe is not a sign-in call.
+    expect(calls.filter((c) => c.path !== '/demo')).toEqual([])
   })
 
   it('rejects an empty password', async () => {

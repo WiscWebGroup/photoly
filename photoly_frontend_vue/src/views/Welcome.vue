@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { onClickOutside, onKeyStroke, useIntersectionObserver } from '@vueuse/core'
+import { useIntersectionObserver } from '@vueuse/core'
 import { ArrowRight, ExternalLink, FolderOpen, Share2, Sparkles } from '@lucide/vue'
-import { MorphIcon } from 'morphicons/vue'
-import { Menu, X } from 'lucide'
 import NightBackdrop from '@/components/NightBackdrop.vue'
 import HeroMosaic from '@/components/welcome/HeroMosaic.vue'
 
 const GITHUB = 'https://github.com/WiscWebGroup/photoly'
+// TODO: point at the deploy guide once the docs site exists.
+const DEPLOY_DOCS = `${GITHUB}/tree/main/docs`
 
 const features = [
   {
@@ -54,12 +54,6 @@ const team = [
   },
 ]
 
-// Phone-width navigation collapses into a menu.
-const menuOpen = ref(false)
-const menu = ref<HTMLElement>()
-onClickOutside(menu, () => (menuOpen.value = false))
-onKeyStroke('Escape', () => (menuOpen.value = false))
-
 // Sections below the fold rise in as they scroll into view.
 const featuresEl = ref<HTMLElement>()
 const teamEl = ref<HTMLElement>()
@@ -99,45 +93,7 @@ const card =
           <img src="@/assets/photoly-wordmark.svg" alt="Photoly" class="h-8" />
         </RouterLink>
 
-        <nav aria-label="Main" class="ml-auto hidden items-center gap-2 sm:flex">
-          <a :href="GITHUB" :class="ghost">GitHub</a>
-          <RouterLink to="/login" :class="ghost">Sign In</RouterLink>
-          <RouterLink
-            to="/signup"
-            class="flex h-9 items-center rounded-lg border border-white/20 px-3.5 font-medium text-white transition-colors outline-none hover:border-teal-300/50 hover:bg-white/5 focus-visible:ring-3 focus-visible:ring-teal-300/50"
-            >Sign Up</RouterLink
-          >
-        </nav>
-
-        <div ref="menu" class="relative ml-auto sm:hidden">
-          <button
-            type="button"
-            class="flex size-11 items-center justify-center rounded-lg text-white transition-colors outline-none hover:bg-white/8 focus-visible:ring-3 focus-visible:ring-teal-300/50"
-            :aria-expanded="menuOpen"
-            aria-controls="welcome-menu"
-            aria-label="Menu"
-            @click="menuOpen = !menuOpen"
-          >
-            <MorphIcon
-              :icon="menuOpen ? X : Menu"
-              :size="22"
-              spring="bouncy"
-              reduced-motion="user"
-            />
-          </button>
-          <Transition name="reveal">
-            <nav
-              v-show="menuOpen"
-              id="welcome-menu"
-              aria-label="Main"
-              class="absolute top-12 right-0 flex w-48 flex-col gap-1 rounded-xl border border-white/12 bg-[#031417]/95 p-1.5 shadow-[0_12px_32px_rgba(0,0,0,.4)] backdrop-blur-md"
-            >
-              <RouterLink to="/login" :class="[ghost, 'h-11']">Sign In</RouterLink>
-              <RouterLink to="/signup" :class="[ghost, 'h-11']">Sign Up</RouterLink>
-              <a :href="GITHUB" :class="[ghost, 'h-11']">GitHub</a>
-            </nav>
-          </Transition>
-        </div>
+        <a :href="GITHUB" :class="[ghost, 'ml-auto']">GitHub</a>
       </header>
 
       <section
@@ -164,18 +120,18 @@ const card =
           </p>
           <div style="animation-delay: 240ms" class="animate-rise flex flex-wrap gap-3 pt-2">
             <RouterLink
-              to="/signup"
+              to="/login"
               class="group flex h-11 items-center gap-2 rounded-[10px] bg-teal-400 px-[22px] text-base font-semibold text-teal-950 shadow-[0_0_32px_-4px] shadow-teal-400/60 transition-[background-color,box-shadow,transform] duration-200 outline-none hover:bg-teal-300 hover:shadow-teal-300/70 focus-visible:ring-3 focus-visible:ring-teal-200/60 active:scale-[0.97]"
             >
-              Get Started
+              Try the demo
               <ArrowRight
                 class="size-4 transition-transform duration-300 ease-(--ease-out-quart) group-hover:translate-x-1"
               />
             </RouterLink>
             <a
-              :href="GITHUB"
+              :href="DEPLOY_DOCS"
               class="flex h-11 items-center rounded-[10px] border border-white/16 bg-white/4 px-[18px] text-base font-medium text-white transition-colors outline-none hover:bg-white/8 focus-visible:ring-3 focus-visible:ring-teal-300/50"
-              >Star us on GitHub</a
+              >Deploy your own</a
             >
           </div>
         </div>

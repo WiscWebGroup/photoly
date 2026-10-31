@@ -13,6 +13,8 @@ type Config struct {
 	DatabaseURL  string
 	UploadFolder string
 	AdminEmail   string
+	DemoEmail    string // DEMO_EMAIL: account barred from /admin writes and login changes (see server/demo.go)
+	DemoPassword string // DEMO_PASSWORD: shown on the demo login page only; the account's real password is set elsewhere
 
 	AdminPassword                string
 	Addr                         string // listen address, PHOTOLY_ADDR (default :8084)
