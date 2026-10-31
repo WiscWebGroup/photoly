@@ -1,16 +1,27 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, ref, watchEffect } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useResizeObserver } from '@vueuse/core'
 import NightBackdrop from '@/components/NightBackdrop.vue'
+import { useDemo } from '@/composables/useDemo'
 
 const route = useRoute()
+const router = useRouter()
 const isSignup = computed(() => route.name === 'signup')
 
-const tabs = [
-  { name: 'login', label: 'Sign In' },
-  { name: 'signup', label: 'Sign Up' },
-] as const
+// A demo instance only offers the shared demo login: no sign-up tab, and /signup bounces.
+const demo = useDemo()
+const tabs = computed(() =>
+  demo.enabled
+    ? ([{ name: 'login', label: 'Sign In' }] as const)
+    : ([
+        { name: 'login', label: 'Sign In' },
+        { name: 'signup', label: 'Sign Up' },
+      ] as const),
+)
+watchEffect(() => {
+  if (demo.enabled && route.name === 'signup') void router.replace({ name: 'login' })
+})
 
 // Fetch both forms up front so switching never waits on the network.
 onMounted(() => {
@@ -50,6 +61,7 @@ useResizeObserver(content, ([entry]) => {
       :class="isSignup ? 'sm:max-w-[440px]' : 'sm:max-w-[400px]'"
     >
       <nav
+        v-if="tabs.length > 1"
         aria-label="Account"
         class="relative order-2 grid grid-cols-2 rounded-xl bg-white/6 p-[3px] sm:order-1 sm:rounded-[10px]"
       >

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AuthField from '@/components/auth/AuthField.vue'
 import AuthSubmit from '@/components/auth/AuthSubmit.vue'
+import { useDemo } from '@/composables/useDemo'
 import { useWarning } from '@/composables/useWarning'
 import { http } from '@/lib/http'
 import { useAuthStore } from '@/stores/auth'
@@ -14,6 +15,19 @@ const { warning, show } = useWarning()
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
+
+// The public demo shares one account, so pre-fill it.
+const demo = useDemo()
+watch(
+  () => demo.enabled,
+  (on) => {
+    if (on && !email.value && !password.value) {
+      email.value = demo.email
+      password.value = demo.password
+    }
+  },
+  { immediate: true },
+)
 
 const goHome = () => router.push('/home/HomePart')
 
@@ -70,6 +84,12 @@ onMounted(async () => {
         {{ warning }}
       </p>
     </Transition>
+    <p
+      v-if="demo.enabled"
+      class="rounded-[10px] border border-teal-300/30 bg-teal-300/10 px-3.5 py-2.5 text-teal-100"
+    >
+      Shared demo account, pre-filled. Uploads are wiped every few hours.
+    </p>
     <AuthField
       v-model="email"
       label="Email"

@@ -93,6 +93,10 @@ func New(ctx context.Context, cfg app.Config, openapi []byte) (*app.App, http.Ha
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
+	// Public: lets the frontend show the demo landing page and pre-fill the demo login.
+	mux.HandleFunc("GET /demo", func(w http.ResponseWriter, r *http.Request) {
+		httpx.JSON(w, map[string]any{"enabled": cfg.DemoEmail != "", "email": cfg.DemoEmail, "password": cfg.DemoPassword}, 200)
+	})
 	mux.HandleFunc("GET /openapi.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(openapi)
@@ -111,6 +115,7 @@ func New(ctx context.Context, cfg app.Config, openapi []byte) (*app.App, http.Ha
 		}
 		mux.ServeHTTP(w, r)
 	})
+	h = demoGuard(cfg.DemoEmail, store.Lookup, h)
 	return a, h, nil
 }
 

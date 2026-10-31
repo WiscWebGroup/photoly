@@ -1,0 +1,91 @@
+# Standalone public demo stack: photoly + web + a sidecar that restores a golden snapshot every
+# DEMO_RESET_INTERVAL seconds. Independent of docker-compose.yml (own project, data dirs).
+# No host ports: reverse proxy to photoly-demo-web:80 over the external npm_shared network.
+#
+#   mkdir -p demo_data/upload demo_data/golden && sudo chown 65532 demo_data/upload
+#   docker compose -f docker-compose.demo.yml up -d
+# Images come from GHCR (built by .github/workflows/publish-images.yml); no source checkout needed.
+# Update: docker compose pull && docker compose up -d, then retake the golden snapshot.
+#
+# 1. Sign in as ADMIN_EMAIL, create the demo user (role admin), upload the sample images and
+#    wait for AI indexing to finish.
+# 2. Take the golden snapshot (see the end of this file). From then on the sidecar restores it.
+name: photoly-demo
+
+services:
+  photoly-demo-web:
+    depends_on:
+      photoly-demo-backend:
+        condition: service_healthy
+    image: ghcr.io/wiscwebgroup/photoly-web:${PHOTOLY_TAG:-latest}
+    environment:
+      # Unique name: web also sits on npm_shared, where a bare `backend` could hit another stack.
+      BACKEND_UPSTREAM: photoly-demo-backend:8084
+    networks:
+      - default
+      - npm_shared
+  photoly-demo-backend:
+    container_name: photoly-demo-backend
+    image: ghcr.io/wiscwebgroup/photoly-backend:${PHOTOLY_TAG:-latest}
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_ADMIN_PASSWORD in .env}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?Set POSTGRES_APP_PASSWORD in .env}
+      POSTGRES_MIGRATION_PASSWORD: ${POSTGRES_MIGRATION_PASSWORD:?Set POSTGRES_MIGRATION_PASSWORD in .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@a.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      # Email of the public demo account: it keeps admin read access but can't write under /admin
+      # or change its own email/password. Must not be ADMIN_EMAIL.
+      DEMO_EMAIL: ${DEMO_EMAIL:?Set DEMO_EMAIL in .env}
+      # Shown (publicly!) on the login page, which pre-fills it. Must equal the demo account's
+      # real password. Demo mode also closes sign-up and turns the landing page into
+      # "Try the demo" / "Deploy your own".
+      DEMO_PASSWORD: ${DEMO_PASSWORD:?Set DEMO_PASSWORD in .env}
+      PUBLIC_BASE_URL: ${DEMO_PUBLIC_BASE_URL:-http://localhost:8385}
+      TIMEZONE: ${TIMEZONE:-America/New_York}
+      MAX_CONTENT_LENGTH: ${MAX_CONTENT_LENGTH:-629145600}
+      UPLOAD_ZIP_MAX_BYTES: ${UPLOAD_ZIP_MAX_BYTES:-50000000000}
+      UPLOAD_DISK_RESERVE_BYTES: ${UPLOAD_DISK_RESERVE_BYTES:-536870912}
+    volumes:
+      - ./demo_data/upload:/photoly
+      - photoly_models:/var/lib/photoly
+      - postgres_data:/var/lib/postgresql/data
+    stop_grace_period: 60s
+    restart: unless-stopped
+  # Every INTERVAL seconds: stop backend, replace live data with the golden copy, start backend.
+  # Needs docker.sock to stop/start the backend. Does nothing until the golden snapshot exists.
+  photoly-demo-reset:
+    image: docker:cli
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./demo_data/upload:/live/upload
+      - postgres_data:/live/pg
+      - ./demo_data/golden:/golden
+    environment:
+      INTERVAL: ${DEMO_RESET_INTERVAL:-10800}
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        while sleep $$INTERVAL; do
+          [ -d /golden/pg ] && [ -d /golden/upload ] || { echo "no golden snapshot, skipping"; continue; }
+          docker stop photoly-demo-backend
+          for d in upload pg; do
+            find /live/$$d -mindepth 1 -delete
+            cp -a /golden/$$d/. /live/$$d/
+          done
+          docker start photoly-demo-backend
+        done
+
+volumes:
+  photoly_models:
+  postgres_data:
+
+networks:
+  npm_shared:
+    external: true
+
+# Golden snapshot (run after seeding; re-run any time you change the sample set):
+#   docker compose -f docker-compose.demo.yml stop photoly-demo-backend
+#   docker compose -f docker-compose.demo.yml run --rm --no-deps photoly-demo-reset \
+#     'rm -rf /golden/*; mkdir -p /golden/upload /golden/pg && cp -a /live/upload/. /golden/upload/ && cp -a /live/pg/. /golden/pg/'
+#   docker compose -f docker-compose.demo.yml start photoly-demo-backend

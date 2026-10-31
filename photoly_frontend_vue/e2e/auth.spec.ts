@@ -72,7 +72,7 @@ test('home redirects to login without a token', async ({ page }) => {
   await expect(page).toHaveURL(/\/login$/)
 })
 
-test('logout clears the token and returns to the welcome page', async ({ page }) => {
+test('logout clears the token and returns to sign in', async ({ page }) => {
   const calls = await mockApi(page, { '/user/signOut': ok() })
   await page.goto('/login')
   await page.evaluate((token) => localStorage.setItem('HRD-Token', token), TOKEN)
@@ -83,7 +83,7 @@ test('logout clears the token and returns to the welcome page', async ({ page })
     .filter({ visible: true })
     .click()
 
-  await expect(page).toHaveURL(/\/$/)
+  await expect(page).toHaveURL(/\/login$/)
   expect(calls.map((c) => c.path)).toContain('/user/signOut')
   expect(await page.evaluate(() => localStorage.getItem('HRD-Token'))).toBeNull()
 })

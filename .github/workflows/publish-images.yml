@@ -1,0 +1,51 @@
+name: Publish images
+
+# Builds the backend (aio) and web images and pushes them to GHCR for deployments that
+# can't or shouldn't build from source (e.g. the demo stack in docker-compose.demo.yml).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    # arm64 only, built natively (no QEMU). Add an amd64 job + manifest merge if x86 hosts need it.
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      matrix:
+        include:
+          - image: photoly-backend
+            context: photoly_server
+            target: aio
+            build-contexts: dbinit=database/postgres-init
+          - image: photoly-web
+            context: photoly_frontend_vue
+            target: ''
+            build-contexts: ''
+    steps:
+      - uses: actions/checkout@v7
+      - id: ref
+        # GHCR names must be lowercase; the org is not.
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${{ matrix.image }}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          target: ${{ matrix.target }}
+          build-contexts: ${{ matrix.build-contexts }}
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ steps.ref.outputs.name }}:latest
+            ${{ steps.ref.outputs.name }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}

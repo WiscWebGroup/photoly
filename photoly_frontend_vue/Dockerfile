@@ -18,6 +18,8 @@ RUN rm -rf ./*
 
 COPY --from=builder /app/dist .
 
-COPY ./nginx.conf /etc/nginx/conf.d/default.conf
-
-ENTRYPOINT ["nginx", "-g", "daemon off;"]
+# The stock nginx entrypoint renders templates/*.template (envsubst) into conf.d at start.
+# BACKEND_UPSTREAM is host:port of the Photoly backend; override it when the service name
+# `backend` is ambiguous (e.g. the web container also joins a shared proxy network).
+ENV BACKEND_UPSTREAM=backend:8084
+COPY ./nginx.conf /etc/nginx/templates/default.conf.template
