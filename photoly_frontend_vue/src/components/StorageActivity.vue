@@ -28,9 +28,6 @@ interface Failure {
 }
 const failures = ref<Failure[]>([])
 const failureTotal = ref(0)
-const active = computed(() =>
-  sources.value.some((s) => s.scanStatus === 'scanning' || s.scanQueued),
-)
 const errors = computed(() => sources.value.some((s) => s.scanRetries || s.scanStatus === 'error'))
 const current = computed(() =>
   sources.value.find((s) => s.sourceId === storageFolder.value?.sourceId),
@@ -84,13 +81,8 @@ async function showFailures(id: number, more = false) {
         class="hover:bg-accent relative grid size-9 shrink-0 place-items-center rounded-lg"
       >
         <Server class="size-4" />
-        <span
-          v-if="active"
-          class="bg-primary absolute top-1 right-1 size-2 animate-pulse rounded-full"
-          aria-label="Scanning"
-        />
         <CircleAlert
-          v-else-if="errors"
+          v-if="errors"
           class="text-destructive absolute top-0 right-0 size-3"
           aria-label="Storage needs attention"
         />
