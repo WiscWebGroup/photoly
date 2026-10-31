@@ -90,6 +90,8 @@ const route = useRoute()
 const auth = useAuthStore()
 const folders = useFolders()
 const library = usePhotos()
+const pageLoading = ref(true)
+const pageError = ref(false)
 const mediaList = ref<InstanceType<typeof MediaList>>()
 const movePicker = ref<InstanceType<typeof MoveToShowFolder>>()
 const detailsFolder = ref<FolderInfo | null>(null)
@@ -177,10 +179,12 @@ watchDebounced(
 
 // --- Navigation ---------------------------------------------------------------------------------
 async function queryPhotos() {
+  pageError.value = false
   try {
     await library.loadByFolder(nsId.value)
     mediaList.value?.updatePhotoList(library.photos.value)
   } catch {
+    pageError.value = true
     toast.error('query photo Response Error!')
   }
 }
@@ -188,12 +192,17 @@ async function queryPhotos() {
 async function go(id: number, name = '') {
   if (id === nsId.value) return
   selected.value = []
+  pageLoading.value = true
+  pageError.value = false
   try {
     const opened = folders.open(id, name)
     mediaList.value?.updateNsId(id)
     await Promise.all([opened, queryPhotos()])
   } catch {
+    pageError.value = true
     toast.error('query folder Response Error!')
+  } finally {
+    pageLoading.value = false
   }
 }
 
@@ -205,9 +214,26 @@ onMounted(async () => {
     mediaList.value?.updateNsId(nsId.value)
     await queryPhotos()
   } catch {
+    pageError.value = true
     toast.error('get root folder Response Error!')
+  } finally {
+    pageLoading.value = false
   }
 })
+
+async function retryContent() {
+  pageLoading.value = true
+  pageError.value = false
+  try {
+    if (nsId.value < 0) await folders.openRoot()
+    else await folders.refresh()
+    await queryPhotos()
+  } catch {
+    pageError.value = true
+  } finally {
+    pageLoading.value = false
+  }
+}
 
 /** Runs a folder mutation, then reports the outcome. Returns whether it succeeded. */
 async function mutate(action: () => Promise<unknown>, success: string, failure: string) {
@@ -543,7 +569,12 @@ watch(
       </nav>
     </div>
 
-    <div v-if="nsId === -1" class="flex justify-center py-24" role="status" aria-label="Loading">
+    <div
+      v-if="nsId === -1 && pageLoading"
+      class="flex justify-center py-24"
+      role="status"
+      aria-label="Loading"
+    >
       <Loader2 class="text-muted-foreground size-8 animate-spin" />
     </div>
 
@@ -551,7 +582,7 @@ watch(
     <ContextMenu>
       <ContextMenuTrigger as-child>
         <div
-          v-show="nsId !== -1"
+          v-show="nsId !== -1 || pageError"
           class="flex w-full flex-1 flex-col gap-8 px-4 pt-4 pb-32 md:gap-10 md:px-10 md:pt-8"
         >
           <div class="flex flex-col gap-1">
@@ -578,7 +609,33 @@ watch(
             </PageHeader>
           </div>
 
-          <section aria-labelledby="folders-h" class="flex flex-col gap-3">
+          <p
+            v-if="pageError"
+            role="alert"
+            class="text-muted-foreground flex items-center gap-3 py-10"
+          >
+            Could not load this folder.<Button variant="outline" @click="retryContent"
+              >Retry</Button
+            >
+          </p>
+          <div
+            v-else-if="pageLoading || library.loading.value"
+            role="status"
+            aria-label="Loading folder"
+            class="flex justify-center py-10"
+          >
+            <Loader2 class="text-muted-foreground size-6 animate-spin" />
+          </div>
+          <EmptyState
+            v-else-if="!folders.children.value.length && !library.photos.value.length"
+            title="Nothing Here"
+            class="py-16"
+          />
+          <section
+            v-if="folders.children.value.length && !pageLoading && !pageError"
+            aria-labelledby="folders-h"
+            class="flex flex-col gap-3"
+          >
             <div class="flex items-baseline gap-2">
               <h2 id="folders-h" class="text-base font-semibold">Folders</h2>
               <span v-if="folders.children.value.length" class="text-muted-foreground text-sm">{{
@@ -753,39 +810,11 @@ watch(
                   </ContextMenuContent>
                 </ContextMenu>
               </li>
-              <li
-                v-if="viewMode !== 'list'"
-                :class="[
-                  'animate-rise flex w-36 shrink-0 sm:w-auto',
-                  viewMode === 'compact' && 'compact-folder',
-                ]"
-                :style="{ animationDelay: `${Math.min(folders.children.value.length, 12) * 30}ms` }"
-              >
-                <!-- Stretches to the folder cards in its row; alone, as tall as an empty folder card. -->
-                <button
-                  type="button"
-                  :class="[
-                    'text-muted-foreground hover:border-primary hover:text-primary flex w-full flex-col items-center justify-center gap-2 rounded-[14px] border border-dashed text-sm transition-colors',
-                    viewMode === 'grid' &&
-                      !folders.children.value.length &&
-                      'min-h-[142px] sm:min-h-[174px]',
-                  ]"
-                  @click="startCreate"
-                >
-                  <Plus class="size-5" aria-hidden="true" />
-                  New Folder
-                </button>
-              </li>
             </ul>
-            <p
-              v-if="viewMode === 'list' && !folders.children.value.length"
-              class="text-muted-foreground animate-fade text-sm"
-            >
-              No folders here yet.
-            </p>
           </section>
 
           <MediaList
+            v-show="library.photos.value.length && !pageLoading && !pageError"
             ref="mediaList"
             :context="title"
             :ns-or-not="true"

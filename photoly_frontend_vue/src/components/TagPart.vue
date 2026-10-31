@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ResizableSidebar from './ResizableSidebar.vue'
 import SmartBadge from '@/components/SmartBadge.vue'
 import type { SmartSource } from '@/lib/smartOrganization'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -196,98 +197,106 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
 <template>
   <div class="flex min-h-full flex-col md:flex-row" @contextmenu.prevent.stop>
     <!-- The tag list. -->
-    <aside
-      class="bg-card flex shrink-0 flex-col gap-4 border-b px-4 pt-5 pb-4 md:sticky md:top-0 md:h-[100dvh] md:w-80 md:overflow-y-auto md:border-r md:border-b-0 md:px-6 md:pt-8"
+    <ResizableSidebar
+      storage-key="photoly-tags-sidebar-width"
+      label="Resize tags sidebar"
+      class="md:sticky md:top-0 md:h-[calc(100dvh-3.5rem)]"
     >
-      <AlbumSwitch class="md:hidden" add-label="Add New Tag" @add="creating = true" />
-      <div :class="['flex items-center gap-2', !selectedTagIds.length && 'max-md:hidden']">
-        <h1 class="text-2xl leading-8 font-semibold tracking-[-0.01em] max-md:hidden">Tags</h1>
-        <Transition name="reveal">
-          <button
-            v-if="selectedTagIds.length"
-            type="button"
-            class="text-primary hover:bg-accent ml-auto h-8 rounded-md px-2 text-sm font-medium transition-colors"
-            @click="clearTags"
-          >
-            Deselect all ({{ selectedTagIds.length }})
-          </button>
-        </Transition>
-        <Button
-          variant="outline"
-          size="icon-sm"
-          aria-label="Add New Tag"
-          :class="['max-md:hidden', !selectedTagIds.length && 'ml-auto']"
-          @click="creating = true"
-          ><Plus
-        /></Button>
-      </div>
-      <label class="relative">
-        <Search
-          class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
-          aria-hidden="true"
-        />
-        <Input v-model="filter" class="pl-9" placeholder="Filter tags" aria-label="Filter tags" />
-      </label>
+      <aside
+        class="bg-card flex shrink-0 flex-col gap-4 border-b px-4 pt-5 pb-4 md:h-full md:w-full md:overflow-y-auto md:border-r md:border-b-0 md:px-6 md:pt-8"
+      >
+        <AlbumSwitch class="md:hidden" add-label="Add New Tag" @add="creating = true" />
+        <div :class="['flex items-center gap-2', !selectedTagIds.length && 'max-md:hidden']">
+          <h1 class="text-2xl leading-8 font-semibold tracking-[-0.01em] max-md:hidden">Tags</h1>
+          <Transition name="reveal">
+            <button
+              v-if="selectedTagIds.length"
+              type="button"
+              class="text-primary hover:bg-accent ml-auto h-8 rounded-md px-2 text-sm font-medium transition-colors"
+              @click="clearTags"
+            >
+              Deselect all ({{ selectedTagIds.length }})
+            </button>
+          </Transition>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label="Add New Tag"
+            :class="['max-md:hidden', !selectedTagIds.length && 'ml-auto']"
+            @click="creating = true"
+            ><Plus
+          /></Button>
+        </div>
+        <label class="relative">
+          <Search
+            class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+            aria-hidden="true"
+          />
+          <Input v-model="filter" class="pl-9" placeholder="Filter tags" aria-label="Filter tags" />
+        </label>
 
-      <template v-for="section in sections" :key="section.label">
-        <section v-if="section.items.length" class="flex flex-col gap-0.5">
-          <h2
-            class="text-muted-foreground flex items-center gap-1.5 pb-1.5 text-xs font-semibold tracking-[0.025em] uppercase"
-          >
-            <Sparkles v-if="section.smart" class="text-primary size-3" aria-hidden="true" />
-            {{ section.label }}
-          </h2>
-          <div class="flex flex-wrap gap-1.5 md:flex-col md:gap-0.5">
-            <ContextMenu v-for="tag in section.items" :key="tag.tagId">
-              <ContextMenuTrigger as-child>
-                <button
-                  type="button"
-                  :aria-pressed="selectedTagIds.includes(tag.tagId)"
-                  :title="tag.tagName"
-                  :aria-description="
-                    counts.get(tag.tagId) ? plural(counts.get(tag.tagId)!.count, 'item') : undefined
-                  "
-                  :class="
-                    cn(
-                      'hover:bg-accent hover:text-accent-foreground flex h-9 min-w-0 items-center gap-1.5 rounded-lg px-2.5 text-left text-sm transition-colors select-none max-md:rounded-full max-md:border max-md:h-8',
-                      selectedTagIds.includes(tag.tagId) &&
-                        'bg-accent text-accent-foreground font-medium max-md:border-primary',
-                    )
-                  "
-                  @click="selectTag(tag)"
-                >
-                  <Hash
-                    v-if="!section.smart"
-                    class="text-muted-foreground/70 size-3.5 shrink-0"
-                    aria-hidden="true"
-                  />
-                  <span class="truncate">{{ tag.tagName }}</span>
-                  <!-- The section heading shows this; keep it in the name so twins stay distinct. -->
-                  <span v-if="tag.smart" class="sr-only">{{
-                    ` Smart · ${tag.smart.source === 'lens' ? 'Lens' : 'Camera'}`
-                  }}</span>
-                  <span
-                    v-if="counts.get(tag.tagId)"
-                    aria-hidden="true"
-                    class="text-muted-foreground text-xs font-normal tabular-nums md:ml-auto"
-                    >{{ counts.get(tag.tagId)!.count }}</span
+        <template v-for="section in sections" :key="section.label">
+          <section v-if="section.items.length" class="flex flex-col gap-0.5">
+            <h2
+              class="text-muted-foreground flex items-center gap-1.5 pb-1.5 text-xs font-semibold tracking-[0.025em] uppercase"
+            >
+              <Sparkles v-if="section.smart" class="text-primary size-3" aria-hidden="true" />
+              {{ section.label }}
+            </h2>
+            <div class="flex flex-wrap gap-1.5 md:flex-col md:gap-0.5">
+              <ContextMenu v-for="tag in section.items" :key="tag.tagId">
+                <ContextMenuTrigger as-child>
+                  <button
+                    type="button"
+                    :aria-pressed="selectedTagIds.includes(tag.tagId)"
+                    :title="tag.tagName"
+                    :aria-description="
+                      counts.get(tag.tagId)
+                        ? plural(counts.get(tag.tagId)!.count, 'item')
+                        : undefined
+                    "
+                    :class="
+                      cn(
+                        'hover:bg-accent hover:text-accent-foreground flex h-9 min-w-0 items-center gap-1.5 rounded-lg px-2.5 text-left text-sm transition-colors select-none max-md:rounded-full max-md:border max-md:h-8',
+                        selectedTagIds.includes(tag.tagId) &&
+                          'bg-accent text-accent-foreground font-medium max-md:border-primary',
+                      )
+                    "
+                    @click="selectTag(tag)"
                   >
-                </button>
-              </ContextMenuTrigger>
-              <ContextMenuContent>
-                <ContextMenuItem @select="startEdit(tag)"><Pencil /> Rename</ContextMenuItem>
-                <ContextMenuItem variant="destructive" @select="deleting = tag"
-                  ><Trash2 /> Delete</ContextMenuItem
-                >
-              </ContextMenuContent>
-            </ContextMenu>
-          </div>
-        </section>
-      </template>
-      <p v-if="!matching.length" class="text-muted-foreground animate-fade text-sm">
-        {{ tags.length ? 'No tags match.' : 'No tags yet.' }}
-      </p>
-    </aside>
+                    <Hash
+                      v-if="!section.smart"
+                      class="text-muted-foreground/70 size-3.5 shrink-0"
+                      aria-hidden="true"
+                    />
+                    <span class="truncate">{{ tag.tagName }}</span>
+                    <!-- The section heading shows this; keep it in the name so twins stay distinct. -->
+                    <span v-if="tag.smart" class="sr-only">{{
+                      ` Smart · ${tag.smart.source === 'lens' ? 'Lens' : 'Camera'}`
+                    }}</span>
+                    <span
+                      v-if="counts.get(tag.tagId)"
+                      aria-hidden="true"
+                      class="text-muted-foreground text-xs font-normal tabular-nums md:ml-auto"
+                      >{{ counts.get(tag.tagId)!.count }}</span
+                    >
+                  </button>
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem @select="startEdit(tag)"><Pencil /> Rename</ContextMenuItem>
+                  <ContextMenuItem variant="destructive" @select="deleting = tag"
+                    ><Trash2 /> Delete</ContextMenuItem
+                  >
+                </ContextMenuContent>
+              </ContextMenu>
+            </div>
+          </section>
+        </template>
+        <p v-if="!matching.length" class="text-muted-foreground animate-fade text-sm">
+          {{ tags.length ? 'No tags match.' : 'No tags yet.' }}
+        </p>
+      </aside>
+    </ResizableSidebar>
 
     <!-- The selected tags' photos. -->
     <div class="flex min-w-0 flex-1 flex-col gap-6 px-4 pt-6 pb-32 md:px-10 md:pt-8">
@@ -341,7 +350,9 @@ onMounted(() => loadTags().catch(fail('Tag Response Error!')))
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>New Tag</DialogTitle>
-          <DialogDescription class="sr-only">Tags describe what's in a photo, wherever it lives.</DialogDescription>
+          <DialogDescription class="sr-only"
+            >Tags describe what's in a photo, wherever it lives.</DialogDescription
+          >
         </DialogHeader>
         <form class="flex flex-col gap-2" @submit.prevent="createTag">
           <Label for="new-tag">Name</Label>

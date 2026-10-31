@@ -350,6 +350,12 @@ const gridActions = {
 }
 
 defineExpose({
+  openViewer(photoId: number) {
+    const photo = ordered.value.find((p) => p.photoId === photoId)
+    if (!photo) return
+    origin.value = null
+    view(photo)
+  },
   checkedCount: computed(() => checked.value.length),
   setChecked,
   deleteChecked,

@@ -9,7 +9,7 @@ test('login lands on home with the root folder', async ({ page }) => {
   await page.getByRole('button', { name: 'Sign In' }).click()
 
   await expect(page).toHaveURL(/\/home\/HomePart$/)
-  await expect(page.getByText('Folders', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Nothing Here', exact: true })).toBeVisible()
   expect(calls.find((c) => c.path === '/user/signIn')?.body).toEqual({
     email: 'alice@example.com',
     password: 'secret',

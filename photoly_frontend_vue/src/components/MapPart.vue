@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ResizableSidebar from './ResizableSidebar.vue'
 import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
@@ -430,69 +431,80 @@ const sheetPeers = computed(() => inView.value.slice(0, 8))
 
 <template>
   <div class="relative flex h-full min-h-96 flex-col md:flex-row">
-    <aside
-      class="bg-card hidden w-80 shrink-0 flex-col gap-4 overflow-y-auto border-r px-4 pt-8 pb-6 md:flex"
+    <ResizableSidebar
+      storage-key="photoly-map-sidebar-width"
+      label="Resize map sidebar"
+      desktop-only
     >
-      <div class="flex flex-col gap-1 px-2">
-        <h1 class="text-2xl leading-8 font-semibold tracking-[-0.01em]">Map</h1>
-        <p class="text-muted-foreground text-sm">
-          <template v-if="loading">Finding your photos…</template>
-          <template v-else
-            >{{ located.length }} of {{ all.length }}
-            {{ all.length === 1 ? 'item has' : 'items have' }} a location</template
-          >
-        </p>
-      </div>
-      <section v-if="!loading" class="flex flex-col gap-0.5" aria-labelledby="in-view-h">
-        <h2
-          id="in-view-h"
-          class="text-muted-foreground px-2 pt-2 pb-1.5 text-xs font-semibold tracking-[0.025em] uppercase"
-        >
-          Places in view
-        </h2>
-        <ul class="flex flex-col gap-0.5">
-          <li
-            v-for="(pl, i) in inView.slice(0, 50)"
-            :key="pl.key"
-            class="animate-rise"
-            :style="{ animationDelay: `${Math.min(i, 10) * 25}ms` }"
-          >
-            <button
-              type="button"
-              :class="
-                cn(
-                  'hover:bg-accent flex w-full items-center gap-3 rounded-[10px] p-2 text-left transition-colors',
-                  selected?.key === pl.key && 'bg-primary/10 hover:bg-primary/15',
-                )
-              "
-              @click="focus(pl)"
+      <aside
+        class="bg-card hidden h-full w-full shrink-0 flex-col gap-4 overflow-y-auto border-r px-4 pt-8 pb-6 md:flex"
+      >
+        <div class="flex flex-col gap-1 px-2">
+          <h1 class="text-2xl leading-8 font-semibold tracking-[-0.01em]">Map</h1>
+          <p class="text-muted-foreground text-sm">
+            <template v-if="loading">Finding your photos…</template>
+            <template v-else
+              >{{ located.length }} of {{ all.length }}
+              {{ all.length === 1 ? 'item has' : 'items have' }} a location</template
             >
-              <img
-                :src="photoUrl(pl.photos[0]!.photo_id, 'renderThumbnail')"
-                alt=""
-                loading="lazy"
-                class="bg-muted size-11 shrink-0 rounded-lg object-cover"
-              />
-              <span class="flex min-w-0 flex-1 flex-col">
-                <span class="truncate text-sm font-medium">{{ placeName(pl) }}</span>
-                <span class="text-muted-foreground text-xs">{{ dateSpan(pl.photos) }}</span>
-              </span>
-              <span class="text-muted-foreground text-xs tabular-nums">{{ pl.photos.length }}</span>
-            </button>
-          </li>
-        </ul>
-        <p v-if="!inView.length" class="text-muted-foreground flex items-center gap-2 px-2 text-sm">
-          <MapPin class="size-4" aria-hidden="true" />
-          {{
-            !located.length
-              ? 'No photos have a location yet.'
-              : shown.length
-                ? 'Pan or zoom out to find photos.'
-                : 'No photos in these dates.'
-          }}
-        </p>
-      </section>
-    </aside>
+          </p>
+        </div>
+        <section v-if="!loading" class="flex flex-col gap-0.5" aria-labelledby="in-view-h">
+          <h2
+            id="in-view-h"
+            class="text-muted-foreground px-2 pt-2 pb-1.5 text-xs font-semibold tracking-[0.025em] uppercase"
+          >
+            Places in view
+          </h2>
+          <ul class="flex flex-col gap-0.5">
+            <li
+              v-for="(pl, i) in inView.slice(0, 50)"
+              :key="pl.key"
+              class="animate-rise"
+              :style="{ animationDelay: `${Math.min(i, 10) * 25}ms` }"
+            >
+              <button
+                type="button"
+                :class="
+                  cn(
+                    'hover:bg-accent flex w-full items-center gap-3 rounded-[10px] p-2 text-left transition-colors',
+                    selected?.key === pl.key && 'bg-primary/10 hover:bg-primary/15',
+                  )
+                "
+                @click="focus(pl)"
+              >
+                <img
+                  :src="photoUrl(pl.photos[0]!.photo_id, 'renderThumbnail')"
+                  alt=""
+                  loading="lazy"
+                  class="bg-muted size-11 shrink-0 rounded-lg object-cover"
+                />
+                <span class="flex min-w-0 flex-1 flex-col">
+                  <span class="truncate text-sm font-medium">{{ placeName(pl) }}</span>
+                  <span class="text-muted-foreground text-xs">{{ dateSpan(pl.photos) }}</span>
+                </span>
+                <span class="text-muted-foreground text-xs tabular-nums">{{
+                  pl.photos.length
+                }}</span>
+              </button>
+            </li>
+          </ul>
+          <p
+            v-if="!inView.length"
+            class="text-muted-foreground flex items-center gap-2 px-2 text-sm"
+          >
+            <MapPin class="size-4" aria-hidden="true" />
+            {{
+              !located.length
+                ? 'No photos have a location yet.'
+                : shown.length
+                  ? 'Pan or zoom out to find photos.'
+                  : 'No photos in these dates.'
+            }}
+          </p>
+        </section>
+      </aside>
+    </ResizableSidebar>
 
     <div class="relative isolate min-h-96 flex-1 overflow-hidden">
       <div ref="mapEl" class="absolute inset-0 isolate" />

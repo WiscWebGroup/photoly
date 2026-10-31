@@ -32,8 +32,6 @@ async function mode(page: Page, name: string) {
 }
 const folder = (page: Page) => page.locator('[data-folder-id="2"]')
 const media = (page: Page) => page.locator('[data-photo-id="10"]')
-const add = (page: Page) =>
-  page.getByRole('listitem').getByRole('button', { name: 'New Folder', exact: true })
 
 for (const width of [390, 700, 1100, 1600, 2560]) {
   test(`compact cards halve both dimensions at ${width}px`, async ({ page }) => {
@@ -60,10 +58,6 @@ for (const width of [390, 700, 1100, 1600, 2560]) {
           )
         })
         .toBeLessThanOrEqual(2)
-      expect((await add(page).boundingBox())!.height).toBeCloseTo(
-        (await folder(page).boundingBox())!.height,
-        0,
-      )
       const title = folder(page).locator(`[title="${longName}"]`)
       await expect(title).toHaveCSS('text-overflow', 'ellipsis')
       await expect(title).toHaveCSS('white-space', 'nowrap')
