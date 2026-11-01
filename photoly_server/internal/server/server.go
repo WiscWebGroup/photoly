@@ -49,6 +49,15 @@ func New(ctx context.Context, cfg app.Config, openapi []byte) (*app.App, http.Ha
 		return nil, nil, err
 	}
 	storage.Init(cfg.UploadFolder)
+	if cfg.DemoEmail != "" {
+		// The demo reset restores files with cp -a, which gives every folder a new inode, so
+		// the identities saved in the golden DB would all mismatch. Blank them; EnsureRoots
+		// re-records the roots, and a blank folder identity skips the guard.
+		if err = storage.ForgetLocalIdentities(ctx, pool); err != nil {
+			pool.Close()
+			return nil, nil, err
+		}
+	}
 	if err = storage.EnsureRoots(ctx, pool, cfg.UploadFolder); err != nil {
 		pool.Close()
 		return nil, nil, err
