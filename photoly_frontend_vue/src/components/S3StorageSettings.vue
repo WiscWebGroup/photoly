@@ -135,14 +135,9 @@ onMounted(load)
 </script>
 <template>
   <section class="flex flex-col gap-4 rounded-xl border p-4" aria-label="S3 connections">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <h3 class="flex items-center gap-2 font-medium">
-        <Cloud class="size-5 text-sky-600" /> Your S3 storage
-      </h3>
-      <Button size="sm" variant="outline" :disabled="busy || !settings" @click="edit('new')"
-        ><Plus class="size-4" />Add S3</Button
-      >
-    </div>
+    <h3 class="flex items-center gap-2 font-medium">
+      <Cloud class="size-5 text-sky-600" /> Your S3 storage
+    </h3>
     <p class="text-muted-foreground text-sm">
       Connect S3-compatible buckets. Each connection appears as a cloud folder in your library. Only
       Photoly uploads are shown; buckets are not scanned.
@@ -194,6 +189,11 @@ onMounted(load)
         <Button variant="destructive" :disabled="busy" @click="remove">Confirm removal</Button
         ><Button variant="outline" :disabled="busy" @click="removing = null">Cancel</Button>
       </div>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <Button variant="outline" :disabled="busy || !settings" @click="edit('new')"
+        ><Plus class="size-4 text-sky-600" /> Add S3</Button
+      >
     </div>
     <form
       v-if="editing && settings"
