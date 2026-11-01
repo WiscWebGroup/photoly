@@ -586,6 +586,16 @@ func EnsureRoots(ctx context.Context, q dbgen.DBTX, root string) error {
 	return nil
 }
 
+// ForgetLocalIdentities clears saved inode identities of local sources so they are
+// re-recorded; for deployments whose files are restored with new inodes (demo reset).
+func ForgetLocalIdentities(ctx context.Context, q dbgen.DBTX) error {
+	if _, err := q.Exec(ctx, `UPDATE namespace SET fs_identity='' WHERE source_id IN (SELECT id FROM storage_source WHERE kind='local')`); err != nil {
+		return err
+	}
+	_, err := q.Exec(ctx, `UPDATE storage_source SET root_identity='' WHERE kind='local' AND is_default`)
+	return err
+}
+
 // RecordRootIdentity establishes the guard when a root is first created, even if
 // its first scan later fails on an unreadable or still-changing file.
 func RecordRootIdentity(ctx context.Context, q dbgen.DBTX, uid int64, path string) error {
