@@ -45,7 +45,7 @@ I, the undersigned, confirm that:
 |---|---|---|---|---|
 | Harold Ye | `Harold Ye <68500948+Harold-y@users.noreply.github.com>`, `Harold <68500948+Harold-y@users.noreply.github.com>`, `Harold-Y <68500948+Harold-y@users.noreply.github.com>`, `Harold澂冰 <68500948+Harold-y@users.noreply.github.com>`, `Harold Ye <haroldye@Harolds-MacBook-Air.local>` | AGPL-3.0-or-later | 2026-10-24 | Harold Ye |
 | Jeffrey Hui | `Jeffrey Hui <31459252+Slijeff@users.noreply.github.com>`, `Jeffrey Hui <jeff83636tx@gmail.com>`, `Jeffrey <jeff83636tx@gmail.com>`, `Slijeff <jeff83636tx@gmail.com>` | AGPL-3.0-or-later | 2026-10-24 | Jeffrey Hui |
-| Jaylan | `NataRich <natarichjay@gmail.com>` | AGPL-3.0-only | 2026-11-01 | Jaylan Zhao |
+| Jaylan | `NataRich <natarichjay@gmail.com>` | AGPL-3.0-or-later | 2026-11-01 | Jaylan Zhao |
 
 **Unassigned identity:** `Ye <Yixuan.Ye@Dell.com>` (26 commits) has not yet been
 confirmed as belonging to a contributor above. Once confirmed, add it to that
