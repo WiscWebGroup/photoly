@@ -2,7 +2,7 @@
 import StorageScanProgress from '@/components/StorageScanProgress.vue'
 import type { StorageStatus } from '@/composables/useStorageRevision'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { HardDrive, Network, Server, Folder, RefreshCw } from '@lucide/vue'
+import { HardDrive, Network, Server, Folder, Globe, RefreshCw } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -294,7 +294,8 @@ onUnmounted(() => clearInterval(timer))
         variant="outline"
         :disabled="busy || (admin && roots.length === 0)"
         @click="edit()"
-        >{{ admin ? 'Bind local folder' : 'Add WebDAV connection' }}</Button
+        ><component :is="admin ? Folder : Globe" class="size-4 text-amber-600" />
+        {{ admin ? 'Bind local folder' : 'Add WebDAV connection' }}</Button
       >
     </div>
     <p v-if="admin && roots.length === 0" class="text-muted-foreground text-sm">

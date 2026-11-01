@@ -1519,7 +1519,7 @@ const overlay = 'dark text-foreground'
                         aria-hidden="true"
                       />
                       <span class="min-w-0 truncate">{{ g.ga_name }}</span>
-                      <SmartBadge :smart="g.smart" />
+                      <SmartBadge :smart="g.smart" class="self-center" />
                       <button
                         type="button"
                         :class="[removeButton, 'max-md:hidden']"

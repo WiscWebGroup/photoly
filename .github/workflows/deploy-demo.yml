@@ -1,0 +1,38 @@
+name: Deploy demo
+
+# Runs on the self-hosted runner that lives on the demo server, once "Publish images" has pushed
+# the images for a commit on main. Uses the compose file from that commit, with the server's
+# .env and demo_data/ taken from DEMO_DIR (repo variable, e.g. /srv/photoly-demo).
+on:
+  workflow_run:
+    workflows: ['Publish images']
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-demo
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, linux, arm64]
+    env:
+      DEMO_DIR: ${{ vars.DEMO_DIR }}
+      # Deploy the exact commit whose images were just built (falls back to latest on manual runs).
+      PHOTOLY_TAG: ${{ github.event.workflow_run.head_sha || 'latest' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Update stack
+        run: |
+          : "${DEMO_DIR:?Set the DEMO_DIR repository variable}"
+          dc="docker compose -f docker-compose.demo.yml --project-directory $DEMO_DIR --env-file $DEMO_DIR/.env"
+          $dc pull
+          $dc up -d --remove-orphans
+          docker image prune -f
