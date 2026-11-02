@@ -170,7 +170,7 @@ func (d *DAV) request(ctx context.Context, method, key string, body io.Reader, h
 	}
 	resp, e := d.client.Do(req)
 	if e != nil {
-		return nil, errors.New("webdav_connection_failed")
+		return nil, fmt.Errorf("webdav_connection_failed: %w", e)
 	}
 	// Redirects are refused: credentials are never forwarded and a collection URL
 	// must be canonical. This also prevents redirect-based SSRF.

@@ -5,6 +5,7 @@ import { onKeyStroke, useStorage, useMediaQuery } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import {
   Users,
+  Grid3X3,
   CalendarDays,
   Camera,
   Images,
@@ -51,6 +52,7 @@ const groups = computed<{ label: string; items: NavItem[] }[]>(() => [
     label: 'Library',
     items: [
       { part: 'HomePart', label: 'Photos', icon: Camera },
+      { part: 'CategoryPart', label: 'Category', icon: Grid3X3 },
       { part: 'MapPart', label: 'Map', icon: Map },
       ...(people.visible ? [{ part: 'PeoplePart', label: 'People', icon: Users }] : []),
     ],
@@ -68,7 +70,7 @@ const groups = computed<{ label: string; items: NavItem[] }[]>(() => [
 
 // Phones get five tabs; galleries and tags share "Albums", the account sits behind the avatar.
 const tabs = [
-  { part: 'HomePart', label: 'Photos', icon: Camera, also: [] as string[] },
+  { part: 'HomePart', label: 'Photos', icon: Camera, also: ['CategoryPart'] as string[] },
   { part: 'GalleryPart', label: 'Albums', icon: Images, also: ['TagPart', 'PeoplePart'] },
   { part: 'DatesPart', label: 'Dates', icon: CalendarDays, also: [] },
   { part: 'MapPart', label: 'Map', icon: Map, also: [] },

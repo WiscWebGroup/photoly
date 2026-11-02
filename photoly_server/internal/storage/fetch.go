@@ -31,6 +31,9 @@ func FetchError(ctx context.Context, p string) error {
 	}
 	r, err := loc.store.Get(ctx, loc.key)
 	if err != nil {
+		if loc.source != nil {
+			observeAccess(*loc.source, err)
+		}
 		return err
 	}
 	defer r.Close()
@@ -48,6 +51,9 @@ func FetchError(ctx context.Context, p string) error {
 	}
 	if err != nil {
 		return err
+	}
+	if loc.source != nil {
+		observeAccess(*loc.source, nil)
 	}
 	return os.Rename(f.Name(), p)
 }

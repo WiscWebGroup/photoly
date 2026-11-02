@@ -114,14 +114,14 @@ func (d *SMB) connect(ctx context.Context) (*smbConnection, error) {
 	session, e := dial.DialConn(ctx, conn, net.JoinHostPort(d.host, "445"))
 	if e != nil {
 		conn.Close()
-		return nil, errors.New("smb_authentication_or_negotiation_failed")
+		return nil, fmt.Errorf("smb_authentication_or_negotiation_failed: %w", e)
 	}
 	session = session.WithContext(ctx)
 	share, e := session.Mount(d.share)
 	if e != nil {
 		session.Logoff()
 		conn.Close()
-		return nil, errors.New("smb_share_unavailable")
+		return nil, fmt.Errorf("smb_share_unavailable: %w", e)
 	}
 	return &smbConnection{share: share.WithContext(ctx), session: session, conn: conn}, nil
 }

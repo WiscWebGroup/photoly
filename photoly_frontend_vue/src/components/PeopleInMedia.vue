@@ -14,7 +14,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-const props = defineProps<{ photoId?: number; galleryId?: number }>(),
+const props = defineProps<{
+    photoId?: number
+    galleryId?: number
+    beforeNavigate?: () => Promise<boolean>
+  }>(),
   emit = defineEmits<{ navigate: [] }>()
 const store = usePeopleStore(),
   router = useRouter(),
@@ -85,7 +89,8 @@ watch(
     if (open.value) void load()
   },
 )
-function visit(id: number) {
+async function visit(id: number) {
+  if (props.beforeNavigate && !(await props.beforeNavigate())) return
   open.value = false
   emit('navigate')
   router.push({ path: '/home/PeoplePart', query: { person: String(id) } })

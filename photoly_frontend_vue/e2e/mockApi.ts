@@ -33,6 +33,9 @@ const cors = {
 
 // What a freshly signed-up user with an empty library sees.
 const defaults: Record<string, Reply> = {
+  '/photo/notes': ok({items: [], contentVersion: 1}),
+  '/photo/category': ok([]),
+  '/user/storage/health': ok([]),
   '/ai/people/settings':ok({preference:{enabled:false,paused:false,placement:'browser',generation:1,available:false,visible:false,choosable:true,reason:'people_disabled'},model:{}}),
   '/ai/people/status':ok({total:0,ready:0,failed:0,processing:0,pending:0}),
   '/ai/smart/settings': ok({ enabled: false, available: false, reason: 'smart_tag_disabled' }),

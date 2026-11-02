@@ -9,6 +9,8 @@ import (
 
 func (s *svc) registerSources() {
 	s.registerWebDAV()
+	s.a.Mux.HandleFunc("GET /user/storage/health", legacy.Opt{Auth: "header"}.Wrap(s.a, s.sourceHealth))
+	s.a.Mux.HandleFunc("POST /user/storage/health", legacy.Opt{Auth: "header"}.Wrap(s.a, s.sourceHealth))
 	s.a.Mux.HandleFunc("GET /user/storage/sources/{sourceId}/failures", legacy.Opt{Auth: "header"}.Wrap(s.a, s.scanFailures))
 	opt := legacy.Opt{Auth: "header"}
 	s.a.Mux.HandleFunc("GET /user/storage/sources", opt.Wrap(s.a, s.sources))

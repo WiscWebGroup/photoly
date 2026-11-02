@@ -332,6 +332,11 @@ func parseMakerNote(mn []byte, m Meta) {
 	}
 	t := &tiffData{b: mn, bo: bo}
 	for _, e := range t.ifd(14, 0) {
+		if e.tag == 0x0014 {
+			if values := t.nums(e); len(values) > 0 {
+				m["ImageCaptureType"] = values[0]
+			}
+		}
 		if e.tag == 0x0011 && e.typ == 2 {
 			setStr(m, "ContentIdentifier", t.str(e))
 		}
@@ -442,6 +447,8 @@ func readJPEG(f *os.File, info *fileInfo) {
 			info.Meta["ImageWidth"] = int64(binary.BigEndian.Uint16(seg[3:5]))
 		case marker == 0xE1 && bytes.HasPrefix(seg, []byte("Exif\x00\x00")) && info.Exif == nil:
 			info.Exif = seg[6:]
+		case marker == 0xE1 && bytes.HasPrefix(seg, []byte("http://ns.adobe.com/xap/1.0/\x00")):
+			readCategoryXMP(seg[29:], info.Meta)
 		case marker == 0xE2 && bytes.HasPrefix(seg, []byte("ICC_PROFILE\x00")) && len(seg) > 14:
 			icc = append(icc, seg[14:])
 		}
@@ -463,7 +470,7 @@ func readPNG(f *os.File, info *fileInfo) {
 		l := int64(binary.BigEndian.Uint32(hdr[:4]))
 		typ := string(hdr[4:])
 		switch typ {
-		case "IHDR", "eXIf", "iCCP":
+		case "IHDR", "eXIf", "iCCP", "iTXt":
 			if l > 32<<20 {
 				return
 			}
@@ -480,6 +487,10 @@ func readPNG(f *os.File, info *fileInfo) {
 				}
 			case "eXIf":
 				info.Exif = data
+			case "iTXt":
+				if bytes.HasPrefix(data, []byte("XML:com.adobe.xmp\x00\x00\x00\x00\x00")) {
+					readCategoryXMP(data[22:], info.Meta)
+				}
 			case "iCCP":
 				info.ICC = inflateICC(data)
 			}
@@ -507,7 +518,7 @@ func readWebP(f *os.File, info *fileInfo) {
 		typ := string(hdr[:4])
 		pad := l & 1
 		switch typ {
-		case "EXIF", "ICCP", "VP8X":
+		case "EXIF", "ICCP", "VP8X", "XMP ":
 			if l > 32<<20 {
 				return
 			}
@@ -520,6 +531,8 @@ func readWebP(f *os.File, info *fileInfo) {
 			case "EXIF":
 				data = bytes.TrimPrefix(data, []byte("Exif\x00\x00"))
 				info.Exif = data
+			case "XMP ":
+				readCategoryXMP(data, info.Meta)
 			case "ICCP":
 				info.ICC = data
 			case "VP8X":

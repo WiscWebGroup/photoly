@@ -177,6 +177,8 @@ func qint(r *http.Request, name string) (int64, error) {
 func Register(a *app.App) {
 	user.DecodeFallback = DecodeBytes
 	s := For(a)
+	s.registerNotes()
+	s.registerCategories()
 	user.UploadPhotos = func(ctx context.Context, uid int64, files []*multipart.FileHeader, descs []map[string]any) ([]string, error) {
 		out, err := s.Upload(ctx, uid, files, descs)
 		if b, ok := BizOf(err); ok {

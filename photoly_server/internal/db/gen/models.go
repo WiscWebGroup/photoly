@@ -54,6 +54,12 @@ type Cred struct {
 	Authorization *string
 }
 
+type EffectiveMediaCategory struct {
+	PhotoID  int64
+	UserID   *int64
+	Category string
+}
+
 type EmbeddingProfile struct {
 	ProfileID   int64
 	Provider    string
@@ -92,6 +98,37 @@ type MediaAsset struct {
 	FsMtime        int64
 	ContentSha256  string
 	MissingScans   int64
+}
+
+type MediaCategoryOverride struct {
+	PhotoID  int64
+	Category string
+	Included bool
+}
+
+type MediaClassification struct {
+	PhotoID        int64
+	ContentVersion int64
+	RuleVersion    int64
+	Categories     []string
+	State          string
+	Attempts       int64
+	NextAttempt    time.Time
+	LeaseToken     *string
+	Error          *string
+}
+
+type MediaNote struct {
+	NoteID         int64
+	PhotoID        int64
+	UserID         int64
+	Body           string
+	X              *float64
+	Y              *float64
+	ContentVersion *int64
+	Revision       int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type Namespace struct {
