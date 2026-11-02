@@ -29,7 +29,7 @@ pnpm exec playwright install chromium webkit
 pnpm test:e2e
 ```
 
-`pnpm test` without `--run` starts watch mode. Playwright starts its own development server and covers Chromium, WebKit and mobile layouts using mocked APIs. Real backend/model browser tests use the separate opt-in configuration described in [AI operations](../docs/ai-backend-operations.md). `pnpm format` rewrites source/test formatting and is not a read-only check.
+`pnpm test` without `--run` starts watch mode. Playwright starts its own development server and covers Chromium, WebKit and mobile layouts using mocked APIs. Real backend/model browser tests use the separate opt-in configuration described in [AI operations](../docs/docs/ai-backend-operations.md). `pnpm format` rewrites source/test formatting and is not a read-only check.
 
 ## User-facing features
 
@@ -39,4 +39,4 @@ pnpm test:e2e
 - Extract Text provides explicit recognition, editing, saving, copying and unsaved-change prompts. Recognition uses backend Tesseract, independently of model availability.
 - Smart tags/galleries have icons, labels and distinct styling. Personal settings provide opt-in, progress, refresh and restoration; administrators control availability in AI Management.
 
-See [deployment](../README.md), [OCR](../docs/ocr.md) and [Smart Tag](../docs/smart-tag.md) for backend requirements and limits.
+See [deployment](../README.md), [OCR](../docs/docs/ocr.md) and [Smart Tag](../docs/docs/smart-tag.md) for backend requirements and limits.

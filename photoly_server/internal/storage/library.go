@@ -592,6 +592,13 @@ func ForgetLocalIdentities(ctx context.Context, q dbgen.DBTX) error {
 	if _, err := q.Exec(ctx, `UPDATE namespace SET fs_identity='' WHERE source_id IN (SELECT id FROM storage_source WHERE kind='local')`); err != nil {
 		return err
 	}
+	// Stale photo inodes can collide with new files' inodes and match the wrong photo in a scan.
+	if _, err := q.Exec(ctx, `UPDATE photo SET fs_identity='' WHERE source_id IN (SELECT id FROM storage_source WHERE kind='local')`); err != nil {
+		return err
+	}
+	if _, err := q.Exec(ctx, `UPDATE media_asset SET fs_identity='' WHERE photo_id IN (SELECT photo_id FROM photo WHERE source_id IN (SELECT id FROM storage_source WHERE kind='local'))`); err != nil {
+		return err
+	}
 	_, err := q.Exec(ctx, `UPDATE storage_source SET root_identity='' WHERE kind='local' AND is_default`)
 	return err
 }

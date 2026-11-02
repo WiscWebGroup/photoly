@@ -1,0 +1,67 @@
+name: Docs
+
+# Builds the Docusaurus site in docs/ and publishes it to Cloudflare Pages: `main` is production,
+# every PR gets a pr-<n> preview. Needs secrets CLOUDFLARE_API_TOKEN (Pages edit) and
+# CLOUDFLARE_ACCOUNT_ID, and repo variable DOCS_PAGES_PROJECT (the Pages project name).
+on:
+  push:
+    branches: [main]
+    paths: ['docs/**', '.github/workflows/docs.yml']
+  pull_request:
+    paths: ['docs/**', '.github/workflows/docs.yml']
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: docs
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: docs/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: docs-build-output
+          path: docs/build/
+
+  deploy:
+    needs: build
+    # Fork PRs have no access to the Cloudflare secrets.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROJECT_NAME: ${{ vars.DOCS_PAGES_PROJECT }}
+      BRANCH_NAME: ${{ github.event_name == 'push' && 'main' || format('pr-{0}', github.event.number) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: docs/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: docs-build-output
+          path: docs/build
+      - name: Ensure Pages project exists
+        run: pnpm exec wrangler pages project create "$PROJECT_NAME" --production-branch main || true
+      - run: pnpm run deploy

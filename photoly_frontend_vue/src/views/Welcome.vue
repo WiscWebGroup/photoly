@@ -6,8 +6,7 @@ import NightBackdrop from '@/components/NightBackdrop.vue'
 import HeroMosaic from '@/components/welcome/HeroMosaic.vue'
 
 const GITHUB = 'https://github.com/WiscWebGroup/photoly'
-// TODO: point at the deploy guide once the docs site exists.
-const DEPLOY_DOCS = `${GITHUB}/tree/main/docs`
+const DEPLOY_DOCS = 'https://photoly-docs.pages.dev'
 
 const features = [
   {
