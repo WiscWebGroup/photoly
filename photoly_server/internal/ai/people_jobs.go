@@ -296,7 +296,7 @@ func (p *People) runJob(ctx context.Context, uid int64, job PeopleJob) {
 			if e != nil {
 				err = e
 			} else {
-				w.Threads = int(cfg.Int("cpu_threads"))
+				w.Threads = clampInt(cfg.Int("cpu_threads"))
 				w.Device = cfg.Str("device")
 				faces, err = w.DetectFaces(work, im)
 			}

@@ -245,7 +245,7 @@ const sources = computed(() => props.status.indexSources)
     </div>
 
     <p class="text-muted-foreground border-t pt-4 text-sm">
-      <span class="text-foreground font-medium">Server finishes what browsers miss</span> ZIP
+      <span class="text-foreground font-medium">Search indexing continues on the server</span> ZIP
       imports, API uploads and tabs closed early are indexed here.
     </p>
 
