@@ -40,7 +40,7 @@ For access from another machine, open `http://<server-address>:5200`. The fronte
 
 ### AI
 
-AI starts disabled. In **AI Management**, enable it, choose per model whether it runs on the server, in browsers, or by user choice, grant user access and activate a search profile. See [AI operations](docs/ai-backend-operations.md).
+AI starts disabled. In **AI Management**, enable it, choose per model whether it runs on the server, in browsers, or by user choice, grant user access and activate a search profile. See [AI operations](docs/docs/ai-backend-operations.md).
 
 ### Upgrading an existing PostgreSQL deployment
 
@@ -56,21 +56,21 @@ See [LICENSE](LICENSE).
 
 ## Search, recognition and smart organization
 
-**Smart Search** is the default search mode: one text box, up to 100 results, with name/tag/gallery matches shown first and semantic results fused when available. Semantic failure preserves text results. See [AI operations](docs/ai-backend-operations.md) for indexing, quotas, model lifecycle and mixed photo/video search.
+**Smart Search** is the default search mode: one text box, up to 100 results, with name/tag/gallery matches shown first and semantic results fused when available. Semantic failure preserves text results. See [AI operations](docs/docs/ai-backend-operations.md) for indexing, quotas, model lifecycle and mixed photo/video search.
 
 Scroll down in the viewer to load **Similar photos and videos**. Each item has independent results and scroll state. Returning within 30 seconds of leaving restores it; after that it starts collapsed. Viewing an item continuously does not expire it. **Back to top** collapses recommendations and clears that item's cache.
 
-**Extract Text** runs only when requested. Tesseract recognizes simplified/traditional Chinese, English and Japanese on CPU, independently of AI permissions or the model runtime. Results are saved and can be edited or copied. See [OCR limits and operation](docs/ocr.md).
+**Extract Text** runs only when requested. Tesseract recognizes simplified/traditional Chinese, English and Japanese on CPU, independently of AI permissions or the model runtime. Results are saved and can be edited or copied. See [OCR limits and operation](docs/docs/ocr.md).
 
-**Smart Tag** requires global AI, administrator Smart Tag, user AI permission and personal Smart Tag to be enabled. Both Smart Tag switches default off. It runs inside the existing scheduler process, with no extra container or model inference. Turning it off retains editable results. See [rules, controls and offline city attribution](docs/smart-tag.md).
+**Smart Tag** requires global AI, administrator Smart Tag, user AI permission and personal Smart Tag to be enabled. Both Smart Tag switches default off. It runs inside the existing scheduler process, with no extra container or model inference. Turning it off retains editable results. See [rules, controls and offline city attribution](docs/docs/smart-tag.md).
 
 ### Real folders and personal S3
 
-The local library mirrors each user’s actual UUID directory. External changes are scanned automatically; users can connect multiple personal S3 buckets as named cloud folders alongside local content. This release requires a fresh library and refuses old flat-layout media. See [layout, synchronization, S3, downloads and deployment](docs/real-folders.md).
+The local library mirrors each user’s actual UUID directory. External changes are scanned automatically; users can connect multiple personal S3 buckets as named cloud folders alongside local content. This release requires a fresh library and refuses old flat-layout media. See [layout, synchronization, S3, downloads and deployment](docs/docs/real-folders.md).
 
 ### Bulk uploads and storage groups
 
-Files, folders and ZIPs can be uploaded in unlimited-count batches. The global Upload activity panel stays available while browsing. Each account inherits a default 50 GB group quota, with administrator-managed groups and personal overrides. See [uploads, storage, migration and worker operations](docs/uploads-storage.md).
+Files, folders and ZIPs can be uploaded in unlimited-count batches. The global Upload activity panel stays available while browsing. Each account inherits a default 50 GB group quota, with administrator-managed groups and personal overrides. See [uploads, storage, migration and worker operations](docs/docs/uploads-storage.md).
 
 ### Dates and folder details
 
@@ -97,8 +97,8 @@ for parameters, pagination and response schemas. Dates itself requires no schema
 
 ### Media tools
 
-Right-click an image and choose **Format Convert** to save a JPEG, PNG or GIF copy in its actual folder. GIFs animate in the viewer; newly uploaded Apple Live Photo pairs have a LIVE playback control and original-pair ZIP download. Upload pickers accept pasted images with Cmd+V / Ctrl+V. Administrators can enable **Online Download** in Settings; the download icon appears immediately left of Upload. See [format support, pairing, security limits and upgrade instructions](docs/media-tools.md).
+Right-click an image and choose **Format Convert** to save a JPEG, PNG or GIF copy in its actual folder. GIFs animate in the viewer; newly uploaded Apple Live Photo pairs have a LIVE playback control and original-pair ZIP download. Upload pickers accept pasted images with Cmd+V / Ctrl+V. Administrators can enable **Online Download** in Settings; the download icon appears immediately left of Upload. See [format support, pairing, security limits and upgrade instructions](docs/docs/media-tools.md).
 
-See [external local mounts and WebDAV](docs/external-storage.md) for multi-source setup, Docker mounts, scanning and file retention.
+See [external local mounts and WebDAV](docs/docs/external-storage.md) for multi-source setup, Docker mounts, scanning and file retention.
 
-Personal Storage supports multiple WebDAV and SMB connections, plus administrator-assigned local mounts. Folder pages show indexing progress and offer recursive folder refresh. See [external storage deployment and testing](docs/external-storage.md).
+Personal Storage supports multiple WebDAV and SMB connections, plus administrator-assigned local mounts. Folder pages show indexing progress and offer recursive folder refresh. See [external storage deployment and testing](docs/docs/external-storage.md).
