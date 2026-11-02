@@ -169,6 +169,8 @@ async function save() {
     'search_enabled',
     'new_user_default',
     'smart_tag_enabled',
+    'people_enabled',
+    'placement_people',
     'placement_image',
     'placement_text',
     'browser_text_model',
@@ -201,15 +203,26 @@ function recommended() {
   })
   ramEdited.value = true
 }
+async function peopleModel(load: boolean) {
+  try {
+    if (load) await admin.loadModel('people')
+    else await admin.unloadModel('people')
+  } catch (e) {
+    error.value = aiMessage(e)
+  }
+}
 function enableAi() {
   void admin.operate('ai.enable', undefined, selectedProvider.value || undefined)
 }
-async function feature(key: 'search_enabled' | 'smart_tag_enabled', event: Event) {
+async function feature(
+  key: 'search_enabled' | 'smart_tag_enabled' | 'people_enabled',
+  event: Event,
+) {
   if (!status.value) return
   const input = event.target as HTMLInputElement
   const generation = status.value.settings.generation
   const saved = await admin.save(generation, { [key]: input.checked })
-  if (!saved && status.value) input.checked = status.value.settings[key]
+  if (!saved && status.value) input.checked = Boolean(status.value.settings[key])
   if (
     saved &&
     status.value?.settings.generation === generation + 1 &&
@@ -400,7 +413,45 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                   @change="feature('smart_tag_enabled', $event)"
                 />Smart Tag</label
               >
+              <label class="flex items-center gap-2 text-sm font-medium"
+                ><input
+                  type="checkbox"
+                  class="accent-primary size-4"
+                  :checked="status.settings.people_enabled"
+                  :disabled="locked"
+                  aria-label="Enable People"
+                  @change="feature('people_enabled', $event)"
+                />People</label
+              >
             </div>
+            <div
+              v-if="status.settings.people_enabled"
+              class="flex flex-wrap items-center gap-3 text-sm"
+            >
+              <span
+                >YuNet + SFace ·
+                {{ status.worker?.models?.people?.loaded ? 'Loaded' : 'Unloaded' }} · about 300 MB
+                server memory</span
+              >
+              <Button variant="outline" size="sm" :disabled="locked" @click="peopleModel(true)"
+                >Load People models</Button
+              >
+              <Button variant="outline" size="sm" :disabled="locked" @click="peopleModel(false)"
+                >Unload People models</Button
+              >
+            </div>
+            <label v-if="draft" class="flex items-center gap-3 text-sm"
+              >Where People runs<select
+                v-model="draft.placement_people"
+                aria-label="People placement"
+                :disabled="locked"
+                class="bg-background rounded-md border p-2"
+              >
+                <option value="user">Let users choose</option>
+                <option value="browser">Browser</option>
+                <option value="server">Server</option>
+              </select></label
+            >
             <p class="text-xs text-muted-foreground">
               Pause AI releases model memory and preserves your index and preferences. Individual
               access is managed in

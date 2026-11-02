@@ -1,0 +1,195 @@
+{
+  "browser": "chromium",
+  "description": "Fresh worker wall time including model fetch/cache and initialization; GPU/driver peak memory not measured.",
+  "measurements": [
+    {
+      "sample": "astronaut.png",
+      "device": "wasm",
+      "faces": 1,
+      "elapsedMs": 1646.3,
+      "mode": "wasm"
+    },
+    {
+      "sample": "chelsea.png",
+      "device": "wasm",
+      "faces": 0,
+      "elapsedMs": 863.74,
+      "mode": "wasm"
+    },
+    {
+      "sample": "camera.png",
+      "device": "wasm",
+      "faces": 1,
+      "elapsedMs": 913.55,
+      "mode": "wasm"
+    },
+    {
+      "sample": "small",
+      "device": "wasm",
+      "faces": 1,
+      "elapsedMs": 957.26,
+      "mode": "wasm"
+    },
+    {
+      "sample": "tilt10",
+      "device": "wasm",
+      "faces": 1,
+      "elapsedMs": 909.7,
+      "mode": "wasm"
+    },
+    {
+      "sample": "group",
+      "device": "wasm",
+      "faces": 2,
+      "elapsedMs": 892.31,
+      "mode": "wasm"
+    },
+    {
+      "sample": "exif-rotated",
+      "device": "wasm",
+      "faces": 1,
+      "elapsedMs": 814.19,
+      "mode": "wasm"
+    },
+    {
+      "sample": "animated-first-frame",
+      "device": "wasm",
+      "faces": 1,
+      "elapsedMs": 819.02,
+      "mode": "wasm"
+    },
+    {
+      "sample": "tiff",
+      "device": "wasm",
+      "faces": 1,
+      "elapsedMs": 835.09,
+      "mode": "wasm"
+    },
+    {
+      "sample": "astronaut.png",
+      "device": "webgpu",
+      "faces": 1,
+      "elapsedMs": 1001.64,
+      "mode": "preferred"
+    },
+    {
+      "sample": "chelsea.png",
+      "device": "webgpu",
+      "faces": 0,
+      "elapsedMs": 863.7,
+      "mode": "preferred"
+    },
+    {
+      "sample": "camera.png",
+      "device": "webgpu",
+      "faces": 1,
+      "elapsedMs": 923.06,
+      "mode": "preferred"
+    },
+    {
+      "sample": "small",
+      "device": "webgpu",
+      "faces": 1,
+      "elapsedMs": 859.39,
+      "mode": "preferred"
+    },
+    {
+      "sample": "tilt10",
+      "device": "webgpu",
+      "faces": 1,
+      "elapsedMs": 876.51,
+      "mode": "preferred"
+    },
+    {
+      "sample": "group",
+      "device": "webgpu",
+      "faces": 2,
+      "elapsedMs": 874.15,
+      "mode": "preferred"
+    },
+    {
+      "sample": "exif-rotated",
+      "device": "webgpu",
+      "faces": 1,
+      "elapsedMs": 854.02,
+      "mode": "preferred"
+    },
+    {
+      "sample": "animated-first-frame",
+      "device": "webgpu",
+      "faces": 1,
+      "elapsedMs": 863.72,
+      "mode": "preferred"
+    },
+    {
+      "sample": "tiff",
+      "device": "webgpu",
+      "faces": 1,
+      "elapsedMs": 876.89,
+      "mode": "preferred"
+    },
+    {
+      "sample": "astronaut.png",
+      "device": "wasm",
+      "faces": 1,
+      "elapsedMs": 917.67,
+      "mode": "failed-gpu"
+    },
+    {
+      "sample": "chelsea.png",
+      "device": "wasm",
+      "faces": 0,
+      "elapsedMs": 787.85,
+      "mode": "failed-gpu"
+    },
+    {
+      "sample": "camera.png",
+      "device": "wasm",
+      "faces": 1,
+      "elapsedMs": 817.75,
+      "mode": "failed-gpu"
+    },
+    {
+      "sample": "small",
+      "device": "wasm",
+      "faces": 1,
+      "elapsedMs": 800.43,
+      "mode": "failed-gpu"
+    },
+    {
+      "sample": "tilt10",
+      "device": "wasm",
+      "faces": 1,
+      "elapsedMs": 805.65,
+      "mode": "failed-gpu"
+    },
+    {
+      "sample": "group",
+      "device": "wasm",
+      "faces": 2,
+      "elapsedMs": 764.82,
+      "mode": "failed-gpu"
+    },
+    {
+      "sample": "exif-rotated",
+      "device": "wasm",
+      "faces": 1,
+      "elapsedMs": 772.68,
+      "mode": "failed-gpu"
+    },
+    {
+      "sample": "animated-first-frame",
+      "device": "wasm",
+      "faces": 1,
+      "elapsedMs": 743.65,
+      "mode": "failed-gpu"
+    },
+    {
+      "sample": "tiff",
+      "device": "wasm",
+      "faces": 1,
+      "elapsedMs": 737.15,
+      "mode": "failed-gpu"
+    }
+  ]
+}

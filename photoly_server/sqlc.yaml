@@ -37,6 +37,6 @@ sql:
             nullable: true
             go_type: { type: "time.Time", pointer: true }
           - db_type: "vector"
-            go_type: "github.com/pgvector/pgvector-go.Vector"
+            go_type: { import: "github.com/pgvector/pgvector-go", package: "pgvector", type: "Vector" }
           - db_type: "halfvec"
-            go_type: "github.com/pgvector/pgvector-go.HalfVector"
+            go_type: { import: "github.com/pgvector/pgvector-go", package: "pgvector", type: "HalfVector" }

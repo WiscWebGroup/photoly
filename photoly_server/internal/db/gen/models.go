@@ -6,6 +6,8 @@ package dbgen
 
 import (
 	"time"
+
+	pgvector "github.com/pgvector/pgvector-go"
 )
 
 type AiControlState struct {
@@ -109,6 +111,67 @@ type NamespacePhoto struct {
 	NpID    int64
 	NsID    *int64
 	PhotoID *int64
+}
+
+type PeopleEmbedding struct {
+	FaceID      int64
+	UserID      int64
+	Fingerprint string
+	Embedding   pgvector.Vector
+	Source      string
+}
+
+type PeopleExclusion struct {
+	FaceID   int64
+	PersonID int64
+}
+
+type PeopleFace struct {
+	FaceID          int64
+	UserID          int64
+	PhotoID         int64
+	ContentVersion  int64
+	DetectorVersion string
+	Box             []float32
+	Landmarks       []float32
+	Score           float32
+	Quality         bool
+	PersonID        int64
+	Manual          bool
+	Dismissed       bool
+}
+
+type PeopleMedium struct {
+	PhotoID        int64
+	UserID         int64
+	ContentVersion int64
+	Fingerprint    string
+	Generation     int64
+	Status         string
+	FaceCount      int64
+	Error          *string
+	UpdatedAt      time.Time
+}
+
+type PeoplePerson struct {
+	PersonID    int64
+	UserID      int64
+	Name        string
+	Hidden      bool
+	MergedInto  *int64
+	CoverFaceID *int64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type PeoplePreference struct {
+	UserID         int64
+	Enabled        bool
+	Paused         bool
+	Placement      string
+	Generation     int64
+	DiscoveryAfter int64
+	UpdatedAt      time.Time
 }
 
 type Photo struct {

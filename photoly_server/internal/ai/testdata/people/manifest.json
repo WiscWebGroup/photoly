@@ -1,0 +1,11 @@
+{
+  "license_source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/skimage/data/_fetchers.py",
+  "samples": [{
+    "file": "camera.png",
+    "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/skimage/data/camera.png",
+    "sha256": "b0793d2adda0fa6ae899c03989482bff9a42d3d5690fc7e3648f2795d730c23a",
+    "credit": "Lav Varshney, CC0"
+  }],
+  "additional_samples": "../ai/manifest.json describes the NASA astronaut and CC0 cat fixtures reused by People tests.",
+  "generated_variants": "people_evaluation_test.go deterministically creates size, brightness, tilt, collage, JPEG/EXIF, animated GIF and TIFF cases. These are derivatives of two identities, not independent album positives."
+}

@@ -15,6 +15,7 @@ export interface Coverage {
 export type Placement = 'server' | 'browser'
 export type PlacementSetting = Placement | 'user'
 export type AiModelKind = 'image' | 'text'
+export type ServerModelKind = AiModelKind | 'people'
 export type BrowserTextModel = 'small' | 'full'
 /** Effective placement per model for this user. */
 export interface PlacementInfo {
@@ -95,6 +96,8 @@ export interface AiSettings {
   ram_max_percent: number
   new_user_default: boolean
   smart_tag_enabled: boolean
+  people_enabled?: boolean
+  placement_people?: PlacementSetting
   maintenance: boolean
   search_profile_id: number | null
   building_profile_id: number | null
@@ -253,7 +256,7 @@ export interface AiWorker {
   memoryMB?: number
   restartedAt?: string | null
   restartReason?: string | null
-  models?: Partial<Record<AiModelKind, WorkerModel>>
+  models?: Partial<Record<ServerModelKind, WorkerModel>>
   /** Memory the Photoly process itself holds. */
   appMemoryMB?: number
 }

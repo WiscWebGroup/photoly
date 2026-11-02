@@ -13,6 +13,8 @@ const cors = {
 export const json = (body: JsonBodyType) => HttpResponse.json(body, { headers: cors })
 
 export const server = setupServer(
+  http.get(`${API}/ai/people/settings`,()=>ok({preference:{enabled:false,paused:false,placement:'browser',generation:1,available:false,visible:false,choosable:true,reason:'people_disabled'},model:{}})),
+  http.get(`${API}/ai/people/status`,()=>ok({total:0,ready:0,failed:0,processing:0,pending:0})),
   http.get(`${API}/demo`, () => json({ msgCode: 200, t: { enabled: false } })),
   http.get(`${API}/user/storage/sources`, () => ok([])),
   http.get(`${API}/uploads`, () =>

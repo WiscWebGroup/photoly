@@ -51,7 +51,7 @@ var deviceOrder = []string{"cpu", "cuda", "coreml"}
 func defaults() Settings {
 	s := Settings{
 		"enabled": false, "search_enabled": true, "ai_initialized": false, "managed_lifecycle": false, "lifecycle_id": 0,
-		"ram_policy": "percent", "new_user_default": false, "smart_tag_enabled": false, "maintenance": false,
+		"ram_policy": "percent", "new_user_default": false, "smart_tag_enabled": false, "people_enabled": false, "placement_people": "user", "maintenance": false,
 		"similarity_threshold": nil, "search_profile_id": nil, "building_profile_id": nil, "quota_bytes": int64(10) << 30,
 		"scheduler": "stopped", "runtime": "unloaded", "loaded_profile_id": nil, "device": "cpu", "precision": "float32",
 		"placement_image": "user", "placement_text": "user", "browser_text_model": "small",
@@ -142,7 +142,7 @@ func loadSettings(ctx context.Context, q Q) (Settings, error) {
 func isBool(v any) bool { _, ok := v.(bool); return ok }
 
 var settingKeys = func() map[string]bool {
-	m := map[string]bool{"enabled": true, "search_enabled": true, "new_user_default": true, "smart_tag_enabled": true, "quota_bytes": true,
+	m := map[string]bool{"enabled": true, "search_enabled": true, "new_user_default": true, "smart_tag_enabled": true, "people_enabled": true, "placement_people": true, "quota_bytes": true,
 		"device": true, "precision": true, "similarity_threshold": true, "placement_image": true, "placement_text": true, "browser_text_model": true}
 	for k := range limitDefaults {
 		m[k] = true
@@ -159,7 +159,7 @@ func validateSettings(changes map[string]any) error {
 			return fail("invalid_settings")
 		}
 	}
-	for _, k := range []string{"enabled", "search_enabled", "new_user_default", "smart_tag_enabled"} {
+	for _, k := range []string{"enabled", "search_enabled", "new_user_default", "smart_tag_enabled", "people_enabled"} {
 		if v, ok := changes[k]; ok && !isBool(v) {
 			return fail("invalid_settings")
 		}
@@ -184,7 +184,7 @@ func validateSettings(changes map[string]any) error {
 			return fail("invalid_similarity_threshold")
 		}
 	}
-	for _, k := range []string{"placement_image", "placement_text"} {
+	for _, k := range []string{"placement_image", "placement_text", "placement_people"} {
 		if v, ok := changes[k]; ok {
 			if s, _ := v.(string); s != "server" && s != "browser" && s != "user" {
 				return fail("invalid_placement")

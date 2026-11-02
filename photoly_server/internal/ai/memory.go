@@ -15,8 +15,9 @@ import (
 // ponytail: fixed estimates. Measure the worker's peak on each load and keep the largest
 // seen, if they turn out wrong on other machines.
 var modelNeedMB = map[string]map[string]int{
-	"image": {"fp32": 900},
-	"text":  {"fp32": 2250, "int8": 900},
+	"image":  {"fp32": 900},
+	"people": {"fp32": 300},
+	"text":   {"fp32": 2250, "int8": 900},
 }
 
 // Memory the rest of the server keeps for itself when deciding whether a model fits.

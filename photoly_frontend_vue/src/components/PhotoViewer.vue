@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PeopleInMedia from './PeopleInMedia.vue'
 import SmartBadge from '@/components/SmartBadge.vue'
 import type { SmartSource } from '@/lib/smartOrganization'
 import { animate, type AnimationPlaybackControls } from 'motion'
@@ -1590,6 +1591,12 @@ const overlay = 'dark text-foreground'
                 />
               </div>
 
+              <PeopleInMedia
+                v-if="kind === 'photo'"
+                :photo-id="info.photoId"
+                class="px-5 py-4 md:px-6"
+                @navigate="emit('close')"
+              />
               <div class="flex flex-col gap-3 px-5 py-5 md:px-6">
                 <label class="flex items-center gap-3 text-sm">
                   <span class="flex flex-1 flex-col">

@@ -103,6 +103,9 @@ func Register(a *app.App) {
 	ctx := context.Background()
 	must(CheckStartup(ctx, a.Pool))
 	rt := NewRuntime(a.Cfg.UploadFolder)
+	people := &People{pool: a.Pool, root: a.Cfg.UploadFolder, rt: rt}
+	people.register(a)
+	people.start(ctx)
 	gaz, err := loadGazetteer()
 	must(err)
 	smart := &Smart{pool: a.Pool, root: a.Cfg.UploadFolder, gaz: gaz}

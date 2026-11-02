@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import PeopleSettings from '@/components/PeopleSettings.vue'
 import SmartOrganizationSettings from '@/components/SmartOrganizationSettings.vue'
 import StorageSourcesSetting from '@/components/StorageSourcesSetting.vue'
 import AiDeviceSettings from '@/components/ai/AiDeviceSettings.vue'
@@ -71,6 +72,7 @@ const allSections = [
   { id: 'profile', label: 'Profile' },
   { id: 'password', label: 'Password' },
   { id: 'smart', label: 'Smart Tag' },
+  { id: 'people', label: 'People' },
   { id: 'storage', label: 'Storage' },
   { id: 'ai', label: 'AI on this device' },
   { id: 'api', label: 'API tokens' },
@@ -355,6 +357,7 @@ onMounted(() => {
             v-for="row in [
               { id: 'password', label: 'Password', icon: KeyRound, meta: '' },
               { id: 'smart', label: 'Smart Tag', icon: Sparkles, meta: '' },
+              { id: 'people', label: 'People', icon: Sparkles, meta: '' },
               { id: 'storage', label: 'Storage', icon: HardDrive, meta: '' },
               ...(hasAiSettings
                 ? [{ id: 'ai', label: 'AI on this device', icon: Cpu, meta: '' }]
@@ -565,6 +568,19 @@ onMounted(() => {
         </p>
       </div>
       <SmartOrganizationSettings class="max-w-[560px]" />
+    </section>
+
+    <section
+      v-show="showSection('people')"
+      id="people"
+      aria-labelledby="people-h"
+      class="grid scroll-mt-14 gap-x-12 gap-y-5 border-b pb-8 max-md:border-b-0 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]"
+    >
+      <div>
+        <h2 id="people-h" class="mb-1 text-base font-semibold max-md:text-2xl">People</h2>
+        <p class="text-muted-foreground text-sm">Find and organize people in your photos.</p>
+      </div>
+      <PeopleSettings class="max-w-[560px]" />
     </section>
 
     <section
