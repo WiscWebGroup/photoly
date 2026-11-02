@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -40,9 +41,15 @@ type User struct {
 }
 
 type App struct {
-	Cfg  Config
-	Pool *pgxpool.Pool
-	Mux  *http.ServeMux
+	StartedAt   time.Time
+	BootID      string
+	WorkerRSS   func() *int64
+	ResourceRun func(context.Context)
+	CredRender  func(http.ResponseWriter, *http.Request, int64, int64) error
+	CredDelete  func(context.Context, int64, int64) error
+	Cfg         Config
+	Pool        *pgxpool.Pool
+	Mux         *http.ServeMux
 	// Auth wraps a handler: resolves the session/token exactly like Flask and
 	// responds with the legacy error envelope when missing. Set by the skeleton.
 	Auth func(http.HandlerFunc) http.HandlerFunc

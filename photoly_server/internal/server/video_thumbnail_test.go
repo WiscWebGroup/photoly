@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"image/jpeg"
 	"mime/multipart"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -88,6 +89,25 @@ func TestVideoThumbnailQueueLifecycle(t *testing.T) {
 	}
 	if _, e = jpeg.Decode(bytes.NewReader(result.Body.Bytes())); e != nil {
 		t.Fatal(e)
+	}
+
+	token := photo.NewUUID()
+	if e := q.InsertCred(f.ctx, dbgen.InsertCredParams{UserID: f.uid, Token: token, Auth: "R"}); e != nil {
+		t.Fatal(e)
+	}
+	var uuid string
+	f.a.Pool.QueryRow(f.ctx, `SELECT photo_uuid FROM photo WHERE photo_id=$1`, pid).Scan(&uuid)
+	req := httptest.NewRequest("GET", "/cred/render?uuid="+uuid, nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Range", "bytes=0-15")
+	ranged := httptest.NewRecorder()
+	f.h.ServeHTTP(ranged, req)
+	if ranged.Code != 206 || ranged.Header().Get("Content-Type") != "video/mp4" || ranged.Body.Len() != 16 {
+		t.Fatal("credential video range", ranged.Code, ranged.Header())
+	}
+	thumb := credRequest(f, "GET", "/cred/media/"+uuid+"/thumbnail", token, "", nil)
+	if thumb.Code != 200 || thumb.Header().Get("Content-Type") != "image/jpeg" {
+		t.Fatal("credential video thumbnail", thumb.Code, thumb.Header())
 	}
 	f.a.Pool.Exec(f.ctx, `DELETE FROM photo WHERE photo_id=$1`, pid)
 	var n int

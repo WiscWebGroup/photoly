@@ -47,6 +47,7 @@ import StorageSourcesSetting from '@/components/StorageSourcesSetting.vue'
 import AiDeviceSettings from '@/components/ai/AiDeviceSettings.vue'
 import { useBrowserAiStore } from '@/stores/browserAi'
 import AvatarCropper from '@/components/AvatarCropper.vue'
+import CredentialApiDocs from '@/components/CredentialApiDocs.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { useProfile } from '@/composables/useProfile'
@@ -100,52 +101,6 @@ function backToList() {
   else router.replace({ hash: '' })
 }
 const themeLabels = { auto: 'System', light: 'Light', dark: 'Dark' }
-
-const docs = [
-  {
-    title: 'C1 Upload Photo - POST:',
-    addr: 'cred/uploadPhoto/YOUR_TOKEN',
-    takein: 'file:MultipartFile | photo:JSONText containing nsId(num) and visibility(num)',
-    ret: "a string that is the photo's uuid",
-  },
-  {
-    title: 'C2 Upload Photos - POST:',
-    addr: 'cred/uploadPhotos/YOUR_TOKEN',
-    takein:
-      'files:MultipartFile[] | photos:JSONText containing list of photos( nsId(num) and visibility(num) )',
-    ret: 'a list of string of photo uuids',
-  },
-  {
-    title: 'D Delete Photo - POST:',
-    addr: 'cred/deletePhoto/YOUR_TOKEN',
-    takein: "uuid: str, photo's uuid",
-    ret: 'an int, 1 if successful',
-  },
-  {
-    title: 'R1 Render Photo - POST:',
-    addr: 'cred/render/YOUR_TOKEN',
-    takein: "uuid: str, photo's uuid",
-    ret: 'a byte[] that is the image (could be seen directly in browser url)',
-  },
-  {
-    title: 'R2 Get RootNS - GET:',
-    addr: 'cred/queryRootNamespace/YOUR_TOKEN',
-    takein: 'None',
-    ret: 'an JSON object that is the Root namespace',
-  },
-  {
-    title: 'R3 Get NS - GET:',
-    addr: 'cred/queryNamespaces/YOUR_TOKEN',
-    takein: 'parentId: int, the parentId of ns',
-    ret: 'an JSON object that is the list of namespaces under parentId',
-  },
-  {
-    title: 'R4 Get Photo List - GET:',
-    addr: 'cred/queryPhotoList/YOUR_TOKEN',
-    takein: 'nsId: int, the namespace Id',
-    ret: "an JSON object that is the list of photos' meta info",
-  },
-]
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -700,44 +655,7 @@ onMounted(() => {
         </table>
       </div>
 
-      <details class="group bg-card rounded-xl border">
-        <summary
-          class="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden"
-        >
-          <ChevronRight
-            class="text-muted-foreground size-4 transition-transform group-open:rotate-90"
-            aria-hidden="true"
-          />
-          API documents
-        </summary>
-        <div class="space-y-4 border-t px-4 py-4 text-sm">
-          <ul class="text-muted-foreground space-y-1">
-            <li><span class="text-foreground font-medium">Upload</span> (C): upload photos.</li>
-            <li>
-              <span class="text-foreground font-medium">Read</span> (R): list folders and photos,
-              and render a photo.
-            </li>
-            <li><span class="text-foreground font-medium">Delete</span> (D): delete a photo.</li>
-          </ul>
-          <section v-for="d in docs" :key="d.addr" class="space-y-1">
-            <h3 class="font-medium">{{ d.title }}</h3>
-            <dl class="text-muted-foreground border-l-2 pl-3 text-xs leading-5">
-              <div>
-                <dt class="inline">Address:</dt>
-                <dd class="text-foreground inline font-mono">server_path/{{ d.addr }}</dd>
-              </div>
-              <div>
-                <dt class="inline">Takes:</dt>
-                <dd class="inline">{{ d.takein }}</dd>
-              </div>
-              <div>
-                <dt class="inline">Returns:</dt>
-                <dd class="inline">{{ d.ret }}</dd>
-              </div>
-            </dl>
-          </section>
-        </div>
-      </details>
+      <CredentialApiDocs :credentials="credentials" />
     </section>
 
     <Dialog

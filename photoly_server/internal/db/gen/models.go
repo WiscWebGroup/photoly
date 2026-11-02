@@ -291,6 +291,12 @@ type PhotolySession struct {
 	ExpiresAt time.Time
 }
 
+type ResourceHistory struct {
+	BootID  string
+	Bucket  time.Time
+	Payload []byte
+}
+
 type Setting struct {
 	SettingID    int64
 	SettingName  *string

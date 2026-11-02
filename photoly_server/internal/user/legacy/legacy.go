@@ -65,12 +65,13 @@ type Handler func(w http.ResponseWriter, r *http.Request, uid int64) (any, error
 // Opt mirrors the arguments of Flask's legacy(): auth is "header", "path" (token in the
 // {token} path value) or "" (none).
 type Opt struct {
-	Auth        string
-	Shape       string // "result" (default), "token", "page", "raw", "binary"
-	Missing     any
-	PageMissing int
-	Failure     any
-	HasFailure  bool
+	Auth         string
+	Shape        string // "result" (default), "token", "page", "raw", "binary"
+	Missing      any
+	PageMissing  int
+	Failure      any
+	HasFailure   bool
+	StrictStatus bool // Header credential aliases use real HTTP error statuses.
 }
 
 func (o Opt) Wrap(a *app.App, h Handler) http.HandlerFunc {
@@ -126,6 +127,15 @@ func (o Opt) run(w http.ResponseWriter, r *http.Request, uid int64, h Handler) {
 		biz = &Biz{-1, 400}
 	default:
 		http.Error(w, "internal error", 500)
+		return
+	}
+	if o.StrictStatus {
+		if storage.ClientError(err) {
+			biz.Value = "storage_operation_failed"
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(biz.Code)
+		emit(w, Res{biz.Value, biz.Code})
 		return
 	}
 	switch o.Shape {

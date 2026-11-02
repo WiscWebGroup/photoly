@@ -242,7 +242,8 @@ func (q *Queries) ListNamespaceDownloadPhotos(ctx context.Context, arg ListNames
 }
 
 const listNamespacePhotos = `-- name: ListNamespacePhotos :many
-SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id, source_id, file_name, fs_identity, fs_size, fs_mtime, missing_scans, remote_version FROM photo WHERE user_id = $1::int AND ns_id = $2::int ORDER BY photo_id
+SELECT photo_id, photo_name, upload_date, format, ns_id, visibility, token, photo_uuid, user_id, content_version, content_sha256, storage_id, source_id, file_name, fs_identity, fs_size, fs_mtime, missing_scans, remote_version FROM photo WHERE user_id = $1::int AND ns_id = $2::int
+AND EXISTS(SELECT 1 FROM storage_source s WHERE s.id=photo.source_id AND s.enabled) ORDER BY photo_id
 `
 
 type ListNamespacePhotosParams struct {

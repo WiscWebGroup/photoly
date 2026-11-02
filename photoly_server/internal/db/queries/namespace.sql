@@ -8,7 +8,8 @@ AND EXISTS(SELECT 1 FROM storage_source s WHERE s.id=namespace.source_id AND s.e
 ORDER BY display_order, ns_id;
 
 -- name: ListNamespacePhotos :many
-SELECT * FROM photo WHERE user_id = @user_id::int AND ns_id = @ns_id::int ORDER BY photo_id;
+SELECT * FROM photo WHERE user_id = @user_id::int AND ns_id = @ns_id::int
+AND EXISTS(SELECT 1 FROM storage_source s WHERE s.id=photo.source_id AND s.enabled) ORDER BY photo_id;
 
 -- name: GetNamespace :one
 SELECT * FROM namespace WHERE ns_id = @ns_id::int;

@@ -177,6 +177,7 @@ func qint(r *http.Request, name string) (int64, error) {
 func Register(a *app.App) {
 	user.DecodeFallback = DecodeBytes
 	s := For(a)
+	s.registerCredentialMedia()
 	s.registerNotes()
 	s.registerCategories()
 	user.UploadPhotos = func(ctx context.Context, uid int64, files []*multipart.FileHeader, descs []map[string]any) ([]string, error) {

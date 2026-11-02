@@ -65,10 +65,10 @@ func (q *Queries) ListCategoryCounts(ctx context.Context, userID int64) ([]ListC
 }
 
 const listCategoryPreviews = `-- name: ListCategoryPreviews :many
-SELECT k.category::text AS category,p.photo_id,coalesce(p.photo_name,'')::text AS photo_name,coalesce(p.format,'')::text AS format,p.content_version
+SELECT k.category::text AS category,p.photo_id,p.photo_uuid::text AS uuid,coalesce(p.photo_name,'')::text AS photo_name,coalesce(p.format,'')::text AS format,p.content_version
 FROM (SELECT unnest(ARRAY['video','panorama','live','animated','screenshot','portrait']::text[]) AS category) k
 CROSS JOIN LATERAL (
- SELECT p.photo_id,p.photo_name,p.format,p.content_version FROM effective_media_category c
+ SELECT p.photo_id,p.photo_uuid,p.photo_name,p.format,p.content_version FROM effective_media_category c
  JOIN photo p ON p.photo_id=c.photo_id JOIN storage_source s ON s.id=p.source_id
  WHERE c.user_id= $1::int AND s.enabled AND c.category=k.category
  ORDER BY p.photo_id DESC LIMIT 3
@@ -78,6 +78,7 @@ CROSS JOIN LATERAL (
 type ListCategoryPreviewsRow struct {
 	Category       string
 	PhotoID        int64
+	Uuid           string
 	PhotoName      string
 	Format         string
 	ContentVersion int64
@@ -95,6 +96,7 @@ func (q *Queries) ListCategoryPreviews(ctx context.Context, userID int64) ([]Lis
 		if err := rows.Scan(
 			&i.Category,
 			&i.PhotoID,
+			&i.Uuid,
 			&i.PhotoName,
 			&i.Format,
 			&i.ContentVersion,

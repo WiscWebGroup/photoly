@@ -3,8 +3,10 @@ package user
 import (
 	"context"
 	"encoding/json"
+	"mime"
 	"mime/multipart"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
@@ -70,6 +72,21 @@ func registerCred(a *app.App, s *svc) {
 	m.HandleFunc("GET /cred/queryRootNamespace/{token}", raw.Wrap(a, s.credRoot))
 	m.HandleFunc("GET /cred/queryNamespaces/{token}", raw.Wrap(a, s.credChildren))
 	m.HandleFunc("GET /cred/queryPhotoList/{token}", raw.Wrap(a, s.credPhotoList))
+	for _, route := range []struct {
+		method, path, scope string
+		fn                  legacy.Handler
+	}{
+		{"POST", "uploadPhoto", "C", s.credUpload(false)}, {"POST", "uploadPhotos", "C", s.credUpload(true)},
+		{"GET", "render", "R", s.credRender}, {"POST", "deletePhoto", "D", s.credDeletePhoto},
+		{"GET", "queryRootNamespace", "R", s.credRoot}, {"GET", "queryNamespaces", "R", s.credChildren}, {"GET", "queryPhotoList", "R", s.credPhotoList},
+	} {
+		handler := (legacy.Opt{Shape: "raw", StrictStatus: true}).Wrap(a, route.fn)
+		m.HandleFunc(route.method+" /cred/"+route.path, CredentialHandler(a, route.scope, func(w http.ResponseWriter, r *http.Request, uid int64) {
+			r.SetPathValue("token", strings.Fields(r.Header.Get("Authorization"))[1])
+			handler(w, r)
+		}))
+	}
+
 }
 
 func (s *svc) credCreate(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
@@ -223,9 +240,13 @@ func (s *svc) credRender(w http.ResponseWriter, r *http.Request, _ int64) (any, 
 		return nil, err
 	}
 	u, ok := legacy.Arg(r, "uuid")
-	_, owner, format, err := s.photoByUUID(r.Context(), c.UserID, u, ok)
+	id, owner, format, err := s.photoByUUID(r.Context(), c.UserID, u, ok)
 	if err != nil {
 		return nil, err
+	}
+	if s.a.CredRender != nil {
+		err = s.a.CredRender(w, r, c.UserID, id)
+		return legacy.Done{}, err
 	}
 	p, err := legacy.MediaPath(r.Context(), s.a.Pool, s.a.Cfg.UploadFolder, owner, u+"."+format)
 	if err != nil {
@@ -234,7 +255,11 @@ func (s *svc) credRender(w http.ResponseWriter, r *http.Request, _ int64) (any, 
 	if !isFile(p) {
 		return nil, legacy.Err(nil, 404)
 	}
-	legacy.ServeFile(w, r, p, "image/jpeg", "")
+	mt := mime.TypeByExtension(filepath.Ext(p))
+	if mt == "" {
+		mt = "application/octet-stream"
+	}
+	legacy.ServeFile(w, r, p, mt, "")
 	return legacy.Done{}, nil
 }
 
@@ -254,6 +279,12 @@ func (s *svc) credDeletePhoto(w http.ResponseWriter, r *http.Request, _ int64) (
 	id, _, _, err := s.photoByUUID(ctx, c.UserID, u, ok)
 	if err != nil {
 		return nil, err
+	}
+	if s.a.CredDelete != nil {
+		if err := s.a.CredDelete(ctx, c.UserID, id); err != nil {
+			return nil, err
+		}
+		return legacy.Raw{V: 1}, nil
 	}
 	root := s.a.Cfg.UploadFolder
 	err = legacy.Atomic(ctx, s.a.Pool, root, c.UserID, false, func(tx pgx.Tx, f *legacy.Files, lu *legacy.LockedUser) error {
