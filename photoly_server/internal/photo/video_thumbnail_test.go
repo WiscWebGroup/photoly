@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -54,8 +55,22 @@ func TestVideoThumbnailFrames(t *testing.T) {
 		if e := exec.CommandContext(ctx, "ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=c=blue:s=640x360:d=0.2", "-pix_fmt", "yuv420p", src).Run(); e != nil {
 			t.Fatal(e)
 		}
-		if e := exec.CommandContext(ctx, "ffmpeg", "-v", "error", "-i", src, "-c", "copy", "-metadata:s:v:0", "rotate=90", rot).Run(); e != nil {
+		// FFmpeg 6+ uses an input display transform; the legacy metadata option
+		// can succeed without writing rotation. Keep compatibility with FFmpeg 5.
+		help, e := exec.CommandContext(ctx, "ffmpeg", "-hide_banner", "-h", "full").Output()
+		if e != nil {
 			t.Fatal(e)
+		}
+		args := []string{"-v", "error", "-i", src, "-c", "copy", "-metadata:s:v:0", "rotate=90", rot}
+		if strings.Contains(string(help), "-display_rotation") {
+			args = []string{"-v", "error", "-display_rotation:v:0", "90", "-i", src, "-c", "copy", rot}
+		}
+		if out, e := exec.CommandContext(ctx, "ffmpeg", args...).CombinedOutput(); e != nil {
+			t.Fatalf("rotation fixture: %v %s", e, out)
+		}
+		rotation, e := exec.CommandContext(ctx, "ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream_side_data=rotation", "-of", "default=noprint_wrappers=1:nokey=1", rot).Output()
+		if e != nil || strings.TrimSpace(string(rotation)) != "90" {
+			t.Fatalf("fixture must contain a 90-degree display matrix: %q, %v", rotation, e)
 		}
 		if e := MakeVideoThumbnail(ctx, rot, dst); e != nil {
 			t.Fatal(e)

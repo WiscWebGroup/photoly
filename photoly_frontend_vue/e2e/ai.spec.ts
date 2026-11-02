@@ -511,7 +511,10 @@ test('a rejected feature change rolls the switch back', async ({ page }) => {
     }),
   )
   await page.goto('/thepersonincharge/ai')
-  await page.getByLabel('AI Search', { exact: true }).uncheck()
+  const searchToggle = page.getByLabel('AI Search', { exact: true })
+  await expect(searchToggle).toBeChecked()
+  // The rejected request may roll back before uncheck() checks the final DOM state.
+  await searchToggle.click()
   await expect(page.getByRole('alert')).toContainText('another session')
   await expect(page.getByLabel('AI Search', { exact: true })).toBeChecked()
 })
