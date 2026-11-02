@@ -288,6 +288,7 @@ func AvailableName(ctx context.Context, q dbgen.DBTX, root string, ns int64, nam
 }
 
 type location struct {
+	source  *Source
 	store   Store
 	key     string
 	version string
@@ -346,7 +347,7 @@ func Resolve(ctx context.Context, q dbgen.DBTX, root, owner, photoUUID, role str
 			if e != nil {
 				return "", e
 			}
-			locations.Store(filepath.Clean(p), location{store: st, key: strings.TrimPrefix(dir+"/"+filename, "/"), version: version, photoID: pid, role: role})
+			locations.Store(filepath.Clean(p), location{store: st, key: strings.TrimPrefix(dir+"/"+filename, "/"), version: version, photoID: pid, role: role, source: &s})
 			return p, nil
 		}
 		return SafePath(root, ".assets", owner, photoUUID, filename)
@@ -362,7 +363,7 @@ func Resolve(ctx context.Context, q dbgen.DBTX, root, owner, photoUUID, role str
 	if err != nil {
 		return "", err
 	}
-	Bind(p, st, owner+"/"+fmt.Sprint(sid)+"/"+photoUUID+"/"+filename)
+	locations.Store(filepath.Clean(p), location{store: st, key: owner + "/" + fmt.Sprint(sid) + "/" + photoUUID + "/" + filename, source: &s})
 	return p, nil
 }
 

@@ -7,7 +7,7 @@ import {
   AiError,
   aiMessage,
   type AdminCapabilities,
-  type AiModelKind,
+  type ServerModelKind,
   type AiChanges,
   type AiJob,
   type AiSettings,
@@ -145,7 +145,7 @@ export function useAiAdmin() {
     }
   }
   /** Loads a model in the AI worker; `force` loads it although the server may be short of memory. */
-  async function loadModel(kind: AiModelKind, force = false) {
+  async function loadModel(kind: ServerModelKind, force = false) {
     const result = await aiCall<unknown>({
       method: 'post',
       url: `/admin/ai/models/${kind}/load${force ? '?force=1' : ''}`,
@@ -154,7 +154,7 @@ export function useAiAdmin() {
     await refresh()
     return result
   }
-  async function unloadModel(kind: AiModelKind) {
+  async function unloadModel(kind: ServerModelKind) {
     const result = await aiCall<unknown>({
       method: 'post',
       url: `/admin/ai/models/${kind}/unload`,

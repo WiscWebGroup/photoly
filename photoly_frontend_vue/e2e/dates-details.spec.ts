@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { mockApi, signIn, ok, photo } from './mockApi'
+import { mockApi, signIn, ok, photo, openDetails } from './mockApi'
 
 const summary = {
   nsId: 5,
@@ -87,12 +87,9 @@ test('Dates groups, lazy paging, calendar jump, viewer folder link and URL persi
   await expect(page.getByRole('button', { name: 'Show photo calendar' })).toBeVisible()
   await expect(page.locator('[data-photo-id="1"]')).toBeVisible()
   await page.locator('[data-photo-id="1"]').click()
-  const details = page
-    .getByRole('button', { name: /^(Details|Show details)$/ })
-    .filter({ visible: true })
-  if (await details.count()) await details.first().click()
-  await expect(page.getByRole('link', { name: 'Open folder', exact: true })).toBeVisible()
-  await page.getByRole('link', { name: 'Open folder', exact: true }).click()
+  await openDetails(page)
+  // Folder navigation is a button so unsaved notes can be confirmed before leaving.
+  await page.getByRole('button', { name: 'Open folder', exact: true }).click()
   await expect(page).toHaveURL(/HomePart\?folder=1/)
   expect(errors).toEqual([])
 })

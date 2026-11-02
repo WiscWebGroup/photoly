@@ -42,6 +42,7 @@ SELECT p.photo_id, u.uuid AS owner_uuid, p.format
 FROM photo p
 JOIN "user" u ON u.user_id = p.user_id
 WHERE p.user_id = $1::int AND p.photo_uuid = $2::text
+AND EXISTS(SELECT 1 FROM storage_source s WHERE s.id=p.source_id AND s.enabled)
 `
 
 type GetPhotoForCredParams struct {
@@ -75,6 +76,77 @@ type InsertCredParams struct {
 func (q *Queries) InsertCred(ctx context.Context, arg InsertCredParams) error {
 	_, err := q.db.Exec(ctx, insertCred, arg.UserID, arg.Token, arg.Auth)
 	return err
+}
+
+const listCredentialMedia = `-- name: ListCredentialMedia :many
+SELECT p.photo_id,p.photo_uuid::text AS uuid,p.photo_name::text AS name,p.format::text AS format,p.ns_id,p.content_version,
+ coalesce(m.animated,false)::boolean AS animated,coalesce(m.live,false)::boolean AS live,
+ ARRAY(SELECT category FROM effective_media_category c WHERE c.photo_id=p.photo_id ORDER BY category)::text[] AS categories
+FROM photo p JOIN storage_source s ON s.id=p.source_id LEFT JOIN photo_media m ON m.photo_id=p.photo_id
+WHERE p.user_id= $1::int AND s.enabled
+ AND ($2::int=0 OR p.ns_id= $2::int)
+ AND ($3::text='' OR p.photo_uuid= $3::text)
+ AND ($4::int=0 OR p.photo_id< $4::int)
+ AND ($5::text='' OR EXISTS(SELECT 1 FROM effective_media_category c WHERE c.photo_id=p.photo_id AND c.category= $5::text))
+ORDER BY p.photo_id DESC LIMIT $6::int
+`
+
+type ListCredentialMediaParams struct {
+	UserID    int64
+	NsID      int64
+	Uuid      string
+	AfterID   int64
+	Category  string
+	PageLimit int64
+}
+
+type ListCredentialMediaRow struct {
+	PhotoID        int64
+	Uuid           string
+	Name           string
+	Format         string
+	NsID           *int64
+	ContentVersion int64
+	Animated       bool
+	Live           bool
+	Categories     []string
+}
+
+func (q *Queries) ListCredentialMedia(ctx context.Context, arg ListCredentialMediaParams) ([]ListCredentialMediaRow, error) {
+	rows, err := q.db.Query(ctx, listCredentialMedia,
+		arg.UserID,
+		arg.NsID,
+		arg.Uuid,
+		arg.AfterID,
+		arg.Category,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListCredentialMediaRow
+	for rows.Next() {
+		var i ListCredentialMediaRow
+		if err := rows.Scan(
+			&i.PhotoID,
+			&i.Uuid,
+			&i.Name,
+			&i.Format,
+			&i.NsID,
+			&i.ContentVersion,
+			&i.Animated,
+			&i.Live,
+			&i.Categories,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listUserCreds = `-- name: ListUserCreds :many

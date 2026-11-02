@@ -15,28 +15,103 @@ import UploadActivity from '@/components/UploadActivity.vue'
 afterEach(() => setSharedBrowserAi(undefined))
 
 const GIB = 1024 ** 3
-const status = (free = 1.5, worker: object = { running: true, memoryMB: 819, models: { image: { loaded: true, variant: 'fp32', loadedAt: new Date().toISOString() }, text: { loaded: false } } }) =>
+const status = (
+  free = 1.5,
+  worker: object = {
+    running: true,
+    memoryMB: 819,
+    models: {
+      image: { loaded: true, variant: 'fp32', loadedAt: new Date().toISOString() },
+      text: { loaded: false },
+    },
+  },
+) =>
   ({
     settings: {},
     services: {
-      runtime: { online: true, heartbeatAt: null, observed: { state: 'ready', resources: { memory_total: 8 * GIB, memory_available: free * GIB, sampled_at: new Date().toISOString() } } },
+      runtime: {
+        online: true,
+        heartbeatAt: null,
+        observed: {
+          state: 'ready',
+          resources: {
+            memory_total: 8 * GIB,
+            memory_available: free * GIB,
+            sampled_at: new Date().toISOString(),
+          },
+        },
+      },
     },
     worker,
-    indexSources: { server: 924, browser: 260, waiting: 100, spotCheck: { checked: 26, matched: 26 } },
+    indexSources: {
+      server: 924,
+      browser: 260,
+      waiting: 100,
+      spotCheck: { checked: 26, matched: 26 },
+    },
   }) as unknown as AiStatus
-const radios = (group: string) =>
-  [...document.querySelectorAll<HTMLButtonElement>(`[role=radiogroup][aria-labelledby="${group}"] [role=radio]`)]
-const draft = { placement_image: 'server', placement_text: 'user', browser_text_model: 'small' } as unknown as AiSettings
+const radios = (group: string) => [
+  ...document.querySelectorAll<HTMLButtonElement>(
+    `[role=radiogroup][aria-labelledby="${group}"] [role=radio]`,
+  ),
+]
+const draft = {
+  placement_image: 'server',
+  placement_text: 'user',
+  browser_text_model: 'small',
+} as unknown as AiSettings
 
-function card(load = vi.fn().mockResolvedValue({}), unload = vi.fn().mockResolvedValue({}), stat = status()) {
-  const w = mountWithApp(AdminInferenceCard, { draft, status: stat, stale: false, busy: false, load, unload })
+function card(
+  load = vi.fn().mockResolvedValue({}),
+  unload = vi.fn().mockResolvedValue({}),
+  stat = status(),
+) {
+  const w = mountWithApp(AdminInferenceCard, {
+    draft,
+    status: stat,
+    stale: false,
+    busy: false,
+    load,
+    unload,
+  })
   return { w, load, unload }
 }
 
 describe('Admin · Where AI runs', () => {
+  it('places People alongside the other execution policies and keeps browser selection independent', async () => {
+    const stat = status()
+    stat.settings = { enabled: true, people_enabled: true } as AiSettings
+    const { w, load } = card(undefined, undefined, stat)
+    expect(radios('inf-people').map((r) => r.textContent!.trim())).toEqual([
+      'Server',
+      'Browser',
+      'Let users choose',
+    ])
+    radios('inf-people')[1]!.click()
+    await flushPromises()
+    expect(w.emitted('set')).toEqual([[{ placement_people: 'browser' }]])
+    expect(load).not.toHaveBeenCalled()
+    button('Load People models').click()
+    await flushPromises()
+    expect(load).toHaveBeenCalledWith('people', false)
+    expect(w.emitted('set')).toHaveLength(1)
+  })
+  it('unloads People from the common worker panel', async () => {
+    const stat = status(2, { running: true, models: { people: { loaded: true } } })
+    stat.settings = { enabled: true, people_enabled: true } as AiSettings
+    const { unload } = card(undefined, undefined, stat)
+    button('Unload People models').click()
+    await flushPromises()
+    expect(unload).toHaveBeenCalledWith('people')
+    expect(document.querySelector('[aria-label="Load People models"]')).toBeNull()
+  })
   it('shows both models with Server / Browser / Let users choose, memory, fits and worker', () => {
     card()
-    expect(radios('inf-image').map((r) => r.textContent!.trim())).toEqual(['Server', 'Browser', 'Let users choose'])
+    expect(radios('inf-image').map((r) => r.textContent!.trim())).toEqual([
+      'Server',
+      'Browser',
+      'Let users choose',
+    ])
     expect(radios('inf-text')[2]!.getAttribute('aria-checked')).toBe('true')
     const text = pageText()
     expect(text).toContain('1.5 GB free of 8 GB')
@@ -57,7 +132,9 @@ describe('Admin · Where AI runs', () => {
   it('loads the model when Server is picked and asks before loading what may not fit', async () => {
     const load = vi
       .fn()
-      .mockRejectedValueOnce(new AiError('low-memory', 409, { code: 'low-memory', needMB: 900, availableMB: 600 }))
+      .mockRejectedValueOnce(
+        new AiError('low-memory', 409, { code: 'low-memory', needMB: 900, availableMB: 600 }),
+      )
       .mockResolvedValue({})
     const { w } = card(load)
     radios('inf-text')[0]!.click()
@@ -73,7 +150,9 @@ describe('Admin · Where AI runs', () => {
     expect(w.emitted('set')).toEqual([[{ placement_text: 'server' }]])
   })
   it('keeps the placement when the dialog is declined', async () => {
-    const load = vi.fn().mockRejectedValue(new AiError('low-memory', 409, { needMB: 900, availableMB: 600 }))
+    const load = vi
+      .fn()
+      .mockRejectedValue(new AiError('low-memory', 409, { needMB: 900, availableMB: 600 }))
     const { w } = card(load)
     radios('inf-text')[0]!.click()
     await flushPromises()
@@ -137,7 +216,9 @@ describe('Account · AI on this device', () => {
     await flushPromises()
     expect(button('Keep on This Device')).toBeTruthy()
     expect(button('Remove from This Device')).toBeTruthy()
-    const options = [...document.querySelectorAll('#ai-text-model option')].map((o) => o.textContent)
+    const options = [...document.querySelectorAll('#ai-text-model option')].map(
+      (o) => o.textContent,
+    )
     expect(options).toEqual(['Small, 318 MB (recommended)', 'Full, 1.13 GB'])
   })
   it('is empty on servers without browser inference', async () => {
@@ -152,7 +233,14 @@ describe('Search · model loading', () => {
     const w = mountWithApp(BrowserModelLoading)
     const store = useBrowserAiStore(w.vm.$pinia)
     store.setCapabilities(browserCapabilities() as never)
-    Object.assign(store.state, { phase: 'loading', kind: 'text', source, loadedMB: loaded, totalMB: total, percent: Math.round((loaded / total) * 100) })
+    Object.assign(store.state, {
+      phase: 'loading',
+      kind: 'text',
+      source,
+      loadedMB: loaded,
+      totalMB: total,
+      percent: Math.round((loaded / total) * 100),
+    })
     return w
   }
   it('says Downloading with the size for a first load', async () => {

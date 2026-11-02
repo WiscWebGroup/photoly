@@ -3,8 +3,6 @@ import {
   Check,
   Download,
   Eye,
-  File,
-  Film,
   FolderInput,
   RefreshCw,
   Play,
@@ -23,7 +21,7 @@ import { viewMode } from '@/composables/useViewMode'
 import type { Photo } from '@/composables/usePhotos'
 import { mediaKind } from '@/lib/media'
 import { cn } from '@/lib/utils'
-import { photoUrl } from '@/lib/photoUrl'
+import MediaThumbnail from './MediaThumbnail.vue'
 
 export interface MediaGridActions {
   open: (photo: Photo, event?: MouseEvent) => void
@@ -90,37 +88,19 @@ function formatDate(iso?: string) {
             @click="actions.open(photo, $event)"
             @contextmenu.stop
           >
-            <img
-              v-if="mediaKind(photo.format) === 'photo'"
-              :src="photoUrl(photo.photoId, 'renderThumbnail')"
-              alt=""
-              loading="lazy"
-              decoding="async"
-              draggable="false"
+            <MediaThumbnail
+              :photo-id="photo.photoId"
+              :format="photo.format"
+              :content-version="photo.contentVersion"
               :class="
                 viewMode === 'list'
-                  ? 'size-10 shrink-0 rounded-md object-cover'
+                  ? 'size-10 shrink-0 rounded-md'
                   : cn(
-                      'size-full object-cover transition-transform duration-350 ease-(--ease-out-quart) group-hover:scale-[1.04]',
-                      photo.checked && '!scale-[0.92] sm:rounded-[2px]',
+                      'size-full transition-transform duration-350 group-hover:scale-[1.04]',
+                      photo.checked && '!scale-[0.92]',
                     )
               "
             />
-            <span
-              v-else
-              :class="
-                cn(
-                  'text-muted-foreground grid place-items-center',
-                  viewMode === 'list' ? 'bg-muted size-10 shrink-0 rounded-md' : 'size-full',
-                )
-              "
-            >
-              <component
-                :is="mediaKind(photo.format) === 'video' ? Film : File"
-                :class="viewMode === 'grid' ? 'size-8' : 'size-4'"
-                aria-hidden="true"
-              />
-            </span>
             <span
               v-if="viewMode !== 'list' && mediaKind(photo.format) === 'video'"
               class="pointer-events-none absolute right-1.5 bottom-1.5 flex items-center gap-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[11px] leading-4 font-medium text-white"

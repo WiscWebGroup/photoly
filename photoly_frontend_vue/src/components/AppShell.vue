@@ -1,9 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { onKeyStroke, useStorage, useMediaQuery } from '@vueuse/core'
 import { toast } from 'vue-sonner'
-import { CalendarDays, Camera, Images, LogOut, Map, Search, Tag, ChevronLeft } from '@lucide/vue'
+import {
+  Users,
+  Grid3X3,
+  CalendarDays,
+  Camera,
+  Images,
+  LogOut,
+  Map,
+  Search,
+  Tag,
+  ChevronLeft,
+} from '@lucide/vue'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
 import OnlineDownloadButton from '@/components/OnlineDownloadButton.vue'
 import UploadButton from '@/components/UploadButton.vue'
@@ -14,11 +25,15 @@ import ThemeToggle from '@/components/ThemeToggle.vue'
 import { useProfile } from '@/composables/useProfile'
 import { storageLabel, useStorageUsage } from '@/composables/useStorageUsage'
 import { useAuthStore } from '@/stores/auth'
+import { usePeopleStore } from '@/stores/people'
 import { cn } from '@/lib/utils'
 
 const desktop = useMediaQuery('(min-width: 768px)')
 const sidebarHidden = useStorage('photoly-sidebar-hidden', false)
 const auth = useAuthStore()
+const people = usePeopleStore()
+onMounted(people.start)
+onBeforeUnmount(people.stop)
 watch(() => auth.token, resetStorageState)
 const router = useRouter()
 const route = useRoute()
@@ -32,12 +47,14 @@ watch(() => uploads.revision, storage.refresh)
 watch(() => route.params.part, storage.refresh, { immediate: true })
 
 type NavItem = { part: string; label: string; icon: typeof Camera; key?: string }
-const groups: { label: string; items: NavItem[] }[] = [
+const groups = computed<{ label: string; items: NavItem[] }[]>(() => [
   {
     label: 'Library',
     items: [
       { part: 'HomePart', label: 'Photos', icon: Camera },
+      { part: 'CategoryPart', label: 'Category', icon: Grid3X3 },
       { part: 'MapPart', label: 'Map', icon: Map },
+      ...(people.visible ? [{ part: 'PeoplePart', label: 'People', icon: Users }] : []),
     ],
   },
   {
@@ -49,12 +66,12 @@ const groups: { label: string; items: NavItem[] }[] = [
     ],
   },
   { label: 'Find', items: [{ part: 'SearchPart', label: 'Search', icon: Search, key: '/' }] },
-]
+])
 
 // Phones get five tabs; galleries and tags share "Albums", the account sits behind the avatar.
 const tabs = [
-  { part: 'HomePart', label: 'Photos', icon: Camera, also: [] as string[] },
-  { part: 'GalleryPart', label: 'Albums', icon: Images, also: ['TagPart'] },
+  { part: 'HomePart', label: 'Photos', icon: Camera, also: ['CategoryPart'] as string[] },
+  { part: 'GalleryPart', label: 'Albums', icon: Images, also: ['TagPart', 'PeoplePart'] },
   { part: 'DatesPart', label: 'Dates', icon: CalendarDays, also: [] },
   { part: 'MapPart', label: 'Map', icon: Map, also: [] },
   { part: 'SearchPart', label: 'Search', icon: Search, also: [] },

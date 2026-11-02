@@ -113,7 +113,7 @@ func runWorker() error {
 // brokenWorker answers every call with the reason ONNX Runtime didn't start.
 type brokenWorker struct{ reason string }
 
-func (b *brokenWorker) Load(LoadArgs, *LoadInfo) error        { return errors.New(b.reason) }
+func (b *brokenWorker) Load(LoadArgs, *LoadInfo) error { return errors.New(b.reason) }
 func (b *brokenWorker) Devices(struct{}, *map[string]string) error {
 	return errors.New(b.reason)
 }
@@ -237,11 +237,38 @@ func exitReason(ps *os.ProcessState, err error) string {
 }
 
 func (w *Worker) call(method string, args, reply any) error {
+	return w.callContext(context.Background(), method, args, reply)
+}
+func (w *Worker) callContext(ctx context.Context, method string, args, reply any) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	client, exited, err := w.conn()
 	if err != nil {
 		return fmt.Errorf("start AI worker: %w", err)
 	}
-	err = client.Call("AIWorker."+method, args, reply)
+	pending := client.Go("AIWorker."+method, args, reply, make(chan *rpc.Call, 1))
+	select {
+	case finished := <-pending.Done:
+		err = finished.Error
+	case <-ctx.Done():
+		// Inference is isolated in the worker. Kill a stuck call before releasing
+		// ioMu, so subsequent requests never share its unfinished native session.
+		w.mu.Lock()
+		if w.client == client {
+			client.Close()
+			if w.proc != nil {
+				_ = w.proc.Kill()
+			}
+		}
+		w.mu.Unlock()
+		<-pending.Done
+		select {
+		case <-exited:
+		case <-time.After(5 * time.Second):
+		}
+		return ctx.Err()
+	}
 	var remote rpc.ServerError
 	switch {
 	case err == nil:
@@ -320,6 +347,9 @@ func (w *Worker) Status() map[string]LoadInfo {
 // status fails only if the worker dies during the call. One that died earlier (say,
 // killed while idle) just has no models, and the next load starts a fresh one.
 func (w *Worker) status() (map[string]LoadInfo, error) {
+	return w.statusContext(context.Background())
+}
+func (w *Worker) statusContext(ctx context.Context) (map[string]LoadInfo, error) {
 	w.mu.Lock()
 	running := w.client != nil && !isClosed(w.exited)
 	w.mu.Unlock()
@@ -327,7 +357,7 @@ func (w *Worker) status() (map[string]LoadInfo, error) {
 	if !running {
 		return nil, nil
 	}
-	err := w.call("Status", struct{}{}, &r)
+	err := w.callContext(ctx, "Status", struct{}{}, &r)
 	return r.Models, err
 }
 
@@ -344,14 +374,17 @@ func isClosed(ch chan struct{}) bool {
 // (for text, the smaller int8 model if fp32 doesn't fit). If none fits it returns
 // *LowMemoryError, unless force is set, when it loads the smallest variant anyway.
 func (w *Worker) Ensure(kind string, force bool) (LoadInfo, error) {
-	models, err := w.status()
+	return w.ensure(context.Background(), kind, force)
+}
+func (w *Worker) ensure(ctx context.Context, kind string, force bool) (LoadInfo, error) {
+	models, err := w.statusContext(ctx)
 	if err != nil {
 		return LoadInfo{}, err
 	}
 	if info := models[kind]; info.Loaded {
 		return info, nil
 	}
-	variants := map[string][]string{"image": {"fp32"}, "text": {"fp32", "int8"}}[kind]
+	variants := map[string][]string{"image": {"fp32"}, "text": {"fp32", "int8"}, "people": {"fp32"}}[kind]
 	if variants == nil {
 		return LoadInfo{}, fmt.Errorf("unknown model %q", kind)
 	}
@@ -374,7 +407,7 @@ func (w *Worker) Ensure(kind string, force bool) (LoadInfo, error) {
 		variant = variants[0] // can't measure memory here: load the full model
 	}
 	var info LoadInfo
-	err = w.call("Load", LoadArgs{kind, variant, w.Threads, w.Device}, &info)
+	err = w.callContext(ctx, "Load", LoadArgs{kind, variant, w.Threads, w.Device}, &info)
 	return info, err
 }
 
@@ -415,4 +448,18 @@ func (w *Worker) Info() WorkerInfo {
 		i.MemoryMB = workerMB(strconv.Itoa(w.proc.Pid))
 	}
 	return i
+}
+
+func (w *AIWorker) DetectFaces(im FaceImage, out *[]FaceDetection) (err error) {
+	*out, err = w.e.DetectFaces(im)
+	return
+}
+func (b *brokenWorker) DetectFaces(FaceImage, *[]FaceDetection) error { return errors.New(b.reason) }
+func (w *Worker) DetectFaces(ctx context.Context, im FaceImage) ([]FaceDetection, error) {
+	if _, err := w.ensure(ctx, "people", false); err != nil {
+		return nil, err
+	}
+	var out []FaceDetection
+	err := w.callContext(ctx, "DetectFaces", im, &out)
+	return out, err
 }

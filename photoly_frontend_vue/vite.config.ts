@@ -39,6 +39,15 @@ export default defineConfig({
       },
     },
   },
+  worker: {
+    format: 'es',
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/browser-ai-[name]-[hash].js',
+        chunkFileNames: 'assets/browser-ai-[name]-[hash].js',
+      },
+    },
+  },
   cacheDir: process.env.PHOTOLY_VITE_CACHE_DIR ?? 'node_modules/.vite',
   plugins: [
     vue(),

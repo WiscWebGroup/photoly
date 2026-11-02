@@ -6,6 +6,8 @@ package dbgen
 
 import (
 	"time"
+
+	pgvector "github.com/pgvector/pgvector-go"
 )
 
 type AiControlState struct {
@@ -52,6 +54,12 @@ type Cred struct {
 	Authorization *string
 }
 
+type EffectiveMediaCategory struct {
+	PhotoID  int64
+	UserID   *int64
+	Category string
+}
+
 type EmbeddingProfile struct {
 	ProfileID   int64
 	Provider    string
@@ -92,6 +100,37 @@ type MediaAsset struct {
 	MissingScans   int64
 }
 
+type MediaCategoryOverride struct {
+	PhotoID  int64
+	Category string
+	Included bool
+}
+
+type MediaClassification struct {
+	PhotoID        int64
+	ContentVersion int64
+	RuleVersion    int64
+	Categories     []string
+	State          string
+	Attempts       int64
+	NextAttempt    time.Time
+	LeaseToken     *string
+	Error          *string
+}
+
+type MediaNote struct {
+	NoteID         int64
+	PhotoID        int64
+	UserID         int64
+	Body           string
+	X              *float64
+	Y              *float64
+	ContentVersion *int64
+	Revision       int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
 type Namespace struct {
 	NsID         int64
 	NsName       *string
@@ -109,6 +148,67 @@ type NamespacePhoto struct {
 	NpID    int64
 	NsID    *int64
 	PhotoID *int64
+}
+
+type PeopleEmbedding struct {
+	FaceID      int64
+	UserID      int64
+	Fingerprint string
+	Embedding   pgvector.Vector
+	Source      string
+}
+
+type PeopleExclusion struct {
+	FaceID   int64
+	PersonID int64
+}
+
+type PeopleFace struct {
+	FaceID          int64
+	UserID          int64
+	PhotoID         int64
+	ContentVersion  int64
+	DetectorVersion string
+	Box             []float32
+	Landmarks       []float32
+	Score           float32
+	Quality         bool
+	PersonID        int64
+	Manual          bool
+	Dismissed       bool
+}
+
+type PeopleMedium struct {
+	PhotoID        int64
+	UserID         int64
+	ContentVersion int64
+	Fingerprint    string
+	Generation     int64
+	Status         string
+	FaceCount      int64
+	Error          *string
+	UpdatedAt      time.Time
+}
+
+type PeoplePerson struct {
+	PersonID    int64
+	UserID      int64
+	Name        string
+	Hidden      bool
+	MergedInto  *int64
+	CoverFaceID *int64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type PeoplePreference struct {
+	UserID         int64
+	Enabled        bool
+	Paused         bool
+	Placement      string
+	Generation     int64
+	DiscoveryAfter int64
+	UpdatedAt      time.Time
 }
 
 type Photo struct {
@@ -189,6 +289,12 @@ type PhotolySession struct {
 	Token     string
 	UserID    int64
 	ExpiresAt time.Time
+}
+
+type ResourceHistory struct {
+	BootID  string
+	Bucket  time.Time
+	Payload []byte
 }
 
 type Setting struct {
@@ -395,4 +501,14 @@ type VideoFrameEmbedding struct {
 	FrameIndex  int64
 	TimestampMs int64
 	Embedding   interface{}
+}
+
+type VideoThumbnailJob struct {
+	PhotoID        int64
+	ContentVersion int64
+	State          string
+	Attempts       int64
+	NextAttempt    time.Time
+	LeaseToken     *string
+	Error          *string
 }

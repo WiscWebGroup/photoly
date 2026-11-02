@@ -169,6 +169,8 @@ async function save() {
     'search_enabled',
     'new_user_default',
     'smart_tag_enabled',
+    'people_enabled',
+    'placement_people',
     'placement_image',
     'placement_text',
     'browser_text_model',
@@ -204,12 +206,15 @@ function recommended() {
 function enableAi() {
   void admin.operate('ai.enable', undefined, selectedProvider.value || undefined)
 }
-async function feature(key: 'search_enabled' | 'smart_tag_enabled', event: Event) {
+async function feature(
+  key: 'search_enabled' | 'smart_tag_enabled' | 'people_enabled',
+  event: Event,
+) {
   if (!status.value) return
   const input = event.target as HTMLInputElement
   const generation = status.value.settings.generation
   const saved = await admin.save(generation, { [key]: input.checked })
-  if (!saved && status.value) input.checked = status.value.settings[key]
+  if (!saved && status.value) input.checked = Boolean(status.value.settings[key])
   if (
     saved &&
     status.value?.settings.generation === generation + 1 &&
@@ -399,6 +404,16 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                   aria-label="Smart Tag"
                   @change="feature('smart_tag_enabled', $event)"
                 />Smart Tag</label
+              >
+              <label class="flex items-center gap-2 text-sm font-medium"
+                ><input
+                  type="checkbox"
+                  class="accent-primary size-4"
+                  :checked="status.settings.people_enabled"
+                  :disabled="locked"
+                  aria-label="Enable People"
+                  @change="feature('people_enabled', $event)"
+                />People</label
               >
             </div>
             <p class="text-xs text-muted-foreground">

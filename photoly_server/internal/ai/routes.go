@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/resources"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/uploads"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -103,6 +104,27 @@ func Register(a *app.App) {
 	ctx := context.Background()
 	must(CheckStartup(ctx, a.Pool))
 	rt := NewRuntime(a.Cfg.UploadFolder)
+	a.WorkerRSS = func() *int64 {
+		if !rt.wmu.TryLock() {
+			return nil
+		}
+		defer rt.wmu.Unlock()
+		zero := int64(0)
+		if rt.w == nil {
+			return &zero
+		}
+		if !rt.w.mu.TryLock() {
+			return nil
+		}
+		defer rt.w.mu.Unlock()
+		if rt.w.proc == nil || rt.w.client == nil || isClosed(rt.w.exited) {
+			return &zero
+		}
+		return resources.WorkerRSS(rt.w.proc.Pid)
+	}
+	people := &People{pool: a.Pool, root: a.Cfg.UploadFolder, rt: rt}
+	people.register(a)
+	people.start(ctx)
 	gaz, err := loadGazetteer()
 	must(err)
 	smart := &Smart{pool: a.Pool, root: a.Cfg.UploadFolder, gaz: gaz}

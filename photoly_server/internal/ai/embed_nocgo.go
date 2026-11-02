@@ -27,3 +27,5 @@ func (*Embedder) EmbedImage([]float32) ([]float32, error)                { retur
 func (*Embedder) EmbedText(string) ([]float32, time.Duration, time.Duration, error) {
 	return nil, 0, 0, errNoCgo
 }
+
+func (*Embedder) DetectFaces(FaceImage) ([]FaceDetection, error) { return nil, errNoCgo }

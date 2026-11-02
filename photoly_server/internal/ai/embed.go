@@ -25,11 +25,13 @@ import (
 
 // Embedder loads each model on request and keeps it in memory.
 type Embedder struct {
-	cache *ModelCache
-	files map[string]map[string]string // kind -> variant -> ONNX file
-	image model
-	text  model
-	tok   *Tokenizer // set once the text model is loaded
+	cache        *ModelCache
+	files        map[string]map[string]string // kind -> variant -> ONNX file
+	image        model
+	text         model
+	face         model
+	faceDetector *ort.DynamicAdvancedSession
+	tok          *Tokenizer // set once the text model is loaded
 	// threads is ONNX Runtime's intra-op thread count for models loaded from now on (0: its default).
 	threads int
 	device  string // requested device: cpu (default), cuda or coreml
@@ -130,6 +132,8 @@ func newEmbedder(cache *ModelCache, profile Profile) (*Embedder, error) {
 
 func (e *Embedder) model(kind string) (*model, error) {
 	switch kind {
+	case "people":
+		return &e.face, nil
 	case "image":
 		return &e.image, nil
 	case "text":
@@ -141,6 +145,9 @@ func (e *Embedder) model(kind string) (*model, error) {
 // Load loads and warms up one variant of a model ("image" or "text") unless that model
 // is already loaded (in whichever variant).
 func (e *Embedder) Load(ctx context.Context, kind, variant string) (LoadInfo, error) {
+	if kind == "people" {
+		return e.loadFaceModels(ctx)
+	}
 	m, err := e.model(kind)
 	if err != nil {
 		return LoadInfo{}, err
@@ -231,6 +238,7 @@ func (e *Embedder) Load(ctx context.Context, kind, variant string) (LoadInfo, er
 func (e *Embedder) Close() {
 	e.Unload("image")
 	e.Unload("text")
+	e.Unload("people")
 }
 
 // Unload frees a model and hands the memory back to the system where it can.
@@ -244,6 +252,10 @@ func (e *Embedder) Unload(kind string) error {
 		m.info = LoadInfo{}
 	}
 	if m.session != nil {
+		if kind == "people" && e.faceDetector != nil {
+			e.faceDetector.Destroy()
+			e.faceDetector = nil
+		}
 		m.session.Destroy()
 		m.session, m.info = nil, LoadInfo{}
 		if kind == "text" {
@@ -258,7 +270,7 @@ func (e *Embedder) Unload(kind string) error {
 
 func (e *Embedder) Status() map[string]LoadInfo {
 	status := map[string]LoadInfo{}
-	for _, kind := range []string{"image", "text"} {
+	for _, kind := range []string{"image", "text", "people"} {
 		m, _ := e.model(kind)
 		if m.mu.TryLock() {
 			status[kind] = m.info

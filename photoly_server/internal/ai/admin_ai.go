@@ -302,7 +302,16 @@ func (a *Admin) SetUser(ctx context.Context, userID int64, enabled any) (map[str
 		}
 		if !on {
 			_, err := tx.Exec(ctx, `UPDATE ai_job SET status='cancelled', reserved_bytes=0, finished_at=now()
-				WHERE photo_id IN (SELECT photo_id FROM photo WHERE user_id=$1) AND status IN ('queued','running')`, userID)
+                WHERE kind<>'people' AND photo_id IN (SELECT photo_id FROM photo WHERE user_id=$1) AND status IN ('queued','running')`, userID)
+			if err != nil {
+				return err
+			}
+			// People resumes after permission is restored; invalidate live tokens
+			// without permanently cancelling its durable work or consuming a retry.
+			if _, err = tx.Exec(ctx, `UPDATE ai_job SET status='queued',attempts=GREATEST(attempts-1,0),lease_token=NULL,lease_expires_at=NULL,reserved_bytes=0,next_run_at=now() WHERE kind='people' AND payload->>'user_id'=$1 AND status='running'`, fmt.Sprint(userID)); err != nil {
+				return err
+			}
+			_, err = tx.Exec(ctx, `UPDATE people_media SET status='pending' WHERE user_id=$1 AND status='processing'`, userID)
 			return err
 		}
 		return nil
@@ -777,7 +786,7 @@ func (a *Admin) Status(ctx context.Context) (map[string]any, error) {
 // ---- per-model load / unload ----
 
 func (a *Admin) LoadModel(kind string, force bool) (map[string]any, error) {
-	if kind != "image" && kind != "text" {
+	if kind != "image" && kind != "text" && kind != "people" {
 		return nil, fail("invalid_model", 404)
 	}
 	info, err := a.rt.LoadModel(kind, force)
@@ -788,7 +797,7 @@ func (a *Admin) LoadModel(kind string, force bool) (map[string]any, error) {
 }
 
 func (a *Admin) UnloadModel(kind string) (map[string]any, error) {
-	if kind != "image" && kind != "text" {
+	if kind != "image" && kind != "text" && kind != "people" {
 		return nil, fail("invalid_model", 404)
 	}
 	before, after, err := a.rt.UnloadModel(kind)

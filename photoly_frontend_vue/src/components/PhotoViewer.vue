@@ -1,8 +1,19 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
+import MediaNotes from './MediaNotes.vue'
+import MediaCategoryEditor from './MediaCategoryEditor.vue'
+import { mediaErrorMessage } from '@/composables/useSourceHealth'
+import PeopleInMedia from './PeopleInMedia.vue'
 import SmartBadge from '@/components/SmartBadge.vue'
 import type { SmartSource } from '@/lib/smartOrganization'
 import { animate, type AnimationPlaybackControls } from 'motion'
-import { onKeyStroke, useFullscreen, useMediaQuery, useSwipe } from '@vueuse/core'
+import {
+  onKeyStroke,
+  useFullscreen,
+  useMediaQuery,
+  useSwipe,
+  useResizeObserver,
+} from '@vueuse/core'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import {
@@ -122,7 +133,7 @@ interface Gallery {
 
 const auth = useAuthStore()
 const uploads = useUploadsStore()
-const liveInfo = ref<{ live: boolean; liveStatus: string | null } | null>(null)
+const liveInfo = ref<{ live: boolean; liveStatus: string | null; animated?: boolean } | null>(null)
 const livePlaying = ref(false)
 const liveMuted = ref(true)
 const liveVideo = ref<HTMLVideoElement>()
@@ -154,10 +165,20 @@ const desktop = useMediaQuery('(min-width: 768px)')
 const selected = ref<Photo | null>(null)
 const acceptedPhoto = ref<Photo | null>(props.photo)
 const photoText = ref<InstanceType<typeof PhotoText>>()
+const navigationRouter = useRouter()
+async function openMediaFolder() {
+  if (!(await leaveText()) || info.value?.nsId === undefined) return
+  const folder = info.value.nsId
+  emit('close')
+  await navigationRouter.push({ path: '/home/HomePart', query: { folder } })
+}
+const notesPanel = ref<InstanceType<typeof MediaNotes>>()
+const mediaFailure = ref('')
 const currentPhoto = computed(() =>
   acceptedPhoto.value ? (selected.value ?? acceptedPhoto.value) : null,
 )
 async function leaveText() {
+  if (!((await notesPanel.value?.requestLeave()) ?? true)) return false
   return (await photoText.value?.requestLeave()) ?? true
 }
 let closing = false
@@ -187,6 +208,32 @@ const root = ref<HTMLElement>()
 const panelScroll = ref<HTMLElement>()
 const stage = ref<HTMLElement>()
 const mediaEl = ref<HTMLElement>()
+const noteImageSize = ref({ width: 0, height: 0 })
+useResizeObserver(mediaEl, () => {
+  noteImageSize.value = {
+    width: mediaEl.value?.offsetWidth ?? 0,
+    height: mediaEl.value?.offsetHeight ?? 0,
+  }
+})
+function placeNote(event: MouseEvent) {
+  if (!notesPanel.value?.placing || !mediaEl.value) return
+  const box = mediaEl.value.getBoundingClientRect()
+  if (box.width <= 0 || box.height <= 0) return
+  notesPanel.value.position(
+    Math.min(1, Math.max(0, (event.clientX - box.left) / box.width)),
+    Math.min(1, Math.max(0, (event.clientY - box.top) / box.height)),
+  )
+}
+function startNotePosition() {
+  stopPlayback()
+  zoom.reset()
+  stage.value?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+}
+function notePositioned() {
+  showDetails.value = true
+  if (!desktop.value) panelScroll.value?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+}
+
 const backdrop = ref<HTMLElement>()
 /** The panel scrolls on its own beside the photo; on phones the whole viewer scrolls. */
 const scrollRoot = computed(() => (desktop.value ? panelScroll.value : root.value) ?? null)
@@ -353,6 +400,7 @@ onKeyStroke(['ArrowLeft', 'ArrowRight', 'i'], (e) => {
 useSwipe(stage, {
   threshold: 48,
   onSwipeEnd(_, dir) {
+    if (notesPanel.value?.placing) return
     if (dir === 'left') void step(1)
     else if (dir === 'right') void step(-1)
     // Phones: swipe up on the photo to bring the sheet back, down (from the top) to hide it.
@@ -436,14 +484,19 @@ const canEdit = computed(() => kind.value === 'photo' && isEditable(info.value?.
 const zoomViewport = ref<HTMLElement>()
 const zoom = usePhotoZoom(
   zoomViewport,
-  () => loaded.value && !livePlaying.value && !editing.value && onTop(),
+  () =>
+    loaded.value && !livePlaying.value && !editing.value && !notesPanel.value?.placing && onTop(),
 )
 watch(
   [() => currentPhoto.value?.photoId, () => !!acceptedPhoto.value, editing, livePlaying, version],
   zoom.reset,
 )
 const imageUrl = computed(
-  () => photoUrl(info.value!.photoId) + (version.value ? `&v=${version.value}` : ''),
+  () =>
+    photoUrl(
+      info.value!.photoId,
+      notesPanel.value?.open && liveInfo.value?.animated ? 'renderThumbnail' : 'render',
+    ) + (version.value ? `&v=${version.value}` : ''),
 )
 const params = computed(() => ({ photoId: info.value?.photoId }))
 const hasGps = computed(() => !!exif.value.GPS_Latitude && !!exif.value.GPS_Longitude)
@@ -558,10 +611,24 @@ function openPicker(open: boolean) {
   if (open) void Promise.all([loadTagOptions(), loadGalleryOptions()])
 }
 
-const loadExif = () =>
-  currentCall<typeof exif.value>('/photo/getPhotoExif', (value) => {
+const loadExif = () => {
+  const seq = metadataSequence
+  return currentCall<typeof exif.value>('/photo/getPhotoExif', (value) => {
     exif.value = value
-  }).catch(quiet('Exif Info Response Error!'))
+  }).catch((error) => {
+    if (seq === metadataSequence) mediaFailure.value = mediaErrorMessage(error)
+  })
+}
+async function retryMedia() {
+  if (!(await leaveText())) return
+  mediaFailure.value = ''
+  version.value++
+  void loadExif()
+}
+function mediaFailed() {
+  mediaFailure.value = 'Could not load this media. Please retry.'
+  void loadExif()
+}
 
 function loadShareLink() {
   const seq = metadataSequence
@@ -576,6 +643,7 @@ watch(
   () => currentPhoto.value,
   (photo, previousPhoto) => {
     stopPlayback()
+    mediaFailure.value = ''
     liveInfo.value = null
     if (previousPhoto) rememberRecommendations(previousPhoto.photoId)
     recommendations.value?.collapse()
@@ -1119,6 +1187,13 @@ const overlay = 'dark text-foreground'
           </div>
 
           <template v-else>
+            <p
+              v-if="mediaFailure"
+              role="status"
+              class="z-10 flex items-center gap-3 bg-orange-500/15 px-5 py-3 text-sm text-orange-200"
+            >
+              {{ mediaFailure }}<button class="underline" @click="retryMedia">Retry</button>
+            </p>
             <div ref="stage" class="relative min-h-0 flex-1">
               <Transition :name="`slide-${direction}`">
                 <div
@@ -1153,7 +1228,7 @@ const overlay = 'dark text-foreground'
                       @click.stop
                     >
                       <div
-                        class="flex h-full w-full items-center justify-center"
+                        class="relative flex h-full w-full items-center justify-center"
                         :style="zoom.style.value"
                       >
                         <img
@@ -1163,7 +1238,46 @@ const overlay = 'dark text-foreground'
                           draggable="false"
                           class="max-h-full max-w-full rounded-[2px] object-contain select-none"
                           @load="imageLoaded"
+                          @error="mediaFailed"
                         />
+                        <div
+                          v-if="notesPanel?.open && loaded"
+                          class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+                          :style="{
+                            width: noteImageSize.width + 'px',
+                            height: noteImageSize.height + 'px',
+                          }"
+                        >
+                          <button
+                            v-if="notesPanel.placing"
+                            class="pointer-events-auto absolute inset-0 cursor-crosshair border-2 border-dashed border-orange-400"
+                            aria-label="Choose note position"
+                            @pointerdown.stop
+                            @click.stop="placeNote"
+                          />
+                          <button
+                            v-for="pin in notesPanel.pins"
+                            :key="pin.id"
+                            class="pointer-events-auto absolute flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-orange-600 text-xs font-bold text-white shadow"
+                            :class="
+                              notesPanel.selectedId === pin.id ? 'ring-4 ring-orange-300' : ''
+                            "
+                            :style="{ left: pin.x! * 100 + '%', top: pin.y! * 100 + '%' }"
+                            :aria-label="`Note ${pin.number}`"
+                            @pointerdown.stop
+                            @click.stop="notesPanel.select(pin.id)"
+                          >
+                            {{ pin.number }}
+                          </button>
+                          <span
+                            v-if="notesPanel.draftPoint"
+                            class="absolute size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-blue-500"
+                            :style="{
+                              left: notesPanel.draftPoint.x * 100 + '%',
+                              top: notesPanel.draftPoint.y * 100 + '%',
+                            }"
+                          />
+                        </div>
                       </div>
                     </div>
                     <div
@@ -1235,10 +1349,12 @@ const overlay = 'dark text-foreground'
                   </template>
                   <video
                     v-else-if="kind === 'video'"
+                    :poster="photoUrl(info.photoId, 'renderThumbnail')"
                     ref="mediaEl"
                     controls
                     class="max-h-full max-w-full"
                     @loadedmetadata="mediaReady"
+                    @error="mediaFailed"
                   >
                     <source
                       :src="photoUrl(info.photoId, 'renderV')"
@@ -1410,13 +1526,13 @@ const overlay = 'dark text-foreground'
                   <Folder class="max-md:hidden" aria-hidden="true" />
                   <div class="flex flex-col gap-1 max-md:col-span-2">
                     <div class="break-words max-md:hidden">{{ folder }}</div>
-                    <router-link
+                    <button
                       v-if="info?.nsId !== undefined"
-                      :to="{ path: '/home/HomePart', query: { folder: info.nsId } }"
+                      @click="openMediaFolder"
                       class="text-primary text-sm underline"
-                      @click="emit('close')"
-                      >Open folder</router-link
                     >
+                      Open folder
+                    </button>
                   </div>
                 </template>
                 <template v-if="camera || lens || exposure.length">
@@ -1590,6 +1706,26 @@ const overlay = 'dark text-foreground'
                 />
               </div>
 
+              <MediaNotes
+                :key="`notes:${info.photoId}:${version}`"
+                ref="notesPanel"
+                :photo-id="info.photoId"
+                :can-pin="kind === 'photo'"
+                @placing="startNotePosition"
+                @positioned="notePositioned"
+              />
+              <MediaCategoryEditor
+                :key="`category:${info.photoId}:${version}`"
+                :photo-id="info.photoId"
+                @changed="emit('changed', { type: 'category', photo: info })"
+              />
+              <PeopleInMedia
+                v-if="kind === 'photo'"
+                :photo-id="info.photoId"
+                :before-navigate="leaveText"
+                class="px-5 py-4 md:px-6"
+                @navigate="emit('close')"
+              />
               <div class="flex flex-col gap-3 px-5 py-5 md:px-6">
                 <label class="flex items-center gap-3 text-sm">
                   <span class="flex flex-1 flex-col">

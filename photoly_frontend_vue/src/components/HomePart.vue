@@ -29,6 +29,7 @@ import {
   Upload,
   X,
 } from '@lucide/vue'
+import { useSourceHealth, sourceHealthMessage } from '@/composables/useSourceHealth'
 import { storageFolder } from '@/composables/useStorageRevision'
 import EmptyState from '@/components/EmptyState.vue'
 import MediaList from '@/components/MediaList.vue'
@@ -91,6 +92,17 @@ const route = useRoute()
 
 const auth = useAuthStore()
 const folders = useFolders()
+const healthIds = computed(() => {
+  const current = folders.current.value
+  if (current?.sourceType && current.sourceType !== 'local' && current.sourceId)
+    return [current.sourceId]
+  return folders.children.value
+    .filter((f) => f.isMount && f.sourceType !== 'local' && f.sourceId)
+    .map((f) => f.sourceId!)
+})
+const sourceHealth = useSourceHealth(healthIds)
+const folderHealth = computed(() => sourceHealth.states.value[folders.current.value?.sourceId ?? 0])
+
 const reorder = useFolderReorder(folders.children, folders.reorder, () =>
   toast.error('Could not save folder order. Please try again.'),
 )
@@ -609,6 +621,9 @@ watch(
               :title="title"
               :description="summary"
             >
+              <Button as-child variant="outline" class="md:hidden"
+                ><RouterLink to="/home/CategoryPart"><Grid3X3 />Category</RouterLink></Button
+              >
               <span class="hidden items-center gap-2 md:flex">
                 <ViewToggle />
                 <Button variant="outline" @click="startCreate"><FolderPlus /> New Folder</Button>
@@ -617,6 +632,24 @@ watch(
             </PageHeader>
           </div>
 
+          <div
+            v-if="sourceHealth.error.value || sourceHealthMessage(folderHealth?.state)"
+            role="status"
+            class="my-3 flex flex-wrap items-center gap-3 rounded-lg border border-orange-400/40 bg-orange-500/10 p-4 text-sm text-orange-800 dark:text-orange-200"
+          >
+            <span class="flex-1"
+              >{{ sourceHealth.error.value || sourceHealthMessage(folderHealth?.state)
+              }}<span v-if="folderHealth?.checkedAt" class="mt-1 block text-xs"
+                >Checked {{ new Date(folderHealth.checkedAt).toLocaleTimeString() }}</span
+              ></span
+            >
+            <Button
+              variant="outline"
+              :disabled="sourceHealth.busy.value"
+              @click="sourceHealth.refresh(true)"
+              >Check again</Button
+            >
+          </div>
           <p
             v-if="pageError"
             role="alert"
@@ -792,6 +825,21 @@ watch(
                           ><span class="truncate font-medium" :title="folder.nsName">{{
                             folder.nsName
                           }}</span>
+                          <span
+                            v-if="
+                              folder.isMount &&
+                              sourceHealthMessage(
+                                sourceHealth.states.value[folder.sourceId ?? 0]?.state,
+                              )
+                            "
+                            class="text-xs text-orange-700 dark:text-orange-300"
+                            :title="
+                              sourceHealthMessage(
+                                sourceHealth.states.value[folder.sourceId ?? 0]?.state,
+                              )
+                            "
+                            >Storage unavailable</span
+                          >
                           <span
                             v-if="covers.get(folder.nsId)"
                             class="folder-count text-muted-foreground text-xs"

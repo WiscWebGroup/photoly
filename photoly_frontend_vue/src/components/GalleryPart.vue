@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { useStorageRevision } from '@/composables/useStorageRevision'
+import PeopleInMedia from './PeopleInMedia.vue'
 import GalleryMap from './GalleryMap.vue'
 import SmartBasis from '@/components/SmartBasis.vue'
 import SmartBadge from '@/components/SmartBadge.vue'
 import type { SmartSource } from '@/lib/smartOrganization'
 import { computed, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
+import { useRoute, useRouter } from 'vue-router'
 import {
   Album,
   Archive,
@@ -102,6 +104,8 @@ const covers = [
 ]
 
 const auth = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 const mediaList = ref<InstanceType<typeof MediaList>>()
 const galleries = ref<Gallery[]>([])
 const selectedGaId = ref(-1)
@@ -246,6 +250,7 @@ const detailMeta = computed(() => {
 
 function openGallery(gallery: Gallery) {
   selectedGaId.value = gallery.gaId
+  void router.replace({ query: { ...route.query, gallery: String(gallery.gaId) } })
   galleryPhotos.value = []
   selecting.value = false
   mediaList.value?.updatePhotoList([])
@@ -254,6 +259,9 @@ function openGallery(gallery: Gallery) {
 
 function closeGallery() {
   selectedGaId.value = -1
+  const query = { ...route.query }
+  delete query.gallery
+  void router.replace({ query })
 }
 
 async function saveForm() {
@@ -286,7 +294,7 @@ async function deleteGallery() {
     await call({ method: 'post', url: '/gallery/delete', params: { gaId: g.gaId } })
     toast.success('Gallery Deleted!')
     deleting.value = null
-    if (selectedGaId.value === g.gaId) selectedGaId.value = -1
+    if (selectedGaId.value === g.gaId) closeGallery()
     await loadGalleries()
   } catch {
     toast.warning('Update Error!')
@@ -323,7 +331,15 @@ async function detach(photos: (Photo & { checked?: boolean })[]) {
   await queryPhotos()
 }
 
-onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')))
+onMounted(async () => {
+  try {
+    await loadGalleries()
+    const gallery = galleries.value.find((g) => g.gaId === Number(route.query.gallery))
+    if (gallery) openGallery(gallery)
+  } catch {
+    toast.error('getGa Response Error!')
+  }
+})
 </script>
 
 <template>
@@ -535,6 +551,7 @@ onMounted(() => loadGalleries().catch(() => toast.error('getGa Response Error!')
             @click="selecting = !selecting"
             >{{ selecting ? 'Cancel' : 'Select' }}</Button
           >
+          <PeopleInMedia :gallery-id="current.gaId" />
           <Button variant="outline" @click="startEdit(current)"><Pencil /> Edit</Button>
           <Button variant="outline" @click="downloadGallery(current)"><Download /> Download</Button>
           <DropdownMenu>

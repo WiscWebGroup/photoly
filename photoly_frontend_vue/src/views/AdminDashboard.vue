@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 import { isAxiosError } from 'axios'
 import { toast } from 'vue-sonner'
 import { Database, FolderCog, HardDrive, Power, RefreshCw, Server } from '@lucide/vue'
+import AdminResources from '@/components/AdminResources.vue'
+import BackendUptime from '@/components/BackendUptime.vue'
 import AdminLayout from '@/components/AdminLayout.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import {
@@ -43,6 +45,7 @@ const { guarded } = useAdminGuard()
 const databaseStatus = ref(0)
 const backendStatus = ref(0)
 const loaded = ref(false)
+const refreshKey = ref(0)
 const checkedAt = ref<Date>()
 const services = computed(() => [
   {
@@ -156,6 +159,7 @@ async function powerDown() {
 }
 
 async function loadDashboard() {
+  refreshKey.value++
   loadError.value = ''
   await guarded(async () => {
     try {
@@ -243,6 +247,7 @@ onMounted(loadDashboard)
           </span>
         </div>
         <div class="font-mono text-sm break-all">{{ s.detail || '—' }}</div>
+        <BackendUptime v-if="s.name === 'Backend'" :refresh-key="refreshKey" />
         <div v-if="s.extra" class="text-muted-foreground text-xs">{{ s.extra }}</div>
       </li>
     </ul>
@@ -264,6 +269,8 @@ onMounted(loadDashboard)
         </div>
       </dl>
     </section>
+
+    <AdminResources :refresh-key="refreshKey" />
 
     <section aria-labelledby="settings-h" class="flex flex-col gap-3">
       <h2 id="settings-h" class="text-base font-semibold">Settings</h2>

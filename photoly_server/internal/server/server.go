@@ -69,7 +69,7 @@ func New(ctx context.Context, cfg app.Config, openapi []byte) (*app.App, http.Ha
 	go storage.SweepSources(ctx, pool, cfg.UploadFolder)
 
 	mux := http.NewServeMux()
-	a := &app.App{Cfg: cfg, Pool: pool, Mux: mux}
+	a := &app.App{Cfg: cfg, Pool: pool, Mux: mux, StartedAt: time.Now(), BootID: legacy.NewUUID()}
 	a.Auth = func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			u, ok := store.Lookup(r.Context(), r.Header.Get("HRD-Token"))
@@ -130,6 +130,7 @@ func New(ctx context.Context, cfg app.Config, openapi []byte) (*app.App, http.Ha
 
 // Serve runs the HTTP server until ctx ends, then drains for 15s.
 func Serve(ctx context.Context, a *app.App, h http.Handler) error {
+	a.StartedAt = time.Now()
 	srv := &http.Server{Addr: a.Cfg.Addr, Handler: h, ReadHeaderTimeout: 15 * time.Second}
 	for _, bg := range Background {
 		go bg(ctx, a)

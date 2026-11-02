@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   aiMessage,
-  type AiModelKind,
+  type ServerModelKind,
   type AiSettings,
   type AiStatus,
   type PlacementSetting,
@@ -37,15 +37,15 @@ const props = defineProps<{
   status: AiStatus
   stale: boolean
   busy: boolean
-  load: (kind: AiModelKind, force: boolean) => Promise<unknown>
-  unload: (kind: AiModelKind) => Promise<unknown>
+  load: (kind: ServerModelKind, force: boolean) => Promise<unknown>
+  unload: (kind: ServerModelKind) => Promise<unknown>
 }>()
 const emit = defineEmits<{ set: [patch: Partial<AiSettings>]; error: [message: string] }>()
 
 const options: PlacementSetting[] = ['server', 'browser', 'user']
 const rows: {
-  kind: AiModelKind
-  key: 'placement_image' | 'placement_text'
+  kind: ServerModelKind
+  key: 'placement_image' | 'placement_text' | 'placement_people'
   title: string
   desc: string
   cost: string
@@ -64,14 +64,28 @@ const rows: {
     desc: 'Turns what people type into a search vector.',
     cost: 'Browser: 318 MB download once, Server: 0.9–2.2 GB memory',
   },
+  {
+    kind: 'people',
+    key: 'placement_people',
+    title: 'People',
+    desc: 'Finds faces and groups photos of the same person.',
+    cost: 'YuNet + SFace · Server: about 300 MB memory. Browser processing stays in the browser.',
+  },
 ]
-const value = (key: 'placement_image' | 'placement_text') => props.draft[key] ?? 'user'
+const value = (key: 'placement_image' | 'placement_text' | 'placement_people') =>
+  props.draft[key] ?? 'user'
 
 const memory = computed(() => memoryMeter(props.status, props.stale))
 const worker = computed(() => props.status.worker)
-const pct = (gb: number) => `${memory.value.totalGB ? Math.max(0, (gb / memory.value.totalGB) * 100) : 0}%`
-const modelState = (kind: AiModelKind) => worker.value?.models?.[kind]
+const pct = (gb: number) =>
+  `${memory.value.totalGB ? Math.max(0, (gb / memory.value.totalGB) * 100) : 0}%`
+const modelState = (kind: ServerModelKind) => worker.value?.models?.[kind]
 const fits = computed(() => [
+  {
+    name: 'People models',
+    need: 0.3,
+    state: fitState(memory.value.freeGB, 0.3, !!modelState('people')?.loaded),
+  },
   {
     name: 'Image model',
     need: NEED_GB.image,
@@ -103,7 +117,12 @@ const fitStyle = {
 } as const
 
 // Choosing Server loads the model at once, so a memory problem shows now, not mid-upload.
-const pending = ref<{ kind: AiModelKind; key: 'placement_image' | 'placement_text'; info: LowMemory } | null>(null)
+const pending = ref<{
+  kind: ServerModelKind
+  key: 'placement_image' | 'placement_text' | 'placement_people'
+  info: LowMemory
+  placementChange?: boolean
+} | null>(null)
 const working = ref(false)
 async function choose(row: (typeof rows)[number], to: PlacementSetting) {
   if (to === value(row.key) || working.value) return
@@ -129,19 +148,32 @@ async function loadAnyway() {
   working.value = true
   try {
     await props.load(p.kind, true)
-    emit('set', { [p.key]: 'server' })
+    if (p.placementChange !== false) emit('set', { [p.key]: 'server' })
   } catch (e) {
     emit('error', aiMessage(e))
   } finally {
     working.value = false
   }
 }
-async function unloadModel(kind: AiModelKind) {
+async function unloadModel(kind: ServerModelKind) {
   working.value = true
   try {
     await props.unload(kind)
   } catch (e) {
     emit('error', aiMessage(e))
+  } finally {
+    working.value = false
+  }
+}
+async function loadPeople() {
+  working.value = true
+  try {
+    await props.load('people', false)
+  } catch (e) {
+    const info = lowMemory(e)
+    if (info)
+      pending.value = { kind: 'people', key: 'placement_people', info, placementChange: false }
+    else emit('error', aiMessage(e))
   } finally {
     working.value = false
   }
@@ -178,10 +210,12 @@ const sources = computed(() => props.status.indexSources)
           type="button"
           role="radio"
           :aria-checked="value(row.key) === o"
-          :disabled="busy || working"
+          :disabled="busy || working || (row.kind === 'people' && !status.settings.people_enabled)"
           :class="[
             'h-8 rounded-md px-3 text-sm font-medium',
-            value(row.key) === o ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground',
+            value(row.key) === o
+              ? 'bg-background text-foreground shadow-xs'
+              : 'text-muted-foreground',
           ]"
           @click="choose(row, o)"
         >
@@ -211,8 +245,8 @@ const sources = computed(() => props.status.indexSources)
     </div>
 
     <p class="text-muted-foreground border-t pt-4 text-sm">
-      <span class="text-foreground font-medium">Server finishes what browsers miss</span> ZIP imports,
-      API uploads and tabs closed early are indexed here.
+      <span class="text-foreground font-medium">Search indexing continues on the server</span> ZIP
+      imports, API uploads and tabs closed early are indexed here.
     </p>
 
     <div v-if="sources" class="space-y-1 text-sm">
@@ -231,7 +265,9 @@ const sources = computed(() => props.status.indexSources)
       <div class="flex items-baseline justify-between text-sm">
         <h3 class="font-medium">Server memory</h3>
         <span class="text-muted-foreground">{{
-          memory.known ? `${gbLabel(memory.freeGB)} free of ${Math.round(memory.totalGB)} GB` : 'Unknown'
+          memory.known
+            ? `${gbLabel(memory.freeGB)} free of ${Math.round(memory.totalGB)} GB`
+            : 'Unknown'
         }}</span>
       </div>
       <div
@@ -271,15 +307,29 @@ const sources = computed(() => props.status.indexSources)
         }}</span>
       </div>
       <ul class="space-y-2 text-sm">
-        <li v-for="kind in ['image', 'text'] as const" :key="kind" class="flex items-center gap-3">
+        <li
+          v-for="kind in ['image', 'text', 'people'] as const"
+          :key="kind"
+          class="flex items-center gap-3"
+        >
           <span class="flex min-w-0 flex-1 flex-col">
-            <span class="font-medium">{{ kind === 'image' ? 'Image model' : 'Search model' }}</span>
+            <span class="font-medium">{{
+              kind === 'people'
+                ? 'People models · YuNet + SFace'
+                : kind === 'image'
+                  ? 'Image model'
+                  : 'Search model'
+            }}</span>
             <span class="text-muted-foreground text-xs">{{
-              modelState(kind)?.loaded
-                ? `${modelState(kind)?.variant === 'int8' ? 'Small (int8)' : 'Full precision'}, loaded ${loadedAgo(modelState(kind)?.loadedAt)}`.trim()
-                : kind === 'text' && value('placement_text') !== 'server'
-                  ? 'Not loaded, search runs in browsers'
-                  : 'Not loaded, loads on demand'
+              kind === 'people'
+                ? modelState(kind)?.loaded
+                  ? 'Loaded · about 300 MB server memory'
+                  : 'Not loaded · about 300 MB server memory'
+                : modelState(kind)?.loaded
+                  ? `${modelState(kind)?.variant === 'int8' ? 'Small (int8)' : 'Full precision'}, loaded ${loadedAgo(modelState(kind)?.loadedAt)}`.trim()
+                  : kind === 'text' && value('placement_text') !== 'server'
+                    ? 'Not loaded, search runs in browsers'
+                    : 'Not loaded, loads on demand'
             }}</span>
           </span>
           <Button
@@ -288,9 +338,21 @@ const sources = computed(() => props.status.indexSources)
             variant="outline"
             size="sm"
             :disabled="busy || working"
-            :aria-label="`Unload ${kind === 'image' ? 'image' : 'search'} model`"
+            :aria-label="`Unload ${kind === 'people' ? 'People models' : kind === 'image' ? 'image model' : 'search model'}`"
             @click="unloadModel(kind)"
             >Unload</Button
+          >
+          <Button
+            v-else-if="kind === 'people'"
+            type="button"
+            variant="outline"
+            size="sm"
+            :disabled="
+              busy || working || !status.settings.people_enabled || !status.settings.enabled
+            "
+            aria-label="Load People models"
+            @click="loadPeople"
+            >Load</Button
           >
         </li>
       </ul>
@@ -303,12 +365,14 @@ const sources = computed(() => props.status.indexSources)
     <AlertDialog :open="!!pending" @update:open="(o: boolean) => !o && dismiss()">
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Not enough memory for {{ pending ? kindName(pending.kind) : '' }}</AlertDialogTitle>
+          <AlertDialogTitle
+            >Not enough memory for {{ pending ? kindName(pending.kind) : '' }}</AlertDialogTitle
+          >
           <AlertDialogDescription v-if="pending">
             This model needs about {{ mbToGb(pending.info.needMB) }}, and the server has
             {{ mbToGb(pending.info.availableMB) }} free. If you load it anyway, the system may stop
-            the AI worker. Photoly keeps running, work moves back to browsers, and the worker
-            restarts later.
+            the AI worker. Photoly keeps running and the worker restarts later. People jobs retain
+            their selected execution location.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

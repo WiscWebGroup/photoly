@@ -44,7 +44,12 @@ func usage(ctx context.Context, q Q) (u UsageInfo, err error) {
 	if err = q.QueryRow(ctx, `SELECT COALESCE(SUM(reserved_bytes),0)::bigint FROM ai_job WHERE status='running'`).Scan(&u.Reserved); err != nil {
 		return
 	}
-	err = q.QueryRow(ctx, `SELECT (pg_total_relation_size('photo_embedding_state') + pg_total_relation_size('embedding_profile') + pg_total_relation_size('video_frame_embedding'))::bigint`).Scan(&u.Physical)
+	var faces int64
+	if err = q.QueryRow(ctx, `SELECT count(*) FROM people_embedding`).Scan(&faces); err != nil {
+		return
+	}
+	u.Estimated += faces * faceStorageCharge
+	err = q.QueryRow(ctx, `SELECT (pg_total_relation_size('photo_embedding_state') + pg_total_relation_size('embedding_profile') + pg_total_relation_size('video_frame_embedding') + pg_total_relation_size('people_embedding') + pg_total_relation_size('people_face') + pg_total_relation_size('people_person') + pg_total_relation_size('people_media') + pg_total_relation_size('people_exclusion'))::bigint`).Scan(&u.Physical)
 	return
 }
 
@@ -54,7 +59,7 @@ func recoverJobs(ctx context.Context, q Q) error {
 		return err
 	}
 	_, err := q.Exec(ctx, `UPDATE ai_job SET status='queued', reserved_bytes=0, lease_token=NULL, lease_owner=NULL, result='{"reason":"lease_expired"}'
-		WHERE kind<>'search' AND status='running' AND lease_expires_at < now()`)
+		WHERE kind NOT IN ('search','people') AND status='running' AND lease_expires_at < now()`)
 	return err
 }
 

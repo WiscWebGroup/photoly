@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/url"
@@ -733,19 +734,32 @@ func (s *Service) PhotoPath(ctx context.Context, uid, photoID int64, thumbnail b
 	}
 	uu, err := s.userUUID(ctx, s.Pool, uid)
 	if err != nil {
-		return "", err
+		return "", mediaAccessError(err)
 	}
 	path, err := s.MediaPath(ctx, s.Pool, uu, p.UUID, p.Format, thumbnail)
 	if err != nil {
-		return "", err
+		return "", mediaAccessError(err)
+	}
+	if thumbnail && VideoFormats[strings.ToLower(p.Format)] {
+		var ready bool
+		err = s.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM video_thumbnail_job WHERE photo_id=$1 AND content_version=$2 AND state='ready')`, p.ID, p.ContentVersion).Scan(&ready)
+		if err != nil {
+			return "", err
+		}
+		if !ready || !isFile(path) {
+			return "", Err("thumbnail_unavailable", 404)
+		}
 	}
 	if thumbnail && !isFile(path) {
 		if path, err = s.MediaPath(ctx, s.Pool, uu, p.UUID, p.Format, false); err != nil {
-			return "", err
+			return "", mediaAccessError(err)
 		}
 	}
-	if !isFile(path) {
-		return "", Err(nil, 404)
+	if err := storage.FetchError(ctx, path); err != nil {
+		return "", mediaAccessError(err)
+	}
+	if !regular(path) {
+		return "", Err("file_missing", 404)
 	}
 	return path, nil
 }
@@ -762,14 +776,14 @@ func (s *Service) PreviewPath(ctx context.Context, uid, photoID int64, thumbnail
 		if has, err := dbgen.New(s.Pool).GetPhotoHasPreview(ctx, photoID); err == nil && has {
 			uu, err := s.userUUID(ctx, s.Pool, uid)
 			if err != nil {
-				return "", err
+				return "", mediaAccessError(err)
 			}
 			ap, err := s.AssetPath(ctx, s.Pool, uu, p.UUID, "preview")
 			if err != nil {
-				return "", err
+				return "", mediaAccessError(err)
 			}
-			if !isFile(ap) {
-				return "", Err(nil, 404)
+			if err := storage.FetchError(ctx, ap); err != nil {
+				return "", mediaAccessError(err)
 			}
 			return ap, nil
 		}
@@ -818,6 +832,16 @@ func (s *Service) SharedPath(ctx context.Context, path, token string, hasPath, h
 	if err != nil {
 		return "", err
 	}
+	if thumbnail && VideoFormats[strings.ToLower(p.Format)] {
+		var ready bool
+		if err = s.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM video_thumbnail_job WHERE photo_id=$1 AND content_version=$2 AND state='ready')`, p.ID, p.ContentVersion).Scan(&ready); err != nil {
+			return "", err
+		}
+		if !ready {
+			return "", Err("thumbnail_unavailable", 404)
+		}
+	}
+
 	expected := p.UUID
 	if thumbnail {
 		expected += "_thumbnail"
@@ -876,9 +900,28 @@ func (s *Service) ExifOf(ctx context.Context, uid, photoID int64) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return PublicEXIF(s.ReadMetadata(ctx, path), path), nil
+	meta, info := s.readMetadataInfo(ctx, path)
+	if info != nil && info.Exif != nil && newTIFF(info.Exif) == nil {
+		return nil, Err("exif_parse_failed", 422)
+	}
+	return PublicEXIF(meta, path), nil
 }
 
 func regular(p string) bool { fi, err := os.Stat(p); return err == nil && fi.Mode().IsRegular() }
 
 func baseName(p string) string { return filepath.Base(p) }
+
+func mediaAccessError(err error) error {
+	code := storage.AccessCode(err)
+	if errors.Is(err, pgx.ErrNoRows) {
+		code = "file_missing"
+	}
+	status := 503
+	if code == "file_missing" {
+		status = 404
+	}
+	if code == "access_denied" {
+		status = 403
+	}
+	return Err("storage_"+code, status)
+}

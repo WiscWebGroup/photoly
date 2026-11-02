@@ -1,0 +1,660 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "panorama-1",
+      "group": "panorama",
+      "title": "Cambridge skyline November 2016 panorama.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Cambridge_skyline_November_2016_panorama.jpg",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Cambridge_skyline_November_2016_panorama.jpg/3840px-Cambridge_skyline_November_2016_panorama.jpg",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/e/e3/Cambridge_skyline_November_2016_panorama.jpg",
+      "author": "King of Hearts",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "attribution": "",
+      "sha256": "10b7f0336a63de6371fcf7d3e6d5703de4399a8956e3a4406c8d61ea49215292"
+    },
+    {
+      "id": "panorama-2",
+      "group": "panorama",
+      "title": "Desenberg Westansicht Panorama 2014.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Desenberg_Westansicht_Panorama_2014.jpg",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ee/Desenberg_Westansicht_Panorama_2014.jpg/3840px-Desenberg_Westansicht_Panorama_2014.jpg",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/e/ee/Desenberg_Westansicht_Panorama_2014.jpg",
+      "author": "Tuxyso",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "attribution": "Tuxyso / Wikimedia Commons",
+      "sha256": "a27afd17449c21f7fbe2ca7a5d2826765d3b7c68ceef08f42c40fd21da587ef0"
+    },
+    {
+      "id": "panorama-3",
+      "group": "panorama",
+      "title": "Edo Panorama old Tokyo color photochrom.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Edo_Panorama_old_Tokyo_color_photochrom.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/1/10/Edo_Panorama_old_Tokyo_color_photochrom.jpg",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/1/10/Edo_Panorama_old_Tokyo_color_photochrom.jpg",
+      "author": "Felice Beato",
+      "license": "Public domain",
+      "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+      "attribution": "",
+      "sha256": "d397d9e10fc5adf026f2f04e21ecf2fec935cfa9e459d0ebaa0ed0bf67ece8df"
+    },
+    {
+      "id": "panorama-4",
+      "group": "panorama",
+      "title": "Jokulsarlon Panorama.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Jokulsarlon_Panorama.jpg",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/65/Jokulsarlon_Panorama.jpg/3840px-Jokulsarlon_Panorama.jpg",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/6/65/Jokulsarlon_Panorama.jpg",
+      "author": "Ira Goldstein",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "attribution": "",
+      "sha256": "3ad6f8874d4b11ca2a4ebb1cac99f0af8d0a29808490cd007a88df76c4072c7c"
+    },
+    {
+      "id": "panorama-5",
+      "group": "panorama",
+      "title": "Triangle Vault 360 DEG HQ 10K OpenCL 20200522.png",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Triangle_Vault_360_DEG_HQ_10K_OpenCL_20200522.png",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Triangle_Vault_360_DEG_HQ_10K_OpenCL_20200522.png/3840px-Triangle_Vault_360_DEG_HQ_10K_OpenCL_20200522.png",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/5/53/Triangle_Vault_360_DEG_HQ_10K_OpenCL_20200522.png",
+      "author": "PantheraLeo1359531",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "attribution": "",
+      "sha256": "c943dd677685254d1e31cb1794bbf41a229b0af1ccfdb491078b30a718e829e9"
+    },
+    {
+      "id": "screenshot-1",
+      "group": "screenshot",
+      "title": "20200709 Screenshot Wikibase Registry.png",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:20200709_Screenshot_Wikibase_Registry.png",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/2/2c/20200709_Screenshot_Wikibase_Registry.png",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/2/2c/20200709_Screenshot_Wikibase_Registry.png",
+      "author": "Karsten Hoffmeyer",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "attribution": "",
+      "sha256": "4e1d6a1849b5aa5db0dc81e1181c8f8ca14980544ad3d0ddc4d114f5a3b45cf4"
+    },
+    {
+      "id": "screenshot-2",
+      "group": "screenshot",
+      "title": "2025-01-25 screenshot history as table.png",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:2025-01-25_screenshot_history_as_table.png",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/7/72/2025-01-25_screenshot_history_as_table.png",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/7/72/2025-01-25_screenshot_history_as_table.png",
+      "author": "Lustiger seth",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "attribution": "",
+      "sha256": "1a5b843ae6d0ae000fb4b25b323f2ad3a5b81ce9d926690131f31f999396e419"
+    },
+    {
+      "id": "screenshot-3",
+      "group": "screenshot",
+      "title": "8K-Screenshot Mandelbulber 20200503.png",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:8K-Screenshot_Mandelbulber_20200503.png",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/06/8K-Screenshot_Mandelbulber_20200503.png/3840px-8K-Screenshot_Mandelbulber_20200503.png",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/0/06/8K-Screenshot_Mandelbulber_20200503.png",
+      "author": "PantheraLeo1359531",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "attribution": "",
+      "sha256": "d7b02b74f66ba59b899d3e18cc0e8e621f55f8201bcc9102771d20bc942b0d02"
+    },
+    {
+      "id": "screenshot-4",
+      "group": "screenshot",
+      "title": "Open-Xchange Screenshot Einstellungsmenü.png",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Open-Xchange_Screenshot_Einstellungsmen%C3%BC.png",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/c/c5/Open-Xchange_Screenshot_Einstellungsmen%C3%BC.png",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/c/c5/Open-Xchange_Screenshot_Einstellungsmen%C3%BC.png",
+      "author": "Sphere231",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "attribution": "",
+      "sha256": "2d5c50db04d5a25f831f1967dafe068dda8e5698f365ec602fcf1cfe00602fd2"
+    },
+    {
+      "id": "screenshot-5",
+      "group": "screenshot",
+      "title": "Overleaf screenshot demo.webp",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Overleaf_screenshot_demo.webp",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/Overleaf_screenshot_demo.webp/3840px-Overleaf_screenshot_demo.webp",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/6/67/Overleaf_screenshot_demo.webp",
+      "author": "Wikideas1",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "attribution": "",
+      "sha256": "d92c143cb89f69e5fac368377dd66148e0587e401a3fd9a271af4342de192556"
+    },
+    {
+      "id": "portrait-1",
+      "group": "portrait",
+      "title": "Alan Bean NASA portrait (S69-38859).jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Alan_Bean_NASA_portrait_(S69-38859).jpg",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1b/Alan_Bean_NASA_portrait_%28S69-38859%29.jpg/3840px-Alan_Bean_NASA_portrait_%28S69-38859%29.jpg",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/1/1b/Alan_Bean_NASA_portrait_%28S69-38859%29.jpg",
+      "author": "NASA / Johnson Space Center (NASA-JSC)",
+      "license": "Public domain",
+      "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+      "attribution": "",
+      "sha256": "0aba8a9f5e83c2d76e14a7612f85390197569049b3e0591485f12c17203b1ba4"
+    },
+    {
+      "id": "portrait-2",
+      "group": "portrait",
+      "title": "Jessica Meir official portrait in an EMU (B&W).jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Jessica_Meir_official_portrait_in_an_EMU_(B%26W).jpg",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/Jessica_Meir_official_portrait_in_an_EMU_%28B%26W%29.jpg/3840px-Jessica_Meir_official_portrait_in_an_EMU_%28B%26W%29.jpg",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/1/1d/Jessica_Meir_official_portrait_in_an_EMU_%28B%26W%29.jpg",
+      "author": "Josh Valcarcel",
+      "license": "Public domain",
+      "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+      "attribution": "",
+      "sha256": "36cd535e93c0e172bb699947ce18d6d4e26e0005ed0cffea329b6def4c9715a5"
+    },
+    {
+      "id": "portrait-3",
+      "group": "portrait",
+      "title": "Kalpana Chawla, NASA photo portrait in orange suit.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Kalpana_Chawla,_NASA_photo_portrait_in_orange_suit.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/9/9c/Kalpana_Chawla%2C_NASA_photo_portrait_in_orange_suit.jpg",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/9/9c/Kalpana_Chawla%2C_NASA_photo_portrait_in_orange_suit.jpg",
+      "author": "NASA",
+      "license": "Public domain",
+      "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+      "attribution": "",
+      "sha256": "1934e3673544a04adb45c6a97f5c179c64a7a7f50db033e841a1a1b4457d4303"
+    },
+    {
+      "id": "portrait-4",
+      "group": "portrait",
+      "title": "Laurel Clark, NASA photo portrait in blue suit.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Laurel_Clark,_NASA_photo_portrait_in_blue_suit.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/2/24/Laurel_Clark%2C_NASA_photo_portrait_in_blue_suit.jpg",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/2/24/Laurel_Clark%2C_NASA_photo_portrait_in_blue_suit.jpg",
+      "author": "NASA",
+      "license": "Public domain",
+      "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+      "attribution": "",
+      "sha256": "34c00bbdbd20680f8641d0e7808b029f1c91b811f75fdbc873c06b5da7b99526"
+    },
+    {
+      "id": "portrait-5",
+      "group": "portrait",
+      "title": "NASA astronaut Leland D. Melvin with his dogs Jake and Scout.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:NASA_astronaut_Leland_D._Melvin_with_his_dogs_Jake_and_Scout.jpg",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/NASA_astronaut_Leland_D._Melvin_with_his_dogs_Jake_and_Scout.jpg/3840px-NASA_astronaut_Leland_D._Melvin_with_his_dogs_Jake_and_Scout.jpg",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/8/80/NASA_astronaut_Leland_D._Melvin_with_his_dogs_Jake_and_Scout.jpg",
+      "author": "Robert Markowitz",
+      "license": "Public domain",
+      "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+      "attribution": "",
+      "sha256": "37b983626c9783cbc182dac18fe39a9f2cd2dd9de8d5de69adef2f58c55fb37f"
+    },
+    {
+      "id": "movie-1",
+      "group": "movie",
+      "title": "Big Buck Bunny Trailer 1080p.ogv",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Big_Buck_Bunny_Trailer_1080p.ogv",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/1/18/Big_Buck_Bunny_Trailer_1080p.ogv",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/1/18/Big_Buck_Bunny_Trailer_1080p.ogv",
+      "author": "(c) copyright Blender Foundation\\www.bigbuckbunny.org",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "attribution": "(c) copyright Blender Foundation | www.bigbuckbunny.org",
+      "sha256": "6614fbdec56804eea700f1eb8cae14a2729f01ca25d848e800f7b55d775ab646"
+    }
+  ],
+  "items": [
+    {
+      "id": "panorama-1",
+      "category": "panorama",
+      "sourceId": "panorama-1",
+      "synthetic": false,
+      "modifications": "Resized JPEG; sample 5 retains a 2:1 360-degree projection and declares GPano metadata.",
+      "files": [
+        {
+          "name": "Panorama_01.jpg",
+          "sha256": "613d767c68e157fbe7aae638b9ded06f3155f36a269ed88407f469c3bf63a8f0",
+          "size": 95599
+        }
+      ]
+    },
+    {
+      "id": "screenshot-1",
+      "category": "screenshot",
+      "sourceId": "screenshot-1",
+      "synthetic": false,
+      "modifications": "PNG conversion; filename signal for 1–3, EXIF UserComment for 4–5.",
+      "files": [
+        {
+          "name": "Screenshot_Sample_01.png",
+          "sha256": "32997134010e691a1053bf525c1b4e33d06b9783e82abddb8d18af0808bce923",
+          "size": 290380
+        }
+      ]
+    },
+    {
+      "id": "portrait-1",
+      "category": "portrait",
+      "sourceId": "portrait-1",
+      "synthetic": true,
+      "modifications": "Resized JPEG; synthetic Apple ImageCaptureType=2. NOT an original camera portrait-mode capture or depth fixture.",
+      "files": [
+        {
+          "name": "Portrait_01_SYNTHETIC_METADATA_TEST.jpg",
+          "sha256": "00b254b70c5a441613ebf5b8c7df659844b3324298d4ec7814eda72ace1f7bd2",
+          "size": 150497
+        }
+      ]
+    },
+    {
+      "id": "panorama-2",
+      "category": "panorama",
+      "sourceId": "panorama-2",
+      "synthetic": false,
+      "modifications": "Resized JPEG; sample 5 retains a 2:1 360-degree projection and declares GPano metadata.",
+      "files": [
+        {
+          "name": "Panorama_02.jpg",
+          "sha256": "2316a97ba19c155135edd06438a005e75353a1a452c2e536b2ddc7eb526a24af",
+          "size": 117872
+        }
+      ]
+    },
+    {
+      "id": "screenshot-2",
+      "category": "screenshot",
+      "sourceId": "screenshot-2",
+      "synthetic": false,
+      "modifications": "PNG conversion; filename signal for 1–3, EXIF UserComment for 4–5.",
+      "files": [
+        {
+          "name": "Screenshot_Sample_02.png",
+          "sha256": "6b7e05f5afe0852122aa44ac87edeb854690e70edf430ce049767481cc7c6fef",
+          "size": 279579
+        }
+      ]
+    },
+    {
+      "id": "portrait-2",
+      "category": "portrait",
+      "sourceId": "portrait-2",
+      "synthetic": true,
+      "modifications": "Resized JPEG; synthetic Apple ImageCaptureType=2. NOT an original camera portrait-mode capture or depth fixture.",
+      "files": [
+        {
+          "name": "Portrait_02_SYNTHETIC_METADATA_TEST.jpg",
+          "sha256": "c5bbbae5159b83b410a0d92c8bba702cdb6ec6845ee54a2786cd15e61c70ddf1",
+          "size": 137400
+        }
+      ]
+    },
+    {
+      "id": "panorama-3",
+      "category": "panorama",
+      "sourceId": "panorama-3",
+      "synthetic": false,
+      "modifications": "Resized JPEG; sample 5 retains a 2:1 360-degree projection and declares GPano metadata.",
+      "files": [
+        {
+          "name": "Panorama_03.jpg",
+          "sha256": "f2a92004d1c995bf6fe9a9e2b82d2be7c8eaa136e8d9bb1e5e9e47fe19d57f4d",
+          "size": 127616
+        }
+      ]
+    },
+    {
+      "id": "screenshot-3",
+      "category": "screenshot",
+      "sourceId": "screenshot-3",
+      "synthetic": false,
+      "modifications": "PNG conversion; filename signal for 1–3, EXIF UserComment for 4–5.",
+      "files": [
+        {
+          "name": "Screenshot_Sample_03.png",
+          "sha256": "faed422cbc74e5af3762b01beed5250180ccf50dcf04b25482a64afb63c7ebe3",
+          "size": 7691607
+        }
+      ]
+    },
+    {
+      "id": "portrait-3",
+      "category": "portrait",
+      "sourceId": "portrait-3",
+      "synthetic": true,
+      "modifications": "Resized JPEG; synthetic Apple ImageCaptureType=2. NOT an original camera portrait-mode capture or depth fixture.",
+      "files": [
+        {
+          "name": "Portrait_03_SYNTHETIC_METADATA_TEST.jpg",
+          "sha256": "f6ae9cb7ac33e8bb92f714c2d63381237ee80336a5f5c929cd68f0c1c5775a56",
+          "size": 148996
+        }
+      ]
+    },
+    {
+      "id": "panorama-4",
+      "category": "panorama",
+      "sourceId": "panorama-4",
+      "synthetic": false,
+      "modifications": "Resized JPEG; sample 5 retains a 2:1 360-degree projection and declares GPano metadata.",
+      "files": [
+        {
+          "name": "Panorama_04.jpg",
+          "sha256": "dc057192a30a3a704d5b881f32a8ab3d72c15ea94c05e6fef706520e46983306",
+          "size": 95204
+        }
+      ]
+    },
+    {
+      "id": "screenshot-4",
+      "category": "screenshot",
+      "sourceId": "screenshot-4",
+      "synthetic": false,
+      "modifications": "PNG conversion; filename signal for 1–3, EXIF UserComment for 4–5.",
+      "files": [
+        {
+          "name": "IMG_Sample_04.png",
+          "sha256": "6755f94761f0ccfd4703230dbc9078bfa5eec280cddda8da1bcbcf414dd508fe",
+          "size": 221026
+        }
+      ]
+    },
+    {
+      "id": "portrait-4",
+      "category": "portrait",
+      "sourceId": "portrait-4",
+      "synthetic": true,
+      "modifications": "Resized JPEG; synthetic Apple ImageCaptureType=2. NOT an original camera portrait-mode capture or depth fixture.",
+      "files": [
+        {
+          "name": "Portrait_04_SYNTHETIC_METADATA_TEST.jpg",
+          "sha256": "b33df9363df552122d1342c2f06b1e48c14d759dc12d9b5816ce9e8f3b159004",
+          "size": 126108
+        }
+      ]
+    },
+    {
+      "id": "panorama-5",
+      "category": "panorama",
+      "sourceId": "panorama-5",
+      "synthetic": false,
+      "modifications": "Resized JPEG; sample 5 retains a 2:1 360-degree projection and declares GPano metadata.",
+      "files": [
+        {
+          "name": "Panorama_05.jpg",
+          "sha256": "885d6c9e3f8782e666ea2f08940be0adf3f79ddacfea4e9322fd9a7f3de74cb3",
+          "size": 465525
+        }
+      ]
+    },
+    {
+      "id": "screenshot-5",
+      "category": "screenshot",
+      "sourceId": "screenshot-5",
+      "synthetic": false,
+      "modifications": "PNG conversion; filename signal for 1–3, EXIF UserComment for 4–5.",
+      "files": [
+        {
+          "name": "IMG_Sample_05.png",
+          "sha256": "68234a92a1d50f54916e7deab047245b72b7ca040da3b5266deaf5f930bc4ed6",
+          "size": 1184880
+        }
+      ]
+    },
+    {
+      "id": "portrait-5",
+      "category": "portrait",
+      "sourceId": "portrait-5",
+      "synthetic": true,
+      "modifications": "Resized JPEG; synthetic Apple ImageCaptureType=2. NOT an original camera portrait-mode capture or depth fixture.",
+      "files": [
+        {
+          "name": "Portrait_05_SYNTHETIC_METADATA_TEST.jpg",
+          "sha256": "db54fa5958b4f1a1617c7c921dd4f69f7b472f5fed23ec7b25460d0c02e6206f",
+          "size": 82149
+        }
+      ]
+    },
+    {
+      "id": "video-1",
+      "category": "video",
+      "sourceId": "movie-1",
+      "synthetic": false,
+      "modifications": "Three-second silent excerpt at 2s; resized to 960px.",
+      "files": [
+        {
+          "name": "Video_01_Blender_Trailer.mp4",
+          "sha256": "55eecc159976eba6ca61d4aa11e36088e76eb488901c0dcfe0bd1c7e9b51b8e4",
+          "size": 349411
+        }
+      ]
+    },
+    {
+      "id": "live-1",
+      "category": "live",
+      "sourceId": "movie-1",
+      "synthetic": true,
+      "modifications": "Synthetic Photoly still/MOV pair from trailer at 2s with matching content identifiers. Not an iPhone original; native Apple timed still-image track is not simulated.",
+      "files": [
+        {
+          "name": "Live_01_SYNTHETIC_PAIR.jpg",
+          "sha256": "e0edc08ad3be536cd68841f8b2953a76685ddccb73a3fb64e962639e8be718f0",
+          "size": 17281
+        },
+        {
+          "name": "Live_01_SYNTHETIC_PAIR.mov",
+          "sha256": "8dd06b5af49cc00346543ca3b871e23f2ce596782fd35f63f9a960c194784ee1",
+          "size": 349559
+        }
+      ]
+    },
+    {
+      "id": "animated-1",
+      "category": "animated",
+      "sourceId": "movie-1",
+      "synthetic": false,
+      "modifications": "Two-second animation at 2s, 10 fps, resized to 480px; GIF.",
+      "files": [
+        {
+          "name": "Animation_01.gif",
+          "sha256": "24dc79225578040f189edd504a0efcd14ee7a3f23e6177737d1fd3ee3d83a85c",
+          "size": 229744
+        }
+      ]
+    },
+    {
+      "id": "video-2",
+      "category": "video",
+      "sourceId": "movie-1",
+      "synthetic": false,
+      "modifications": "Three-second silent excerpt at 6s; resized to 960px.",
+      "files": [
+        {
+          "name": "Video_02_Blender_Trailer.mp4",
+          "sha256": "a17f05663c0d23449a4ed22f08072b48c689771f9e091c721594b0bb47e61fd3",
+          "size": 279350
+        }
+      ]
+    },
+    {
+      "id": "live-2",
+      "category": "live",
+      "sourceId": "movie-1",
+      "synthetic": true,
+      "modifications": "Synthetic Photoly still/MOV pair from trailer at 6s with matching content identifiers. Not an iPhone original; native Apple timed still-image track is not simulated.",
+      "files": [
+        {
+          "name": "Live_02_SYNTHETIC_PAIR.jpg",
+          "sha256": "814fa9e58658acc3049b48592a9910e6349403c951f009dfd49c8d1a190b2fec",
+          "size": 28174
+        },
+        {
+          "name": "Live_02_SYNTHETIC_PAIR.mov",
+          "sha256": "4492bba7723ab3e371ea77379ce57f8f870c5bba47346c19c6a3e051d7fece52",
+          "size": 279498
+        }
+      ]
+    },
+    {
+      "id": "animated-2",
+      "category": "animated",
+      "sourceId": "movie-1",
+      "synthetic": false,
+      "modifications": "Two-second animation at 6s, 10 fps, resized to 480px; APNG.",
+      "files": [
+        {
+          "name": "Animation_02.png",
+          "sha256": "b3f165ae22cfb771826dd49d924e5e26ac6ad07751f14301f8844d2bfe8e0f08",
+          "size": 3296359
+        }
+      ]
+    },
+    {
+      "id": "video-3",
+      "category": "video",
+      "sourceId": "movie-1",
+      "synthetic": false,
+      "modifications": "Three-second silent excerpt at 10s; resized to 960px.",
+      "files": [
+        {
+          "name": "Video_03_Blender_Trailer.mp4",
+          "sha256": "3b93a4f3b18bf4a5addea53666ef3735e0d35b1447818c781402efc60c7fa28b",
+          "size": 112248
+        }
+      ]
+    },
+    {
+      "id": "live-3",
+      "category": "live",
+      "sourceId": "movie-1",
+      "synthetic": true,
+      "modifications": "Synthetic Photoly still/MOV pair from trailer at 10s with matching content identifiers. Not an iPhone original; native Apple timed still-image track is not simulated.",
+      "files": [
+        {
+          "name": "Live_03_SYNTHETIC_PAIR.jpg",
+          "sha256": "3c5e4330ebd416de51691197123f3459378ce395bc98f6cec1b9981640b856bd",
+          "size": 46639
+        },
+        {
+          "name": "Live_03_SYNTHETIC_PAIR.mov",
+          "sha256": "37a50d8b13da3d2ebc4fc4dee065c2f13454dd58ca0d306c8d9f43c576aaf697",
+          "size": 112396
+        }
+      ]
+    },
+    {
+      "id": "animated-3",
+      "category": "animated",
+      "sourceId": "movie-1",
+      "synthetic": false,
+      "modifications": "Two-second animation at 10s, 10 fps, resized to 480px; WEBP.",
+      "files": [
+        {
+          "name": "Animation_03.webp",
+          "sha256": "8ca5e679257aa4057523a2f5b45065c3551795af65d3efdb96fc6872cdd30fa7",
+          "size": 46964
+        }
+      ]
+    },
+    {
+      "id": "video-4",
+      "category": "video",
+      "sourceId": "movie-1",
+      "synthetic": false,
+      "modifications": "Three-second silent excerpt at 14s; resized to 960px.",
+      "files": [
+        {
+          "name": "Video_04_Blender_Trailer.mp4",
+          "sha256": "66fbddfa4fb25f54c66610d30366b9903da79703a3ceebf5cc033f009c81aeef",
+          "size": 307006
+        }
+      ]
+    },
+    {
+      "id": "live-4",
+      "category": "live",
+      "sourceId": "movie-1",
+      "synthetic": true,
+      "modifications": "Synthetic Photoly still/MOV pair from trailer at 14s with matching content identifiers. Not an iPhone original; native Apple timed still-image track is not simulated.",
+      "files": [
+        {
+          "name": "Live_04_SYNTHETIC_PAIR.jpg",
+          "sha256": "19cb95e613b08c143cea45af330fbd1031a2529648667a08cab5e4ef4ab188de",
+          "size": 45010
+        },
+        {
+          "name": "Live_04_SYNTHETIC_PAIR.mov",
+          "sha256": "f2783e80b272ab64de69a2faff753f50ea7b58063b3d0e1fd13bcc2b73752f6f",
+          "size": 307154
+        }
+      ]
+    },
+    {
+      "id": "animated-4",
+      "category": "animated",
+      "sourceId": "movie-1",
+      "synthetic": false,
+      "modifications": "Two-second animation at 14s, 10 fps, resized to 480px; GIF.",
+      "files": [
+        {
+          "name": "Animation_04.gif",
+          "sha256": "791c23c9d4ef043b09c22b4786a609e6d034ec9d23049e683ff60f74aece207f",
+          "size": 289028
+        }
+      ]
+    },
+    {
+      "id": "video-5",
+      "category": "video",
+      "sourceId": "movie-1",
+      "synthetic": false,
+      "modifications": "Three-second silent excerpt at 18s; resized to 960px.",
+      "files": [
+        {
+          "name": "Video_05_Blender_Trailer.mp4",
+          "sha256": "bf74f3c2600e18da87d960509958b73921fa436e2e76c7d681679ea119b95c24",
+          "size": 371826
+        }
+      ]
+    },
+    {
+      "id": "live-5",
+      "category": "live",
+      "sourceId": "movie-1",
+      "synthetic": true,
+      "modifications": "Synthetic Photoly still/MOV pair from trailer at 18s with matching content identifiers. Not an iPhone original; native Apple timed still-image track is not simulated.",
+      "files": [
+        {
+          "name": "Live_05_SYNTHETIC_PAIR.jpg",
+          "sha256": "6c3a63ec538717f6287d3e94e7acd9b77601b283b3ec7b4367d14f5f205f5991",
+          "size": 13532
+        },
+        {
+          "name": "Live_05_SYNTHETIC_PAIR.mov",
+          "sha256": "047a6a4f3d6c3a8ab4f15357da6933fdb6d773eeca421b372de0329a20773354",
+          "size": 371974
+        }
+      ]
+    },
+    {
+      "id": "animated-5",
+      "category": "animated",
+      "sourceId": "movie-1",
+      "synthetic": false,
+      "modifications": "Two-second animation at 18s, 10 fps, resized to 480px; APNG.",
+      "files": [
+        {
+          "name": "Animation_05.png",
+          "sha256": "1b965edfae8daeea3072a9a819352312b7d0af903d5a2842bdd4eb0f1034ca1a",
+          "size": 1594159
+        }
+      ]
+    }
+  ]
+}

@@ -524,7 +524,7 @@ func (r *Runtime) WorkerStatus() map[string]any {
 	r.wmu.Unlock()
 	out := map[string]any{"running": false, "appMemoryMB": procMB("VmRSS"), "restartedAt": nil, "restartReason": nil}
 	models := map[string]any{}
-	for _, kind := range []string{"image", "text"} {
+	for _, kind := range []string{"image", "text", "people"} {
 		models[kind] = map[string]any{"loaded": false, "needMB": modelNeedMB[kind]["fp32"]}
 	}
 	out["models"] = models

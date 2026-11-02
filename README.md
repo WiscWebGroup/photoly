@@ -15,6 +15,7 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 - Similar photos and videos, including five-frame video indexing and per-media recommendation state
 - On-demand multilingual text recognition with editable, saved results and copy support (Tesseract CPU)
 - Optional Smart Tag camera/lens labels and time/location-based trip galleries
+- Opt-in private People albums with YuNet/SFace face grouping, persistent names and manual corrections; server or browser inference
 - Circular avatar crop preview with square 512 × 512 JPEG output
 - Create API to operate your photo using REST API
 
@@ -61,6 +62,8 @@ See [LICENSE](LICENSE).
 Scroll down in the viewer to load **Similar photos and videos**. Each item has independent results and scroll state. Returning within 30 seconds of leaving restores it; after that it starts collapsed. Viewing an item continuously does not expire it. **Back to top** collapses recommendations and clears that item's cache.
 
 **Extract Text** runs only when requested. Tesseract recognizes simplified/traditional Chinese, English and Japanese on CPU, independently of AI permissions or the model runtime. Results are saved and can be edited or copied. See [OCR limits and operation](docs/docs/features/extract-text.md).
+
+**People** adds private person albums, photo/Gallery people dialogs and manual merge/split controls. Both feature switches default off. See [People](docs/docs/features/people.md) and [model pins, operations and evaluation limits](docs/docs/administration/people.md).
 
 **Smart Tag** requires global AI, administrator Smart Tag, user AI permission and personal Smart Tag to be enabled. Both Smart Tag switches default off. It runs inside the existing scheduler process, with no extra container or model inference. Turning it off retains editable results. See [rules, controls and offline city attribution](docs/docs/features/smart-tag.md).
 

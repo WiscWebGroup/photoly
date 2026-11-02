@@ -66,7 +66,7 @@ func (s *Service) BinaryHandler(mode string, fn func(w http.ResponseWriter, r *h
 		if err := fn(w, r, uid); err != nil {
 			code := 400
 			if b, ok := BizOf(err); ok {
-				if b.Code == 403 || b.Code == 404 {
+				if b.Code == 403 || b.Code == 404 || b.Code == 503 {
 					code = b.Code
 				}
 			} else {

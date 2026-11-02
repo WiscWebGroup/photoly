@@ -13,6 +13,34 @@ const cors = {
 export const json = (body: JsonBodyType) => HttpResponse.json(body, { headers: cors })
 
 export const server = setupServer(
+  http.get(`${API}/admin/runtime`, () =>
+    ok({ uptimeSeconds: 120, startedAt: '2026-01-01T00:00:00Z', bootId: 'test' }),
+  ),
+  http.get(`${API}/admin/resources/current`, () =>
+    ok({ sampledAt: '2026-01-01T00:00:00Z', cpuPercent: null, backendBytes: null, aiBytes: null }),
+  ),
+  http.get(`${API}/admin/resources/history`, () => ok({ items: [], hours: 24 })),
+  http.get(`${API}/photo/notes`, () => ok({ items: [], contentVersion: 1 })),
+  http.get(`${API}/photo/category`, () => ok([])),
+  http.get(`${API}/user/storage/health`, () => ok([])),
+  http.get(`${API}/ai/people/settings`, () =>
+    ok({
+      preference: {
+        enabled: false,
+        paused: false,
+        placement: 'browser',
+        generation: 1,
+        available: false,
+        visible: false,
+        choosable: true,
+        reason: 'people_disabled',
+      },
+      model: {},
+    }),
+  ),
+  http.get(`${API}/ai/people/status`, () =>
+    ok({ total: 0, ready: 0, failed: 0, processing: 0, pending: 0 }),
+  ),
   http.get(`${API}/demo`, () => json({ msgCode: 200, t: { enabled: false } })),
   http.get(`${API}/user/storage/sources`, () => ok([])),
   http.get(`${API}/uploads`, () =>

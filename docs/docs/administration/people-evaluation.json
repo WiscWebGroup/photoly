@@ -1,0 +1,99 @@
+{
+  "fingerprint": "yunet2023-sface2021-rgb-v1",
+  "limitation": "Two identities with synthetic same-photo derivatives; not an album accuracy benchmark.",
+  "margin": 0.08,
+  "maxNegative": 0.14994236504890068,
+  "minPositive": 0.8980767261030564,
+  "samples": [
+    {
+      "cosineToOriginal": 0.9999999974144131,
+      "device": "cpu",
+      "faces": 1,
+      "ms": 83,
+      "peakMB": 173,
+      "rssMB": 173,
+      "sample": "original"
+    },
+    {
+      "cosineToOriginal": 0.14994236504890068,
+      "device": "cpu",
+      "faces": 1,
+      "ms": 98,
+      "peakMB": 201,
+      "rssMB": 201,
+      "sample": "different-person"
+    },
+    {
+      "cosineToOriginal": 0.9804748188389567,
+      "device": "cpu",
+      "faces": 1,
+      "ms": 69,
+      "peakMB": 203,
+      "rssMB": 156,
+      "sample": "dark"
+    },
+    {
+      "cosineToOriginal": 0.9359444048723162,
+      "device": "cpu",
+      "faces": 1,
+      "ms": 60,
+      "peakMB": 203,
+      "rssMB": 156,
+      "sample": "small"
+    },
+    {
+      "cosineToOriginal": 0.8980767261030564,
+      "device": "cpu",
+      "faces": 1,
+      "ms": 76,
+      "peakMB": 203,
+      "rssMB": 155,
+      "sample": "tilt10"
+    },
+    {
+      "device": "cpu",
+      "faces": 2,
+      "ms": 83,
+      "peakMB": 203,
+      "rssMB": 152,
+      "sample": "group"
+    },
+    {
+      "cosineToOriginal": 0.9910471046850944,
+      "device": "cpu",
+      "faces": 1,
+      "ms": 80,
+      "peakMB": 203,
+      "rssMB": 156,
+      "sample": "jpeg"
+    },
+    {
+      "cosineToOriginal": 0.9577640841905577,
+      "device": "cpu",
+      "faces": 1,
+      "ms": 71,
+      "peakMB": 203,
+      "rssMB": 161,
+      "sample": "animated-first-frame"
+    },
+    {
+      "cosineToOriginal": 0.9999999974144131,
+      "device": "cpu",
+      "faces": 1,
+      "ms": 69,
+      "peakMB": 203,
+      "rssMB": 161,
+      "sample": "tiff"
+    },
+    {
+      "cosineToOriginal": 0.9908567138899116,
+      "device": "cpu",
+      "faces": 1,
+      "ms": 87,
+      "peakMB": 203,
+      "rssMB": 161,
+      "sample": "exif-rotated"
+    }
+  ],
+  "threshold": 0.6
+}

@@ -1,14 +1,18 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { usePeopleStore } from '@/stores/people'
 import { Plus } from '@lucide/vue'
 
 // Phones reach galleries and tags through one "Albums" tab: its heading, an add button for
 // whichever kind is showing, and the switch between the two.
 defineProps<{ addLabel?: string }>()
 const emit = defineEmits<{ add: [] }>()
-const items = [
+const people = usePeopleStore()
+const items = computed(() => [
   { part: 'GalleryPart', label: 'Galleries' },
   { part: 'TagPart', label: 'Tags' },
-]
+  ...(people.visible ? [{ part: 'PeoplePart', label: 'People' }] : []),
+])
 </script>
 
 <template>
@@ -24,7 +28,11 @@ const items = [
         <Plus class="size-5" aria-hidden="true" />
       </button>
     </div>
-    <nav aria-label="Album type" class="bg-muted grid grid-cols-2 rounded-[10px] p-[3px]">
+    <nav
+      aria-label="Album type"
+      class="bg-muted grid rounded-[10px] p-[3px]"
+      :class="people.visible ? 'grid-cols-3' : 'grid-cols-2'"
+    >
       <router-link
         v-for="item in items"
         :key="item.part"
