@@ -740,6 +740,16 @@ func (s *Service) PhotoPath(ctx context.Context, uid, photoID int64, thumbnail b
 	if err != nil {
 		return "", mediaAccessError(err)
 	}
+	if thumbnail && VideoFormats[strings.ToLower(p.Format)] {
+		var ready bool
+		err = s.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM video_thumbnail_job WHERE photo_id=$1 AND content_version=$2 AND state='ready')`, p.ID, p.ContentVersion).Scan(&ready)
+		if err != nil {
+			return "", err
+		}
+		if !ready || !isFile(path) {
+			return "", Err("thumbnail_unavailable", 404)
+		}
+	}
 	if thumbnail && !isFile(path) {
 		if path, err = s.MediaPath(ctx, s.Pool, uu, p.UUID, p.Format, false); err != nil {
 			return "", mediaAccessError(err)
@@ -822,6 +832,16 @@ func (s *Service) SharedPath(ctx context.Context, path, token string, hasPath, h
 	if err != nil {
 		return "", err
 	}
+	if thumbnail && VideoFormats[strings.ToLower(p.Format)] {
+		var ready bool
+		if err = s.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM video_thumbnail_job WHERE photo_id=$1 AND content_version=$2 AND state='ready')`, p.ID, p.ContentVersion).Scan(&ready); err != nil {
+			return "", err
+		}
+		if !ready {
+			return "", Err("thumbnail_unavailable", 404)
+		}
+	}
+
 	expected := p.UUID
 	if thumbnail {
 		expected += "_thumbnail"

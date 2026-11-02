@@ -106,6 +106,16 @@ func imageDims(path string) (int, int, bool) {
 	defer f.Close()
 	cfg, _, err := image.DecodeConfig(f)
 	if err != nil {
+		// Go's WebP decoder does not decode animation, but the bounded VP8X header
+		// provides canvas dimensions before libvips reads the first frame.
+		if _, e := f.Seek(0, io.SeekStart); e == nil {
+			var b [30]byte
+			if _, e = io.ReadFull(f, b[:]); e == nil && string(b[:4]) == "RIFF" && string(b[8:16]) == "WEBPVP8X" && binary.LittleEndian.Uint32(b[16:20]) == 10 {
+				w := 1 + int(b[24]) + int(b[25])<<8 + int(b[26])<<16
+				h := 1 + int(b[27]) + int(b[28])<<8 + int(b[29])<<16
+				return w, h, true
+			}
+		}
 		return 0, 0, false
 	}
 	return cfg.Width, cfg.Height, true
@@ -276,6 +286,20 @@ func ffmpegStill(ctx context.Context, src string, timeout time.Duration) (image.
 			}
 		}
 	}
+	// FFmpeg 5 and Go's decoder cannot read animated WebP. libvips is already
+	// bundled for large images; explicitly read one page, never the frame stack.
+	if sniff(src) == "WEBP" && frameCount(src) > 1 {
+		if err := exec.CommandContext(ctx, "vips", "copy", src+"[page=0,n=1]", out).Run(); err != nil {
+			return nil, err
+		}
+		f, err := os.Open(out)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		return png.Decode(f)
+	}
+
 	cmd := exec.CommandContext(ctx, "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-protocol_whitelist", "file,pipe",
 		"-i", src, "-frames:v", "1", "-an", out)
 	if err := cmd.Run(); err != nil {

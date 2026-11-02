@@ -31,7 +31,7 @@ func classifyMedia(name, format string, m Meta) []string {
 	if capture == 2 || strings.EqualFold(m.String("SpecialTypeID"), "portrait") {
 		out = append(out, "portrait")
 	}
-	if !screenshot && (m.String("ProjectionType") != "" || m.String("UsePanoramaViewer") == "True" || (w > 0 && h > 0 && (w/h >= 3 || h/w >= 3))) {
+	if !screenshot && (m.String("ProjectionType") != "" || m.String("UsePanoramaViewer") == "True" || (w > 0 && h > 0 && (w/h >= 2.5 || h/w >= 2.5))) {
 		out = append(out, "panorama")
 	}
 	return out
@@ -55,9 +55,20 @@ func (s *Service) registerCategories() {
 		for _, row := range rows {
 			counts[row.Category] = row.Count
 		}
+		previews, e := dbgen.New(s.Pool).ListCategoryPreviews(r.Context(), uid)
+		if e != nil {
+			return nil, e
+		}
+		covers := map[string][]map[string]any{}
+		for _, p := range previews {
+			covers[p.Category] = append(covers[p.Category], map[string]any{"photoId": p.PhotoID, "photoName": p.PhotoName, "format": p.Format, "contentVersion": p.ContentVersion})
+		}
 		items := []map[string]any{}
 		for _, k := range categoryNames {
-			items = append(items, map[string]any{"category": k, "count": counts[k]})
+			if covers[k] == nil {
+				covers[k] = []map[string]any{}
+			}
+			items = append(items, map[string]any{"category": k, "count": counts[k], "previews": covers[k]})
 		}
 		var pending int64
 		e = s.Pool.QueryRow(r.Context(), `SELECT count(*) FROM media_classification c JOIN photo p USING(photo_id) JOIN storage_source s ON s.id=p.source_id WHERE p.user_id=$1 AND s.enabled AND c.state<>'ready'`, uid).Scan(&pending)
@@ -218,7 +229,7 @@ func (s *Service) classifyNext(ctx context.Context) bool {
 	if e != nil || currentVersion != version {
 		return true
 	}
-	tag, e := tx.Exec(ctx, `UPDATE media_classification SET categories=$3,state='ready',rule_version=1,error=NULL,lease_token=NULL WHERE photo_id=$1 AND lease_token=$2 AND content_version=$4`, id, token, classifyMedia(name, format, m), version)
+	tag, e := tx.Exec(ctx, `UPDATE media_classification SET categories=$3,state='ready',rule_version=2,error=NULL,lease_token=NULL WHERE photo_id=$1 AND lease_token=$2 AND content_version=$4`, id, token, classifyMedia(name, format, m), version)
 	if e == nil && tag.RowsAffected() > 0 {
 		_, e = tx.Exec(ctx, `INSERT INTO photo_media(photo_id,animated) VALUES($1,$2) ON CONFLICT(photo_id) DO UPDATE SET animated=excluded.animated`, id, animated)
 	}

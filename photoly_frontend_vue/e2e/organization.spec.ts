@@ -118,3 +118,43 @@ test('disconnected mount keeps cached folder contents and can recover', async ({
     page.getByText('Photoly cannot connect to this storage source.', { exact: false }),
   ).toHaveCount(0)
 })
+
+test('category cards show stacked covers, distinct icons and video posters', async ({ page }) => {
+  const kinds = ['video', 'panorama', 'live', 'animated', 'screenshot', 'portrait']
+  await mockApi(page, {
+    '/photo/categories': ok({
+      items: kinds.map((category, index) => ({
+        category,
+        count: index === 5 ? 0 : 3,
+        previews:
+          index === 5
+            ? []
+            : [1, 2, 3].map((n) =>
+                photo(index * 10 + n, `${category}-${n}`, {
+                  format: category === 'video' ? 'mp4' : 'jpg',
+                }),
+              ),
+      })),
+      pending: 0,
+    }),
+    '/photo/categories/video/photos': ok({
+      items: [photo(1, 'sample-video', { format: 'mp4' })],
+      nextAfter: null,
+    }),
+  })
+  await page.goto('/home/CategoryPart')
+  const video = page.getByRole('button', { name: 'Videos 3 items', exact: true })
+  await expect(video.locator('img')).toHaveCount(3)
+  await expect(
+    page.getByRole('button', { name: 'Portrait Mode 0 items', exact: true }).locator('img'),
+  ).toHaveCount(0)
+  const icons = await page
+    .locator('button[aria-busy] svg')
+    .evaluateAll((els) => els.map((el) => el.innerHTML))
+  expect(new Set(icons).size).toBe(6)
+  await video.click()
+  await expect(page.locator('[data-photo-id="1"] img')).toHaveAttribute('src', /renderThumbnail/)
+  await page.locator('[data-photo-id="1"]').click()
+  await expect(page.locator('video').last()).toHaveAttribute('poster', /renderThumbnail/)
+  await page.screenshot({ path: test.info().outputPath('video-poster.png') })
+})

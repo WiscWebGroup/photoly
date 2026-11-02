@@ -1,13 +1,31 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Grid3X3, ChevronLeft } from '@lucide/vue'
+import {
+  Video,
+  RectangleHorizontal,
+  CircleDot,
+  Clapperboard,
+  ScanLine,
+  UserRound,
+  ChevronLeft,
+} from '@lucide/vue'
 import { call } from '@/lib/http'
 import { mediaCategories, type MediaCategory } from '@/lib/mediaCategories'
 import type { Photo } from '@/composables/usePhotos'
 import MediaList from './MediaList.vue'
+import MediaThumbnail from './MediaThumbnail.vue'
 import PageHeader from './PageHeader.vue'
 import { Button } from '@/components/ui/button'
+const icons = {
+  video: Video,
+  panorama: RectangleHorizontal,
+  live: CircleDot,
+  animated: Clapperboard,
+  screenshot: ScanLine,
+  portrait: UserRound,
+}
+const previews = ref<Partial<Record<MediaCategory, Photo[]>>>({})
 const route = useRoute(),
   router = useRouter()
 const category = computed(() => mediaCategories.find((c) => c.id === route.query.category))
@@ -18,7 +36,13 @@ const counts = ref<Record<string, number>>({}),
 const media = ref<InstanceType<typeof MediaList>>(),
   photos = ref<Photo[]>([]),
   after = ref<number | null>(null)
+const page = ref<HTMLElement>()
+const positions = new Map<string, number>()
 let sequence = 0
+function scrollContainer() {
+  return page.value?.closest('main')
+}
+
 async function load(more = false) {
   const seq = ++sequence
   loading.value = true
@@ -36,11 +60,12 @@ async function load(more = false) {
       media.value?.updatePhotoList(photos.value)
     } else {
       const result = await call<{
-        items: { category: MediaCategory; count: number }[]
+        items: { category: MediaCategory; count: number; previews: Photo[] }[]
         pending: number
       }>({ url: '/photo/categories' })
       if (seq !== sequence) return
       counts.value = Object.fromEntries(result.items.map((c) => [c.category, c.count]))
+      previews.value = Object.fromEntries(result.items.map((c) => [c.category, c.previews ?? []]))
       pending.value = result.pending
     }
   } catch {
@@ -51,10 +76,14 @@ async function load(more = false) {
 }
 watch(
   category,
-  () => {
+  async (_, previous) => {
+    const scroller = scrollContainer()
+    if (scroller) positions.set(previous?.id ?? 'overview', scroller.scrollTop)
     photos.value = []
     after.value = null
-    void load()
+    await load()
+    await nextTick()
+    scrollContainer()?.scrollTo({ top: positions.get(category.value?.id ?? 'overview') ?? 0 })
   },
   { immediate: true },
 )
@@ -63,7 +92,7 @@ function visit(id?: string) {
 }
 </script>
 <template>
-  <div class="flex flex-col gap-6 p-4 md:p-8">
+  <div ref="page" class="flex flex-col gap-6 p-4 md:p-8">
     <Button v-if="category" variant="ghost" class="self-start" @click="visit()"
       ><ChevronLeft />Category</Button
     >
@@ -82,15 +111,52 @@ function visit(id?: string) {
       <button
         v-for="item in mediaCategories"
         :key="item.id"
-        class="bg-card hover:bg-accent flex flex-col items-start gap-3 rounded-xl border p-6 text-left"
+        type="button"
+        class="group bg-card hover:border-primary/40 overflow-hidden rounded-2xl border text-left transition-all duration-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        :aria-label="`${item.name} ${(counts[item.id] ?? 0).toLocaleString()} items`"
+        :aria-busy="loading"
         @click="visit(item.id)"
       >
-        <Grid3X3 class="text-muted-foreground size-6" /><span class="font-semibold">{{
-          item.name
-        }}</span>
-        <span class="text-muted-foreground text-sm"
-          >{{ (counts[item.id] ?? 0).toLocaleString() }} items</span
-        >
+        <div class="relative aspect-[16/10] overflow-hidden bg-muted/25" aria-hidden="true">
+          <div
+            v-if="loading && !Object.keys(counts).length"
+            class="absolute inset-6 animate-pulse rounded-lg bg-muted"
+          />
+          <div
+            v-for="(cover, i) in (previews[item.id] ?? []).slice(0, 3)"
+            :key="cover.photoId"
+            class="absolute inset-x-[13%] inset-y-[13%] overflow-hidden rounded-lg border-4 border-background bg-muted shadow-md transition-transform duration-300 motion-reduce:transition-none"
+            :style="{
+              zIndex: 3 - i,
+              transform: `translate(${i * 9}px, ${-i * 7}px) rotate(${i === 0 ? -3 : i === 1 ? 4 : 10}deg)`,
+            }"
+          >
+            <MediaThumbnail
+              :photo-id="cover.photoId"
+              :format="cover.format"
+              :content-version="cover.contentVersion"
+              class="size-full"
+            />
+          </div>
+        </div>
+        <div class="border-t p-5">
+          <div class="flex items-center gap-2.5 font-semibold">
+            <component
+              :is="icons[item.id]"
+              class="text-muted-foreground size-5"
+              aria-hidden="true"
+            />{{ item.name }}
+          </div>
+          <p class="text-muted-foreground mt-1.5 text-sm">
+            {{
+              Object.keys(counts).length
+                ? (counts[item.id] ?? 0).toLocaleString() + ' items'
+                : loading
+                  ? 'Loading…'
+                  : '— items'
+            }}
+          </p>
+        </div>
       </button>
     </div>
     <MediaList

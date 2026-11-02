@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"strings"
+	"unicode/utf16"
 )
 
 // Meta is a subset of `exiftool -json -n` output: the tag names and value kinds the
@@ -226,6 +227,8 @@ func parseTIFF(raw []byte, m Meta, tiffFile bool) {
 				setStr(m, "LensMake", t.str(e))
 			case 0xA434:
 				setStr(m, "LensModel", t.str(e))
+			case 0x9286:
+				setStr(m, "UserComment", decodeUserComment(e.data, t.bo))
 			case 0x927C:
 				parseMakerNote(e.data, m)
 			}
@@ -548,4 +551,37 @@ func readWebP(f *os.File, info *fileInfo) {
 			}
 		}
 	}
+}
+
+// EXIF UserComment has an eight-byte encoding identifier, unlike TIFF ASCII tags.
+func decodeUserComment(data []byte, order binary.ByteOrder) string {
+	if len(data) < 8 {
+		return ""
+	}
+	encoding, payload := string(data[:8]), data[8:]
+	if encoding == "UNICODE\x00" {
+		if len(payload) >= 2 {
+			if payload[0] == 0xff && payload[1] == 0xfe {
+				order = binary.LittleEndian
+				payload = payload[2:]
+			} else if payload[0] == 0xfe && payload[1] == 0xff {
+				order = binary.BigEndian
+				payload = payload[2:]
+			}
+		}
+		units := make([]uint16, 0, len(payload)/2)
+		for len(payload) >= 2 {
+			v := order.Uint16(payload)
+			if v == 0 {
+				break
+			}
+			units = append(units, v)
+			payload = payload[2:]
+		}
+		return strings.TrimSpace(string(utf16.Decode(units)))
+	}
+	if encoding != "ASCII\x00\x00\x00" && encoding != "\x00\x00\x00\x00\x00\x00\x00\x00" {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimRight(string(payload), "\x00"))
 }

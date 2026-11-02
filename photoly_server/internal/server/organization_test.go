@@ -173,3 +173,43 @@ func TestCategoryQueueRecovery(t *testing.T) {
 	}
 	t.Fatal("classification or retry did not persist")
 }
+
+func TestCategoryPreviewLimitAndOwnership(t *testing.T) {
+	f := newLibraryTest(t)
+	ids := []int64{}
+	for i := 0; i < 5; i++ {
+		id := f.upload(f.root, fmt.Sprintf("preview-%d.png", i))
+		ids = append(ids, id)
+		f.ok("PUT", "/photo/category", map[string]any{"photoId": id, "category": "panorama", "included": true})
+	}
+	check := func(f *libraryTest, want int) {
+		t.Helper()
+		data := f.ok("GET", "/photo/categories", nil).(map[string]any)
+		for _, v := range data["items"].([]any) {
+			item := v.(map[string]any)
+			if item["category"] != "panorama" {
+				continue
+			}
+			previews := item["previews"].([]any)
+			if len(previews) != want {
+				t.Fatalf("previews: %v", item)
+			}
+			for i, p := range previews {
+				if p.(map[string]any)["photoId"] != float64(ids[4-i]) {
+					t.Fatal("preview order", previews)
+				}
+			}
+		}
+	}
+	check(f, 3)
+	other := newLibraryTest(t)
+	check(other, 0)
+	f.ok("PUT", "/photo/category", map[string]any{"photoId": ids[4], "category": "panorama", "included": false})
+	data := f.ok("GET", "/photo/categories", nil).(map[string]any)
+	for _, v := range data["items"].([]any) {
+		item := v.(map[string]any)
+		if item["category"] == "panorama" && item["count"] != float64(4) {
+			t.Fatal(item)
+		}
+	}
+}

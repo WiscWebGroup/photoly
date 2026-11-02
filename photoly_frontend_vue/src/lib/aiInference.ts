@@ -1,4 +1,4 @@
-import { AiError, type AiModelKind, type AiStatus, type PlacementSetting } from './ai'
+import { AiError, type ServerModelKind, type AiStatus, type PlacementSetting } from './ai'
 
 const GIB = 1024 ** 3
 /** Server memory each model needs, from the design; a loaded model reports its own. */
@@ -56,6 +56,8 @@ export function lowMemory(error: unknown): LowMemory | null {
   const t = (body.t ?? body) as Record<string, unknown>
   return { needMB: Number(t.needMB) || 0, availableMB: Number(t.availableMB) || 0 }
 }
-export const isWorkerDied = (error: unknown) => error instanceof AiError && error.code === 'worker-died'
+export const isWorkerDied = (error: unknown) =>
+  error instanceof AiError && error.code === 'worker-died'
 
-export const kindName = (kind: AiModelKind) => (kind === 'image' ? 'photo indexing' : 'server search')
+export const kindName = (kind: ServerModelKind) =>
+  kind === 'people' ? 'People' : kind === 'image' ? 'photo indexing' : 'server search'

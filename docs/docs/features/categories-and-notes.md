@@ -8,9 +8,9 @@ Open **Library → Category** on desktop, or **Category** at the top of **Photos
 
 Video, Live Photo and animation membership comes from the actual media type, paired Live Photo assets and frame information. A Live Photo's attached motion clip is not a second library item. Animated GIF, APNG and WebP files are separate from Live Photos.
 
-Semantic classification rules are versioned (currently version 1):
+Semantic classification rules are versioned (currently version 2):
 
-- Panoramas use explicit Google panorama XMP, or a long-to-short dimension ratio of at least 3:1. Recognized screenshots are excluded from this heuristic.
+- Panoramas use explicit Google panorama XMP, or a long-to-short dimension ratio of at least 2.5:1. Recognized screenshots are excluded from this heuristic.
 - Screenshots use explicit metadata or a filename starting with Screenshot, Screen Shot, Screen Capture, 截屏, 屏幕截图 or 螢幕截圖. Resolution alone does not identify a screenshot.
 - Portrait Mode uses explicit capture metadata. Apple's MakerNote `ImageCaptureType = 2` is supported. Faces in an ordinary photo do not make it a Portrait Mode photo.
 
@@ -19,6 +19,10 @@ The built-in reader supports classification XMP in JPEG, uncompressed PNG iTXt a
 In the viewer's **Category** section, set Panorama, Screenshot or Portrait Mode to **Include**, **Exclude**, or **Auto**. Manual choices survive content replacement and automatic reprocessing. Structural categories cannot be overridden.
 
 Existing media is classified in the background after upgrade. The category overview shows outstanding work; use Refresh to update counts. An unavailable source stays pending and retries automatically. Classification is independent of the AI feature switches.
+
+Category cards show up to three latest media covers in a stack, with a different icon for each category. Empty categories keep a blank preview area. Preview rows are queried in one bounded database request and use the authenticated thumbnail endpoint.
+
+Video thumbnails use a display-oriented JPEG frame at `min(1 second, duration / 10)`, falling back to the first decodable frame. They are at most 400px on the longest edge. New and replaced videos enqueue a persistent job; migration 15 also queues existing videos. Generation is independent of AI. Missing thumbnails show a video placeholder, never the original MP4 as an image. Animated WebP first-frame decoding uses the bundled libvips when FFmpeg cannot decode it.
 
 ## Notes
 
@@ -47,3 +51,9 @@ The OpenAPI schema documents `/photo/categories`, category paging and overrides,
 The release checks include a migrated PostgreSQL/pgvector database, account-isolation and note-revision integration tests, classification retries and replacements, read-only coalesced WebDAV probes with permission failure/recovery, Vue tests and browser flows on Chromium, WebKit and a mobile viewport. Optional real AI-model evaluation is separate from these changes.
 
 A local Docker database test inserted 100,001 indexed media rows in batches, then fetched two non-overlapping 100-item category pages and category counts in about 0.50 seconds. This measures database browsing only, not file scanning, network transfer, image decoding or production throughput. Reproduce with `PHOTOLY_SCALE_TEST=1 TEST_DATABASE_URL=... go test ./internal/server -run TestCategoryLargeLibraryPagination -v` against an isolated migrated test database.
+
+## Preview update operations
+
+Migration `00015_category_previews_video_thumbnails.sql` requeues rule-version-1 classifications without changing manual overrides and creates `video_thumbnail_job`. Its worker runs one extraction at a time per process, with three-minute leases and a 90-second work deadline. Decoder failures retry up to five attempts; unavailable source reads remain pending and retry after a minute. Replacements reset the task and invalidate prior leases; deletes cascade. To retry a repaired decoder failure, an operator can reset the affected `failed` job to `pending`, clear attempts/lease/error, and set `next_attempt=now()` in this table. Existing valid media never needs to be re-uploaded.
+
+The sample manifest and reproducible preparation/import tools are in `scripts/category-samples/` at the repository root. Synthetic fixtures are explicitly labeled and never used as evidence of native camera metadata compatibility or face-recognition quality.

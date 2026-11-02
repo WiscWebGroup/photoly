@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { call } from '@/lib/http'
 
 export interface Photo {
+  contentVersion?: number
   photoId: number
   photoName: string
   format?: string

@@ -203,14 +203,6 @@ function recommended() {
   })
   ramEdited.value = true
 }
-async function peopleModel(load: boolean) {
-  try {
-    if (load) await admin.loadModel('people')
-    else await admin.unloadModel('people')
-  } catch (e) {
-    error.value = aiMessage(e)
-  }
-}
 function enableAi() {
   void admin.operate('ai.enable', undefined, selectedProvider.value || undefined)
 }
@@ -424,34 +416,6 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                 />People</label
               >
             </div>
-            <div
-              v-if="status.settings.people_enabled"
-              class="flex flex-wrap items-center gap-3 text-sm"
-            >
-              <span
-                >YuNet + SFace ·
-                {{ status.worker?.models?.people?.loaded ? 'Loaded' : 'Unloaded' }} · about 300 MB
-                server memory</span
-              >
-              <Button variant="outline" size="sm" :disabled="locked" @click="peopleModel(true)"
-                >Load People models</Button
-              >
-              <Button variant="outline" size="sm" :disabled="locked" @click="peopleModel(false)"
-                >Unload People models</Button
-              >
-            </div>
-            <label v-if="draft" class="flex items-center gap-3 text-sm"
-              >Where People runs<select
-                v-model="draft.placement_people"
-                aria-label="People placement"
-                :disabled="locked"
-                class="bg-background rounded-md border p-2"
-              >
-                <option value="user">Let users choose</option>
-                <option value="browser">Browser</option>
-                <option value="server">Server</option>
-              </select></label
-            >
             <p class="text-xs text-muted-foreground">
               Pause AI releases model memory and preserves your index and preferences. Individual
               access is managed in

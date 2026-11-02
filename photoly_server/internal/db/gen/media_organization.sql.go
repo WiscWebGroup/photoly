@@ -9,6 +9,30 @@ import (
 	"context"
 )
 
+const claimVideoThumbnail = `-- name: ClaimVideoThumbnail :one
+WITH candidate AS (
+ SELECT j.photo_id FROM video_thumbnail_job j JOIN photo p USING(photo_id) JOIN storage_source s ON s.id=p.source_id
+ WHERE j.state IN ('pending','processing') AND j.next_attempt<=now() AND s.enabled
+ ORDER BY j.next_attempt,j.photo_id FOR UPDATE OF j SKIP LOCKED LIMIT 1
+)
+UPDATE video_thumbnail_job j SET state='processing',lease_token= $1::text,next_attempt=now()+interval '3 minutes'
+FROM candidate k,photo p WHERE j.photo_id=k.photo_id AND p.photo_id=j.photo_id
+RETURNING j.photo_id,j.content_version,coalesce(p.user_id,0)::int AS user_id
+`
+
+type ClaimVideoThumbnailRow struct {
+	PhotoID        int64
+	ContentVersion int64
+	UserID         int64
+}
+
+func (q *Queries) ClaimVideoThumbnail(ctx context.Context, leaseToken string) (ClaimVideoThumbnailRow, error) {
+	row := q.db.QueryRow(ctx, claimVideoThumbnail, leaseToken)
+	var i ClaimVideoThumbnailRow
+	err := row.Scan(&i.PhotoID, &i.ContentVersion, &i.UserID)
+	return i, err
+}
+
 const listCategoryCounts = `-- name: ListCategoryCounts :many
 SELECT c.category,count(*)::bigint AS count FROM effective_media_category c
 JOIN photo p ON p.photo_id = c.photo_id JOIN storage_source s ON s.id = p.source_id
@@ -30,6 +54,51 @@ func (q *Queries) ListCategoryCounts(ctx context.Context, userID int64) ([]ListC
 	for rows.Next() {
 		var i ListCategoryCountsRow
 		if err := rows.Scan(&i.Category, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCategoryPreviews = `-- name: ListCategoryPreviews :many
+SELECT k.category::text AS category,p.photo_id,coalesce(p.photo_name,'')::text AS photo_name,coalesce(p.format,'')::text AS format,p.content_version
+FROM (SELECT unnest(ARRAY['video','panorama','live','animated','screenshot','portrait']::text[]) AS category) k
+CROSS JOIN LATERAL (
+ SELECT p.photo_id,p.photo_name,p.format,p.content_version FROM effective_media_category c
+ JOIN photo p ON p.photo_id=c.photo_id JOIN storage_source s ON s.id=p.source_id
+ WHERE c.user_id= $1::int AND s.enabled AND c.category=k.category
+ ORDER BY p.photo_id DESC LIMIT 3
+) p
+`
+
+type ListCategoryPreviewsRow struct {
+	Category       string
+	PhotoID        int64
+	PhotoName      string
+	Format         string
+	ContentVersion int64
+}
+
+func (q *Queries) ListCategoryPreviews(ctx context.Context, userID int64) ([]ListCategoryPreviewsRow, error) {
+	rows, err := q.db.Query(ctx, listCategoryPreviews, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListCategoryPreviewsRow
+	for rows.Next() {
+		var i ListCategoryPreviewsRow
+		if err := rows.Scan(
+			&i.Category,
+			&i.PhotoID,
+			&i.PhotoName,
+			&i.Format,
+			&i.ContentVersion,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -1349,6 +1349,7 @@ const overlay = 'dark text-foreground'
                   </template>
                   <video
                     v-else-if="kind === 'video'"
+                    :poster="photoUrl(info.photoId, 'renderThumbnail')"
                     ref="mediaEl"
                     controls
                     class="max-h-full max-w-full"

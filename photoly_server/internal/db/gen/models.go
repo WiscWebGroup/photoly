@@ -496,3 +496,13 @@ type VideoFrameEmbedding struct {
 	TimestampMs int64
 	Embedding   interface{}
 }
+
+type VideoThumbnailJob struct {
+	PhotoID        int64
+	ContentVersion int64
+	State          string
+	Attempts       int64
+	NextAttempt    time.Time
+	LeaseToken     *string
+	Error          *string
+}
