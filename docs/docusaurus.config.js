@@ -14,7 +14,7 @@ module.exports = {
     [
       'classic',
       {
-        // Docs-only mode: docs/docs/index.md is the landing page at "/".
+        // Docs-only mode: overview/welcome.md (slug: /) is the landing page.
         docs: {
           routeBasePath: '/',
           sidebarPath: './sidebars.js',
@@ -29,6 +29,8 @@ module.exports = {
     navbar: {
       title: 'Photoly',
       items: [
+        { to: '/', label: 'Docs', position: 'left' },
+        { to: '/api', label: 'API', position: 'left' },
         { href: 'https://github.com/WiscWebGroup/photoly', label: 'GitHub', position: 'right' },
       ],
     },
