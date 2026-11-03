@@ -40,6 +40,7 @@ services:
       # real password. Demo mode also closes sign-up and turns the landing page into
       # "Try the demo" / "Deploy your own".
       DEMO_PASSWORD: ${DEMO_PASSWORD:?Set DEMO_PASSWORD in .env}
+      BACKUP_DIR: /backups
       PUBLIC_BASE_URL: ${DEMO_PUBLIC_BASE_URL:-http://localhost:8385}
       TIMEZONE: ${TIMEZONE:-America/New_York}
       MAX_CONTENT_LENGTH: ${MAX_CONTENT_LENGTH:-629145600}
@@ -48,6 +49,7 @@ services:
     volumes:
       - ./demo_data/upload:/photoly
       - photoly_models:/var/lib/photoly
+      - photoly_backups:/backups
       - postgres_data:/var/lib/postgresql/data
     stop_grace_period: 60s
     restart: unless-stopped
@@ -77,6 +79,7 @@ services:
         done
 
 volumes:
+  photoly_backups:
   photoly_models:
   postgres_data:
 

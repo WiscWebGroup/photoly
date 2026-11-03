@@ -29,7 +29,15 @@ watch(
   { immediate: true },
 )
 
-const goHome = () => router.push('/home/HomePart')
+const goHome = async () => {
+  try {
+    const { data } = await http.get('/maintenance/status')
+    if (data.t?.mode !== 'off' && data.t?.mode) return router.push('/thepersonincharge/maintenance')
+  } catch {
+    /* use the normal library route if status is unavailable */
+  }
+  return router.push('/home/HomePart')
+}
 
 async function login() {
   if (loading.value) return

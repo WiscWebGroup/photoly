@@ -171,7 +171,7 @@ func (s *Service) install(ctx context.Context, tx pgx.Tx, f *photo.Files, u phot
 	it.PhotoID, it.State = &p.ID, "done"
 	if err == nil {
 		// Own connection, and it takes the user-row lock this tx holds: run it after the tx commits.
-		go s.applyHeld(ctx, it.ID, u.ID, p.ID)
+		s.Background(func(work context.Context) { s.applyHeld(work, it.ID, u.ID, p.ID) })
 	}
 	return p, err
 }

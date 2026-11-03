@@ -5,17 +5,21 @@ package app
 import (
 	"context"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Config struct {
-	DatabaseURL  string
-	UploadFolder string
-	AdminEmail   string
-	DemoEmail    string // DEMO_EMAIL: account barred from /admin writes and login changes (see server/demo.go)
-	DemoPassword string // DEMO_PASSWORD: shown on the demo login page only; the account's real password is set elsewhere
+	DatabaseURL          string
+	UploadFolder         string
+	BackupDir            string
+	BackupDatabaseURL    string
+	MigrationDatabaseURL string
+	AdminEmail           string
+	DemoEmail            string // DEMO_EMAIL: account barred from /admin writes and login changes (see server/demo.go)
+	DemoPassword         string // DEMO_PASSWORD: shown on the demo login page only; the account's real password is set elsewhere
 
 	AdminPassword                string
 	Addr                         string // listen address, PHOTOLY_ADDR (default :8084)
@@ -41,6 +45,10 @@ type User struct {
 }
 
 type App struct {
+	Context context.Context
+	Workers sync.WaitGroup
+	OnClose []func()
+
 	StartedAt   time.Time
 	BootID      string
 	WorkerRSS   func() *int64
@@ -57,4 +65,19 @@ type App struct {
 	Admin func(http.HandlerFunc) http.HandlerFunc
 	// UserFrom returns the authenticated user inside an Auth-wrapped handler.
 	UserFrom func(ctx context.Context) User
+}
+
+// Go owns a background task for the entire application lifetime.
+func (a *App) Go(fn func(context.Context)) {
+	a.Workers.Add(1)
+	go func() { defer a.Workers.Done(); fn(a.Context) }()
+}
+
+// Wait is called after cancelling Context and draining HTTP requests.
+func (a *App) Wait() {
+	a.Workers.Wait()
+	for _, close := range a.OnClose {
+		close()
+	}
+	a.Pool.Close()
 }

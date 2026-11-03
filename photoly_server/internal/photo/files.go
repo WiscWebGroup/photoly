@@ -229,3 +229,8 @@ func (s *Service) atomic(ctx context.Context, uid int64, scan bool, fn func(tx p
 
 // ErrNotFound reports pgx.ErrNoRows.
 func isNoRows(err error) bool { return err == pgx.ErrNoRows }
+
+// Background keeps follow-up work attached to the application lifecycle.
+func (s *Service) Background(fn func(context.Context)) {
+	s.app.Go(fn)
+}

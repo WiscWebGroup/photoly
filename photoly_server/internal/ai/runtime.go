@@ -29,8 +29,11 @@ type encItem struct {
 }
 
 type Runtime struct {
-	profile Profile
-	root    string // upload folder, for the disk figure in status
+	stopped      bool
+	tasks        sync.WaitGroup
+	dispatchDone chan struct{}
+	profile      Profile
+	root         string // upload folder, for the disk figure in status
 
 	wmu     sync.Mutex
 	w       *Worker
@@ -61,7 +64,7 @@ type Runtime struct {
 }
 
 func NewRuntime(root string) *Runtime {
-	r := &Runtime{profile: ONNXProfile(), root: root, state: "unloaded", generation: -1, requested: -1,
+	r := &Runtime{dispatchDone: make(chan struct{}), profile: ONNXProfile(), root: root, state: "unloaded", generation: -1, requested: -1,
 		config: map[string]any{"device": "cpu", "precision": "float32", "cpu_threads": 4}, cancel: make(chan struct{})}
 	r.cond = sync.NewCond(&r.mu)
 	go r.dispatch()
@@ -143,7 +146,8 @@ func (r *Runtime) Submit(command string, kinds []string, config map[string]any, 
 		return nil, err
 	}
 	r.mu.Unlock()
-	go func() { _, _ = r.change(command, kinds, config, generation, opID, cancel) }()
+	r.tasks.Add(1)
+	go func() { defer r.tasks.Done(); _, _ = r.change(command, kinds, config, generation, opID, cancel) }()
 	return r.Status(), nil
 }
 
@@ -392,10 +396,15 @@ func (r *Runtime) Encode(it *encItem, background bool, timeout time.Duration) ([
 }
 
 func (r *Runtime) dispatch() {
+	defer close(r.dispatchDone)
 	for {
 		r.mu.Lock()
-		for len(r.online) == 0 && len(r.background) == 0 {
+		for !r.stopped && len(r.online) == 0 && len(r.background) == 0 {
 			r.cond.Wait()
+		}
+		if r.stopped {
+			r.mu.Unlock()
+			return
 		}
 		var it *encItem
 		if len(r.background) > 0 && (r.onlineStreak >= 8 || len(r.online) == 0) {
@@ -550,4 +559,17 @@ func (r *Runtime) WorkerStatus() map[string]any {
 		models[kind] = d
 	}
 	return out
+}
+
+// Shutdown permanently stops this runtime after its schedulers and requests have drained.
+func (r *Runtime) Shutdown() {
+	r.mu.Lock()
+	r.stopped = true
+	close(r.cancel)
+	r.flush(errors.New("runtime stopped"))
+	r.cond.Broadcast()
+	r.mu.Unlock()
+	r.tasks.Wait()
+	r.Close()
+	<-r.dispatchDone
 }

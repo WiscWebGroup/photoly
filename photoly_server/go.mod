@@ -3,20 +3,23 @@ module github.com/WiscWebGroup/photoly/photoly_server
 go 1.26.10
 
 require (
+	filippo.io/age v1.3.1
 	github.com/cloudsoda/go-smb2 v0.0.0-20261029174947-95daac2ef783
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.4
+	github.com/klauspost/compress v1.18.0
 	github.com/minio/minio-go/v7 v7.0.97
 	github.com/pgvector/pgvector-go v0.2.2
 	github.com/pressly/goose/v3 v3.24.3
 	github.com/yalue/onnxruntime_go v1.37.0
-	golang.org/x/crypto v0.38.0
+	golang.org/x/crypto v0.45.0
 	golang.org/x/image v0.36.0
-	golang.org/x/net v0.40.0
-	golang.org/x/sys v0.34.0
+	golang.org/x/net v0.47.0
+	golang.org/x/sys v0.38.0
 )
 
 require (
+	filippo.io/hpke v0.4.0 // indirect
 	github.com/cloudsoda/sddl v0.0.0-20250224235906-926454e91efc // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/geoffgarside/ber v1.1.0 // indirect
@@ -31,7 +34,6 @@ require (
 	github.com/jcmturner/goidentity/v6 v6.0.1 // indirect
 	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.11 // indirect
 	github.com/klauspost/crc32 v1.3.0 // indirect
 	github.com/kr/text v0.2.0 // indirect

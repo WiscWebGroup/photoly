@@ -26,7 +26,12 @@ COPY . .
 RUN go vet ./... \
     && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/photoly-bin ./cmd/photoly
 
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim AS standalone
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/keyrings/pgdg.asc \
+    && echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update && apt-get install -y --no-install-recommends postgresql-client-17 \
+    && rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 ffmpeg libheif-examples libvips-tools util-linux \
       libimage-exiftool-perl tesseract-ocr tesseract-ocr-eng tesseract-ocr-chi-sim tesseract-ocr-chi-tra tesseract-ocr-jpn \
     && rm -rf /var/lib/apt/lists/* \
@@ -35,6 +40,7 @@ COPY --from=build /out/lib /usr/local/lib/onnxruntime
 COPY --from=build /out/photoly-bin /usr/local/bin/photoly
 COPY --from=build --chown=65532:65532 --chmod=1777 /out/tmp /tmp
 # Uploaded media lives in UPLOAD_FOLDER (mount ./upload_data here, owned by uid 65532).
+COPY --from=build --chown=65532:65532 /out/data /backups
 COPY --from=build --chown=65532:65532 /out/data /photoly
 # Downloaded model weights; mount a volume here to keep them across rebuilds.
 COPY --from=build --chown=65532:65532 /out/data /var/lib/photoly
@@ -53,7 +59,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
       libimage-exiftool-perl tesseract-ocr tesseract-ocr-eng tesseract-ocr-chi-sim tesseract-ocr-chi-tra tesseract-ocr-jpn \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -g 65532 nonroot && useradd -u 65532 -g 65532 -M -s /usr/sbin/nologin nonroot \
-    && mkdir -p /photoly /var/lib/photoly && chown 65532:65532 /photoly /var/lib/photoly
+    && mkdir -p /photoly /var/lib/photoly /backups && chown 65532:65532 /photoly /var/lib/photoly /backups
 COPY --from=build /out/lib /usr/local/lib/onnxruntime
 COPY --from=build /out/photoly-bin /usr/local/bin/photoly
 COPY --from=dbinit . /docker-entrypoint-initdb.d/

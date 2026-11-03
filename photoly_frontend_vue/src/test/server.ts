@@ -41,6 +41,7 @@ export const server = setupServer(
   http.get(`${API}/ai/people/status`, () =>
     ok({ total: 0, ready: 0, failed: 0, processing: 0, pending: 0 }),
   ),
+  http.get(`${API}/maintenance/status`, () => ok({ mode: 'off' })),
   http.get(`${API}/demo`, () => json({ msgCode: 200, t: { enabled: false } })),
   http.get(`${API}/user/storage/sources`, () => ok([])),
   http.get(`${API}/uploads`, () =>
