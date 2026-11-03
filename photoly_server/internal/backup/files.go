@@ -159,13 +159,16 @@ func (r contextReader) Read(p []byte) (int, error) {
 	return r.r.Read(p)
 }
 func digest(path string) (string, error) {
+	return digestContext(context.Background(), path)
+}
+func digestContext(ctx context.Context, path string) (string, error) {
 	f, e := os.Open(path)
 	if e != nil {
 		return "", e
 	}
 	defer f.Close()
 	h := sha256.New()
-	if _, e = io.Copy(h, f); e != nil {
+	if _, e = io.Copy(h, contextReader{ctx, f}); e != nil {
 		return "", e
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
