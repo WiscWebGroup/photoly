@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AuthField from '@/components/auth/AuthField.vue'
 import AuthSubmit from '@/components/auth/AuthSubmit.vue'
 import { useDemo } from '@/composables/useDemo'
@@ -9,6 +9,7 @@ import { http } from '@/lib/http'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const { warning, show } = useWarning()
 
@@ -36,6 +37,14 @@ const goHome = async () => {
   } catch {
     /* use the normal library route if status is unavailable */
   }
+  const redirect = route.query.redirect
+  if (
+    typeof redirect === 'string' &&
+    redirect.startsWith('/') &&
+    !redirect.startsWith('//') &&
+    router.resolve(redirect).meta.requiresAuth
+  )
+    return router.replace(redirect)
   return router.push('/home/HomePart')
 }
 

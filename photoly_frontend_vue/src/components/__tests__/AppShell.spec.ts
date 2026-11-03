@@ -6,6 +6,7 @@ import { mountWithApp } from '@/test/utils'
 import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import AppShell from '../AppShell.vue'
+import { byText } from '@/test/utils'
 
 describe('AppShell', () => {
   beforeEach(async () => {
@@ -48,6 +49,55 @@ describe('AppShell', () => {
     toggle().click()
     await vi.waitFor(() => expect(toggle().getAttribute('aria-expanded')).toBe('true'))
     expect(localStorage.getItem('photoly-sidebar-hidden')).toBe('false')
+  })
+
+  it('shows pins above Library, highlights only the current pin and supports unpinning', async () => {
+    server.use(
+      http.get(`${API}/namespace/pins`, () =>
+        ok({ items: [{ nsId: 5, nsName: 'Trips', path: 'Library / Trips' }], defaultNsId: 5 }),
+      ),
+      http.post(`${API}/namespace/unpin`, () => ok({ items: [], defaultNsId: null })),
+    )
+    await router.push('/home/HomePart?folder=5')
+    mountWithApp(AppShell)
+    await vi.waitFor(() =>
+      expect(document.querySelector('[aria-label="Pinned folders"]')).not.toBeNull(),
+    )
+    const sidebar = document.querySelector('#main-sidebar')!
+    const pin = sidebar.querySelector('a[href="/home/HomePart?folder=5"]')!
+    const photos = sidebar.querySelector('nav a[href="/home/HomePart"]')!
+    expect(pin.getAttribute('aria-current')).toBe('page')
+    expect(photos.hasAttribute('aria-current')).toBe(false)
+    expect(sidebar.textContent!.indexOf('Pinned')).toBeLessThan(
+      sidebar.textContent!.indexOf('Library'),
+    )
+    expect(pin.querySelector('[aria-label="Default location"]')).not.toBeNull()
+    pin.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, button: 2, clientX: 10, clientY: 10 }),
+    )
+    await vi.waitFor(() => byText('Clear default location'))
+    byText('Unpin').click()
+    await vi.waitFor(() =>
+      expect(sidebar.querySelector('[aria-label="Pinned folders"]')).toBeNull(),
+    )
+    expect(router.currentRoute.value.query.folder).toBe('5')
+    expect(photos.getAttribute('aria-current')).toBe('page')
+  })
+
+  it('reloads pins when the window regains focus', async () => {
+    let items: { nsId: number; nsName: string; path: string }[] = []
+    server.use(http.get(`${API}/namespace/pins`, () => ok({ items, defaultNsId: null })))
+    mountWithApp(AppShell)
+    await vi.waitFor(() =>
+      expect(document.querySelector('[aria-label="Pinned folders"]')).toBeNull(),
+    )
+    items = [{ nsId: 8, nsName: 'Other device', path: 'Library / Other device' }]
+    window.dispatchEvent(new Event('focus'))
+    await vi.waitFor(() =>
+      expect(document.querySelector('[aria-label="Pinned folders"]')?.textContent).toContain(
+        'Other device',
+      ),
+    )
   })
 
   it('"/" jumps to search unless typing in a field', async () => {

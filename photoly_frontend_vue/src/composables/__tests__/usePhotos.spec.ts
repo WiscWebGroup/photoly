@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { http } from 'msw'
 import { API, ok, recordRequests, server } from '@/test/server'
 import { usePhotos } from '../usePhotos'
@@ -17,6 +17,32 @@ beforeEach(() => {
 })
 
 describe('usePhotos', () => {
+  it('keeps the latest folder photos when a previous request finishes later', async () => {
+    let finish!: () => void
+    const delayed = new Promise<void>((resolve) => {
+      finish = resolve
+    })
+    let started = false
+    server.use(
+      http.get(`${API}/photo/getByNamespace`, async ({ request }) => {
+        if (new URL(request.url).searchParams.get('nsId') === '1') {
+          started = true
+          await delayed
+          return ok([list[0]])
+        }
+        return ok([list[1]])
+      }),
+    )
+    const photos = usePhotos()
+    const previous = photos.loadByFolder(1)
+    await vi.waitFor(() => expect(started).toBe(true))
+    photos.invalidate()
+    await photos.loadByFolder(2)
+    finish()
+    await previous
+    expect(photos.photos.value).toEqual([list[1]])
+    expect(photos.loading.value).toBe(false)
+  })
   it('loads by folder and by gallery', async () => {
     const calls = recordRequests()
     const { photos, loadByFolder, loadByGallery, loading } = usePhotos()

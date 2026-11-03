@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import {
@@ -23,6 +23,8 @@ import {
   List,
   Loader2,
   Pencil,
+  Pin,
+  PinOff,
   Ellipsis,
   SquareCheck,
   Trash2,
@@ -83,18 +85,22 @@ import { photoUrl } from '@/lib/photoUrl'
 import { call, ApiError } from '@/lib/http'
 import { mediaKind } from '@/lib/media'
 import { cn } from '@/lib/utils'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { useFolderPinsStore } from '@/stores/folderPins'
+import type { SourceHealth } from '@/composables/useSourceHealth'
 import { useUploadsStore } from '@/stores/uploads'
 import { useAuthStore } from '@/stores/auth'
 
 const uploads = useUploadsStore()
 const route = useRoute()
+const router = useRouter()
+const pins = useFolderPinsStore()
 
 const auth = useAuthStore()
 const folders = useFolders()
 const healthIds = computed(() => {
   const current = folders.current.value
-  if (current?.sourceType && current.sourceType !== 'local' && current.sourceId)
+  if (current?.sourceId && (current.sourceType !== 'local' || folders.path.value.length > 1))
     return [current.sourceId]
   return folders.children.value
     .filter((f) => f.isMount && f.sourceType !== 'local' && f.sourceId)
@@ -196,67 +202,95 @@ watchDebounced(
 )
 
 // --- Navigation ---------------------------------------------------------------------------------
+let navigation = 0
+onUnmounted(() => {
+  navigation++
+  folders.invalidate()
+  library.invalidate()
+})
 async function queryPhotos() {
+  const started = navigation
   pageError.value = false
   try {
     await library.loadByFolder(nsId.value)
-    mediaList.value?.updatePhotoList(library.photos.value)
+    if (started === navigation) mediaList.value?.updatePhotoList(library.photos.value)
   } catch {
+    if (started !== navigation) return
     pageError.value = true
-    toast.error('query photo Response Error!')
+    toast.error('Could not load photos. Please retry.')
   }
 }
 
-async function go(id: number, name = '') {
-  if (id === nsId.value) return
+function go(id: number, _name = '') {
+  return router.push({ path: '/home/HomePart', query: { folder: String(id) } })
+}
+
+async function loadLocation(value: unknown) {
+  const started = ++navigation
+  const id = typeof value === 'string' && /^[1-9]\d*$/.test(value) ? Number(value) : null
+  const useDefault = id !== null && pins.startupFolderId === id
+  pins.startupFolderId = null
+  folders.invalidate()
+  library.invalidate()
   selected.value = []
   pageLoading.value = true
   pageError.value = false
+  const active = () => started === navigation
+  async function open(root = false) {
+    if (root || id === null) await folders.openRoot()
+    else await folders.open(id)
+    if (!active()) return
+    if (useDefault && !root && folders.current.value?.sourceId) {
+      const states = await call<SourceHealth[]>({
+        url: '/user/storage/health',
+        params: { ids: String(folders.current.value.sourceId) },
+        timeout: 10000,
+      })
+      if (!active()) return
+      if (states.some((state) => state.state !== 'available'))
+        throw new Error('Storage unavailable')
+    }
+    mediaList.value?.updateNsId(nsId.value)
+    await library.loadByFolder(nsId.value)
+    if (active()) mediaList.value?.updatePhotoList(library.photos.value)
+  }
   try {
-    const opened = folders.open(id, name)
-    mediaList.value?.updateNsId(id)
-    await Promise.all([opened, queryPhotos()])
+    await open()
   } catch {
-    pageError.value = true
-    toast.error('query folder Response Error!')
+    if (!active()) return
+    if (useDefault) {
+      toast.error('Your default folder is unavailable. Opening Library.')
+      try {
+        await open(true)
+      } catch {
+        if (active()) pageError.value = true
+      }
+    } else {
+      pageError.value = true
+      toast.error('Could not load this folder. Please retry.')
+    }
   } finally {
-    pageLoading.value = false
+    if (active()) pageLoading.value = false
+  }
+  if (active() && !pageError.value && nsId.value > 0 && route.params.part === 'HomePart') {
+    // Canonicalize root/default entry so a refresh restores the actual current folder.
+    if (String(nsId.value) !== route.query.folder)
+      await router.replace({
+        path: '/home/HomePart',
+        query: { ...route.query, folder: String(nsId.value) },
+      })
   }
 }
 
-onMounted(async () => {
-  try {
-    if (route.query.folder && Number(route.query.folder) > 0)
-      await folders.open(Number(route.query.folder))
-    else await folders.openRoot()
-    mediaList.value?.updateNsId(nsId.value)
-    await queryPhotos()
-  } catch {
-    pageError.value = true
-    toast.error('get root folder Response Error!')
-  } finally {
-    pageLoading.value = false
-  }
-})
-
-async function retryContent() {
-  pageLoading.value = true
-  pageError.value = false
-  try {
-    if (nsId.value < 0) await folders.openRoot()
-    else await folders.refresh()
-    await queryPhotos()
-  } catch {
-    pageError.value = true
-  } finally {
-    pageLoading.value = false
-  }
+function retryContent() {
+  return loadLocation(route.query.folder)
 }
 
 /** Runs a folder mutation, then reports the outcome. Returns whether it succeeded. */
 async function mutate(action: () => Promise<unknown>, success: string, failure: string) {
   try {
     await action()
+    await pins.load(true).catch(() => {})
     toast.success(success)
     return true
   } catch {
@@ -522,12 +556,14 @@ useStorageRevision(
       await folders.refresh()
     } catch (e) {
       if (!(e instanceof ApiError) || ![400, 404, 409].includes(e.msgCode)) throw e
-      await folders.openRoot()
-      mediaList.value?.updateNsId(nsId.value)
+      await router.replace({ path: '/home/HomePart' })
+      return
     }
     await queryPhotos()
+    await pins.load(true).catch(() => {})
   },
   () =>
+    pageLoading.value ||
     selectMode.value ||
     !!selectedCount.value ||
     !!renaming.value ||
@@ -549,9 +585,12 @@ watch(
 )
 watch(
   () => route.query.folder,
-  async (value) => {
-    if (value && Number(value) > 0) await go(Number(value))
+  (value) => {
+    if (route.name === 'home' && route.params.part !== 'HomePart') return
+    if (Number(value) === nsId.value && !pageLoading.value && !pageError.value) return
+    void loadLocation(value)
   },
+  { immediate: true },
 )
 </script>
 
@@ -870,6 +909,15 @@ watch(
                     </button>
                   </ContextMenuTrigger>
                   <ContextMenuContent>
+                    <ContextMenuItem
+                      :disabled="pins.saving"
+                      @select="
+                        pins.has(folder.nsId) ? pins.unpin(folder.nsId) : pins.pin(folder.nsId)
+                      "
+                    >
+                      <PinOff v-if="pins.has(folder.nsId)" /><Pin v-else />
+                      {{ pins.has(folder.nsId) ? 'Unpin' : 'Pin to sidebar' }}
+                    </ContextMenuItem>
                     <ContextMenuItem :disabled="folder.isMount" @select="selectFolder(folder)">
                       <SquareCheck /> {{ selected.includes(folder.nsId) ? 'Deselect' : 'Select' }}
                     </ContextMenuItem>

@@ -14,6 +14,9 @@ import {
   Search,
   Tag,
   ChevronLeft,
+  Folder,
+  PinOff,
+  House,
 } from '@lucide/vue'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
 import OnlineDownloadButton from '@/components/OnlineDownloadButton.vue'
@@ -27,6 +30,14 @@ import { storageLabel, useStorageUsage } from '@/composables/useStorageUsage'
 import { useAuthStore } from '@/stores/auth'
 import { usePeopleStore } from '@/stores/people'
 import { cn } from '@/lib/utils'
+import { useFolderPinsStore } from '@/stores/folderPins'
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+} from '@/components/ui/context-menu'
+import { useStorageRevision } from '@/composables/useStorageRevision'
 
 const desktop = useMediaQuery('(min-width: 768px)')
 const sidebarHidden = useStorage('photoly-sidebar-hidden', false)
@@ -37,6 +48,27 @@ onBeforeUnmount(people.stop)
 watch(() => auth.token, resetStorageState)
 const router = useRouter()
 const route = useRoute()
+const pins = useFolderPinsStore()
+const activePin = computed(() =>
+  route.params.part === 'HomePart' && pins.has(Number(route.query.folder))
+    ? Number(route.query.folder)
+    : null,
+)
+const isSelected = (item: NavItem) =>
+  part.value === item.part && (item.part !== 'HomePart' || activePin.value === null)
+const refreshPins = () => {
+  void pins.load(true).catch(() => {})
+}
+onMounted(() => {
+  void pins.load().catch(() => toast.error('Could not load pinned folders. Please try again.'))
+  window.addEventListener('focus', refreshPins)
+})
+onBeforeUnmount(() => window.removeEventListener('focus', refreshPins))
+watch(() => auth.token, refreshPins)
+useStorageRevision(
+  () => pins.load(true),
+  () => pins.saving,
+)
 const { profile, load } = useProfile()
 onMounted(() => load().catch(() => {}))
 
@@ -129,7 +161,52 @@ const iconButton =
             />
           </router-link>
 
-          <nav aria-label="Main" class="flex flex-col gap-5">
+          <nav aria-label="Main" class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
+            <div v-if="pins.items.length" class="flex flex-col gap-0.5" aria-label="Pinned folders">
+              <div
+                class="text-muted-foreground px-2.5 pb-1.5 text-[11px] leading-4 font-semibold tracking-[0.06em] uppercase"
+              >
+                Pinned
+              </div>
+              <ContextMenu v-for="folder in pins.items" :key="folder.nsId">
+                <ContextMenuTrigger as-child>
+                  <router-link
+                    :to="{ path: '/home/HomePart', query: { folder: String(folder.nsId) } }"
+                    :class="[
+                      link,
+                      activePin === folder.nsId && '!bg-accent !text-accent-foreground',
+                    ]"
+                    active-class=""
+                    exact-active-class=""
+                    :aria-current="activePin === folder.nsId ? 'page' : undefined"
+                    :title="`${folder.path} (${folder.sourceType ?? 'local'})`"
+                  >
+                    <Folder class="size-4 shrink-0" aria-hidden="true" />
+                    <span class="truncate">{{ folder.nsName }}</span>
+                    <House
+                      v-if="pins.defaultNsId === folder.nsId"
+                      class="ml-auto size-3.5 shrink-0"
+                      aria-label="Default location"
+                    />
+                  </router-link>
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem
+                    :disabled="pins.saving"
+                    @select="pins.setDefault(pins.defaultNsId === folder.nsId ? null : folder.nsId)"
+                  >
+                    <House />{{
+                      pins.defaultNsId === folder.nsId
+                        ? 'Clear default location'
+                        : 'Set as default location'
+                    }}
+                  </ContextMenuItem>
+                  <ContextMenuItem :disabled="pins.saving" @select="pins.unpin(folder.nsId)"
+                    ><PinOff />Unpin</ContextMenuItem
+                  >
+                </ContextMenuContent>
+              </ContextMenu>
+            </div>
             <div v-for="group in groups" :key="group.label" class="flex flex-col gap-0.5">
               <div
                 class="text-muted-foreground px-2.5 pb-1.5 text-[11px] leading-4 font-semibold tracking-[0.06em] uppercase"
@@ -140,8 +217,10 @@ const iconButton =
                 v-for="item in group.items"
                 :key="item.part"
                 :to="`/home/${item.part}`"
-                :class="link"
-                active-class="!bg-accent !text-accent-foreground"
+                :class="[link, isSelected(item) && '!bg-accent !text-accent-foreground']"
+                active-class=""
+                exact-active-class=""
+                :aria-current="isSelected(item) ? 'page' : undefined"
               >
                 <component :is="item.icon" class="size-4" aria-hidden="true" />
                 {{ item.label }}
@@ -155,7 +234,7 @@ const iconButton =
             </div>
           </nav>
 
-          <div class="mt-auto flex flex-col gap-4">
+          <div class="mt-auto flex shrink-0 flex-col gap-4">
             <div v-if="storage.usage.value" class="flex flex-col gap-2 px-2.5">
               <div class="flex justify-between text-xs">
                 <span class="font-medium">Storage</span>

@@ -23,13 +23,21 @@ export interface Photo {
 export function usePhotos() {
   const photos = ref<Photo[]>([])
   const loading = ref(false)
+  let version = 0
+  function invalidate() {
+    version++
+    photos.value = []
+    loading.value = false
+  }
 
   async function load(request: Parameters<typeof call>[0]) {
+    const started = ++version
     loading.value = true
     try {
-      photos.value = await call<Photo[]>(request)
+      const result = await call<Photo[]>(request)
+      if (started === version) photos.value = result
     } finally {
-      loading.value = false
+      if (started === version) loading.value = false
     }
   }
 
@@ -46,5 +54,5 @@ export function usePhotos() {
     photos.value = photos.value.filter((p) => p.photoId !== photoId)
   }
 
-  return { photos, loading, loadByFolder, loadByGallery, moveTo, remove }
+  return { photos, loading, loadByFolder, loadByGallery, moveTo, remove, invalidate }
 }
