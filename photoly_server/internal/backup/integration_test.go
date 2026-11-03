@@ -210,7 +210,7 @@ func TestDatabaseBackupRestoreAndRollback(t *testing.T) {
 		t.Fatal("wrong password accepted")
 	}
 	// Every switching fault must leave the pre-restore database usable with its newer data.
-	for _, point := range []string{"old_database_renamed", "database_switched", "old_media_moved", "new_media_moved"} {
+	for _, point := range []string{"old_database_renamed", "database_switched", "old_media_moved", "new_media_moved", "identities_finalized"} {
 		t.Run(point, func(t *testing.T) {
 			hit := false
 			e.Fault = func(p string) error {
@@ -443,7 +443,7 @@ func TestRestoreProcessCrashRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	config, _ := json.Marshal(e.Cfg)
-	for _, point := range []string{"old_database_renamed", "database_switched", "old_media_moved", "new_media_moved"} {
+	for _, point := range []string{"old_database_renamed", "database_switched", "old_media_moved", "new_media_moved", "identities_finalized"} {
 		t.Run(point, func(t *testing.T) {
 			cmd := exec.Command(os.Args[0], "-test.run=^TestRestoreCrashHelper$")
 			cmd.Env = append(os.Environ(), "BACKUP_CRASH_HELPER=1", "BACKUP_CRASH_CONFIG="+string(config), "BACKUP_CRASH_POINT="+point, "BACKUP_CRASH_ID="+id)

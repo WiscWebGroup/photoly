@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -200,6 +201,10 @@ func validateOriginals(ctx context.Context, url, root string, recordIdentities b
 		return err
 	}
 	defer pool.Close()
+	return checkOriginals(ctx, pool, root, recordIdentities, false)
+}
+
+func checkOriginals(ctx context.Context, pool dbgen.DBTX, root string, recordIdentities, verifyHashes bool) error {
 	// A cursor-sized batch avoids retaining the whole library or issuing queries on a busy connection.
 	var after int64
 	for {
@@ -263,11 +268,24 @@ func validateOriginals(ctx context.Context, url, root string, recordIdentities b
 					return errors.New("original is not a regular file")
 				}
 				if recordIdentities {
-					if _, err = pool.Exec(ctx, `UPDATE media_asset SET fs_identity=$3,fs_size=$4,fs_mtime=$5 WHERE photo_id=$1 AND role=$2`, x.id, role, storage.Identity(st), st.Size(), st.ModTime().UnixNano()); err != nil {
+					hash, err := digestContext(ctx, p)
+					if err != nil {
+						return err
+					}
+					if verifyHashes {
+						var expected string
+						if err = pool.QueryRow(ctx, `SELECT CASE WHEN a.role='original' THEN coalesce(p.content_sha256,'') ELSE a.content_sha256 END FROM media_asset a JOIN photo p USING(photo_id) WHERE a.photo_id=$1 AND a.role=$2`, x.id, role).Scan(&expected); err != nil {
+							return err
+						}
+						if expected == "" || expected != hash {
+							return fmt.Errorf("media %d %s: cannot rebuild identity without a matching content checksum", x.id, role)
+						}
+					}
+					if _, err = pool.Exec(ctx, `UPDATE media_asset SET fs_identity=$3,fs_size=$4,fs_mtime=$5,content_sha256=$6 WHERE photo_id=$1 AND role=$2`, x.id, role, storage.Identity(st), st.Size(), st.ModTime().UnixNano(), hash); err != nil {
 						return err
 					}
 					if role == "original" {
-						if _, err = pool.Exec(ctx, `UPDATE photo SET fs_identity=$2,fs_size=$3,fs_mtime=$4 WHERE photo_id=$1`, x.id, storage.Identity(st), st.Size(), st.ModTime().UnixNano()); err != nil {
+						if _, err = pool.Exec(ctx, `UPDATE photo SET fs_identity=$2,fs_size=$3,fs_mtime=$4,content_sha256=$5 WHERE photo_id=$1`, x.id, storage.Identity(st), st.Size(), st.ModTime().UnixNano(), hash); err != nil {
 							return err
 						}
 					}

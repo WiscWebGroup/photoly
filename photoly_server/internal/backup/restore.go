@@ -10,22 +10,24 @@ import (
 	"strings"
 	"time"
 
+	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
 type Journal struct {
-	ID             string    `json:"id"`
-	State          string    `json:"state"`
-	Database       string    `json:"database"`
-	StagedDatabase string    `json:"stagedDatabase"`
-	OldDatabase    string    `json:"oldDatabase"`
-	OldNames       []string  `json:"oldNames"`
-	NewNames       []string  `json:"newNames"`
-	Bytes          int64     `json:"bytes"`
-	DatabaseBytes  int64     `json:"databaseBytes"`
-	Created        time.Time `json:"createdAt"`
+	ID                  string    `json:"id"`
+	State               string    `json:"state"`
+	Database            string    `json:"database"`
+	StagedDatabase      string    `json:"stagedDatabase"`
+	OldDatabase         string    `json:"oldDatabase"`
+	OldNames            []string  `json:"oldNames"`
+	NewNames            []string  `json:"newNames"`
+	Bytes               int64     `json:"bytes"`
+	DatabaseBytes       int64     `json:"databaseBytes"`
+	Created             time.Time `json:"createdAt"`
+	IdentitiesFinalized bool      `json:"identitiesFinalized,omitempty"`
 }
 
 func (e *Engine) journalPath() string {
@@ -41,6 +43,15 @@ func (e *Engine) Recover(ctx context.Context) error {
 		return nil
 	} else if err != nil {
 		return err
+	}
+	if j.State == "committed" && !j.IdentitiesFinalized {
+		// Older restores recorded identities only in the temporary tree. Repair
+		// once, before starting business workers, and only for verified content.
+		if err := e.finalizeIdentities(ctx); err != nil {
+			return err
+		}
+		j.IdentitiesFinalized = true
+		return e.saveJournal(&j)
 	}
 	if j.State == "committed" || j.State == "rolled_back" {
 		return nil
@@ -394,6 +405,16 @@ func (e *Engine) Restore(ctx context.Context, id, password string) (err error) {
 			return err
 		}
 	}
+	// Do not persist staging identities as the final identity of live media.
+	// Shared/virtual filesystems can assign new identities at the destination.
+	e.progress("Verifying installed media", 0, 0)
+	if err = e.finalizeIdentities(ctx); err != nil {
+		return err
+	}
+	if err = e.fault("identities_finalized"); err != nil {
+		return err
+	}
+	j.IdentitiesFinalized = true
 	j.State = "committed"
 	if err = e.saveJournal(&j); err != nil {
 		return err
@@ -489,7 +510,42 @@ func (e *Engine) normalize(ctx context.Context, c *pgx.Conn, root, oldKey string
 	}
 	return nil
 }
-func rebuildDirectories(ctx context.Context, c *pgx.Conn, root string) error {
+func (e *Engine) finalizeIdentities(ctx context.Context) error {
+	name, err := e.dbName()
+	if err != nil {
+		return err
+	}
+	c, err := e.database(ctx, name)
+	if err != nil {
+		return err
+	}
+	defer c.Close(ctx)
+	tx, err := c.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	// These guards are cleared only inside this private transaction. Missing,
+	// changed or unverified originals roll back every identity update.
+	if _, err = tx.Exec(ctx, `
+ UPDATE namespace SET fs_identity='' WHERE source_id IN (SELECT id FROM storage_source WHERE is_default AND kind='local');
+ UPDATE storage_source SET root_identity='' WHERE is_default AND kind='local';
+ `); err != nil {
+		return err
+	}
+	if err = checkOriginals(ctx, tx, e.Cfg.UploadFolder, true, true); err != nil {
+		return err
+	}
+	if err = rebuildDirectories(ctx, tx, e.Cfg.UploadFolder); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `UPDATE storage_source SET scan_status='pending',scan_error=NULL WHERE is_default AND kind='local'`); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func rebuildDirectories(ctx context.Context, c dbgen.DBTX, root string) error {
 	// Resolve against blank identities first; record each new inode without scanning/importing files.
 	var after int64
 	for {
