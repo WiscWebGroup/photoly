@@ -78,7 +78,12 @@ test('video plays, seeks, changes speed and exposes shipped license notices', as
   expect(box).toBeTruthy()
   if (testInfo.project.name === 'mobile')
     await progress.tap({ position: { x: box!.width * 0.6, y: box!.height / 2 } })
-  else await progress.click({ position: { x: box!.width * 0.6, y: box!.height / 2 } })
+  else {
+    await page.mouse.move(box!.x + box!.width * 0.2, box!.y + box!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box!.x + box!.width * 0.6, box!.y + box!.height / 2, { steps: 10 })
+    await page.mouse.up()
+  }
   await expect
     .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
     .toBeGreaterThan(10)
