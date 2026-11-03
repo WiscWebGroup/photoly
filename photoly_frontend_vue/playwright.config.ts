@@ -23,8 +23,7 @@ export default defineConfig({
     command: 'pnpm dev --port 5173 --strictPort',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
-    // Match the production same-origin proxy by default. A separate origin can be
-    // requested explicitly for compatibility tests.
-    env: { VITE_APP_BASE_URL: process.env.VITE_APP_BASE_URL ?? '/api' },
+    // .env.development points `pnpm dev` at the /api proxy; the specs mock the absolute backend URL.
+    env: { VITE_APP_BASE_URL: process.env.VITE_APP_BASE_URL ?? 'http://localhost:8384' },
   },
 })

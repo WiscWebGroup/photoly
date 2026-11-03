@@ -3,7 +3,7 @@ import { capabilitiesFixture } from '../src/test/aiFixtures'
 
 // Allow the same relative API prefix used by the production container.
 export const API = new URL(
-  process.env.VITE_APP_BASE_URL || '/api',
+  process.env.VITE_APP_BASE_URL || 'http://localhost:8384',
   'http://localhost:5173',
 ).href.replace(/\/$/, '')
 const API_PREFIX = new URL(API).pathname.replace(/\/$/, '')
