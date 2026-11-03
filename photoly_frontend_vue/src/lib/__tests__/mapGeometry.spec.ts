@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   coordinate,
+  exifCoordinate,
   groupPhotos,
   hasLocation,
   photoBounds,
@@ -14,6 +15,17 @@ const photo = (id: number, lng: number, lat: number, date = '2024-01-01') => ({
   extra_photo_taken_date: date,
 })
 describe('photo map geometry', () => {
+  it('parses EXIF coordinates without treating blank or invalid values as zero', () => {
+    expect(exifCoordinate('0', '0')).toEqual([0, 0])
+    expect(exifCoordinate('42.2153', '-71.5359')).toEqual([-71.5359, 42.2153])
+    expect(exifCoordinate(-90, 180)).toEqual([180, -90])
+    for (const value of ['', ' ', null, undefined, false, [], 'NaN', 'Infinity', '42N']) {
+      expect(exifCoordinate(value, 0)).toBeNull()
+      expect(exifCoordinate(0, value)).toBeNull()
+    }
+    expect(exifCoordinate(91, 0)).toBeNull()
+    expect(exifCoordinate(0, -181)).toBeNull()
+  })
   it('accepts zero coordinates and excludes missing, non-finite and invalid GPS', () => {
     expect(hasLocation(photo(1, 0, 0))).toBe(true)
     for (const p of [
