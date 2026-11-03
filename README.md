@@ -105,3 +105,14 @@ Right-click an image and choose **Format Convert** to save a JPEG, PNG or GIF co
 See [external local mounts and WebDAV](docs/docs/features/storage/external-storage.md) for multi-source setup, Docker mounts, scanning and file retention.
 
 Personal Storage supports multiple WebDAV and SMB connections, plus administrator-assigned local mounts. Folder pages show indexing progress and offer recursive folder refresh. See [external storage deployment and testing](docs/docs/features/storage/external-storage.md).
+
+### Video player licenses
+
+Ordinary videos use ArtPlayer 5.4.0 (MIT), loaded when the viewer opens a video.
+Playback uses the existing media endpoint and the browser's supported codecs;
+Live Photo playback remains separate. Player settings link to
+`/player-licenses.txt`, including ArtPlayer and its runtime/bundled dependency
+notices. Run `pnpm licenses:player` in `photoly_frontend_vue` to regenerate it;
+`pnpm build` also generates it for Vite and Docker distributions. See
+[notice sources](photoly_frontend_vue/licenses/artplayer/README.md) when upgrading.
+Photoly remains AGPL-3.0-or-later; these components retain their own licenses.
