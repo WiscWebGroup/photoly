@@ -23,7 +23,7 @@ import {
   List,
   Loader2,
   Pencil,
-  Plus,
+  Ellipsis,
   SquareCheck,
   Trash2,
   Upload,
@@ -932,10 +932,10 @@ watch(
           v-show="!selectMode"
           ref="addButton"
           type="button"
-          aria-label="Add"
-          class="bg-primary text-primary-foreground pointer-events-auto fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-2xl shadow-lg transition-transform active:scale-95 data-[state=open]:rotate-45 md:hidden"
+          aria-label="More options"
+          class="bg-primary text-primary-foreground pointer-events-auto fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-2xl shadow-lg transition-transform active:scale-95 md:hidden"
         >
-          <Plus class="size-6" aria-hidden="true" />
+          <Ellipsis class="size-6" aria-hidden="true" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

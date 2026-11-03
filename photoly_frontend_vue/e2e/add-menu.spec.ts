@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { mockApi, ok, photo, signIn } from './mockApi'
 
 test.beforeEach(async ({ page, isMobile }) => {
-  test.skip(!isMobile, 'the floating "+" button is phone-only')
+  test.skip(!isMobile, 'the floating more-options button is phone-only')
   await signIn(page)
   await mockApi(page, {
     '/photo/getByNamespace': ok(Array.from({ length: 40 }, (_, i) => photo(10 + i, `p${i}`))),
@@ -18,9 +18,9 @@ async function tap(page: Page, x: number, y: number) {
   await page.waitForTimeout(100)
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
 }
-/** The "+": by label, since the open menu hides the rest of the page from assistive tech. */
+/** The menu trigger: by label, since the open menu hides the rest of the page from assistive tech. */
 async function tapAdd(page: Page) {
-  const add = page.locator('button[aria-label="Add"]')
+  const add = page.locator('button[aria-label="More options"]')
   await add.click({ trial: true }) // waits until it has settled and nothing covers it
   const box = (await add.boundingBox())!
   await tap(page, box.x + box.width / 2, box.y + box.height / 2)
@@ -34,7 +34,7 @@ async function openMenu(page: Page) {
 const menu = (page: Page) => page.getByRole('menu')
 const viewer = (page: Page) => page.getByRole('dialog')
 
-test('tapping the "+" again closes its menu without opening the photo under it', async ({
+test('tapping the more-options button again closes its menu without opening the photo under it', async ({
   page,
 }) => {
   await openMenu(page)

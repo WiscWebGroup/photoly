@@ -5,7 +5,7 @@ async function mode(page: import('@playwright/test').Page, name: string) {
   if (page.viewportSize()!.width >= 768)
     await page.getByRole('button', { name, exact: true }).click()
   else {
-    await page.getByRole('button', { name: 'Add', exact: true }).click()
+    await page.getByRole('button', { name: 'More options', exact: true }).click()
     await page.getByRole('menuitem', { name, exact: true }).click()
   }
 }
