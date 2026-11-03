@@ -126,7 +126,7 @@ test('sidebar resize preserves the map location, filter and open place', async (
   await page.goto('/home/MapPart')
   const marker = page.getByTitle('beach').last()
   await marker.click()
-  const map = page.locator('.leaflet-container')
+  const map = page.locator('[data-engine]')
   const beforeMap = (await map.boundingBox())!
   const beforeMarker = (await marker.boundingBox())!
   await page.getByRole('button', { name: 'Hide sidebar' }).click()

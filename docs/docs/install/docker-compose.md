@@ -24,7 +24,7 @@ Never run `docker compose down -v` on a production deployment. It deletes the da
 1. Open `http://<server-address>:5200`.
 2. Set `PUBLIC_BASE_URL` to an API URL that users can reach. Example: `http://<server-address>:5200/api`.
 
-The frontend uses a same-origin `/api` proxy. Browser API requests follow the address in the address bar. Backend-generated share links use `PUBLIC_BASE_URL`.
+The frontend uses a same-origin `/api` proxy. Browser API requests follow the address in the address bar. Share links copied in the web app follow its API address, including the current host and `/api` prefix. Legacy API clients that omit `shareBase` use `PUBLIC_BASE_URL`. A recipient must be able to reach that address.
 
 ## Enable AI
 

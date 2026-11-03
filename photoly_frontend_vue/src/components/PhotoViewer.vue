@@ -34,6 +34,7 @@ import {
   FolderInput,
   Info,
   MapPin,
+  LoaderCircle,
   Maximize,
   Minimize,
   Pencil,
@@ -89,6 +90,7 @@ import { mediaKind } from '@/lib/media'
 import { uploadCall, useUploadsStore } from '@/stores/uploads'
 import { newUuid } from '@/lib/uuid'
 import { photoUrl } from '@/lib/photoUrl'
+import { shareBase, copyText } from '@/lib/shareLink'
 import { useAuthStore } from '@/stores/auth'
 import SimilarRecommendations, {
   type RecommendationSnapshot,
@@ -506,10 +508,14 @@ const imageUrl = computed(
     ) + (version.value ? `&v=${version.value}` : ''),
 )
 const params = computed(() => ({ photoId: info.value?.photoId }))
+const shareParams = computed(() => ({
+  ...params.value,
+  shareBase: shareBase(import.meta.env.VITE_APP_BASE_URL, window.location.origin),
+}))
 const hasGps = computed(() => !!exif.value.GPS_Latitude && !!exif.value.GPS_Longitude)
 const qrUrl = computed(
   () =>
-    `${import.meta.env.VITE_APP_BASE_URL}/photo/getQR2?token=${auth.token}&photoId=${info.value?.photoId}`,
+    `${import.meta.env.VITE_APP_BASE_URL}/photo/getQR2?token=${auth.token}&photoId=${info.value?.photoId}&shareBase=${encodeURIComponent(shareParams.value.shareBase)}`,
 )
 
 const fileName = computed(() => (info.value ? `${info.value.photoName}.${info.value.format}` : ''))
@@ -629,10 +635,12 @@ const loadExif = () => {
 async function retryMedia() {
   if (!(await leaveText())) return
   mediaFailure.value = ''
+  loaded.value = false
   version.value++
   void loadExif()
 }
-function mediaFailed() {
+function mediaFailed(event: Event) {
+  if (event.target !== mediaEl.value) return
   mediaFailure.value = 'Could not load this media. Please retry.'
   void loadExif()
 }
@@ -641,8 +649,11 @@ function loadShareLink() {
   const seq = metadataSequence
   shareLink.value = ''
   if (info.value?.visibility !== 1) return
-  void call<string>({ url: '/photo/getPath', params: params.value })
-    .then((link) => seq === metadataSequence && (shareLink.value = link))
+  void call<string>({ url: '/photo/getPath', params: shareParams.value })
+    .then(
+      (link) =>
+        seq === metadataSequence && info.value?.visibility === 1 && (shareLink.value = link),
+    )
     .catch(() => {})
 }
 
@@ -723,11 +734,23 @@ async function restorePosition() {
   restoreScroll = null
   scrollRoot.value?.scrollTo({ top, behavior: 'instant' })
 }
-function imageLoaded(e: Event) {
+async function imageLoaded(e: Event) {
   const img = e.target as HTMLImageElement
+  const seq = metadataSequence
+  const attempt = version.value
+  if (img !== mediaEl.value) return
+  await (img.decode?.() ?? Promise.resolve()).catch(() => {})
+  if (
+    seq !== metadataSequence ||
+    attempt !== version.value ||
+    img !== mediaEl.value ||
+    !acceptedPhoto.value
+  )
+    return
   loaded.value = true
-  // Decode first: decoding a big image mid-animation is what drops frames.
-  void (img.decode?.() ?? Promise.resolve()).catch(() => {}).then(mediaReady)
+  mediaFailure.value = ''
+  await nextTick()
+  mediaReady()
   void restorePosition()
 }
 
@@ -854,13 +877,26 @@ function renamed(name: string) {
 }
 
 async function copyShareAddr() {
+  if (info.value?.visibility !== 1) return
+  const seq = metadataSequence
+  let link: string
   try {
-    const link =
-      shareLink.value || (await call<string>({ url: '/photo/getPath', params: params.value }))
-    await navigator.clipboard.writeText(link)
-    toast.success('Successful copied to clipboard!')
+    link =
+      shareLink.value || (await call<string>({ url: '/photo/getPath', params: shareParams.value }))
+    if (seq !== metadataSequence || info.value?.visibility !== 1) return
+    shareLink.value = link
   } catch {
-    toast.error('get share addr Response Error!')
+    toast.error('Could not get the share link. Please retry.')
+    return
+  }
+  if (await copyText(link)) toast.success('Link copied')
+  else {
+    const input = document.querySelector<HTMLInputElement>(
+      sharing.value ? 'input[aria-label="Link"]' : 'input[aria-label="Share link"]',
+    )
+    input?.focus()
+    input?.select()
+    toast.error('Clipboard unavailable. Select and copy the link.')
   }
 }
 
@@ -870,7 +906,7 @@ const downloadPhoto = () =>
   )
 const saveQr = () =>
   download('/photo/getQR2', `${info.value!.photoName}-qr.png`, {
-    params: { token: auth.token, photoId: info.value!.photoId },
+    params: { token: auth.token, ...shareParams.value },
   }).catch(quiet('Download failed'))
 
 function deletePhoto() {
@@ -932,20 +968,15 @@ watch(
     const media = () => mediaEl.value
     const items = chrome()
     if (backdrop.value) backdrop.value.style.opacity = '0'
-    for (const item of items) item.style.opacity = '0'
+    // Chrome is independent of the full-size image; metadata can arrive first.
+    for (const item of items) animate(item, { opacity: [0, 1] }, { duration: fast ? 0 : 0.2 })
     if (media()) media()!.style.opacity = '0'
     if (backdrop.value)
       animate(backdrop.value, { opacity: 1 }, { duration: fast ? 0 : 0.3, ease: EASE.p1Out })
     const run = () => {
       if (!el.isConnected) return
       const m = media()
-      const anims: AnimationPlaybackControls[] = items.map((item, i) =>
-        animate(
-          item,
-          { opacity: [0, 1], y: item.dataset.chrome === 'panel' ? 0 : [-4, 0] },
-          { duration: fast ? 0 : 0.35, delay: fast ? 0 : 0.12 + i * 0.03, ease: EASE.p1Out },
-        ),
-      )
+      const anims: AnimationPlaybackControls[] = []
       if (m) {
         m.style.opacity = '1'
         const from = props.origin
@@ -964,13 +995,12 @@ watch(
           for (const prop of ['transform', 'clip-path', 'will-change']) m.style.removeProperty(prop)
       })
     }
-    // Wait for the photo/video size (layout depends on it); fall back if it never loads.
-    const timer = setTimeout(() => startOpen?.(), 800)
+    // Only the media animation waits for its dimensions.
     startOpen = () => {
       startOpen = null
-      clearTimeout(timer)
       void nextTick(run)
     }
+    if (loaded.value || kind.value === 'other') mediaReady()
   },
   { flush: 'post' },
 )
@@ -1215,9 +1245,21 @@ const overlay = 'dark text-foreground'
                 >
                   <template v-if="kind === 'photo'">
                     <Skeleton
-                      v-show="!loaded"
+                      v-show="!loaded && !mediaFailure"
                       class="aspect-[4/3] w-[min(100%,40rem)] rounded-sm bg-white/5"
                     />
+                    <div
+                      v-if="!loaded && !mediaFailure"
+                      role="status"
+                      aria-live="polite"
+                      class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/80"
+                    >
+                      <LoaderCircle
+                        class="size-9 animate-spin motion-reduce:animate-none"
+                        aria-hidden="true"
+                      />
+                      <span class="text-sm">Loading photo…</span>
+                    </div>
                     <div
                       v-show="loaded && !livePlaying"
                       ref="zoomViewport"

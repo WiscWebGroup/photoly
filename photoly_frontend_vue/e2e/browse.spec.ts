@@ -83,7 +83,6 @@ test('map shows a marker per geotagged photo', async ({ page }) => {
   })
   await page.goto('/home/MapPart')
 
-  // MapPart currently stacks two copies of each marker; click the top one.
   const marker = page.getByTitle('beach').last()
   await expect(marker).toBeVisible()
   await expect(page.getByTitle('no-gps')).toHaveCount(0)
@@ -101,13 +100,7 @@ test('map shows a marker per geotagged photo', async ({ page }) => {
   await expect(page.getByRole('radio', { name: 'Heat' })).toBeChecked()
   await expect(page.getByTitle('beach')).toHaveCount(0)
   await expect(page.getByText('Fewer')).toBeVisible()
-  const hot = await page.locator('.leaflet-overlay-pane canvas').evaluate((c: HTMLCanvasElement) =>
-    c
-      .getContext('2d')!
-      .getImageData(0, 0, c.width, c.height)
-      .data.some((v, i) => i % 4 === 3 && v > 0),
-  )
-  expect(hot).toBe(true)
+  await expect(page.locator('[data-engine]')).toHaveAttribute('data-heatmap', 'true')
   await page.getByRole('radio', { name: 'Photos' }).click()
   await expect(page.getByTitle('beach').last()).toBeVisible()
 })

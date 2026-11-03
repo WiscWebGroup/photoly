@@ -7,7 +7,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // Browser AI runs WebAssembly threads, which need cross-origin isolation. `credentialless`
-// (not `require-corp`) keeps Leaflet's cross-origin map tiles loading. Mirrored in nginx.conf.
+// (not `require-corp`) keeps cross-origin map tiles loading. Mirrored in nginx.conf.
 const isolation = {
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Cross-Origin-Embedder-Policy': 'credentialless',
@@ -43,7 +43,10 @@ export default defineConfig({
     format: 'es',
     rollupOptions: {
       output: {
-        entryFileNames: 'assets/browser-ai-[name]-[hash].js',
+        entryFileNames: (chunk) =>
+          /maplibre/.test(chunk.name)
+            ? 'assets/map-[name]-[hash].js'
+            : 'assets/browser-ai-[name]-[hash].js',
         chunkFileNames: 'assets/browser-ai-[name]-[hash].js',
       },
     },

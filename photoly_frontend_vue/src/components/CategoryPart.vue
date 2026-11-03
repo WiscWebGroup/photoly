@@ -92,7 +92,7 @@ function visit(id?: string) {
 }
 </script>
 <template>
-  <div ref="page" class="flex flex-col gap-6 p-4 md:p-8">
+  <div ref="page" class="flex flex-col gap-6 p-4 md:px-10 md:py-8">
     <Button v-if="category" variant="ghost" class="self-start" @click="visit()"
       ><ChevronLeft />Category</Button
     >
@@ -107,39 +107,46 @@ function visit(id?: string) {
       Classifying {{ pending.toLocaleString() }} media items in the background. Unavailable files
       will be retried.
     </p>
-    <div v-if="!category" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div
+      v-if="!category"
+      class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 2xl:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]"
+    >
       <button
         v-for="item in mediaCategories"
         :key="item.id"
         type="button"
-        class="group bg-card hover:border-primary/40 overflow-hidden rounded-2xl border text-left transition-all duration-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        class="group bg-card hover:border-primary/40 overflow-hidden rounded-[14px] border shadow-xs text-left transition-all duration-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         :aria-label="`${item.name} ${(counts[item.id] ?? 0).toLocaleString()} items`"
         :aria-busy="loading"
         @click="visit(item.id)"
       >
-        <div class="relative aspect-[16/10] overflow-hidden bg-muted/25" aria-hidden="true">
+        <div
+          class="relative grid aspect-[16/10] grid-cols-[3fr_2fr] grid-rows-2 gap-0.5 overflow-hidden bg-muted/25"
+          aria-hidden="true"
+        >
           <div
             v-if="loading && !Object.keys(counts).length"
-            class="absolute inset-6 animate-pulse rounded-lg bg-muted"
+            class="absolute inset-0 animate-pulse bg-muted motion-reduce:animate-none"
           />
-          <div
+          <component
+            v-else-if="!previews[item.id]?.length"
+            :is="icons[item.id]"
+            class="absolute top-1/2 left-1/2 size-12 -translate-x-1/2 -translate-y-1/2 text-primary stroke-[1.5]"
+          />
+          <MediaThumbnail
             v-for="(cover, i) in (previews[item.id] ?? []).slice(0, 3)"
             :key="cover.photoId"
-            class="absolute inset-x-[13%] inset-y-[13%] overflow-hidden rounded-lg border-4 border-background bg-muted shadow-md transition-transform duration-300 motion-reduce:transition-none"
-            :style="{
-              zIndex: 3 - i,
-              transform: `translate(${i * 9}px, ${-i * 7}px) rotate(${i === 0 ? -3 : i === 1 ? 4 : 10}deg)`,
-            }"
-          >
-            <MediaThumbnail
-              :photo-id="cover.photoId"
-              :format="cover.format"
-              :content-version="cover.contentVersion"
-              class="size-full"
-            />
-          </div>
+            :photo-id="cover.photoId"
+            :format="cover.format"
+            :content-version="cover.contentVersion"
+            :class="[
+              'size-full',
+              i === 0 && 'row-span-2',
+              previews[item.id]?.length === 1 && 'col-span-2',
+            ]"
+          />
         </div>
-        <div class="border-t p-5">
+        <div class="px-4 py-3.5">
           <div class="flex items-center gap-2.5 font-semibold">
             <component
               :is="icons[item.id]"
@@ -147,7 +154,7 @@ function visit(id?: string) {
               aria-hidden="true"
             />{{ item.name }}
           </div>
-          <p class="text-muted-foreground mt-1.5 text-sm">
+          <p class="text-muted-foreground mt-1 text-xs">
             {{
               Object.keys(counts).length
                 ? (counts[item.id] ?? 0).toLocaleString() + ' items'

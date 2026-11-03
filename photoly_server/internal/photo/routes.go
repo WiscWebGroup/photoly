@@ -446,14 +446,14 @@ func Register(a *app.App) {
 		if err != nil {
 			return nil, err
 		}
-		return s.ShareURL(r.Context(), uid, id)
+		return s.ShareURL(r.Context(), uid, id, r.URL.Query().Get("shareBase"))
 	}))
 	qr := func(w http.ResponseWriter, r *http.Request, uid int64) error {
 		id, err := qint(r, "photoId")
 		if err != nil {
 			return err
 		}
-		u, err := s.ShareURL(r.Context(), uid, id)
+		u, err := s.ShareURL(r.Context(), uid, id, r.URL.Query().Get("shareBase"))
 		if err != nil {
 			return err
 		}

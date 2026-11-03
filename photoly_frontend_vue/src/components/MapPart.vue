@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import ResizableSidebar from './ResizableSidebar.vue'
-import { computed, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
-import L from 'leaflet'
 import { toast } from 'vue-sonner'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -13,9 +12,11 @@ import type { Photo } from '@/composables/usePhotos'
 import { useStorageRevision } from '@/composables/useStorageRevision'
 import MapDates, { type DateRange } from '@/components/MapDates.vue'
 import { Flame, Images, MapPin } from '@lucide/vue'
-import { useLeafletMap } from '@/composables/useLeafletMap'
+import { usePhotoMap } from '@/composables/usePhotoMap'
+import MapProjectionControl from './MapProjectionControl.vue'
+import { coordinate, hasLocation, groupPhotos } from '@/lib/mapGeometry'
 import { call } from '@/lib/http'
-import { HeatLayer, heatGradient } from '@/lib/heatLayer'
+import { heatGradient } from '@/lib/mapEngine'
 import { photoUrl } from '@/lib/photoUrl'
 import { cn } from '@/lib/utils'
 
@@ -52,8 +53,10 @@ interface Place {
 const route = useRoute()
 const mobile = useMediaQuery('(max-width: 767px)')
 const mapEl = ref<HTMLElement | null>(null)
-const map = useLeafletMap(mapEl, [19, 10], 3)
+const { map, fallback, failed } = usePhotoMap(mapEl)
 const loading = ref(true)
+const locationsFailed = ref(false)
+const requestController = new AbortController()
 const viewing = ref<Photo | null>(null)
 const viewerPhotos = ref<Photo[]>([])
 const viewerPath = ref('')
@@ -101,12 +104,15 @@ function viewMapPhoto(photo: MapPhoto) {
 }
 async function reloadMap() {
   const selectedId = selected.value?.photos[0]?.photo_id
-  all.value = await call<MapPhoto[]>({ url: '/photo-extra/getGlobalMapPhoto' })
+  all.value = await call<MapPhoto[]>({
+    url: '/photo-extra/getGlobalMapPhoto',
+    signal: requestController.signal,
+  })
   const byId = new Map(all.value.map((p) => [p.photo_id, asPhoto(p)]))
   viewerPhotos.value = viewerPhotos.value.flatMap((p) => byId.get(p.photoId) || [])
   if (viewing.value) viewing.value = byId.get(viewing.value.photoId) || null
   rebuild()
-  if (selectedId) selected.value = placeOf(selectedId) || null
+  if (selectedId !== undefined) select(placeOf(selectedId) || null)
 }
 async function viewerChanged() {
   try {
@@ -153,9 +159,7 @@ const styles = [
   { value: 'heat', label: 'Heat', icon: Flame },
 ] as const
 const style = ref<'photos' | 'heat'>('photos')
-const located = computed(() =>
-  all.value.filter((p) => p.extra_photo_gps_lat && p.extra_photo_gps_lon),
-)
+const located = computed(() => all.value.filter(hasLocation))
 const range = ref<DateRange>(null)
 const shown = computed(() => {
   const r = range.value
@@ -178,11 +182,6 @@ const inView = shallowRef<Place[]>([])
 const selected = shallowRef<Place | null>(null)
 /** All of one place's photos, from "View all". */
 const browsing = shallowRef<Place | null>(null)
-const markers = new Map<string, L.Marker>()
-let layer: L.LayerGroup | undefined
-const heat = new HeatLayer()
-
-const latLng = (p: MapPhoto) => L.latLng(p.extra_photo_gps_lat!, p.extra_photo_gps_lon!)
 const placeOf = (photoId: number) =>
   places.value.find((pl) => pl.photos.some((p) => p.photo_id === photoId))
 
@@ -224,43 +223,17 @@ const mapsLink = (pl: Place) =>
     ? `https://maps.google.com/?q=${pl.photos[0]!.extra_photo_gps_lat},${pl.photos[0]!.extra_photo_gps_lon}`
     : `https://maps.google.com/?q=${pl.lat.toFixed(5)},${pl.lng.toFixed(5)}`
 
-/** Greedy screen-space grouping: each photo joins the first place within `radius` pixels. */
-function group(photos: MapPhoto[], m: L.Map, radius = 56): Place[] {
-  const zoom = m.getZoom()
-  const groups: { point: L.Point; photos: MapPhoto[] }[] = []
-  // Newest first, so a place's cover is its latest photo.
-  const ordered = [...photos].sort((a, b) =>
-    (b.extra_photo_taken_date ?? '').localeCompare(a.extra_photo_taken_date ?? ''),
-  )
-  for (const photo of ordered) {
-    const point = m.project(latLng(photo), zoom)
-    const near = groups.find((g) => g.point.distanceTo(point) < radius)
-    if (near) near.photos.push(photo)
-    else groups.push({ point, photos: [photo] })
-  }
-  return groups.map(({ photos }) => {
-    const lat = photos.reduce((s, p) => s + p.extra_photo_gps_lat!, 0) / photos.length
-    const lng = photos.reduce((s, p) => s + p.extra_photo_gps_lon!, 0) / photos.length
-    return { key: photos.map((p) => p.photo_id).join('-'), photos, lat, lng }
-  })
-}
-
-const escapeAttr = (value: string) =>
-  value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
-
-/** The place's latest photo as a rounded thumbnail, with a count badge for groups. */
-function pin(pl: Place, active: boolean) {
+/** Only instantiated for a newly visible cluster. */
+function pin(pl: Place) {
   const size = pl.photos.length > 1 ? 52 : 44
-  const src = escapeAttr(photoUrl(pl.photos[0]!.photo_id, 'renderThumbnail'))
-  const badge =
-    pl.photos.length > 1 ? `<span class="photo-pin-count">${pl.photos.length}</span>` : ''
-  return L.divIcon({
-    html: `<div class="photo-pin${active ? ' is-active' : ''}" style="width:${size}px;height:${size}px"><img src="${src}" alt="">${badge}</div>`,
-    className: '',
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -size / 2],
-  })
+  const element = el('div', { className: 'photo-pin' })
+  element.style.width = element.style.height = `${size}px`
+  element.append(thumb(pl.photos[0]!))
+  if (pl.photos.length > 1)
+    element.append(
+      el('span', { className: 'photo-pin-count', textContent: String(pl.photos.length) }),
+    )
+  return element
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -314,116 +287,135 @@ function popupFor(pl: Place) {
   return popup
 }
 
-function select(pl: Place | null) {
-  selected.value = pl
-  for (const [key, marker] of markers) {
-    const place = places.value.find((p) => p.key === key)
-    if (place) marker.setIcon(pin(place, place === pl))
-  }
+let closingPopup = false
+function closePopup() {
+  closingPopup = true
+  map.value?.closePopup()
+  closingPopup = false
 }
-
+function select(pl: Place | null) {
+  closePopup()
+  selected.value = pl
+  map.value?.selectPin(pl?.key)
+  if (pl && !mobile.value)
+    map.value?.popup([pl.lng, pl.lat], popupFor(pl), () => {
+      if (!closingPopup) {
+        selected.value = null
+        map.value?.selectPin()
+      }
+    })
+}
 function rebuild() {
   const m = map.value
-  if (!m || !layer) return
-  const keep = selected.value?.photos[0]?.photo_id
-  layer.clearLayers()
-  markers.clear()
-  heat.setPoints(shown.value.map(latLng))
-  places.value = group(shown.value, m)
-  const reselect = keep === undefined ? null : (placeOf(keep) ?? null)
-  for (const pl of places.value) {
-    const marker = L.marker([pl.lat, pl.lng], {
-      title: pl.photos.length === 1 ? pl.photos[0]!.photo_name : countLabel(pl),
-      icon: pin(pl, pl === reselect),
-      riseOnHover: true,
-    }).addTo(layer)
-    if (!mobile.value)
-      marker
-        .bindPopup(() => popupFor(pl), { closeButton: false, minWidth: 240, maxWidth: 260 })
-        .on('popupclose', () => selected.value === pl && select(null))
-    marker.on('click', () => select(pl))
-    markers.set(pl.key, marker)
+  if (!m) return
+  const previous = selected.value
+  const keep = previous?.photos[0]?.photo_id
+  places.value = groupPhotos(shown.value, (p) => m.projectVisible(p))
+  inView.value = [...places.value].sort((a, b) => b.photos.length - a.photos.length)
+  m.syncPins(
+    style.value === 'heat'
+      ? []
+      : places.value.map((pl) => ({
+          key: pl.key,
+          coordinate: [pl.lng, pl.lat],
+          title: pl.photos.length === 1 ? pl.photos[0]!.photo_name : countLabel(pl),
+          element: () => pin(pl),
+          onClick: () => select(pl),
+        })),
+  )
+  const current = keep === undefined ? null : (placeOf(keep) ?? null)
+  if (previous?.key !== current?.key) select(current)
+  else {
+    selected.value = current
+    m.selectPin(current?.key)
   }
-  selected.value = reselect
-  if (reselect && !mobile.value) markers.get(reselect.key)?.openPopup()
-  updateInView()
 }
-
-function updateInView() {
-  const bounds = map.value?.getBounds()
-  if (!bounds) return
-  inView.value = places.value
-    .filter((pl) => bounds.contains([pl.lat, pl.lng]))
-    .sort((a, b) => b.photos.length - a.photos.length)
+let frame = 0
+function scheduleRebuild() {
+  cancelAnimationFrame(frame)
+  frame = requestAnimationFrame(rebuild)
 }
-
-/** Fly to a place and open its card. */
+function updateHeat() {
+  map.value?.heat(shown.value.map(coordinate), style.value === 'heat')
+}
 function focus(pl: Place) {
   const m = map.value
   if (!m) return
   style.value = 'photos'
   const target = pl.photos[0]!.photo_id
-  m.flyTo([pl.lat, pl.lng], Math.max(m.getZoom(), pl.photos.length > 1 ? m.getZoom() + 2 : 10), {
-    duration: 0.6,
-  })
-  m.once('moveend', () => openPlaceOf(target))
+  m.flyTo(
+    [pl.lng, pl.lat],
+    Math.max(m.camera().zoom, pl.photos.length > 1 ? m.camera().zoom + 2 : 10),
+    () => {
+      rebuild()
+      openPlaceOf(target)
+    },
+  )
 }
 function openPlaceOf(photoId: number) {
   const pl = placeOf(photoId)
-  if (!pl) return
-  select(pl)
-  if (!mobile.value) markers.get(pl.key)?.openPopup()
+  if (pl) select(pl)
 }
-
-watch(shown, rebuild)
-// Heat swaps the photo pins for a density map; picking a place brings the pins back.
-watch(style, (now) => {
-  const m = map.value
-  if (!m || !layer) return
-  if (now === 'heat') {
-    m.closePopup()
-    select(null)
-    m.removeLayer(layer)
-    heat.addTo(m)
-  } else {
-    m.removeLayer(heat)
-    layer.addTo(m)
-  }
-})
-watch(mobile, () => {
-  map.value?.closePopup()
+watch(shown, () => {
+  updateHeat()
   rebuild()
 })
-
-onMounted(async () => {
-  const m = map.value!
-  m.zoomControl.setPosition('bottomright')
-  layer = L.layerGroup().addTo(m)
-  m.on('zoomend', rebuild)
-  m.on('moveend', updateInView)
+watch(style, () => {
+  select(null)
+  updateHeat()
+  rebuild()
+})
+watch(mobile, () => {
+  const keep = selected.value
+  select(keep)
+  rebuild()
+})
+let unsubscribe: (() => void) | undefined
+watch(map, (m) => {
+  unsubscribe?.()
+  if (m) unsubscribe = m.onChange(scheduleRebuild)
+})
+watch([map, loading], ([m, busy]) => {
+  if (!m || busy) return
+  const selectedId = selected.value?.photos[0]?.photo_id
+  m.initialize(located.value.map(coordinate))
+  updateHeat()
+  rebuild()
+  if (selectedId !== undefined) openPlaceOf(selectedId)
+  const wanted = located.value.find((p) => p.photo_id === Number(route.query.photo))
+  if (wanted)
+    m.flyTo(coordinate(wanted), 12, () => {
+      rebuild()
+      openPlaceOf(wanted.photo_id)
+    })
+})
+async function loadLocations() {
+  locationsFailed.value = false
+  loading.value = true
   try {
-    // Town names are a nicety: without them places show photo names or coordinates.
-    const named = call<PhotoPlace[]>({ url: '/photo-extra/getMapPlaces' }).then(
+    const named = call<PhotoPlace[]>({
+      url: '/photo-extra/getMapPlaces',
+      signal: requestController.signal,
+    }).then(
       (list) => (towns.value = new Map(list.map((p) => [p.photoId, p.place]))),
       () => undefined,
     )
-    all.value = await call<MapPhoto[]>({ url: '/photo-extra/getGlobalMapPhoto' })
+    all.value = await call<MapPhoto[]>({
+      url: '/photo-extra/getGlobalMapPhoto',
+      signal: requestController.signal,
+    })
     await named
-    // Start where the photos are.
-    if (located.value.length)
-      m.fitBounds(L.latLngBounds(located.value.map(latLng)), { padding: [64, 64], maxZoom: 11 })
-    rebuild()
-    // "Open in Map" from the photo viewer lands on that photo.
-    const wanted = located.value.find((p) => p.photo_id === Number(route.query.photo))
-    if (wanted) {
-      m.setView(latLng(wanted), 12, { animate: false })
-      openPlaceOf(wanted.photo_id)
-    }
   } catch {
-    toast.warning('No Info')
+    if (!requestController.signal.aborted) locationsFailed.value = true
   } finally {
     loading.value = false
   }
+}
+onMounted(loadLocations)
+onBeforeUnmount(() => {
+  requestController.abort()
+  cancelAnimationFrame(frame)
+  unsubscribe?.()
 })
 
 const sheetPeers = computed(() => inView.value.slice(0, 8))
@@ -507,15 +499,19 @@ const sheetPeers = computed(() => inView.value.slice(0, 8))
     </ResizableSidebar>
 
     <div class="relative isolate min-h-96 flex-1 overflow-hidden">
-      <div ref="mapEl" class="absolute inset-0 isolate" />
+      <div ref="mapEl" class="absolute inset-0 isolate" style="position: absolute" />
+      <p v-if="failed" role="alert" class="bg-card absolute inset-x-4 top-28 z-[1000] rounded p-3">
+        Could not initialize the map. Reload this page to retry.
+      </p>
       <div
-        class="pointer-events-none absolute inset-x-4 top-3 z-[1000] flex items-center gap-2 md:top-4"
+        class="pointer-events-none absolute inset-x-4 top-3 z-[1000] flex flex-wrap items-start gap-2 md:top-4"
       >
         <h1
           class="bg-card pointer-events-auto flex h-11 items-center rounded-xl border px-4 font-semibold shadow-[0_2px_8px_rgb(0_0_0/0.08)] md:hidden"
         >
           Map
         </h1>
+        <MapProjectionControl :fallback="fallback" />
         <MapDates
           v-model="range"
           :dates="takenDays"
@@ -548,11 +544,21 @@ const sheetPeers = computed(() => inView.value.slice(0, 8))
       </div>
       <div
         v-if="style === 'heat'"
-        class="bg-card text-muted-foreground absolute bottom-6 left-4 z-[1000] flex items-center gap-2 rounded-lg border px-3 py-2 text-xs shadow-[0_2px_6px_rgb(0_0_0/0.08)]"
+        class="bg-card text-muted-foreground absolute bottom-10 left-4 z-[1000] flex items-center gap-2 rounded-lg border px-3 py-2 text-xs shadow-[0_2px_6px_rgb(0_0_0/0.08)]"
       >
         Fewer
         <span class="h-1.5 w-24 rounded-full" :style="{ background: heatGradient }" />
         More
+      </div>
+      <div
+        v-if="locationsFailed"
+        role="alert"
+        class="bg-card absolute inset-x-4 top-28 z-[1000] flex items-center justify-between rounded-lg border p-3 text-sm"
+      >
+        <span>Could not load photo locations.</span>
+        <button type="button" class="text-primary underline" @click="loadLocations">
+          Retry map
+        </button>
       </div>
       <Skeleton v-if="loading" class="absolute inset-0 z-[1000] rounded-none opacity-80" />
 
@@ -566,7 +572,7 @@ const sheetPeers = computed(() => inView.value.slice(0, 8))
         <section
           v-if="mobile && selected"
           :aria-label="placeName(selected)"
-          class="bg-card absolute inset-x-0 bottom-0 z-[1000] flex flex-col gap-3 rounded-t-[20px] px-4 pt-2 pb-4 shadow-[0_-8px_24px_rgb(0_0_0/0.1)]"
+          class="bg-card absolute inset-x-0 bottom-6 z-[1000] flex flex-col gap-3 rounded-t-[20px] px-4 pt-2 pb-4 shadow-[0_-8px_24px_rgb(0_0_0/0.1)]"
         >
           <button
             type="button"

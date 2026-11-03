@@ -221,3 +221,41 @@ test('disabled People hides entry and does not request people or jobs', async ({
     calls.some((c) => c.path === '/ai/people/persons' || c.path === '/ai/people/jobs/claim'),
   ).toBe(false)
 })
+
+test('To organize list and avatar reuse cached data on returning from a person', async ({
+  page,
+}) => {
+  const data = routes()
+  let lists = 0,
+    thumbs = 0
+  data['/ai/people/persons'] = () => {
+    lists++
+    return ok({
+      items: [{ id: 2, name: '', count: 1, hidden: false, coverFaceId: 22 }],
+      nextAfter: null,
+    })
+  }
+  await mockApi(page, data)
+  await page.route('**/ai/people/faces/22/thumbnail', (r) => {
+    thumbs++
+    return r.fulfill({
+      body: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+        'base64',
+      ),
+      contentType: 'image/png',
+      headers: { 'access-control-allow-origin': '*' },
+    })
+  })
+  await page.goto('/home/PeoplePart')
+  await page.getByRole('button', { name: 'To organize', exact: true }).click()
+  const person = page.getByRole('button', { name: 'Unnamed person 1 photo', exact: true })
+  await expect(person.locator('img')).toBeVisible()
+  const requests = lists
+  await person.click()
+  await expect(page.getByRole('textbox', { name: 'Person name' })).toBeVisible()
+  await page.getByRole('button', { name: 'People', exact: true }).click()
+  await expect(person.locator('img')).toBeVisible()
+  expect(lists).toBe(requests)
+  expect(thumbs).toBe(1)
+})

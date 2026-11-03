@@ -1,13 +1,7 @@
 import L from 'leaflet'
 
-/** Low to high density: teal, the brand green, amber, then red. */
-const STOPS: [number, string][] = [
-  [0.15, '#5eead4'],
-  [0.4, '#16827d'],
-  [0.7, '#f59e0b'],
-  [1, '#dc2626'],
-]
-export const heatGradient = `linear-gradient(to right, ${STOPS.map(([at, c]) => `${c} ${at * 100}%`).join(', ')})`
+import { heatStops as STOPS } from './mapEngine'
+import { wrapLongitude } from './mapGeometry'
 
 let colors: Uint8ClampedArray | undefined
 /** 256 RGBA entries, indexed by density. */
@@ -95,7 +89,10 @@ export class HeatLayer extends L.Layer {
     // Spread the alpha so a handful of overlapping photos already reads as "hot".
     ctx.globalAlpha = 0.3
     for (const p of this.points) {
-      const { x, y } = map.latLngToContainerPoint(p)
+      const { x, y } = map.latLngToContainerPoint([
+        p.lat,
+        map.getCenter().lng + wrapLongitude(p.lng - map.getCenter().lng),
+      ])
       if (x < -r || y < -r || x > size.x + r || y > size.y + r) continue
       ctx.drawImage(blob, x - r, y - r)
     }

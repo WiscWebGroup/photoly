@@ -98,6 +98,17 @@ function parseBody(req: Request) {
  * Returns the list of API calls made, for asserting on.
  */
 export async function mockApi(page: Page, routes: Record<string, Reply> = {}) {
+  // Deterministic local imagery: tests never load public OSM tiles.
+  await page.route('https://tile.openstreetmap.org/**', (route) =>
+    route.fulfill({
+      contentType: 'image/png',
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Cross-Origin-Resource-Policy': 'cross-origin',
+      },
+      body: PNG,
+    }),
+  )
   const calls: ApiCall[] = []
   await page.route('https://*.tile.openstreetmap.org/**', (route) =>
     route.fulfill({ body: PNG, contentType: 'image/png' }),

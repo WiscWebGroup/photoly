@@ -850,19 +850,37 @@ func (s *Service) SharedPath(ctx context.Context, path, token string, hasPath, h
 	if userUUID != uu || filename != expected {
 		return "", Err(nil, 403)
 	}
-	if !isFile(canonical) {
-		return "", Err(nil, 404)
+	var visible bool
+	if err = s.Pool.QueryRow(ctx, `SELECT photo_visible(storage_id,user_id) FROM photo WHERE photo_id=$1`, p.ID).Scan(&visible); err != nil {
+		return "", err
+	}
+	if !visible {
+		return "", Err(nil, 403)
 	}
 	if !thumbnail {
 		if has, err := dbgen.New(s.Pool).GetPhotoHasPreview(ctx, p.ID); err == nil && has {
-			return s.AssetPath(ctx, s.Pool, uu, p.UUID, "preview")
+			canonical, err = s.AssetPath(ctx, s.Pool, uu, p.UUID, "preview")
+			if err != nil {
+				return "", err
+			}
 		}
+	}
+	if err = storage.FetchError(ctx, canonical); err != nil {
+		return "", mediaAccessError(err)
 	}
 	return canonical, nil
 }
 
 // ShareURL is PhotoService.share_url.
-func (s *Service) ShareURL(ctx context.Context, uid, photoID int64) (string, error) {
+func (s *Service) ShareURL(ctx context.Context, uid, photoID int64, bases ...string) (string, error) {
+	base := s.Cfg.PublicBaseURL
+	if len(bases) > 0 && bases[0] != "" {
+		var err error
+		base, err = validateShareBase(bases[0])
+		if err != nil {
+			return "", err
+		}
+	}
 	p, err := s.OwnedPhoto(ctx, s.Pool, photoID, uid, nil, 403)
 	if err != nil {
 		return "", err
@@ -882,7 +900,16 @@ func (s *Service) ShareURL(ctx context.Context, uid, photoID int64) (string, err
 		return "", err
 	}
 	path := uu + "/" + p.UUID + "." + p.Format
-	return s.Cfg.PublicBaseURL + endpoint + "?" + urlencode(path, p.Token), nil
+	return base + endpoint + "?" + urlencode(path, p.Token), nil
+}
+
+// validateShareBase is only used to compose a link, never to make an outbound request.
+func validateShareBase(raw string) (string, error) {
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || strings.ContainsAny(raw, "\\\r\n\t ") {
+		return "", Err("invalid_share_base", 400)
+	}
+	return strings.TrimRight(u.String(), "/"), nil
 }
 
 // urlencode is urlencode({"path": path, "token": token}, safe="/").
