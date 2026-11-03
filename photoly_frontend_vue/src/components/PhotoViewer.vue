@@ -4,6 +4,7 @@ import MediaNotes from './MediaNotes.vue'
 import PhotoNotePins from './PhotoNotePins.vue'
 import MediaCategoryEditor from './MediaCategoryEditor.vue'
 import LocationMap from './LocationMap.vue'
+import VideoPlayer from './VideoPlayer.vue'
 import { exifCoordinate } from '@/lib/mapGeometry'
 import { mediaErrorMessage } from '@/composables/useSourceHealth'
 import PeopleInMedia from './PeopleInMedia.vue'
@@ -17,7 +18,7 @@ import {
   useSwipe,
   useResizeObserver,
 } from '@vueuse/core'
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch, watchPostEffect } from 'vue'
 import { toast } from 'vue-sonner'
 import {
   ArrowLeft,
@@ -142,7 +143,9 @@ const liveInfo = ref<{ live: boolean; liveStatus: string | null; animated?: bool
 const livePlaying = ref(false)
 const liveMuted = ref(true)
 const liveVideo = ref<HTMLVideoElement>()
+const videoPlayer = ref<InstanceType<typeof VideoPlayer>>()
 function stopPlayback() {
+  videoPlayer.value?.pause()
   liveVideo.value?.pause()
   root.value?.querySelectorAll('video').forEach((video) => video.pause())
   livePlaying.value = false
@@ -219,6 +222,9 @@ const root = ref<HTMLElement>()
 const panelScroll = ref<HTMLElement>()
 const stage = ref<HTMLElement>()
 const mediaEl = ref<HTMLElement>()
+watchPostEffect(() => {
+  if (videoPlayer.value?.element) mediaEl.value = videoPlayer.value.element
+})
 const noteImageSize = ref({ width: 0, height: 0 })
 useResizeObserver(mediaEl, () => {
   noteImageSize.value = {
@@ -397,7 +403,9 @@ function jump(target: Photo) {
 
 const isTyping = (el: EventTarget | null) =>
   el instanceof HTMLElement &&
-  !!el.closest('input, textarea, select, video, [contenteditable="true"], [data-location-map]')
+  !!el.closest(
+    'input, textarea, select, video, [contenteditable="true"], [data-location-map], [data-video-player]',
+  )
 /** Only when the viewer is the top layer: no menu, popover or confirmation open over it. */
 const onTop = () =>
   document.querySelectorAll('[role=dialog], [role=alertdialog], [role=menu]').length <= 1
@@ -410,7 +418,9 @@ onKeyStroke(['ArrowLeft', 'ArrowRight', 'i'], (e) => {
 })
 useSwipe(stage, {
   threshold: 48,
-  onSwipeEnd(_, dir) {
+  onSwipeEnd(event, dir) {
+    // ArtPlayer needs bubbling touch events for drag cleanup; ignore them here instead.
+    if (event.target instanceof Element && event.target.closest('[data-video-player]')) return
     if (notesPanel.value?.placing) return
     if (dir === 'left') void step(1)
     else if (dir === 'right') void step(-1)
@@ -1084,7 +1094,7 @@ const overlay = 'dark text-foreground'
       class="dark text-foreground fixed inset-0 top-0 left-0 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-none border-0 bg-transparent p-0 shadow-none outline-none data-[state=closed]:animate-none data-[state=open]:animate-none sm:max-w-none"
       @escape-key-down="
         (event: KeyboardEvent) => {
-          if (noteOverlay?.dismiss()) event.preventDefault()
+          if (videoPlayer?.exitFullscreen() || noteOverlay?.dismiss()) event.preventDefault()
         }
       "
       @open-auto-focus="
@@ -1429,20 +1439,15 @@ const overlay = 'dark text-foreground'
                       </button>
                     </div>
                   </template>
-                  <video
+                  <VideoPlayer
                     v-else-if="kind === 'video'"
+                    ref="videoPlayer"
+                    :src="photoUrl(info.photoId, 'renderV')"
                     :poster="photoUrl(info.photoId, 'renderThumbnail')"
-                    ref="mediaEl"
-                    controls
-                    class="max-h-full max-w-full"
-                    @loadedmetadata="mediaReady"
-                    @error="mediaFailed"
-                  >
-                    <source
-                      :src="photoUrl(info.photoId, 'renderV')"
-                      :type="`video/${info.format}`"
-                    />
-                  </video>
+                    :media-id="`${info.photoId}:${version}`"
+                    @ready="mediaReady"
+                    @error="mediaFailure = 'Could not load this media. Please retry.'"
+                  />
                   <div v-else ref="mediaEl" class="flex flex-col items-center gap-3 text-center">
                     <FileIcon class="text-muted-foreground size-14" aria-hidden="true" />
                     <p class="text-sm">{{ fileName }}</p>
