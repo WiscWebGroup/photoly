@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { http } from 'msw'
 import { ApiError } from '@/lib/http'
 import { API, json, ok, recordRequests, server } from '@/test/server'
@@ -25,6 +25,35 @@ describe('isValidFolderName', () => {
 })
 
 describe('useFolders', () => {
+  it('ignores an old response after navigating away and back to the same folder', async () => {
+    let finish!: () => void
+    const delayed = new Promise<void>((resolve) => {
+      finish = resolve
+    })
+    let reads = 0
+    server.use(
+      http.get(`${API}/namespace/trace`, ({ request }) => {
+        const id = Number(new URL(request.url).searchParams.get('nsId'))
+        return ok([root, { nsId: id, nsName: String(id) }])
+      }),
+      http.get(`${API}/namespace/getChildren`, async ({ request }) => {
+        if (new URL(request.url).searchParams.get('parentId') === '2' && ++reads === 1) {
+          await delayed
+          return ok([{ nsId: 99, nsName: 'Stale' }])
+        }
+        return ok([{ nsId: 100, nsName: 'Current' }])
+      }),
+    )
+    const folders = useFolders()
+    const old = folders.open(2)
+    await vi.waitFor(() => expect(reads).toBe(1))
+    await folders.open(3)
+    await folders.open(2)
+    finish()
+    await old
+    expect(folders.current.value?.nsId).toBe(2)
+    expect(folders.children.value).toEqual([{ nsId: 100, nsName: 'Current' }])
+  })
   it('opens the root with its children and path, sending the token', async () => {
     const calls = recordRequests()
     const folders = useFolders()

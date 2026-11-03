@@ -150,6 +150,13 @@ type NamespacePhoto struct {
 	PhotoID *int64
 }
 
+type NamespacePin struct {
+	UserID    int64
+	NsID      int64
+	Position  *int64
+	IsDefault bool
+}
+
 type PeopleEmbedding struct {
 	FaceID      int64
 	UserID      int64

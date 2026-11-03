@@ -8,7 +8,7 @@ test('login lands on home with the root folder', async ({ page }) => {
   await page.getByLabel('Password', { exact: true }).fill('secret')
   await page.getByRole('button', { name: 'Sign In' }).click()
 
-  await expect(page).toHaveURL(/\/home\/HomePart$/)
+  await expect(page).toHaveURL(/\/home\/HomePart\?folder=1$/)
   await expect(page.getByRole('heading', { name: 'Nothing Here', exact: true })).toBeVisible()
   expect(calls.find((c) => c.path === '/user/signIn')?.body).toEqual({
     email: 'alice@example.com',
@@ -45,7 +45,7 @@ test('an unresponsive login times out and allows retry', async ({ page }) => {
   expect(await page.evaluate(() => localStorage.getItem('HRD-Token'))).toBeNull()
   await page.unroute('**/user/signIn/')
   await submit.click()
-  await expect(page).toHaveURL(/\/home\/HomePart$/)
+  await expect(page).toHaveURL(/\/home\/HomePart\?folder=1$/)
 })
 
 test('signup lands on home', async ({ page }) => {
@@ -59,7 +59,7 @@ test('signup lands on home', async ({ page }) => {
   await page.getByLabel('Confirm Password', { exact: true }).fill('secret')
   await page.getByRole('button', { name: 'Create Account' }).click()
 
-  await expect(page).toHaveURL(/\/home\/HomePart$/)
+  await expect(page).toHaveURL(/\/home\/HomePart\?folder=1$/)
   expect(calls.find((c) => c.path === '/user/signUp')?.body).toMatchObject({
     email: 'alice@example.com',
     password: 'secret',
@@ -69,7 +69,7 @@ test('signup lands on home', async ({ page }) => {
 test('home redirects to login without a token', async ({ page }) => {
   await mockApi(page)
   await page.goto('/home/HomePart')
-  await expect(page).toHaveURL(/\/login$/)
+  await expect(page).toHaveURL(/\/login\?redirect=/)
 })
 
 test('logout clears the token and returns to sign in', async ({ page }) => {
@@ -92,5 +92,5 @@ test('signed-in users skip the login form', async ({ page }) => {
   await signIn(page)
   await mockApi(page)
   await page.goto('/login')
-  await expect(page).toHaveURL(/\/home\/HomePart$/)
+  await expect(page).toHaveURL(/\/home\/HomePart\?folder=1$/)
 })

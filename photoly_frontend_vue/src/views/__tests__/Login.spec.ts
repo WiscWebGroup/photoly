@@ -51,6 +51,7 @@ describe('Login', () => {
         body: { email: 'alice@example.com', password: 'secret' },
       },
       { method: 'GET', path: '/maintenance/status' },
+      { method: 'GET', path: '/namespace/pins' },
     ])
     expect(localStorage.getItem('HRD-Token')).toBe('tok-123')
   })
@@ -89,5 +90,38 @@ describe('Login', () => {
     await flushPromises()
     expect(field('Password').type).toBe('text')
     expect(document.querySelector('[aria-label="Hide password"]')).not.toBeNull()
+  })
+
+  it('opens the saved default after login', async () => {
+    server.use(
+      http.post(`${API}/user/signIn/`, () => json({ msgCode: 200, token: 'tok' })),
+      http.get(`${API}/namespace/pins`, () =>
+        ok({ items: [{ nsId: 5, nsName: 'Trips', path: '/Trips' }], defaultNsId: 5 }),
+      ),
+    )
+    mountWithApp(Login)
+    type(field('Email'), 'alice@example.com')
+    type(field('Password'), 'secret')
+    button('Sign In').click()
+    await vi.waitFor(() =>
+      expect(router.currentRoute.value.fullPath).toBe('/home/HomePart?folder=5'),
+    )
+  })
+
+  it('preserves a protected deep link through login instead of applying the default', async () => {
+    await router.push('/home/HomePart?folder=8')
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(router.currentRoute.value.query.redirect).toBe('/home/HomePart?folder=8')
+    server.use(
+      http.post(`${API}/user/signIn/`, () => json({ msgCode: 200, token: 'tok' })),
+      http.get(`${API}/namespace/pins`, () => ok({ items: [], defaultNsId: 5 })),
+    )
+    mountWithApp(Login)
+    type(field('Email'), 'alice@example.com')
+    type(field('Password'), 'secret')
+    button('Sign In').click()
+    await vi.waitFor(() =>
+      expect(router.currentRoute.value.fullPath).toBe('/home/HomePart?folder=8'),
+    )
   })
 })

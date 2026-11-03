@@ -28,18 +28,25 @@ export function useFolders() {
   const ordering = ref(false)
   let orderingParent: number | null = null
   let mutationVersion = 0
+  let navigationVersion = 0
+
+  function invalidate() {
+    navigationVersion++
+  }
 
   async function refresh() {
     if (!current.value) return
     const { nsId } = current.value
     if (ordering.value && orderingParent === nsId) return
     const started = mutationVersion
+    const navigation = navigationVersion
     const [nextChildren, nextPath] = await Promise.all([
       call<Folder[]>({ url: '/namespace/getChildren', params: { parentId: nsId } }),
       call<Folder[]>({ url: '/namespace/trace', params: { nsId } }),
     ])
     if (
       current.value?.nsId !== nsId ||
+      navigation !== navigationVersion ||
       started !== mutationVersion ||
       (ordering.value && orderingParent === nsId)
     )
@@ -50,13 +57,17 @@ export function useFolders() {
   }
 
   async function open(nsId: number, nsName = '') {
+    invalidate()
     current.value = { nsId, nsName }
+    children.value = []
+    path.value = []
     await refresh()
-    current.value = path.value.at(-1) ?? current.value
   }
 
   async function openRoot() {
+    const navigation = ++navigationVersion
     const root = await call<Folder>({ url: '/namespace/getRoot' })
+    if (navigation !== navigationVersion) return
     await open(root.nsId, root.nsName)
   }
 
@@ -132,5 +143,6 @@ export function useFolders() {
     remove,
     reorder,
     ordering,
+    invalidate,
   }
 }

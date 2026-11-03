@@ -13,6 +13,7 @@ const cors = {
 export const json = (body: JsonBodyType) => HttpResponse.json(body, { headers: cors })
 
 export const server = setupServer(
+  http.get(`${API}/namespace/pins`, () => ok({ items: [], defaultNsId: null })),
   http.get(`${API}/admin/runtime`, () =>
     ok({ uptimeSeconds: 120, startedAt: '2026-01-01T00:00:00Z', bootId: 'test' }),
   ),

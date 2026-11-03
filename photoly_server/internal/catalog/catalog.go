@@ -48,6 +48,10 @@ func Register(a *app.App) {
 	m.HandleFunc("GET /gallery/downloadGa/{token}", bin.Wrap(a, s.downloadGallery))
 
 	m.HandleFunc("GET /namespace/getRoot", std.Wrap(a, s.nsRoot))
+	m.HandleFunc("GET /namespace/pins", std.Wrap(a, s.nsPins))
+	m.HandleFunc("POST /namespace/pin", std.Wrap(a, s.nsPinAction("pin")))
+	m.HandleFunc("POST /namespace/unpin", std.Wrap(a, s.nsPinAction("unpin")))
+	m.HandleFunc("POST /namespace/defaultLocation", std.Wrap(a, s.nsPinAction("default")))
 	m.HandleFunc("GET /namespace/getChildren", std.Wrap(a, s.nsChildren))
 	m.HandleFunc("GET /namespace/getDetails", std.Wrap(a, s.nsDetails))
 	m.HandleFunc("GET /namespace/getNameById", std.Wrap(a, s.nsName))

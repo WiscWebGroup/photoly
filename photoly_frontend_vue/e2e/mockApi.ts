@@ -33,6 +33,7 @@ const cors = {
 
 // What a freshly signed-up user with an empty library sees.
 const defaults: Record<string, Reply> = {
+  '/namespace/pins': ok({ items: [], defaultNsId: null }),
   '/maintenance/status': ok({ mode: 'off' }),
   '/admin/runtime': ok({ uptimeSeconds: 120, startedAt: '2026-01-01T00:00:00Z', bootId: 'test' }),
   '/admin/resources/current': ok({

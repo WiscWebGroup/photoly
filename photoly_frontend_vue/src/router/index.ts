@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, START_LOCATION } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 declare module 'vue-router' {
@@ -93,10 +93,11 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach(async (to) => {
+router.beforeEach(async (to, from) => {
   const auth = useAuthStore()
   auth.refresh()
-  if (to.meta.requiresAuth && !auth.isLoggedIn) return { name: 'login' }
+  if (to.meta.requiresAuth && !auth.isLoggedIn)
+    return { name: 'login', query: { redirect: to.fullPath } }
   if (to.meta.requiresAdmin) {
     const { assertAdmin } = await import('@/composables/useAdminGuard')
     const { ApiError } = await import('@/lib/http')
@@ -109,6 +110,25 @@ router.beforeEach(async (to) => {
         return '/home/HomePart'
       }
       // The page renders a retryable load error for network failures.
+    }
+  }
+  if (
+    to.name === 'home' &&
+    to.params.part === 'HomePart' &&
+    to.query.folder === undefined &&
+    (from === START_LOCATION || from.name === 'login')
+  ) {
+    const { useFolderPinsStore } = await import('@/stores/folderPins')
+    const pins = useFolderPinsStore()
+    try {
+      const { defaultNsId } = await pins.load(true)
+      if (defaultNsId !== null) {
+        pins.startupFolderId = defaultNsId
+        return { ...to, query: { ...to.query, folder: String(defaultNsId) }, replace: true }
+      }
+    } catch {
+      const { toast } = await import('vue-sonner')
+      toast.error('Could not load your default location. Opening Library.')
     }
   }
 })
