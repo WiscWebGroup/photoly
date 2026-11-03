@@ -1,5 +1,5 @@
 import { nextTick } from 'vue'
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { http } from 'msw'
 import { API, server, ok, json, recordRequests } from '@/test/server'
 import { mountWithApp, button, pageText, type } from '@/test/utils'
@@ -16,11 +16,18 @@ const saved = {
   needsReposition: false,
 }
 describe('MediaNotes', () => {
+  beforeEach(() => {
+    HTMLElement.prototype.scrollIntoView = vi.fn()
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    )
+  })
   it('saves multiline plain text with normalized photo coordinates', async () => {
     const calls = recordRequests()
     server.use(http.post(`${API}/photo/notes`, () => ok({ id: 3 })))
     const wrapper = mountWithApp(MediaNotes, { photoId: 10, canPin: true })
-    await vi.waitFor(() => expect(pageText()).toContain('Notes0'))
+    await vi.waitFor(() => expect(wrapper.find('button').text()).toBe('Notes0'))
     button('Notes0').click()
     button('Pin on photo').click()
     await vi.waitFor(() =>
@@ -57,6 +64,8 @@ describe('MediaNotes', () => {
     await vi.waitFor(() => expect(pageText()).toContain('Notes1'))
     button('Notes1').click()
     expect((wrapper.vm as unknown as InstanceType<typeof MediaNotes>).pins).toEqual([])
+    button('See all Pin-point notes (1)').click()
+    await nextTick()
     button('Edit').click()
     await vi.waitFor(() => expect(document.querySelector('textarea')).toBeTruthy())
     type(document.querySelector('textarea')! as unknown as HTMLInputElement, 'Unsaved memory')
@@ -72,5 +81,77 @@ describe('MediaNotes', () => {
     await vi.waitFor(() => expect(pageText()).toContain('Discard unsaved note?'))
     button('Discard changes').click()
     expect(await discard).toBe(true)
+  })
+  it('separates notes, reveals one without all bubbles, and resets on collapse', async () => {
+    server.use(
+      http.get(`${API}/photo/notes`, () =>
+        ok({
+          items: [
+            { ...saved, id: 10, x: null, y: null, body: 'General memory' },
+            { ...saved, id: 11, body: 'Pinned memory' },
+            { ...saved, id: 12, needsReposition: true, body: 'Old point' },
+          ],
+          contentVersion: 1,
+        }),
+      ),
+    )
+    const wrapper = mountWithApp(MediaNotes, { photoId: 10, canPin: true })
+    const api = wrapper.vm as unknown as InstanceType<typeof MediaNotes>
+    await vi.waitFor(() => expect(pageText()).toContain('Notes3'))
+    button('Notes3').click()
+    await nextTick()
+    expect(document.querySelector('[aria-label="General Notes"]')?.textContent).toContain(
+      'General memory',
+    )
+    expect(document.querySelector('[aria-label="Pin-point Notes"]')).toBeNull()
+    expect(api.pins.map((p) => p.number)).toEqual([1])
+    expect(api.showAllBubbles).toBe(false)
+    await api.select(11)
+    expect(document.querySelector('[aria-label="Pin-point Notes"]')?.textContent).toContain(
+      'Pinned memory',
+    )
+    expect(api.showAllBubbles).toBe(false)
+    expect(api.selectedId).toBe(11)
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
+    button('See all Pin-point notes (2)').click()
+    await nextTick()
+    expect(api.showAllBubbles).toBe(true)
+    expect(pageText()).toContain('Point needs repositioning')
+    button('Hide Pin-point notes (2)').click()
+    await nextTick()
+    expect(document.querySelector('[aria-label="Pin-point Notes"]')).toBeNull()
+    button('See all Pin-point notes (2)').click()
+    await nextTick()
+    button('Notes3').click()
+    await nextTick()
+    expect(api.showAllBubbles).toBe(false)
+    expect(api.selectedId).toBe(0)
+    expect(api.pins).toEqual([])
+  })
+  it('preserves surviving pin colors and renumbers after deletion', async () => {
+    let notes = [
+      { ...saved, id: 1 },
+      { ...saved, id: 2, body: 'Second point' },
+    ]
+    server.use(
+      http.get(`${API}/photo/notes`, () => ok({ items: notes, contentVersion: 1 })),
+      http.delete(`${API}/photo/notes/1`, () => {
+        notes = notes.slice(1)
+        return ok({ id: 1 })
+      }),
+    )
+    const wrapper = mountWithApp(MediaNotes, { photoId: 10, canPin: true })
+    const api = wrapper.vm as unknown as InstanceType<typeof MediaNotes>
+    await vi.waitFor(() => expect(pageText()).toContain('Notes2'))
+    button('Notes2').click()
+    await nextTick()
+    const color = api.pins[1]!.color
+    await api.select(1)
+    button('Delete', document.getElementById('media-note-1')!).click()
+    await nextTick()
+    button('Delete note').click()
+    await vi.waitFor(() => expect(api.pins).toHaveLength(1))
+    expect(api.pins[0]).toMatchObject({ id: 2, number: 1, color })
+    expect(api.selectedId).toBe(0)
   })
 })
