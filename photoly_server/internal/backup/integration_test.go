@@ -379,6 +379,14 @@ func TestMaintenanceGateAndExclusiveJob(t *testing.T) {
 	if w := request("GET", "/healthz", ""); w.Code != 200 {
 		t.Fatal(w.Code)
 	}
+	for _, id := range []string{strings.Repeat("g", 36), "../outside", uuid.NewString() + "/../outside"} {
+		if w := request("GET", "/admin/backup-jobs/"+id, ""); w.Code != 400 {
+			t.Fatal("invalid job ID accepted", id, w.Code)
+		}
+		if w := request("POST", "/admin/backups/"+id+"/restore", `{"password":"long password for task","confirm":true}`); w.Code != 400 {
+			t.Fatal("invalid restore ID accepted", id, w.Code)
+		}
+	}
 	payload, _ := json.Marshal(map[string]string{"password": "long password for task"})
 	w := request("POST", "/admin/backups", string(payload))
 	if w.Code != 202 {

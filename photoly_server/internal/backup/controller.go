@@ -467,8 +467,8 @@ func (c *Controller) control(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == "GET" && strings.HasPrefix(path, "/admin/backup-jobs/") {
-		id := strings.TrimPrefix(path, "/admin/backup-jobs/")
-		if checkID(id) != nil {
+		id, err := validatedID(strings.TrimPrefix(path, "/admin/backup-jobs/"))
+		if err != nil {
 			reply(w, 400, "Invalid job ID")
 			return
 		}
@@ -492,8 +492,9 @@ func (c *Controller) control(w http.ResponseWriter, r *http.Request) {
 		kind, id := "backup", uuid.NewString()
 		if path != "/admin/backups" {
 			kind = "restore"
-			id = strings.TrimSuffix(strings.TrimPrefix(path, "/admin/backups/"), "/restore")
-			if !body.Confirm || checkID(id) != nil {
+			var err error
+			id, err = validatedID(strings.TrimSuffix(strings.TrimPrefix(path, "/admin/backups/"), "/restore"))
+			if !body.Confirm || err != nil {
 				reply(w, 400, "Confirm whole-instance replacement")
 				return
 			}
@@ -509,6 +510,10 @@ func (c *Controller) control(w http.ResponseWriter, r *http.Request) {
 	reply(w, 404, "Not found")
 }
 func (c *Controller) launch(kind, id, password string) (Job, error) {
+	id, err := validatedID(id)
+	if err != nil {
+		return Job{}, err
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state.Mode != "on" || c.transitioning || c.busyLocked() || c.recoveryError != "" {

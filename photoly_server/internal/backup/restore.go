@@ -70,9 +70,11 @@ func renameDB(ctx context.Context, c *pgx.Conn, from, to string) error {
 	return err
 }
 func (e *Engine) rollback(ctx context.Context, j *Journal) error {
-	if err := checkID(j.ID); err != nil {
+	id, err := validatedID(j.ID)
+	if err != nil {
 		return err
 	}
+	j.ID = id
 	j.State = "rolling_back"
 	if err := e.saveJournal(j); err != nil {
 		return err

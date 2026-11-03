@@ -7,10 +7,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
 
@@ -170,9 +170,15 @@ func digest(path string) (string, error) {
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
-func checkID(id string) error {
-	if len(id) != 36 || !storage.ValidComponent(id) || strings.Contains(id, ".") {
-		return fmt.Errorf("invalid backup ID")
+
+// IDs are canonical UUID directory names, never general filesystem paths.
+var backupIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// Return the checked value so filesystem callers cannot accidentally keep using
+// the original request input after validating a different string.
+func validatedID(id string) (string, error) {
+	if !backupIDPattern.MatchString(id) {
+		return "", errors.New("invalid backup ID")
 	}
-	return nil
+	return id, nil
 }

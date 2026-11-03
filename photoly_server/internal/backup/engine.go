@@ -282,7 +282,8 @@ func validateOriginals(ctx context.Context, url, root string, recordIdentities b
 }
 func (e *Engine) Backup(ctx context.Context, id, password string) (Summary, error) {
 	var summary Summary
-	if err := checkID(id); err != nil {
+	id, err := validatedID(id)
+	if err != nil {
 		return summary, err
 	}
 	if len(password) < 12 {
@@ -444,10 +445,11 @@ func (e *Engine) List() ([]Summary, error) {
 		return nil, err
 	}
 	for _, d := range entries {
-		if !d.IsDir() || checkID(d.Name()) != nil {
+		id, err := validatedID(d.Name())
+		if !d.IsDir() || err != nil {
 			continue
 		}
-		dir, er := safe(e.Cfg.BackupDir, d.Name())
+		dir, er := safe(e.Cfg.BackupDir, id)
 		if er != nil {
 			continue
 		}
@@ -461,7 +463,8 @@ func (e *Engine) List() ([]Summary, error) {
 }
 func (e *Engine) manifest(ctx context.Context, id, password string) (Manifest, string, error) {
 	var m Manifest
-	if err := checkID(id); err != nil {
+	id, err := validatedID(id)
+	if err != nil {
 		return m, "", err
 	}
 	dir, err := safe(e.Cfg.BackupDir, id)
