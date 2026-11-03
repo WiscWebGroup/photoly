@@ -140,3 +140,25 @@ it('server placement never creates a browser worker or claims a browser task', a
   expect(claims).toBe(0)
   expect(FaceWorker.instances).toHaveLength(0)
 })
+
+it('keeps bounded view snapshots, expires them and clears them on revisions or account changes', async () => {
+  const snapshot = {
+    items: [],
+    person: null,
+    photos: [],
+    after: null,
+    scroll: 120,
+    savedAt: Date.now(),
+  }
+  for (let i = 0; i < 21; i++) store.saveView(String(i), snapshot)
+  expect(store.view('0')).toBeUndefined()
+  expect(store.view('1')?.scroll).toBe(120)
+  store.saveView('expired', { ...snapshot, savedAt: Date.now() - 300_001 })
+  expect(store.view('expired')).toBeUndefined()
+  store.revision++
+  expect(store.view('1')).toBeUndefined()
+  store.saveView('current', snapshot)
+  useAuthStore().setToken('other-session')
+  await flushPromises()
+  expect(store.view('current')).toBeUndefined()
+})

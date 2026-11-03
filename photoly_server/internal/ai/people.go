@@ -15,6 +15,7 @@ import (
 )
 
 type People struct {
+	crops  cropCache
 	pool   *pgxpool.Pool
 	root   string
 	rt     *Runtime

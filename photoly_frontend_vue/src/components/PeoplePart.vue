@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Users, ChevronLeft } from '@lucide/vue'
 import { call } from '@/lib/http'
+import { storeToRefs } from 'pinia'
 import { usePeopleStore, type Person, type PersonFace, type PeoplePage } from '@/stores/people'
 import type { Photo } from '@/composables/usePhotos'
 import AlbumSwitch from './AlbumSwitch.vue'
@@ -22,9 +23,8 @@ const store = usePeopleStore(),
   route = useRoute(),
   router = useRouter(),
   id = computed(() => Number(route.query.person) || 0)
-const mode = ref('people'),
-  query = ref(''),
-  items = ref<Person[]>([]),
+const { browseMode: mode, browseQuery: query } = storeToRefs(store)
+const items = ref<Person[]>([]),
   person = ref<Person | null>(null),
   name = ref(''),
   after = ref<number | null>(null),
@@ -42,14 +42,55 @@ const media = ref<InstanceType<typeof MediaList>>(),
   photos = ref<Photo[]>([])
 let sequence = 0,
   facesSequence = 0
-async function load(more = false) {
+const page = ref<HTMLElement>()
+const viewKey = computed(() =>
+  id.value ? `person:${id.value}` : `list:${mode.value}:${query.value.trim()}`,
+)
+let activeKey = ''
+function savePosition() {
+  const cached = store.view(activeKey)
+  if (cached)
+    store.saveView(activeKey, { ...cached, scroll: page.value?.closest('main')?.scrollTop ?? 0 })
+}
+async function applyCached(value: NonNullable<ReturnType<typeof store.view>>) {
+  items.value = value.items
+  person.value = value.person
+  name.value = value.person?.name ?? ''
+  photos.value = value.photos
+  after.value = value.after
+  await nextTick()
+  media.value?.updatePhotoList(photos.value)
+  page.value?.closest('main')?.scrollTo({ top: value.scroll })
+}
+async function load(more = false, force = false) {
   if (!store.visible) return
   const seq = ++sequence
+  const key = viewKey.value
+  if (activeKey !== key) savePosition()
+  activeKey = key
+  const cached = !more && !force ? store.view(key) : undefined
+  if (cached) {
+    await applyCached(cached)
+    if (seq !== sequence) return
+    if (Date.now() - cached.savedAt < 30_000) {
+      loading.value = false
+      error.value = ''
+      return
+    }
+  } else if (!more) {
+    items.value = []
+    person.value = null
+    photos.value = []
+    after.value = null
+  }
   loading.value = true
   error.value = ''
   try {
     if (id.value) {
-      const detail = await call<Person>({ url: `/ai/people/persons/${id.value}` })
+      const personId = id.value
+      const detail = await store.request(`detail:${personId}`, () =>
+        call<Person>({ url: `/ai/people/persons/${personId}` }),
+      )
       if (seq !== sequence) return
       person.value = detail
       name.value = detail.name
@@ -57,10 +98,13 @@ async function load(more = false) {
         router.replace({ query: { person: String(detail.id) } })
         return
       }
-      const d = await call<PeoplePage<Photo>>({
-        url: `/ai/people/persons/${id.value}/photos`,
-        params: { after: more ? after.value : 0, limit: 100 },
-      })
+      const cursor = more ? after.value : 0
+      const d = await store.request(`photos:${personId}:${cursor}`, () =>
+        call<PeoplePage<Photo>>({
+          url: `/ai/people/persons/${id.value}/photos`,
+          params: { after: cursor, limit: 100 },
+        }),
+      )
       if (seq !== sequence) return
       photos.value = more ? [...photos.value, ...d.items] : d.items
       after.value = d.nextAfter
@@ -68,14 +112,25 @@ async function load(more = false) {
       media.value?.updatePhotoList(photos.value)
     } else {
       person.value = null
-      const d = await call<PeoplePage<Person>>({
-        url: '/ai/people/persons',
-        params: { mode: mode.value, q: query.value, after: more ? after.value : 0 },
-      })
+      const cursor = more ? after.value : 0
+      const d = await store.request(`${key}:${cursor}`, () =>
+        call<PeoplePage<Person>>({
+          url: '/ai/people/persons',
+          params: { mode: mode.value, q: query.value.trim(), after: cursor },
+        }),
+      )
       if (seq !== sequence) return
       items.value = more ? [...items.value, ...d.items] : d.items
       after.value = d.nextAfter
     }
+    store.saveView(key, {
+      items: [...items.value],
+      person: person.value,
+      photos: [...photos.value],
+      after: after.value,
+      savedAt: Date.now(),
+      scroll: cached?.scroll ?? 0,
+    })
   } catch {
     if (seq === sequence) error.value = 'Could not load people. Please retry.'
   } finally {
@@ -88,7 +143,7 @@ async function action(fn: () => Promise<unknown>) {
   try {
     await fn()
     store.revision++
-    await load()
+    await load(false, true)
   } catch {
     error.value = 'Could not save your changes. Please retry.'
   } finally {
@@ -109,9 +164,14 @@ function startMerge() {
   target.value = selected.value[0] ?? 0
   merging.value = true
 }
+function refreshMedia() {
+  store.revision++
+  void load(false, true)
+}
 function facesChanged() {
   void loadFaces()
-  void load()
+  store.revision++
+  void load(false, true)
 }
 async function merge() {
   await action(async () => {
@@ -182,19 +242,23 @@ watch(
       !id.value &&
       !selected.value.length &&
       items.value.length <= 50 &&
-      !busy.value &&
-      !loading.value
+      !busy.value
     )
-      void load()
+      void load(false, true)
   },
 )
-onMounted(async () => {
-  await store.refresh()
-  if (store.visible && !loading.value) void load()
+onMounted(() => {
+  if (store.visible) void load()
+  void store.refresh()
+})
+onBeforeUnmount(() => {
+  savePosition()
+  sequence++
+  facesSequence++
 })
 </script>
 <template>
-  <div class="flex flex-col gap-6 p-4 md:px-10 md:py-8">
+  <div ref="page" class="flex flex-col gap-6 p-4 md:px-10 md:py-8">
     <AlbumSwitch class="md:hidden" />
     <div v-if="!store.visible" class="flex flex-col items-start gap-3 py-10">
       <Users class="size-10 text-muted-foreground" />
@@ -232,7 +296,7 @@ onMounted(async () => {
             >{{ tab.label }}</Button
           >
         </nav>
-        <form class="flex max-w-lg gap-2" @submit.prevent="load()">
+        <form class="flex max-w-lg gap-2" @submit.prevent="load(false, true)">
           <Input
             v-model="query"
             placeholder="Search people by name"
@@ -314,12 +378,12 @@ onMounted(async () => {
           :ns-or-not="false"
           :context="person.name || 'Person'"
           :total-count="person.count"
-          @query-photos="load()"
+          @query-photos="refreshMedia"
         />
       </template>
       <p v-if="loading" role="status" class="text-muted-foreground text-sm">Loading people…</p>
       <p v-if="error" role="alert" class="text-destructive text-sm">
-        {{ error }} <button class="underline" @click="load()">Retry</button>
+        {{ error }} <button class="underline" @click="load(false, true)">Retry</button>
       </p>
       <Button
         v-if="after"

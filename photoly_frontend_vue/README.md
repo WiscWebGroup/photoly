@@ -59,3 +59,15 @@ both engines and follow https://operations.osmfoundation.org/policies/tiles/.
 `public/map-licenses.txt` ships with the app and is linked from every map. After
 updating either engine, run `pnpm licenses:maps` and review/commit the resulting
 runtime dependency notices. These notices do not change Photoly's AGPL license.
+
+### Media viewing and People caching
+
+The viewer shows its controls and metadata independently of the original image, with a
+loading indicator until decoding finishes. Share URLs and QR codes pass the current API
+base as `shareBase`; older API clients retain the configured `PUBLIC_BASE_URL` default.
+
+People views stay fresh for 30 seconds and are retained in memory for five minutes (20
+queries). Avatar requests are limited to four at a time near the viewport. Face crops
+use a five-minute, 8 MiB browser-memory cache and a ten-minute, 32 MiB server-memory cache.
+Account changes and relevant edits invalidate browser data; the server checks permissions,
+source visibility and content versions before every crop lookup. No face cache is persisted.

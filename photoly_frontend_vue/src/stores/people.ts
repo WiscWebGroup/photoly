@@ -1,7 +1,11 @@
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onScopeDispose } from 'vue'
 import { defineStore } from 'pinia'
 import { useAuthStore } from './auth'
-import { call, http } from '@/lib/http'
+import { call, http, ApiError } from '@/lib/http'
+import { isAxiosError } from 'axios'
+import { useUploadsStore } from './uploads'
+import { AvatarCache } from '@/lib/peopleCache'
+import type { Photo } from '@/composables/usePhotos'
 import type { FaceDetection } from '@/lib/peopleInference'
 import type { FaceManifest } from '@/lib/people.worker'
 
@@ -53,6 +57,14 @@ export interface PeoplePage<T> {
   items: T[]
   nextAfter: number | null
 }
+export interface PeopleView {
+  items: Person[]
+  person: Person | null
+  photos: Photo[]
+  after: number | null
+  scroll: number
+  savedAt: number
+}
 export const peopleLabel = (reason: string) =>
   ({
     ai_disabled: 'AI is disabled by the administrator.',
@@ -81,6 +93,79 @@ export const usePeopleStore = defineStore('people', () => {
     error = ref(''),
     revision = ref(0),
     working = ref(false)
+  const browseMode = ref('people'),
+    browseQuery = ref('')
+  const views = new Map<string, PeopleView>()
+  const requests = new Map<string, Promise<unknown>>()
+  const avatars = new AvatarCache()
+  let cacheEpoch = 0
+  function invalidate() {
+    cacheEpoch++
+    views.clear()
+    requests.clear()
+    avatars.clear()
+  }
+  function view(key: string) {
+    const value = views.get(key)
+    if (!value) return
+    if (Date.now() - value.savedAt >= 300_000) {
+      views.delete(key)
+      return
+    }
+    views.delete(key)
+    views.set(key, value)
+    return value
+  }
+  function saveView(key: string, value: PeopleView) {
+    views.delete(key)
+    views.set(key, value)
+    while (views.size > 20) views.delete(views.keys().next().value!)
+  }
+  function request<T>(key: string, fetch: () => Promise<T>): Promise<T> {
+    const existing = requests.get(key)
+    if (existing) return existing as Promise<T>
+    const epoch = cacheEpoch
+    const pending = fetch()
+      .then((result) => {
+        if (epoch !== cacheEpoch) throw new DOMException('Superseded', 'AbortError')
+        return result
+      })
+      .finally(() => {
+        if (requests.get(key) === pending) requests.delete(key)
+      })
+    requests.set(key, pending)
+    return pending
+  }
+  // Successful media mutations invalidate browsing snapshots even outside the People page.
+  const invalidator = http.interceptors.response.use((response) => {
+    const { method, url = '' } = response.config
+    if (
+      method &&
+      method !== 'get' &&
+      response.data?.msgCode === 200 &&
+      (/^\/photo\/(delete|change|edit|overwrite|rotate|set|update)/.test(url) ||
+        /^\/namespace\/(delete|change)/.test(url) ||
+        /^\/storage/.test(url))
+    )
+      revision.value++
+    return response
+  })
+  onScopeDispose(() => {
+    http.interceptors.response.eject(invalidator)
+    invalidate()
+  })
+  watch(revision, invalidate, { flush: 'sync' })
+  watch(
+    () => useUploadsStore().revision,
+    () => revision.value++,
+  )
+  watch(
+    () => preference.value?.visible,
+    (visible) => {
+      if (!visible) invalidate()
+    },
+    { flush: 'sync' },
+  )
   const visible = computed(() => Boolean(auth.token && preference.value?.visible))
   let timer: ReturnType<typeof setTimeout> | undefined,
     worker: Worker | undefined,
@@ -129,9 +214,19 @@ export const usePeopleStore = defineStore('people', () => {
         )
           stopWork()
         const progressEpoch = epoch
-        const progress = await call<PeopleStatus>({ url: '/ai/people/status' })
-        if (auth.token === token && epoch === progressEpoch) {
-          if (status.value?.ready !== progress.ready) revision.value++
+        const progress = await call<PeopleStatus>({ url: '/ai/people/status' }).catch(
+          (e: unknown) => {
+            if (
+              (e instanceof ApiError && [401, 403].includes(e.msgCode)) ||
+              (isAxiosError(e) && [401, 403].includes(e.response?.status ?? 0))
+            )
+              throw e
+            // Processing progress is optional; a temporary failure must not hide the library.
+            return null
+          },
+        )
+        if (progress && auth.token === token && epoch === progressEpoch) {
+          if (status.value && status.value.ready !== progress.ready) revision.value++
           status.value = progress
         }
       } catch {
@@ -277,14 +372,25 @@ export const usePeopleStore = defineStore('people', () => {
     () => {
       stopWork()
       lastRefresh = 0
+      browseMode.value = 'people'
+      browseQuery.value = ''
+      invalidate()
       preference.value = null
       status.value = null
       model.value = null
       error.value = ''
       revision.value++
     },
+    { flush: 'sync' },
   )
   return {
+    browseMode,
+    browseQuery,
+    view,
+    saveView,
+    request,
+    avatars,
+    invalidate,
     preference,
     status,
     model,

@@ -3,18 +3,26 @@ package ai
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"image"
 	"image/jpeg"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
 )
 
 func (p *People) register(a *app.App) {
 	user := func(pattern string, fn func(*http.Request, app.User) (any, error)) {
-		a.Mux.HandleFunc(pattern, Route(a, false, fn))
+		a.Mux.HandleFunc(pattern, Route(a, false, func(r *http.Request, u app.User) (any, error) {
+			value, err := fn(r, u)
+			if err == nil && r.Method != http.MethodGet && !strings.Contains(r.URL.Path, "/jobs/") {
+				p.crops.clear()
+			}
+			return value, err
+		}))
 	}
 	user("GET /ai/people/settings", func(r *http.Request, u app.User) (any, error) { return p.settings(r.Context(), u.ID) })
 	user("PATCH /ai/people/settings", func(r *http.Request, u app.User) (any, error) {
@@ -176,39 +184,43 @@ func (p *People) register(a *app.App) {
 		var photoID int64
 		var version int32
 		var box []float32
-		e = p.pool.QueryRow(r.Context(), `SELECT f.photo_id,f.content_version,f.box FROM people_face f JOIN photo ph ON ph.photo_id=f.photo_id WHERE f.face_id=$1 AND f.user_id=$2 AND photo_visible(ph.storage_id,ph.user_id) AND ph.content_version=f.content_version`, id, u.ID).Scan(&photoID, &version, &box)
+		e = p.pool.QueryRow(r.Context(), `SELECT f.photo_id,f.content_version,f.box FROM people_face f JOIN photo ph ON ph.photo_id=f.photo_id WHERE f.face_id=$1 AND f.user_id=$2 AND photo_visible(ph.storage_id,ph.user_id) AND ph.content_version=f.content_version AND NOT f.dismissed`, id, u.ID).Scan(&photoID, &version, &box)
 		if e != nil {
 			return nil, "", peopleNotFound(e)
 		}
-		release, e := faceDecodeSlot(r.Context())
-		if e != nil {
-			return nil, "", e
-		}
-		defer release()
-		snap, e := snapshotPhoto(r.Context(), p.pool, p.root, photoID, &u.ID, &version)
-		if e != nil {
-			return nil, "", e
-		}
-		im, e := canonicalFaceImage(snap.Data)
-		if e != nil {
-			return nil, "", e
-		}
-		// Generated on demand: no stale face-crop files survive deletion or replacement.
-		out := image.NewRGBA(image.Rect(0, 0, 128, 128))
-		cx, cy := float64(box[0]+box[2]/2)*float64(im.Width), float64(box[1]+box[3]/2)*float64(im.Height)
-		size := max(float64(box[2])*float64(im.Width), float64(box[3])*float64(im.Height)) * 1.3
-		for y := 0; y < 128; y++ {
-			for x := 0; x < 128; x++ {
-				i := (y*128 + x) * 4
-				for c := 0; c < 3; c++ {
-					out.Pix[i+c] = sampleFace(im, cx+(float64(x)/127-.5)*size, cy+(float64(y)/127-.5)*size, c, true)
-				}
-				out.Pix[i+3] = 255
+		key := fmt.Sprintf("%d:%d:%d:%d:%v", u.ID, photoID, version, id, box)
+		data, e := p.crops.get(r.Context(), key, func() ([]byte, error) {
+			release, e := faceDecodeSlot(r.Context())
+			if e != nil {
+				return nil, e
 			}
-		}
-		var buf bytes.Buffer
-		e = jpeg.Encode(&buf, out, &jpeg.Options{Quality: 85})
-		return buf.Bytes(), "image/jpeg", e
+			defer release()
+			snap, e := snapshotPhoto(r.Context(), p.pool, p.root, photoID, &u.ID, &version)
+			if e != nil {
+				return nil, e
+			}
+			im, e := canonicalFaceImage(snap.Data)
+			if e != nil {
+				return nil, e
+			}
+			// Generated on demand: no stale face-crop files survive deletion or replacement.
+			out := image.NewRGBA(image.Rect(0, 0, 128, 128))
+			cx, cy := float64(box[0]+box[2]/2)*float64(im.Width), float64(box[1]+box[3]/2)*float64(im.Height)
+			size := max(float64(box[2])*float64(im.Width), float64(box[3])*float64(im.Height)) * 1.3
+			for y := 0; y < 128; y++ {
+				for x := 0; x < 128; x++ {
+					i := (y*128 + x) * 4
+					for c := 0; c < 3; c++ {
+						out.Pix[i+c] = sampleFace(im, cx+(float64(x)/127-.5)*size, cy+(float64(y)/127-.5)*size, c, true)
+					}
+					out.Pix[i+3] = 255
+				}
+			}
+			var buf bytes.Buffer
+			e = jpeg.Encode(&buf, out, &jpeg.Options{Quality: 85})
+			return buf.Bytes(), e
+		})
+		return data, "image/jpeg", e
 	})
 	a.Mux.HandleFunc("GET /models/people/{fingerprint}/{file}", func(w http.ResponseWriter, r *http.Request) {
 		cfg, e := loadSettings(r.Context(), p.pool)
