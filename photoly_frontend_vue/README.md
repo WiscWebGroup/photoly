@@ -40,3 +40,22 @@ pnpm test:e2e
 - Smart tags/galleries have icons, labels and distinct styling. Personal settings provide opt-in, progress, refresh and restoration; administrators control availability in AI Management.
 
 See [deployment](../README.md), [OCR](../docs/docs/ocr.md) and [Smart Tag](../docs/docs/smart-tag.md) for backend requirements and limits.
+
+
+### Photo maps
+
+The main Map and Gallery map use MapLibre GL JS with OSM raster tiles. The default
+projection is a full globe; 2D/3D is shared locally through `photoly-map-projection`.
+Returning to 2D restores that map instance's previous flat camera. Photo deep links
+still zoom to the requested photo. Dates filter photo markers, heat and visible places.
+WebGL initialization failures and context loss switch to a lazily loaded Leaflet map
+without changing the stored projection. This preference does not sync across devices.
+
+MapLibre's module worker is bundled explicitly by Vite; keep the existing COOP/COEP
+headers when deploying. Map sources are fetched directly by the browser; OSM tiles
+are not precached or downloaded for offline use. Retain visible OSM attribution in
+both engines and follow https://operations.osmfoundation.org/policies/tiles/.
+
+`public/map-licenses.txt` ships with the app and is linked from every map. After
+updating either engine, run `pnpm licenses:maps` and review/commit the resulting
+runtime dependency notices. These notices do not change Photoly's AGPL license.

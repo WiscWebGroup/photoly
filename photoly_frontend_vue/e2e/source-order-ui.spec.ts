@@ -173,6 +173,11 @@ test('gallery map clips landscape and portrait thumbnails but keeps count badges
   })
   await page.goto('/home/GalleryPart')
   await page.getByText('Travel', { exact: true }).click()
+  // Inspect individual crops at the photo-fitting scale, rather than global clusters.
+  await page
+    .getByRole('complementary', { name: 'Gallery map' })
+    .getByRole('button', { name: 'Flat map', exact: true })
+    .click()
   await expect(page.locator('.gallery-map-image')).toHaveCount(2)
   for (const crop of await page.locator('.gallery-map-image').all()) {
     await expect(crop).toHaveCSS('overflow', 'hidden')

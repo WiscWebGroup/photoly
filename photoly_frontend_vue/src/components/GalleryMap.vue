@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useStorage } from '@vueuse/core'
 import { MapPin, Scan, X } from '@lucide/vue'
-import L from 'leaflet'
 import { Button } from '@/components/ui/button'
-import { useLeafletMap } from '@/composables/useLeafletMap'
+import { usePhotoMap } from '@/composables/usePhotoMap'
+import MapProjectionControl from './MapProjectionControl.vue'
+import { coordinate, hasLocation, groupPhotos } from '@/lib/mapGeometry'
 import type { Photo } from '@/composables/usePhotos'
 import { call } from '@/lib/http'
 import { photoUrl } from '@/lib/photoUrl'
@@ -20,39 +21,25 @@ interface LocatedPhoto {
   photo_name: string
   extra_photo_gps_lat: number
   extra_photo_gps_lon: number
+  extra_photo_taken_date?: string
 }
 const shown = useStorage('photoly-gallery-map-visible', true)
 const mapEl = ref<HTMLElement | null>(null)
-const map = useLeafletMap(mapEl, [20, 0], 2)
+const { map, fallback, failed } = usePhotoMap(mapEl)
 const records = ref<LocatedPhoto[]>([])
 const error = ref(false)
 const loading = ref(false)
 const ids = computed(() => new Set(props.photos.map((p) => p.photoId)))
 const points = computed(() =>
-  records.value.filter(
-    (p) =>
-      ids.value.has(p.photo_id) &&
-      typeof p.extra_photo_gps_lat === 'number' &&
-      typeof p.extra_photo_gps_lon === 'number' &&
-      Number.isFinite(p.extra_photo_gps_lat) &&
-      Number.isFinite(p.extra_photo_gps_lon) &&
-      Math.abs(p.extra_photo_gps_lat) <= 90 &&
-      Math.abs(p.extra_photo_gps_lon) <= 180,
-  ),
+  records.value.filter((p) => ids.value.has(p.photo_id) && hasLocation(p)),
 )
 let controller: AbortController | undefined
 let needsFit = true
 let loadedGallery = -1
-let markers: L.LayerGroup | undefined
-const latLng = (p: LocatedPhoto): L.LatLngTuple => [p.extra_photo_gps_lat, p.extra_photo_gps_lon]
 function fit() {
   if (!points.value.length || !map.value || !shown.value) return
-  map.value.invalidateSize()
-  map.value.fitBounds(L.latLngBounds(points.value.map(latLng)), {
-    padding: [32, 32],
-    maxZoom: 13,
-    animate: false,
-  })
+  map.value.resize()
+  map.value.initialize(points.value.map(coordinate))
   needsFit = false
 }
 async function load() {
@@ -81,39 +68,37 @@ async function load() {
 }
 function rebuild() {
   const m = map.value
-  if (!m || !markers) return
-  markers.clearLayers()
-  const groups: { point: L.Point; photos: LocatedPhoto[] }[] = []
-  for (const p of points.value) {
-    const point = m.project(latLng(p), m.getZoom())
-    const group = groups.find((g) => g.point.distanceTo(point) < 42)
-    if (group) group.photos.push(p)
-    else groups.push({ point, photos: [p] })
-  }
-  for (const group of groups) {
-    const first = group.photos[0]!
-    const thumb = document.createElement('div')
-    thumb.className = 'gallery-map-pin'
-    const img = document.createElement('img')
-    img.src = photoUrl(first.photo_id, 'renderThumbnail')
-    img.alt = ''
-    const crop = document.createElement('div')
-    crop.className = 'gallery-map-image'
-    crop.append(img)
-    thumb.append(crop)
-    if (group.photos.length > 1) {
-      const badge = document.createElement('span')
-      badge.textContent = String(group.photos.length)
-      thumb.append(badge)
-    }
-    const marker = L.marker(latLng(first), {
-      title: group.photos.length === 1 ? first.photo_name : `${group.photos.length} photos`,
-      icon: L.divIcon({ html: thumb, className: '', iconSize: [36, 36], iconAnchor: [18, 18] }),
-    }).addTo(markers)
-    if (group.photos.length === 1) marker.on('click', () => emit('openPhoto', first.photo_id))
-    else {
-      marker.bindPopup(
-        () => {
+  if (!m) return
+  const groups = groupPhotos(points.value, (p) => m.projectVisible(p), 42)
+  m.syncPins(
+    groups.map((group) => {
+      const first = group.photos[0]!
+      return {
+        key: group.key,
+        coordinate: coordinate(first),
+        title: group.photos.length === 1 ? first.photo_name : `${group.photos.length} photos`,
+        element: () => {
+          const thumb = document.createElement('div')
+          thumb.className = 'gallery-map-pin'
+          const crop = document.createElement('div')
+          crop.className = 'gallery-map-image'
+          const img = document.createElement('img')
+          img.src = photoUrl(first.photo_id, 'renderThumbnail')
+          img.alt = ''
+          crop.append(img)
+          thumb.append(crop)
+          if (group.photos.length > 1) {
+            const badge = document.createElement('span')
+            badge.textContent = String(group.photos.length)
+            thumb.append(badge)
+          }
+          return thumb
+        },
+        onClick: () => {
+          if (group.photos.length === 1) {
+            emit('openPhoto', first.photo_id)
+            return
+          }
           const list = document.createElement('div')
           list.className = 'gallery-map-photos'
           for (const photo of group.photos) {
@@ -129,13 +114,32 @@ function rebuild() {
             button.onclick = () => emit('openPhoto', photo.photo_id)
             list.append(button)
           }
-          return list
+          m.popup(coordinate(first), list)
+          popupPhoto = first.photo_id
         },
-        { maxWidth: 230, maxHeight: 150, autoPan: false },
-      )
-    }
+      }
+    }),
+  )
+  if (popupPhoto !== null && !groups.some((g) => g.photos.some((p) => p.photo_id === popupPhoto))) {
+    m.closePopup()
+    popupPhoto = null
   }
 }
+let popupPhoto: number | null = null
+let frame = 0
+const scheduleRebuild = () => {
+  cancelAnimationFrame(frame)
+  frame = requestAnimationFrame(rebuild)
+}
+let unsubscribe: (() => void) | undefined
+watch(map, (m) => {
+  unsubscribe?.()
+  if (m) {
+    unsubscribe = m.onChange(scheduleRebuild)
+    fit()
+    rebuild()
+  }
+})
 watch(() => [props.galleryId, props.revision], load, { immediate: true })
 watch(points, async () => {
   await nextTick()
@@ -145,16 +149,15 @@ watch(points, async () => {
 watch(shown, async (value) => {
   if (value) {
     await nextTick()
-    map.value?.invalidateSize()
+    map.value?.resize()
     if (needsFit) fit()
   }
 })
-onMounted(() => {
-  markers = L.layerGroup().addTo(map.value!)
-  map.value!.on('zoomend', rebuild)
-  rebuild()
+onBeforeUnmount(() => {
+  controller?.abort()
+  cancelAnimationFrame(frame)
+  unsubscribe?.()
 })
-onBeforeUnmount(() => controller?.abort())
 </script>
 <template>
   <aside
@@ -191,6 +194,10 @@ onBeforeUnmount(() => controller?.abort())
           ><X
         /></Button>
       </header>
+      <div class="px-2 py-1"><MapProjectionControl :fallback="fallback" /></div>
+      <p v-if="failed" role="alert" class="p-2 text-xs">
+        Could not initialize the map. Reload to retry.
+      </p>
       <div v-if="error" role="alert" class="flex items-center justify-between gap-2 p-2 text-xs">
         <span>Could not load photo locations.</span
         ><Button variant="outline" size="sm" :disabled="loading" @click="load">Retry map</Button>
@@ -215,7 +222,7 @@ onBeforeUnmount(() => controller?.abort())
   overflow: hidden;
   border-radius: 6px;
 }
-.leaflet-container .gallery-map-image img {
+.gallery-map-image img {
   display: block;
   max-width: 100% !important;
   max-height: 100% !important;
@@ -237,6 +244,8 @@ onBeforeUnmount(() => controller?.abort())
   font-size: 11px;
 }
 .gallery-map-photos {
+  max-height: 150px;
+  overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(3, 60px);
   gap: 4px;
