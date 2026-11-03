@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { ArrowLeft, Server, Sparkles, Users } from '@lucide/vue'
+import { ArrowLeft, Server, Sparkles, Users, Wrench } from '@lucide/vue'
 import UploadButton from '@/components/UploadButton.vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 
-withDefaults(defineProps<{ wide?: boolean }>(), { wide: false })
+withDefaults(defineProps<{ wide?: boolean; maintenance?: boolean }>(), {
+  wide: false,
+  maintenance: false,
+})
 
 const nav = [
   { to: '/thepersonincharge/dashboard', label: 'Overview', icon: Server },
   { to: '/thepersonincharge/usermanage', label: 'Users', icon: Users },
   { to: '/thepersonincharge/ai', label: 'AI', icon: Sparkles },
+  { to: '/thepersonincharge/maintenance', label: 'Maintenance and Backup', icon: Wrench },
 ]
 
 const link =
@@ -20,7 +24,7 @@ const pill =
 <template>
   <div class="bg-background flex h-dvh w-full min-w-0 flex-col overflow-hidden md:flex-row">
     <!-- Desktop sidebar -->
-    <aside class="bg-card hidden w-58 shrink-0 flex-col gap-7 border-r px-3 pt-5 pb-4 md:flex">
+    <aside class="bg-card hidden w-64 shrink-0 flex-col gap-7 border-r px-3 pt-5 pb-4 md:flex">
       <router-link
         to="/thepersonincharge/dashboard"
         class="flex h-8 items-center gap-2 self-start rounded-md px-2.5 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -36,7 +40,7 @@ const pill =
           :class="link"
           active-class="!bg-accent !text-accent-foreground"
         >
-          <component :is="item.icon" class="size-4" aria-hidden="true" />
+          <component :is="item.icon" class="size-4 shrink-0" aria-hidden="true" />
           {{ item.label }}
         </router-link>
       </nav>
@@ -59,7 +63,9 @@ const pill =
         class="h-[22px] invert dark:invert-0"
       />
       <span :class="pill">Admin</span>
-      <UploadButton class="ml-auto" /><ThemeToggle />
+      <UploadButton v-if="!maintenance" class="ml-auto" /><ThemeToggle
+        :class="maintenance ? 'ml-auto' : ''"
+      />
     </header>
 
     <main class="min-h-0 min-w-0 flex-1 overflow-auto">
@@ -67,10 +73,11 @@ const pill =
         class="bg-card sticky top-0 z-20 hidden h-14 items-center justify-end gap-3 border-b px-10 md:flex"
       >
         <router-link
+          v-if="!maintenance"
           to="/home/SearchPart"
           class="text-muted-foreground rounded-lg border px-3 py-2 text-sm"
           >Search photos</router-link
-        ><UploadButton />
+        ><UploadButton v-if="!maintenance" />
       </header>
       <div
         :class="[
@@ -85,7 +92,7 @@ const pill =
     <!-- Mobile bottom tab bar -->
     <nav
       aria-label="Admin"
-      class="bg-card grid shrink-0 grid-cols-4 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
+      class="bg-card grid shrink-0 grid-cols-5 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <router-link
         v-for="item in nav"
@@ -95,7 +102,7 @@ const pill =
         active-class="!text-primary font-medium [&>svg]:scale-110"
       >
         <component :is="item.icon" class="size-5" aria-hidden="true" />
-        {{ item.label }}
+        <span class="px-1 text-center text-[10px] leading-tight">{{ item.label }}</span>
       </router-link>
       <router-link
         to="/home/HomePart"

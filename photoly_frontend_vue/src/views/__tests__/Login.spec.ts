@@ -50,6 +50,7 @@ describe('Login', () => {
         path: '/user/signIn/',
         body: { email: 'alice@example.com', password: 'secret' },
       },
+      { method: 'GET', path: '/maintenance/status' },
     ])
     expect(localStorage.getItem('HRD-Token')).toBe('tok-123')
   })

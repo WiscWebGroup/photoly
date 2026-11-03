@@ -78,3 +78,12 @@ jobs:
       - name: Test bundled SMB crypto
         run: go test -race ./internal/crypto/...
         working-directory: photoly_server/third_party/go-smb2
+
+  backup-restore:
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Backup, restore, and crash recovery on isolated PostgreSQL
+        run: photoly_server/tests/backup/run.sh

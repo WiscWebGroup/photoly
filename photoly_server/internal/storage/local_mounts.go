@@ -93,7 +93,7 @@ func LocalBinding(uploadRoot, rootID, relative string) (string, string, error) {
 				return "", "", err
 			}
 			// Deny both containment directions: binding '/' would expose internal assets too.
-			forbidden := []string{uploadRoot, os.Getenv("PHOTOLY_DATA"), "/var/lib/photoly", os.Getenv("AI_MODEL_DIR"), os.Getenv("MODEL_DIR"), os.Getenv("POSTGRES_DATA_DIR"), os.Getenv("PGDATA"), "/app/models", "/var/lib/postgresql"}
+			forbidden := []string{uploadRoot, "/backups", os.Getenv("BACKUP_DIR"), os.Getenv("PHOTOLY_DATA"), "/var/lib/photoly", os.Getenv("AI_MODEL_DIR"), os.Getenv("MODEL_DIR"), os.Getenv("POSTGRES_DATA_DIR"), os.Getenv("PGDATA"), "/app/models", "/var/lib/postgresql"}
 			for _, v := range forbidden {
 				if v == "" {
 					continue

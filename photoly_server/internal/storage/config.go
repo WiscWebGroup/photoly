@@ -12,7 +12,10 @@ import (
 var ErrNoSecretKey = errors.New("STORAGE_SECRET_KEY must be set to save storage credentials")
 
 func gcm() (cipher.AEAD, error) {
-	k := os.Getenv("STORAGE_SECRET_KEY")
+	return gcmKey(os.Getenv("STORAGE_SECRET_KEY"))
+}
+
+func gcmKey(k string) (cipher.AEAD, error) {
 	if k == "" {
 		return nil, ErrNoSecretKey
 	}
@@ -48,3 +51,30 @@ func open(sealed []byte) ([]byte, error) {
 }
 
 func SecretKeyConfigured() bool { return os.Getenv("STORAGE_SECRET_KEY") != "" }
+
+// ReencryptSecret migrates credentials without changing process environment or live configuration.
+func ReencryptSecret(sealed []byte, oldKey, newKey string) ([]byte, error) {
+	if len(sealed) == 0 {
+		return nil, nil
+	}
+	old, err := gcmKey(oldKey)
+	if err != nil {
+		return nil, err
+	}
+	if len(sealed) < old.NonceSize() {
+		return nil, errors.New("storage: corrupt secret")
+	}
+	plain, err := old.Open(nil, sealed[:old.NonceSize()], sealed[old.NonceSize():], nil)
+	if err != nil {
+		return nil, err
+	}
+	next, err := gcmKey(newKey)
+	if err != nil {
+		return nil, err
+	}
+	nonce := make([]byte, next.NonceSize())
+	if _, err = rand.Read(nonce); err != nil {
+		return nil, err
+	}
+	return next.Seal(nonce, nonce, plain, nil), nil
+}

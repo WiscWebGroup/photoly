@@ -8,6 +8,7 @@ import (
 	"errors"
 	"math"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -815,8 +816,10 @@ func (s *Scheduler) maintenanceTick(ctx context.Context) error {
 	}
 	name, frame := "ix_embedding_profile_"+itoa(int(pid))+"_hnsw", "ix_video_frame_profile_"+itoa(int(pid))+"_hnsw"
 	hbCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	heartbeatDone := make(chan struct{})
+	defer func() { cancel(); <-heartbeatDone }()
 	go func() {
+		defer close(heartbeatDone)
 		for {
 			select {
 			case <-hbCtx.Done():
@@ -946,9 +949,12 @@ func (s *Scheduler) maintenanceTick(ctx context.Context) error {
 }
 
 // Start runs the scheduler and maintenance loops until ctx ends.
-func (s *Scheduler) Start(ctx context.Context) {
+func (s *Scheduler) Start(ctx context.Context) func() {
+	var wg sync.WaitGroup
 	loop := func(name string, every time.Duration, fn func(context.Context) error) {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for ctx.Err() == nil {
 				if err := fn(ctx); err != nil && ctx.Err() == nil {
 					logf("ai %s cycle failed: %v", name, err)
@@ -965,6 +971,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 	loop("runtime", time.Second, runtimeScheduler.runtimeTick)
 	loop("scheduler", 2*time.Second, s.tick)
 	loop("maintenance", 3*time.Second, s.maintenanceTick)
+	return wg.Wait
 }
 
 // ddlExecer is the DDL connection: the migrator role owns the tables, the app role cannot index them.

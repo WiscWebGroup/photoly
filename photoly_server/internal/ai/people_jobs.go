@@ -312,8 +312,10 @@ func (p *People) runJob(ctx context.Context, uid int64, job PeopleJob) {
 	stop()
 	<-done
 }
-func (p *People) start(ctx context.Context) {
+func (p *People) start(ctx context.Context) func() {
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		var after int64
 		tick := time.NewTicker(2 * time.Second)
 		defer tick.Stop()
@@ -360,4 +362,5 @@ func (p *People) start(ctx context.Context) {
 			}
 		}
 	}()
+	return func() { <-done }
 }

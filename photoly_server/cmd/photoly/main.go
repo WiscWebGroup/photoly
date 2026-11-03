@@ -19,6 +19,7 @@ import (
 	"time"
 
 	photolyserver "github.com/WiscWebGroup/photoly/photoly_server"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/backup"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/config"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/migrations"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/server"
@@ -44,21 +45,42 @@ func run(ctx context.Context, cmd string) error {
 	cfg := config.Load()
 	switch cmd {
 	case "serve":
-		murl := config.DatabaseURL(true)
-		if os.Getenv("PHOTOLY_SKIP_MIGRATE") == "" {
-			// Wait for PostgreSQL, then migrate; a role without DDL rights only checks.
-			if err := server.Migrate(ctx, cfg, murl); err != nil {
-				log.Printf("photoly: migrate failed (%v); checking schema instead", err)
-				if err := migrations.Check(ctx, cfg.DatabaseURL); err != nil {
-					return err
+		return backup.Serve(ctx, cfg, func(parent context.Context) (backup.Runtime, error) {
+			runtimeCtx, cancel := context.WithCancel(parent)
+			success := false
+			defer func() {
+				if !success {
+					cancel()
+				}
+			}()
+			ctx := runtimeCtx
+			murl := config.DatabaseURL(true)
+			if backup.PreserveAccounts(ctx) {
+				if err := migrations.Run(ctx, murl); err != nil {
+					if err = migrations.Check(ctx, cfg.DatabaseURL); err != nil {
+						return backup.Runtime{}, err
+					}
+				}
+			} else if os.Getenv("PHOTOLY_SKIP_MIGRATE") == "" {
+				// Wait for PostgreSQL, then migrate; a role without DDL rights only checks.
+				if err := server.Migrate(ctx, cfg, murl); err != nil {
+					log.Printf("photoly: migrate failed (%v); checking schema instead", err)
+					if err := migrations.Check(ctx, cfg.DatabaseURL); err != nil {
+						return backup.Runtime{}, err
+					}
 				}
 			}
-		}
-		a, h, err := server.New(ctx, cfg, photolyserver.OpenAPI)
-		if err != nil {
-			return err
-		}
-		return server.Serve(ctx, a, h)
+			a, h, err := server.New(ctx, cfg, photolyserver.OpenAPI)
+			if err != nil {
+				return backup.Runtime{}, err
+			}
+
+			server.StartBackground(a)
+			success = true
+			return backup.Runtime{Handler: h, Stop: func() { cancel(); a.Wait() }}, nil
+		})
+	case "restore":
+		return backup.Offline(ctx, cfg, os.Args[2:])
 	case "migrate":
 		if err := server.Migrate(ctx, cfg, config.DatabaseURL(true)); err != nil {
 			return err
@@ -87,7 +109,7 @@ func run(ctx context.Context, cmd string) error {
 		}
 		return nil
 	}
-	fmt.Fprintln(os.Stderr, "usage: photoly [serve|migrate|ai-worker|verify|health]")
+	fmt.Fprintln(os.Stderr, "usage: photoly [serve|migrate|restore|ai-worker|verify|health]")
 	os.Exit(2)
 	return nil
 }

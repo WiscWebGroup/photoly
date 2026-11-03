@@ -32,6 +32,9 @@ func num[T int | int64 | float64](k string, d T) T {
 func Load() app.Config {
 	return app.Config{
 		DatabaseURL:                  DatabaseURL(false),
+		BackupDir:                    str("BACKUP_DIR", "/backups"),
+		BackupDatabaseURL:            BackupDatabaseURL(),
+		MigrationDatabaseURL:         DatabaseURL(true),
 		UploadFolder:                 str("UPLOAD_FOLDER", "/photoly"),
 		AdminEmail:                   str("ADMIN_EMAIL", "admin@a.com"),
 		DemoEmail:                    os.Getenv("DEMO_EMAIL"),
@@ -73,4 +76,15 @@ func DatabaseURL(migration bool) string {
 	u := "postgres://" + urlUser(user, pass) + "@" + str("POSTGRES_HOST", "localhost") + ":" +
 		str("POSTGRES_PORT", "5432") + "/" + str("POSTGRES_DB", "photoly")
 	return u
+}
+
+// BackupDatabaseURL is a separate management connection; business roles stay unprivileged.
+func BackupDatabaseURL() string {
+	if v := os.Getenv("BACKUP_DATABASE_URL"); v != "" {
+		return v
+	}
+	if pass := os.Getenv("POSTGRES_PASSWORD"); pass != "" {
+		return "postgres://" + urlUser(str("POSTGRES_USER", "postgres"), pass) + "@" + str("POSTGRES_HOST", "localhost") + ":" + str("POSTGRES_PORT", "5432") + "/" + str("POSTGRES_DB", "photoly")
+	}
+	return ""
 }

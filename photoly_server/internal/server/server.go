@@ -65,11 +65,11 @@ func New(ctx context.Context, cfg app.Config, openapi []byte) (*app.App, http.Ha
 
 	store := session.Store{Pool: pool}
 	legacy.Sessions = store
-	go store.Sweep(ctx)
-	go storage.SweepSources(ctx, pool, cfg.UploadFolder)
 
 	mux := http.NewServeMux()
-	a := &app.App{Cfg: cfg, Pool: pool, Mux: mux, StartedAt: time.Now(), BootID: legacy.NewUUID()}
+	a := &app.App{Context: ctx, Cfg: cfg, Pool: pool, Mux: mux, StartedAt: time.Now(), BootID: legacy.NewUUID()}
+	a.Go(store.Sweep)
+	a.Go(func(ctx context.Context) { storage.SweepSources(ctx, pool, cfg.UploadFolder) })
 	a.Auth = func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			u, ok := store.Lookup(r.Context(), r.Header.Get("HRD-Token"))
@@ -132,9 +132,7 @@ func New(ctx context.Context, cfg app.Config, openapi []byte) (*app.App, http.Ha
 func Serve(ctx context.Context, a *app.App, h http.Handler) error {
 	a.StartedAt = time.Now()
 	srv := &http.Server{Addr: a.Cfg.Addr, Handler: h, ReadHeaderTimeout: 15 * time.Second}
-	for _, bg := range Background {
-		go bg(ctx, a)
-	}
+	StartBackground(a)
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()
 	log.Printf("photoly: listening on %s", a.Cfg.Addr)
@@ -148,6 +146,12 @@ func Serve(ctx context.Context, a *app.App, h http.Handler) error {
 	if err := srv.Shutdown(sctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
-	a.Pool.Close()
+	a.Wait()
 	return nil
+}
+
+func StartBackground(a *app.App) {
+	for _, bg := range Background {
+		a.Go(func(ctx context.Context) { bg(ctx, a) })
+	}
 }

@@ -14,6 +14,16 @@ http.interceptors.request.use((config) => {
 // The backend reports bad tokens as HTTP 200 + `msgCode: 403`, but uses the same code for
 // "not your photo" / "not an admin". Only HTTP 401 proves the session has expired.
 http.interceptors.response.use(undefined, (error) => {
+  if (
+    error.response?.status === 503 &&
+    error.response?.data?.t?.reason === 'maintenance' &&
+    router.currentRoute.value.path !== '/login'
+  ) {
+    const target = router.currentRoute.value.path.startsWith('/thepersonincharge/')
+      ? '/thepersonincharge/maintenance'
+      : '/maintenance'
+    if (router.currentRoute.value.path !== target) void router.replace(target)
+  }
   if (error.response?.status === 401) {
     useAuthStore().clear()
     router.push('/login')

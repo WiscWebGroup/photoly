@@ -35,3 +35,5 @@ playwright-report/
 blob-report/
 
 test-results-real/
+
+test-results-backup/

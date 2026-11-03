@@ -101,7 +101,10 @@ func queryMap(r *http.Request) map[string]string {
 // Register mounts the AI routes, starts the runtime, scheduler and maintenance loops, and refuses
 // to start while a Qwen profile is active.
 func Register(a *app.App) {
-	ctx := context.Background()
+	ctx := a.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	must(CheckStartup(ctx, a.Pool))
 	rt := NewRuntime(a.Cfg.UploadFolder)
 	a.WorkerRSS = func() *int64 {
@@ -124,7 +127,7 @@ func Register(a *app.App) {
 	}
 	people := &People{pool: a.Pool, root: a.Cfg.UploadFolder, rt: rt}
 	people.register(a)
-	people.start(ctx)
+	waitPeople := people.start(ctx)
 	gaz, err := loadGazetteer()
 	must(err)
 	smart := &Smart{pool: a.Pool, root: a.Cfg.UploadFolder, gaz: gaz}
@@ -134,7 +137,8 @@ func Register(a *app.App) {
 	owner := newUUID()
 	sched := &Scheduler{pool: a.Pool, rt: rt, root: a.Cfg.UploadFolder, owner: owner}
 	sched.smart = &SmartSched{pool: a.Pool, root: a.Cfg.UploadFolder, owner: owner, gaz: gaz, appZone: env("TIMEZONE", "America/New_York")}
-	sched.Start(ctx)
+	waitScheduler := sched.Start(ctx)
+	a.OnClose = append(a.OnClose, func() { waitPeople(); waitScheduler(); rt.Shutdown() })
 
 	m := a.Mux
 	user := func(pattern string, fn func(r *http.Request, u app.User) (any, error)) {
