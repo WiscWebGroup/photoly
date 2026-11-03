@@ -8,6 +8,7 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 ## Functionalities
 - Upload Photo / Video, and store them in folders
 - Attach a Photo / Video with a Gallery or a Tag
+- Add optional Gallery descriptions (up to 5,000 characters of plain text with line breaks), editable in New/Edit Gallery and displayed only in gallery details
 - Share a Photo / Video using a share link, or a QR code
 - Automatic record photo's Exif information, including GPS location, Camera Model, Lens Model, ISO, Shutter, Aperture, etc.
 - Display a Photo Location Map

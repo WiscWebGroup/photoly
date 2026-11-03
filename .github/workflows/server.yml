@@ -75,6 +75,12 @@ jobs:
       - run: go run ./cmd/photoly migrate
       # TestWorker needs the ONNX Runtime shared library, which only the image carries.
       - run: go vet ./... && go test -skip TestWorker ./...
+      - name: Test gallery descriptions and existing database upgrade
+        run: |
+          PGPASSWORD=ci createdb -h localhost -U postgres gallery_api
+          PGPASSWORD=ci createdb -h localhost -U postgres gallery_upgrade
+          PHOTOLY_TEST_DATABASE_URL=postgres://postgres:ci@localhost:5432/gallery_api go test ./internal/catalog -count=1
+          PHOTOLY_TEST_GALLERY_UPGRADE_DATABASE_URL=postgres://postgres:ci@localhost:5432/gallery_upgrade go test ./internal/migrations -run TestGalleryDescriptionUpgrade -count=1
       - name: Test bundled SMB crypto
         run: go test -race ./internal/crypto/...
         working-directory: photoly_server/third_party/go-smb2
