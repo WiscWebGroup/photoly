@@ -1,5 +1,17 @@
 /** Geographic coordinates are always [longitude, latitude], including on the Leaflet path. */
 export type Coordinate = [number, number]
+/** EXIF coordinates arrive as strings; empty values must not become zero. */
+export function exifCoordinate(latitude: unknown, longitude: unknown): Coordinate | null {
+  const parse = (value: unknown) =>
+    typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')
+      ? Number(value)
+      : NaN
+  const lat = parse(latitude)
+  const lon = parse(longitude)
+  return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180
+    ? [lon, lat]
+    : null
+}
 export interface MapPhotoLocation {
   photo_id: number
   extra_photo_gps_lat?: number

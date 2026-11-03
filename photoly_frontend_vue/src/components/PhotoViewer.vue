@@ -3,6 +3,8 @@ import { useRouter } from 'vue-router'
 import MediaNotes from './MediaNotes.vue'
 import PhotoNotePins from './PhotoNotePins.vue'
 import MediaCategoryEditor from './MediaCategoryEditor.vue'
+import LocationMap from './LocationMap.vue'
+import { exifCoordinate } from '@/lib/mapGeometry'
 import { mediaErrorMessage } from '@/composables/useSourceHealth'
 import PeopleInMedia from './PeopleInMedia.vue'
 import SmartBadge from '@/components/SmartBadge.vue'
@@ -395,7 +397,7 @@ function jump(target: Photo) {
 
 const isTyping = (el: EventTarget | null) =>
   el instanceof HTMLElement &&
-  !!el.closest('input, textarea, select, video, [contenteditable="true"]')
+  !!el.closest('input, textarea, select, video, [contenteditable="true"], [data-location-map]')
 /** Only when the viewer is the top layer: no menu, popover or confirmation open over it. */
 const onTop = () =>
   document.querySelectorAll('[role=dialog], [role=alertdialog], [role=menu]').length <= 1
@@ -436,6 +438,9 @@ const editing = ref(false)
  * photo to photo.
  */
 const showDetails = ref(true)
+const locationOpen = ref(true)
+const openingSettled = ref(false)
+const locationClosing = ref(false)
 const sharing = ref(false)
 const confirmingDelete = ref(false)
 const shareLink = ref('')
@@ -512,7 +517,8 @@ const shareParams = computed(() => ({
   ...params.value,
   shareBase: shareBase(import.meta.env.VITE_APP_BASE_URL, window.location.origin),
 }))
-const hasGps = computed(() => !!exif.value.GPS_Latitude && !!exif.value.GPS_Longitude)
+const location = computed(() => exifCoordinate(exif.value.GPS_Latitude, exif.value.GPS_Longitude))
+const hasGps = computed(() => location.value !== null)
 const qrUrl = computed(
   () =>
     `${import.meta.env.VITE_APP_BASE_URL}/photo/getQR2?token=${auth.token}&photoId=${info.value?.photoId}&shareBase=${encodeURIComponent(shareParams.value.shareBase)}`,
@@ -969,10 +975,14 @@ watch(
     const items = chrome()
     if (backdrop.value) backdrop.value.style.opacity = '0'
     // Chrome is independent of the full-size image; metadata can arrive first.
-    for (const item of items) animate(item, { opacity: [0, 1] }, { duration: fast ? 0 : 0.2 })
+    const chromeAnims = items.map((item) =>
+      animate(item, { opacity: [0, 1] }, { duration: fast ? 0 : 0.2 }),
+    )
     if (media()) media()!.style.opacity = '0'
     if (backdrop.value)
-      animate(backdrop.value, { opacity: 1 }, { duration: fast ? 0 : 0.3, ease: EASE.p1Out })
+      chromeAnims.push(
+        animate(backdrop.value, { opacity: 1 }, { duration: fast ? 0 : 0.3, ease: EASE.p1Out }),
+      )
     const run = () => {
       if (!el.isConnected) return
       const m = media()
@@ -988,9 +998,11 @@ watch(
           )
       }
       openAnims = anims
-      void Promise.all(anims.map((a) => a.finished)).then(() => {
+      const openingAnimations = [...chromeAnims, ...anims]
+      void Promise.all(openingAnimations.map((a) => a.finished)).then(() => {
         if (openAnims !== anims) return // interrupted by a close
         openAnims = null
+        openingSettled.value = true
         if (m)
           for (const prop of ['transform', 'clip-path', 'will-change']) m.style.removeProperty(prop)
       })
@@ -1004,10 +1016,26 @@ watch(
   },
   { flush: 'post' },
 )
-watch(acceptedPhoto, (photo) => photo || ((openPlayed = false), (startOpen = null)))
+watch(acceptedPhoto, (photo) => {
+  if (!photo) {
+    openPlayed = false
+    startOpen = null
+    openingSettled.value = false
+    locationOpen.value = true
+  } else locationClosing.value = false
+})
+// A failed image still has usable metadata. Settle the opening on its error UI.
+watch(
+  mediaFailure,
+  (failure) => {
+    if (failure) void nextTick(mediaReady)
+  },
+  { flush: 'post' },
+)
 
 /** Shrink the photo back into its thumbnail while everything else fades. Resolves when done. */
 function playClose() {
+  locationClosing.value = true
   if (reducedMotion() || !root.value?.getBoundingClientRect().width) return Promise.resolve()
   startOpen = null
   openAnims?.forEach((a) => a.stop())
@@ -1564,7 +1592,7 @@ const overlay = 'dark text-foreground'
                       <router-link
                         :to="{ path: '/home/MapPart', query: { photo: info.photoId } }"
                         class="text-primary font-medium hover:underline"
-                        >Open in Map</router-link
+                        >Open full map</router-link
                       >
                       <a
                         :href="`https://maps.google.com/?q=${exif.GPS_Latitude},${exif.GPS_Longitude}`"
@@ -1767,6 +1795,14 @@ const overlay = 'dark text-foreground'
                 :can-pin="kind === 'photo'"
                 @placing="startNotePosition"
                 @positioned="notePositioned"
+              />
+              <LocationMap
+                v-if="location"
+                v-model:open="locationOpen"
+                :latitude="location[1]"
+                :longitude="location[0]"
+                :active="showDetails && !locationClosing"
+                :ready="openingSettled"
               />
               <MediaCategoryEditor
                 :key="`category:${info.photoId}:${version}`"
