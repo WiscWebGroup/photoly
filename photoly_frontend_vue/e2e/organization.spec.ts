@@ -64,16 +64,24 @@ test('categories open media; private notes persist and block unsaved navigation'
   else await point.click({ position: { x: 40, y: 30 } })
   await panel.getByRole('textbox', { name: 'New note' }).fill('This exact spot')
   await panel.getByRole('button', { name: 'Save', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Note 2', exact: true })).toBeAttached()
+  await expect(
+    page.locator('[data-note-overlay]').getByRole('button', { name: 'Point 1', exact: true }),
+  ).toBeAttached()
   expect(notes[1]!.x).toBeGreaterThan(0)
   expect(notes[1]!.x).toBeLessThan(1)
   if (!isMobile) {
     const image = page.locator('[data-photo-zoom] img')
-    await image.hover()
+    await page
+      .locator('[data-note-overlay]')
+      .getByRole('button', { name: 'Point 1', exact: true })
+      .hover()
     await page.mouse.wheel(0, -300)
     await expect(page.locator('[data-photo-zoom]')).not.toHaveAttribute('data-scale', '1')
     const imageBox = (await image.boundingBox())!
-    const pinBox = (await page.getByRole('button', { name: 'Note 2', exact: true }).boundingBox())!
+    const pinBox = (await page
+      .locator('[data-note-overlay]')
+      .getByRole('button', { name: 'Point 1', exact: true })
+      .boundingBox())!
     expect(
       Math.abs((pinBox.x + pinBox.width / 2 - imageBox.x) / imageBox.width - notes[1]!.x!),
     ).toBeLessThan(0.01)

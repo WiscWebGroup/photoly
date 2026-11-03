@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import MediaNotes from './MediaNotes.vue'
+import PhotoNotePins from './PhotoNotePins.vue'
 import MediaCategoryEditor from './MediaCategoryEditor.vue'
 import { mediaErrorMessage } from '@/composables/useSourceHealth'
 import PeopleInMedia from './PeopleInMedia.vue'
@@ -171,6 +172,12 @@ async function openMediaFolder() {
   const folder = info.value.nsId
   emit('close')
   await navigationRouter.push({ path: '/home/HomePart', query: { folder } })
+}
+const noteOverlay = ref<InstanceType<typeof PhotoNotePins>>()
+async function viewFullNote(id: number) {
+  showDetails.value = true
+  await nextTick()
+  await notesPanel.value?.select(id)
 }
 const notesPanel = ref<InstanceType<typeof MediaNotes>>()
 const mediaFailure = ref('')
@@ -1017,6 +1024,11 @@ const overlay = 'dark text-foreground'
       data-photo-viewer
       :show-close-button="false"
       class="dark text-foreground fixed inset-0 top-0 left-0 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-none border-0 bg-transparent p-0 shadow-none outline-none data-[state=closed]:animate-none data-[state=open]:animate-none sm:max-w-none"
+      @escape-key-down="
+        (event: KeyboardEvent) => {
+          if (noteOverlay?.dismiss()) event.preventDefault()
+        }
+      "
       @open-auto-focus="
         (e: Event) => {
           e.preventDefault()
@@ -1225,7 +1237,7 @@ const overlay = 'dark text-foreground'
                       @pointerup="zoom.up"
                       @pointercancel="zoom.up"
                       @lostpointercapture="zoom.up"
-                      @click.stop
+                      @click.stop="noteOverlay?.dismiss()"
                     >
                       <div
                         class="relative flex h-full w-full items-center justify-center"
@@ -1255,20 +1267,6 @@ const overlay = 'dark text-foreground'
                             @pointerdown.stop
                             @click.stop="placeNote"
                           />
-                          <button
-                            v-for="pin in notesPanel.pins"
-                            :key="pin.id"
-                            class="pointer-events-auto absolute flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-orange-600 text-xs font-bold text-white shadow"
-                            :class="
-                              notesPanel.selectedId === pin.id ? 'ring-4 ring-orange-300' : ''
-                            "
-                            :style="{ left: pin.x! * 100 + '%', top: pin.y! * 100 + '%' }"
-                            :aria-label="`Note ${pin.number}`"
-                            @pointerdown.stop
-                            @click.stop="notesPanel.select(pin.id)"
-                          >
-                            {{ pin.number }}
-                          </button>
                           <span
                             v-if="notesPanel.draftPoint"
                             class="absolute size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-blue-500"
@@ -1279,6 +1277,20 @@ const overlay = 'dark text-foreground'
                           />
                         </div>
                       </div>
+                      <PhotoNotePins
+                        v-if="notesPanel?.open && loaded && !livePlaying && !notesPanel.placing"
+                        :key="`pins:${info.photoId}:${version}`"
+                        ref="noteOverlay"
+                        :pins="notesPanel.pins"
+                        :image="mediaEl"
+                        :viewport="zoomViewport"
+                        :transform="zoom.style.value.transform"
+                        :selected-id="notesPanel.selectedId"
+                        :show-all="notesPanel.showAllBubbles"
+                        @select="notesPanel.selectedId = $event"
+                        @full-note="viewFullNote"
+                        @dismiss="notesPanel.dismissBubbles()"
+                      />
                     </div>
                     <div
                       v-if="loaded && !livePlaying && zoom.scale.value > 1"

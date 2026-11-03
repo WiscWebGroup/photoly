@@ -21,7 +21,7 @@ async function mode(page: Page, name: string) {
   const desktop = page.getByRole('button', { name, exact: true })
   if (page.viewportSize()!.width >= 768) await desktop.click()
   else {
-    await page.getByRole('button', { name: 'Add', exact: true }).click()
+    await page.getByRole('button', { name: 'More options', exact: true }).click()
     await page.getByRole('menuitem', { name, exact: true }).click()
   }
   // Let the card enter animation and ResizeObserver complete before measuring.

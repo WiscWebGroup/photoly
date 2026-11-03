@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
+import { pinColor, type PinPoint } from '@/lib/notePins'
 import { ApiError, call } from '@/lib/http'
 import { Button } from '@/components/ui/button'
 import {
@@ -49,13 +50,40 @@ const dirty = computed(
       y.value !== (editing.value?.y ?? null) ||
       anchorVersion.value !== (editing.value?.contentVersion ?? null)),
 )
-const pins = computed(() =>
+const showPointNotes = ref(false)
+const showAllBubbles = ref(false)
+const generalNotes = computed(() => items.value.filter((n) => n.x === null))
+const pointNotes = computed(() =>
+  items.value
+    .filter((n) => n.x !== null)
+    .map((n, i) => ({ ...n, number: i + 1, color: pinColor(n.id) })),
+)
+const sections = computed(() => [
+  { title: 'General Notes', notes: generalNotes.value, visible: true },
+  { title: 'Pin-point Notes', notes: pointNotes.value, visible: showPointNotes.value },
+])
+const pins = computed<PinPoint[]>(() =>
   open.value
-    ? items.value
-        .map((n, i) => ({ ...n, number: i + 1 }))
-        .filter((n) => n.x !== null && n.y !== null && !n.needsReposition)
+    ? pointNotes.value
+        .filter((n) => n.y !== null && !n.needsReposition)
+        .map((n) => ({ ...n, x: n.x!, y: n.y! }))
     : [],
 )
+watch(open, (value) => {
+  if (!value) {
+    showPointNotes.value = showAllBubbles.value = false
+    selectedId.value = 0
+  }
+})
+function togglePoints() {
+  showAllBubbles.value = !showAllBubbles.value
+  showPointNotes.value = showAllBubbles.value
+  selectedId.value = 0
+}
+function dismissBubbles() {
+  showAllBubbles.value = false
+  selectedId.value = 0
+}
 async function load() {
   try {
     const result = await call<{ items: MediaNote[]; contentVersion: number }>({
@@ -132,18 +160,23 @@ function general() {
   anchorVersion.value = null
   placing.value = false
 }
-function select(id: number) {
+async function select(id: number) {
+  open.value = true
+  showPointNotes.value = true
   selectedId.value = id
-  document
-    .getElementById(`media-note-${id}`)
-    ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  await nextTick()
+  document.getElementById(`media-note-${id}`)?.scrollIntoView({
+    block: 'nearest',
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+  })
 }
 async function save() {
   if (editing.value === undefined || !draft.value.trim() || placing.value) return
   busy.value = true
   error.value = ''
   try {
-    await call({
+    const wasPoint = x.value !== null
+    const result = await call<{ id: number }>({
       url: editing.value ? `/photo/notes/${editing.value.id}` : '/photo/notes',
       method: editing.value ? 'patch' : 'post',
       data: {
@@ -157,6 +190,7 @@ async function save() {
     })
     reset()
     await load()
+    if (wasPoint) await select(result.id)
   } catch (e) {
     error.value = message(e)
   } finally {
@@ -175,6 +209,7 @@ async function remove() {
       data: { photoId: props.photoId, revision: note.revision },
     })
     deleting.value = null
+    if (selectedId.value === note.id) selectedId.value = 0
     await load()
   } catch (e) {
     error.value = message(e)
@@ -204,6 +239,8 @@ defineExpose({
   position,
   select,
   selectedId,
+  showAllBubbles,
+  dismissBubbles,
   cancelPlacement: () => {
     placing.value = false
   },
@@ -274,36 +311,69 @@ defineExpose({
       >
         Record a memory or add a note to a point on this photo.
       </p>
-      <article
-        v-for="(note, index) in items"
-        :id="`media-note-${note.id}`"
-        :key="note.id"
-        class="rounded-lg border p-3"
-        :class="selectedId === note.id ? 'border-primary bg-primary/5' : ''"
-        @click="selectedId = note.id"
-      >
-        <button v-if="note.x !== null" class="mb-2 text-xs underline" @click="select(note.id)">
-          {{ note.needsReposition ? 'Point needs repositioning' : `Point ${index + 1}` }}
-        </button>
-        <p class="whitespace-pre-wrap break-words text-sm">{{ note.body }}</p>
-        <p class="text-muted-foreground mt-2 text-xs">
-          {{ new Date(note.updatedAt).toLocaleString() }}
-        </p>
-        <div class="mt-2 flex flex-wrap gap-2">
-          <Button size="sm" variant="ghost" :disabled="busy" @click="edit(note)">Edit</Button>
-          <Button
-            v-if="canPin && note.needsReposition"
-            size="sm"
-            variant="ghost"
-            :disabled="busy"
-            @click="edit(note, true)"
-            >Reposition</Button
+      <Button size="sm" variant="outline" :aria-expanded="showPointNotes" @click="togglePoints">
+        {{ showAllBubbles ? 'Hide Pin-point notes' : 'See all Pin-point notes' }} ({{
+          pointNotes.length
+        }})
+      </Button>
+      <template v-for="section in sections" :key="section.title">
+        <section
+          v-if="section.visible"
+          :aria-label="section.title"
+          class="flex flex-col gap-3 border-t pt-3"
+        >
+          <h3 class="flex justify-between text-sm font-medium">
+            <span>{{ section.title }}</span
+            ><span class="text-muted-foreground">{{ section.notes.length }}</span>
+          </h3>
+          <p v-if="!section.notes.length" class="text-muted-foreground text-sm">
+            {{
+              section.title === 'General Notes'
+                ? 'No general notes yet.'
+                : 'No pin-point notes yet.'
+            }}
+          </p>
+          <article
+            v-for="note in section.notes"
+            :id="`media-note-${note.id}`"
+            :key="note.id"
+            class="rounded-lg border p-3"
+            :class="selectedId === note.id ? 'border-primary bg-primary/5' : ''"
+            @click="selectedId = note.x !== null ? note.id : 0"
           >
-          <Button size="sm" variant="ghost" :disabled="busy" @click="deleting = note"
-            >Delete</Button
-          >
-        </div>
-      </article>
+            <button
+              v-if="note.x !== null"
+              :style="{ color: pinColor(note.id) }"
+              class="mb-2 text-xs underline"
+              @click="select(note.id)"
+            >
+              {{
+                note.needsReposition
+                  ? 'Point needs repositioning'
+                  : `Point ${pointNotes.find((p) => p.id === note.id)?.number}`
+              }}
+            </button>
+            <p class="whitespace-pre-wrap break-words text-sm">{{ note.body }}</p>
+            <p class="text-muted-foreground mt-2 text-xs">
+              {{ new Date(note.updatedAt).toLocaleString() }}
+            </p>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <Button size="sm" variant="ghost" :disabled="busy" @click="edit(note)">Edit</Button>
+              <Button
+                v-if="canPin && note.needsReposition"
+                size="sm"
+                variant="ghost"
+                :disabled="busy"
+                @click="edit(note, true)"
+                >Reposition</Button
+              >
+              <Button size="sm" variant="ghost" :disabled="busy" @click="deleting = note"
+                >Delete</Button
+              >
+            </div>
+          </article>
+        </section>
+      </template>
     </div>
     <AlertDialog :open="leaving" @update:open="!$event && resolveLeave(false)">
       <AlertDialogContent class="dark text-foreground"

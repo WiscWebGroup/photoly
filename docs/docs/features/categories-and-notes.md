@@ -28,13 +28,21 @@ Video thumbnails use a display-oriented JPEG frame at `min(1 second, duration / 
 
 The viewer's **Notes** section supports multiple notes on a photo or video. Notes contain plain text with paragraphs and line breaks, up to 100,000 characters each. HTML and Markdown are displayed as text.
 
-**Add note** creates a general note. On photos, **Pin on photo** lets you choose a point before saving. Click a numbered marker to find its note; select a note to highlight its marker. Edit a note to reposition its point or remove the point. Unsaved edits require confirmation before leaving. Deleting a note requires confirmation.
+**Add note** creates a general note. On photos, **Pin on photo** lets you choose a point before saving. Hover, focus or click a numbered marker to preview its note. Click again, click an empty area of the photo, or press Escape to dismiss the preview. **View full note** opens the Pin-point Notes list and scrolls to the complete note; select a point note to highlight its marker. Edit a note to reposition its point or remove the point. Unsaved edits require confirmation before leaving. Deleting a note requires confirmation.
+
+**General Notes** is the default list when Notes is expanded. Semi-transparent markers use six stable colors, with numbering independent of general notes. **See all Pin-point notes** reveals a separate Pin-point Notes section and all visible point previews. Click **Hide Pin-point notes** to return to general notes. Previews show up to three lines, move inward near photo edges, and spread out when possible; densely packed previews may overlap, with the active preview in front. Closing Notes or switching photos resets the preview state.
 
 Markers are shown only while Notes is expanded. They follow the displayed photo when zooming, resizing and entering fullscreen. Animated images use their static thumbnail while Notes is open. Live Photo playback hides markers. Videos support general notes, without timestamps or point annotations.
 
 Notes belong to the account that owns the media. Public share pages and share-token APIs expose neither note text, counts nor markers. Notes stay in Photoly's database: a disconnected NAS does not prevent reading or editing notes while the application server remains reachable.
 
 Replacing media, cropping it or saving a rotation keeps the note text but marks old points **needs repositioning**. Those points disappear from the new image until repositioned. Deleting media deletes its notes. Concurrent saves use revisions; a conflict preserves the local draft and asks you to reload the saved note rather than overwrite another device's changes.
+
+The following screenshots use a synthetic landscape and sample notes.
+
+![General Notes with one point preview](../../screenshots/pinpoint-preview.png)
+
+![All point previews and separate General Notes and Pin-point Notes sections](../../screenshots/pinpoint-all.png)
 
 ## Deployment and background work
 
