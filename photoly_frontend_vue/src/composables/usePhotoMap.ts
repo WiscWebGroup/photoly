@@ -1,10 +1,18 @@
 import { onMounted, onBeforeUnmount, shallowRef, ref, watch, type Ref } from 'vue'
 import { useResizeObserver } from '@vueuse/core'
 import { mapProjection } from './useMapProjection'
+import { mapBackground } from './useMapBackground'
 import type { MapEngine, Camera } from '@/lib/mapEngine'
 import '@/lib/photoMap.css'
 
 export function usePhotoMap(el: Ref<HTMLElement | null>) {
+  watch(
+    [el, mapBackground],
+    ([element, background]) => {
+      if (element) element.dataset.background = background
+    },
+    { immediate: true },
+  )
   const map = shallowRef<MapEngine>()
   const fallback = ref(false),
     failed = ref(false)

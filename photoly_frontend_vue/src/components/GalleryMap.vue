@@ -39,7 +39,7 @@ let loadedGallery = -1
 function fit() {
   if (!points.value.length || !map.value || !shown.value) return
   map.value.resize()
-  map.value.initialize(points.value.map(coordinate))
+  map.value.initialize(points.value.map(coordinate), 'photos')
   needsFit = false
 }
 async function load() {

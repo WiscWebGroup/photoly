@@ -14,7 +14,7 @@ export interface Camera {
 export interface MapEngine {
   kind: 'maplibre' | 'leaflet'
   camera(): Camera
-  initialize(points: Coordinate[]): void
+  initialize(points: Coordinate[], view?: 'overview' | 'photos'): void
   projection(value: MapProjection): void
   projectVisible(point: Coordinate): Pixel | null
   flyTo(point: Coordinate, zoom: number, done?: () => void): void

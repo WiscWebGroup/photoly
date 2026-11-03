@@ -105,6 +105,7 @@ test('WebGL failure keeps a functional flat map without overwriting the saved gl
 }) => {
   await page.addInitScript(() => {
     localStorage.setItem('photoly-map-projection', 'globe')
+    localStorage.setItem('photoly-map-background', 'gradient')
     const original = HTMLCanvasElement.prototype.getContext
     HTMLCanvasElement.prototype.getContext = function (
       this: HTMLCanvasElement,
@@ -118,6 +119,8 @@ test('WebGL failure keeps a functional flat map without overwriting the saved gl
   await page.goto('/home/MapPart')
   await expect(page.locator('[data-engine]')).toHaveAttribute('data-engine', 'leaflet')
   await expect(page.getByRole('button', { name: '3D globe', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Globe background', exact: true })).toHaveCount(0)
+  expect(await page.evaluate(() => localStorage.getItem('photoly-map-background'))).toBe('gradient')
   await expect(page.getByTitle('Front', { exact: true })).toBeVisible()
   await page.getByTitle('Front', { exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Front', exact: true })).toBeVisible()
@@ -211,4 +214,164 @@ test('Pacific photos fit across the date line, and failed location requests can 
   await expect(page.getByTitle('West', { exact: true })).toBeVisible()
   const lng = Number(await page.locator('[data-engine]').getAttribute('data-longitude'))
   expect(Math.abs(lng)).toBeGreaterThan(170)
+})
+
+test('globe backgrounds persist, share across maps and preserve the map and photo requests', async ({
+  page,
+}, info) => {
+  const calls = await setup(page, [located(1, 'Acadia', -68.3, 44.3)])
+  await page.goto('/home/MapPart')
+  const map = page.locator('[data-engine]')
+  await expect(map).toHaveAttribute('data-background', 'stars')
+  await expect(map).toHaveAttribute('data-ready', 'true')
+  const canvas = await map.locator('canvas').elementHandle()
+  const initialZoom = await map.getAttribute('data-zoom')
+  for (const [value, label] of [
+    ['gradient', 'Dark gradient'],
+    ['simple', 'Simple'],
+    ['stars', 'Starfield'],
+  ] as const) {
+    await page.getByRole('button', { name: 'Globe background', exact: true }).click()
+    await page.getByRole('menuitemradio', { name: label, exact: true }).click()
+    await expect(map).toHaveAttribute('data-background', value)
+    expect(await canvas!.evaluate((c) => c.isConnected)).toBe(true)
+    expect(await map.getAttribute('data-zoom')).toBe(initialZoom)
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem('photoly-map-background')))
+      .toBe(value)
+    await page.screenshot({ path: info.outputPath(`background-${value}.png`) })
+  }
+  expect(calls.filter((c) => c.path === '/photo-extra/getGlobalMapPhoto')).toHaveLength(1)
+  await page.getByRole('button', { name: 'Globe background', exact: true }).focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('menuitemradio', { name: 'Starfield', exact: true })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  )
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('Enter')
+  await expect(map).toHaveAttribute('data-background', 'gradient')
+  await page.reload()
+  await expect(map).toHaveAttribute('data-background', 'gradient')
+  await page.getByRole('button', { name: 'Flat map', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Globe background', exact: true })).toHaveCount(0)
+  await expect.poll(() => map.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe('none')
+  await page.getByRole('button', { name: '3D globe', exact: true }).click()
+  await page.goto('/home/GalleryPart')
+  await page.getByText('Trip', { exact: true }).click()
+  const gallery = page.getByRole('complementary', { name: 'Gallery map' })
+  await expect(gallery.locator('[data-engine]')).toHaveAttribute('data-background', 'gradient')
+  await expect
+    .poll(async () => Number(await gallery.locator('[data-engine]').getAttribute('data-zoom')))
+    .toBeCloseTo(11)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+for (const items of [
+  [located(1, 'Acadia', -68.3, 44.3)],
+  [located(1, 'Acadia', -68.3, 44.3), located(2, 'Trail', -68.3, 44.3)],
+  [located(1, 'East', 179, 10), located(2, 'West', -179, 10)],
+]) {
+  test(`Gallery initially fits ${items.map((p) => p.photo_name).join('/')} and can refit after an overview`, async ({
+    page,
+  }) => {
+    const calls = await setup(page, items)
+    await page.goto('/home/GalleryPart')
+    await page.getByText('Trip', { exact: true }).click()
+    const gallery = page.getByRole('complementary', { name: 'Gallery map' })
+    const map = gallery.locator('[data-engine]')
+    await expect(map).toHaveAttribute('data-projection', 'globe')
+    await expect(map).toHaveAttribute('data-ready', 'true')
+    await expect.poll(async () => Number(await map.getAttribute('data-zoom'))).toBeGreaterThan(4)
+    const fittedZoom = Number(await map.getAttribute('data-zoom'))
+    const initialRequests = calls.filter(
+      (c) => c.path === '/photo-extra/getGlobalMapPhotoByGallery',
+    ).length
+    if (items[0]!.photo_name === 'East') {
+      expect(Math.abs(Number(await map.getAttribute('data-longitude')))).toBeGreaterThan(170)
+    }
+    await gallery.getByRole('button', { name: 'Flat map', exact: true }).click()
+    await gallery.getByRole('button', { name: '3D globe', exact: true }).click()
+    await expect.poll(async () => Number(await map.getAttribute('data-zoom'))).toBeLessThan(3)
+    await page.waitForTimeout(650)
+    const overviewZoom = await map.getAttribute('data-zoom')
+    await gallery.getByRole('button', { name: 'Hide gallery map', exact: true }).click()
+    await page.getByRole('button', { name: 'Show gallery map', exact: true }).click()
+    expect(await map.getAttribute('data-zoom')).toBe(overviewZoom)
+    await gallery.getByRole('button', { name: 'Show all photo locations', exact: true }).click()
+    await expect
+      .poll(async () => Number(await map.getAttribute('data-zoom')))
+      .toBeCloseTo(fittedZoom)
+    expect(calls.filter((c) => c.path === '/photo-extra/getGlobalMapPhotoByGallery')).toHaveLength(
+      initialRequests,
+    )
+    await expect(gallery.getByRole('link', { name: 'OpenStreetMap contributors' })).toBeVisible()
+  })
+}
+
+test('Smart Gallery waits for GPS, retries errors and refits when changing galleries', async ({
+  page,
+}) => {
+  await setup(page)
+  await page.route('**/gallery/getAll?*', (r) =>
+    r.fulfill({
+      json: ok([
+        {
+          gaId: 7,
+          gaName: 'Acadia trip',
+          createDate: '2024-06-01',
+          smart: {
+            id: 1,
+            source: 'trip',
+            name: 'Acadia trip',
+            suppressed: false,
+            basis: { gpsCount: 1 },
+          },
+        },
+        { gaId: 8, gaName: 'World trip', createDate: '2024-07-01' },
+        { gaId: 9, gaName: 'No GPS', createDate: '2024-08-01' },
+      ]),
+    }),
+  )
+  await page.route('**/photo/getByGallery?*', (r) =>
+    r.fulfill({ json: ok([photo(1, 'One'), photo(2, 'Two')]) }),
+  )
+  let fail = true
+  let release = () => {}
+  const pending = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route('**/photo-extra/getGlobalMapPhotoByGallery?*', async (r) => {
+    const id = new URL(r.request().url()).searchParams.get('gaId')
+    if (id === '7') await pending
+    await r.fulfill({
+      json:
+        id === '7'
+          ? fail
+            ? { msgCode: 500 }
+            : ok([located(1, 'Acadia', -68.3, 44.3)])
+          : ok(id === '8' ? [located(1, 'West', -100, 30), located(2, 'East', 20, 50)] : []),
+    })
+  })
+  await page.goto('/home/GalleryPart')
+  await page.getByText('Acadia trip', { exact: true }).click()
+  const gallery = page.getByRole('complementary', { name: 'Gallery map' })
+  await expect(gallery).toBeHidden()
+  release()
+  await expect(gallery.getByText('Could not load photo locations.')).toBeVisible()
+  fail = false
+  await gallery.getByRole('button', { name: 'Retry map', exact: true }).click()
+  await expect
+    .poll(async () => Number(await gallery.locator('[data-engine]').getAttribute('data-zoom')))
+    .toBeCloseTo(11)
+  await page.getByRole('button', { name: 'Galleries', exact: true }).click()
+  await page.getByText('World trip', { exact: true }).click()
+  await expect(gallery.locator('[data-engine]')).toHaveAttribute('data-ready', 'true')
+  await expect
+    .poll(async () => Number(await gallery.locator('[data-engine]').getAttribute('data-zoom')))
+    .toBeLessThan(4)
+  await expect(gallery.getByTitle('West', { exact: true })).toBeVisible()
+  await expect(gallery.getByTitle('East', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Galleries', exact: true }).click()
+  await page.getByText('No GPS', { exact: true }).click()
+  await expect(gallery).toBeHidden()
 })

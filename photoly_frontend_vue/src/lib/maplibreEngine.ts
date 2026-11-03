@@ -128,11 +128,21 @@ export async function createMapLibreEngine(
   })
   function fit() {
     const bounds = photoBounds(points)
-    if (bounds)
+    map.stop()
+    // Globe fitBounds cannot reliably solve a zero-area box across browsers.
+    if (
+      bounds &&
+      Math.abs(bounds[1][0] - bounds[0][0]) < 1e-7 &&
+      Math.abs(bounds[1][1] - bounds[0][1]) < 1e-7
+    )
+      map.jumpTo({ center: bounds[0], zoom: 11, pitch: 0, bearing: 0 })
+    else if (bounds)
       map.fitBounds(bounds, {
         padding: Math.min(64, Math.min(el.clientWidth, el.clientHeight) * 0.16),
         maxZoom: 11,
         duration: 0,
+        pitch: 0,
+        bearing: 0,
       })
     else map.jumpTo({ center: [10, 19], zoom: 1 })
   }
@@ -145,9 +155,9 @@ export async function createMapLibreEngine(
   const engine: MapEngine = {
     kind: 'maplibre',
     camera,
-    initialize(value) {
+    initialize(value, view = 'overview') {
       points = value
-      if (projection === 'globe')
+      if (projection === 'globe' && view === 'overview')
         map.jumpTo({ center: photoCenter(points), zoom: globeZoom(), pitch: 0, bearing: 0 })
       else fit()
       changed()

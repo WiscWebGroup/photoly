@@ -1,6 +1,14 @@
 .maplibregl-map {
   background: var(--muted);
 }
+.maplibregl-map[data-engine='maplibre'][data-projection='globe'][data-background='stars'] {
+  background:
+    url('../assets/map-stars.svg') center / 900px 600px repeat,
+    radial-gradient(ellipse at 65% 25%, #172b46 0%, #0b1529 45%, #050914 100%);
+}
+.maplibregl-map[data-engine='maplibre'][data-projection='globe'][data-background='gradient'] {
+  background: radial-gradient(ellipse at 65% 25%, #263e56 0%, #101f35 50%, #060c18 100%);
+}
 .photo-map-marker {
   cursor: pointer;
   background: transparent;
