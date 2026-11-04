@@ -25,7 +25,7 @@ interface LocatedPhoto {
 }
 const shown = useStorage('photoly-gallery-map-visible', true)
 const mapEl = ref<HTMLElement | null>(null)
-const { map, fallback, failed } = usePhotoMap(mapEl)
+const { map, fallback, failed, dayNightUnavailable } = usePhotoMap(mapEl)
 const records = ref<LocatedPhoto[]>([])
 const error = ref(false)
 const loading = ref(false)
@@ -194,7 +194,9 @@ onBeforeUnmount(() => {
           ><X
         /></Button>
       </header>
-      <div class="px-2 py-1"><MapProjectionControl :fallback="fallback" /></div>
+      <div class="px-2 py-1">
+        <MapProjectionControl :fallback="fallback" :day-night-unavailable="dayNightUnavailable" />
+      </div>
       <p v-if="failed" role="alert" class="p-2 text-xs">
         Could not initialize the map. Reload to retry.
       </p>

@@ -2,6 +2,7 @@ import { onMounted, onBeforeUnmount, shallowRef, ref, watch, type Ref } from 'vu
 import { useResizeObserver } from '@vueuse/core'
 import { mapProjection } from './useMapProjection'
 import { mapBackground } from './useMapBackground'
+import { mapDayNight } from './useMapDayNight'
 import type { MapEngine, Camera } from '@/lib/mapEngine'
 import '@/lib/photoMap.css'
 
@@ -16,6 +17,7 @@ export function usePhotoMap(el: Ref<HTMLElement | null>) {
   const map = shallowRef<MapEngine>()
   const fallback = ref(false),
     failed = ref(false)
+  const dayNightUnavailable = ref(false)
   let disposed = false,
     replacing = false
   let removeContextListener: (() => void) | undefined
@@ -43,12 +45,15 @@ export function usePhotoMap(el: Ref<HTMLElement | null>) {
     try {
       const { createMapLibreEngine } = await import('@/lib/maplibreEngine')
       if (disposed || !el.value) return
-      const engine = await createMapLibreEngine(el.value, mapProjection.value)
+      const engine = await createMapLibreEngine(el.value, mapProjection.value, () => {
+        dayNightUnavailable.value = true
+      })
       if (disposed) {
         engine.destroy()
         return
       }
       engine.projection(mapProjection.value)
+      engine.dayNight(mapDayNight.value)
       map.value = engine
       el.value.dataset.engine = 'maplibre'
       el.value.dataset.projection = mapProjection.value
@@ -67,11 +72,12 @@ export function usePhotoMap(el: Ref<HTMLElement | null>) {
     map.value?.projection(value)
     if (el.value && map.value) el.value.dataset.projection = fallback.value ? 'mercator' : value
   })
+  watch(mapDayNight, (value) => map.value?.dayNight(value))
   useResizeObserver(el, () => map.value?.resize())
   onBeforeUnmount(() => {
     disposed = true
     removeContextListener?.()
     map.value?.destroy()
   })
-  return { map, fallback, failed }
+  return { map, fallback, failed, dayNightUnavailable }
 }

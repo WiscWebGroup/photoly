@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { Globe, Map } from '@lucide/vue'
+import { Globe, Map, Eclipse } from '@lucide/vue'
 import { mapProjection, type MapProjection } from '@/composables/useMapProjection'
+import { mapDayNight } from '@/composables/useMapDayNight'
 import MapBackgroundControl from './MapBackgroundControl.vue'
-defineProps<{ fallback: boolean }>()
+defineProps<{ fallback: boolean; dayNightUnavailable?: boolean }>()
 const options: { value: MapProjection; label: string; icon: typeof Globe }[] = [
   { value: 'mercator', label: 'Flat map', icon: Map },
   { value: 'globe', label: '3D globe', icon: Globe },
@@ -41,9 +42,32 @@ const options: { value: MapProjection; label: string; icon: typeof Globe }[] = [
         </button>
       </div>
       <MapBackgroundControl v-if="!fallback && mapProjection === 'globe'" />
+      <button
+        v-if="!fallback && mapProjection === 'globe'"
+        type="button"
+        aria-label="Day/night"
+        :aria-pressed="mapDayNight && !dayNightUnavailable"
+        :disabled="dayNightUnavailable"
+        :title="
+          dayNightUnavailable
+            ? 'Day/night unavailable on this device'
+            : 'Real-time day/night · fades out as you zoom in'
+        "
+        class="bg-card flex size-9 shrink-0 items-center justify-center rounded-lg border shadow-sm hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-40"
+        :class="mapDayNight && !dayNightUnavailable ? 'text-primary' : 'text-muted-foreground'"
+        @click="mapDayNight = !mapDayNight"
+      >
+        <Eclipse class="size-4" aria-hidden="true" />
+      </button>
     </div>
     <span v-if="fallback" role="status" class="bg-card rounded px-1 text-[10px]"
       >Compatibility mode · WebGL unavailable</span
+    >
+    <span
+      v-else-if="dayNightUnavailable && mapProjection === 'globe'"
+      role="status"
+      class="bg-card rounded px-1 text-[10px]"
+      >Day/night unavailable · map remains interactive</span
     >
   </div>
 </template>

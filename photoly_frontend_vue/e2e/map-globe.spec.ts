@@ -120,6 +120,7 @@ test('WebGL failure keeps a functional flat map without overwriting the saved gl
   await expect(page.locator('[data-engine]')).toHaveAttribute('data-engine', 'leaflet')
   await expect(page.getByRole('button', { name: '3D globe', exact: true })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Globe background', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Day/night', exact: true })).toHaveCount(0)
   expect(await page.evaluate(() => localStorage.getItem('photoly-map-background'))).toBe('gradient')
   await expect(page.getByTitle('Front', { exact: true })).toBeVisible()
   await page.getByTitle('Front', { exact: true }).click()
@@ -136,6 +137,74 @@ test('WebGL failure keeps a functional flat map without overwriting the saved gl
   expect(pixels).toBe(true)
   expect(await page.evaluate(() => localStorage.getItem('photoly-map-projection'))).toBe('globe')
   await expect(page.getByRole('link', { name: 'OpenStreetMap contributors' })).toBeVisible()
+})
+
+test('day/night defaults on, persists across maps, and keeps markers and heat usable', async ({
+  page,
+}) => {
+  const calls = await setup(page, [located(1, 'Front', 0, 0), located(2, 'East', 60, 0)])
+  await page.clock.setFixedTime(new Date('2026-03-20T06:00:00Z'))
+  await page.goto('/home/MapPart')
+  const map = page.locator('[data-engine]')
+  const toggle = page.getByRole('button', { name: 'Day/night', exact: true })
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  await expect(map).toHaveAttribute('data-ready', 'true')
+  await expect(map).toHaveAttribute('data-day-night-available', 'true')
+  await expect(map).toHaveAttribute('data-day-night', 'true')
+  const canvas = await map.locator('canvas').elementHandle()
+  await toggle.click()
+  await expect(map).toHaveAttribute('data-day-night', 'false')
+  await expect(page.getByTitle('Front', { exact: true })).toBeVisible()
+  expect(await map.locator('canvas').evaluate((node, old) => node === old, canvas)).toBe(true)
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('photoly-map-day-night')))
+    .toBe('false')
+  await page.reload()
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  await page.goto('/home/GalleryPart')
+  await page.getByText('Trip', { exact: true }).click()
+  const gallery = page.getByRole('complementary', { name: 'Gallery map' })
+  await expect(gallery.getByRole('button', { name: 'Day/night', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  )
+  await gallery.getByRole('button', { name: 'Day/night', exact: true }).click()
+  await page.goto('/home/MapPart')
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  await expect(map).toHaveAttribute('data-day-night', 'true')
+  await page.getByRole('radio', { name: 'Heat', exact: true }).click()
+  await expect(map).toHaveAttribute('data-heatmap', 'true')
+  await page.getByRole('radio', { name: 'Photos', exact: true }).click()
+  await page.getByTitle('Front', { exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Front', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Flat map', exact: true }).click()
+  await expect(toggle).toHaveCount(0)
+  await expect(map).toHaveAttribute('data-day-night', 'false')
+  expect(await page.evaluate(() => localStorage.getItem('photoly-map-day-night'))).toBe('true')
+  expect(calls.filter((call) => call.path === '/photo-extra/getGlobalMapPhoto')).toHaveLength(3)
+})
+
+test('illumination shader failure leaves a working map and preserves the preference', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const original = WebGL2RenderingContext.prototype.shaderSource
+    WebGL2RenderingContext.prototype.shaderSource = function (shader, source) {
+      original.call(
+        this,
+        shader,
+        source.includes('uniform vec3 u_sun;') ? 'invalid shader' : source,
+      )
+    }
+  })
+  await setup(page, [located(1, 'Front', 0, 0)])
+  await page.goto('/home/MapPart')
+  await expect(page.getByRole('button', { name: 'Day/night', exact: true })).toBeDisabled()
+  await expect(page.getByRole('status').filter({ hasText: 'Day/night unavailable' })).toBeVisible()
+  await expect(page.locator('[data-engine]')).toHaveAttribute('data-engine', 'maplibre')
+  await page.getByTitle('Front', { exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Front', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => localStorage.getItem('photoly-map-day-night'))).toBe('true')
 })
 test('context loss falls back and tile errors do not prevent viewing photos', async ({ page }) => {
   await setup(page, [located(1, 'Front', 0, 0)])

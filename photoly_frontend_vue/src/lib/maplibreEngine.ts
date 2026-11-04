@@ -11,6 +11,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import workerURL from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 setWorkerUrl(workerURL)
 import type { MapProjection } from '@/composables/useMapProjection'
+import { createGlobeLighting } from './globeLighting'
 import {
   photoBounds,
   photoCenter,
@@ -31,6 +32,7 @@ import {
 export async function createMapLibreEngine(
   el: HTMLElement,
   initial: MapProjection,
+  onDayNightFailure: () => void = () => {},
 ): Promise<MapEngine> {
   const map = new GLMap({
     container: el,
@@ -98,6 +100,7 @@ export async function createMapLibreEngine(
       ],
     },
   })
+  const lighting = createGlobeLighting(map, el, initial, onDayNightFailure)
   let projection = initial,
     points: Coordinate[] = [],
     flatCamera: Camera | undefined
@@ -155,6 +158,7 @@ export async function createMapLibreEngine(
   const engine: MapEngine = {
     kind: 'maplibre',
     camera,
+    dayNight: (enabled) => lighting.enabled(enabled),
     initialize(value, view = 'overview') {
       points = value
       if (projection === 'globe' && view === 'overview')
@@ -168,6 +172,7 @@ export async function createMapLibreEngine(
       projection = value
       map.stop()
       map.setProjection({ type: value })
+      lighting.projection(value)
       if (value === 'globe')
         map.easeTo({
           center: map.getCenter(),
@@ -293,6 +298,7 @@ export async function createMapLibreEngine(
       return () => callbacks.delete(fn)
     },
     destroy() {
+      lighting.destroy()
       callbacks.clear()
       popupClose = undefined
       closePopup()

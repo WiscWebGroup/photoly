@@ -43,6 +43,7 @@ export function createLeafletEngine(el: HTMLElement, saved?: Camera): MapEngine 
       changed()
     },
     projection() {},
+    dayNight() {},
     projectVisible(p) {
       const point = map.latLngToContainerPoint(displayCoordinate(p))
       return point.x >= 0 && point.y >= 0 && point.x <= el.clientWidth && point.y <= el.clientHeight
