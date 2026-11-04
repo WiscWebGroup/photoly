@@ -9,14 +9,22 @@ export default defineConfig({
   expect: { timeout: process.env.CI ? 10_000 : 5_000 },
   // Runners have 4 vCPUs (default would be 2); tests mostly wait on the browser, not the CPU.
   workers: process.env.CI ? 4 : undefined,
-  reporter: process.env.CI ? 'github' : 'list',
+  reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    {
+      name: 'webkit',
+      use: {
+        ...devices['Desktop Safari'],
+        // Linux headless WebKit (WPE) can capture stale WebGL frames. Run GTK
+        // WebKit under Xvfb in CI so the globe's visual assertions see each update.
+        headless: !(process.env.CI && process.platform === 'linux'),
+      },
+    },
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
   ],
   webServer: {

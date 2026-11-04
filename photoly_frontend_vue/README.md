@@ -31,6 +31,8 @@ pnpm test:e2e
 
 `pnpm test` without `--run` starts watch mode. Playwright starts its own development server and covers Chromium, WebKit and mobile layouts using mocked APIs. Real backend/model browser tests use the separate opt-in configuration described in [AI operations](../docs/docs/ai-backend-operations.md). `pnpm format` rewrites source/test formatting and is not a read-only check.
 
+On Linux, `CI=1` runs WebKit in GTK mode to avoid stale WebGL screenshots in the headless WPE renderer. Install browser system dependencies with `pnpm exec playwright install --with-deps chromium webkit`, then run `CI=1 xvfb-run -a pnpm test:e2e`. CI generates an HTML report and uploads it with traces and screenshots when tests fail.
+
 ## User-facing features
 
 - Smart Search defaults to a single search box. Text matches appear first; semantic results update the ranking when available. Previous search modes remain selectable.
