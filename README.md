@@ -23,6 +23,10 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 ## Screenshots
 ![The Photoly welcome page: “Your photos, on your terms” beside a photo grid with a search-by-meaning demo](docs/screenshots/welcome.webp)
 
+### Duplicate Detection
+
+Find identical photos across folders with **Organize → Duplicate Detection**. Mark copies Keep, ignore reviewed groups, or confirm permanent removal of selected extras. Decisions persist across devices; cleanup verifies that a readable matching copy remains. See [Duplicate Detection](docs/docs/features/duplicate-detection.md).
+
 ## Specifications
 
 One Go binary (`photoly`) plus PostgreSQL 17 with pgvector 0.8.7. AI search uses SigLIP2 on ONNX Runtime, in the server or in the user's browser (the administrator chooses where each model runs).

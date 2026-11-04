@@ -7,6 +7,7 @@ import EmptyState from '@/components/EmptyState.vue'
 const props = defineProps<{ part: string }>()
 
 const parts = {
+  DuplicatesPart: defineAsyncComponent(() => import('@/components/DuplicatesPart.vue')),
   CategoryPart: defineAsyncComponent(() => import('@/components/CategoryPart.vue')),
   PeoplePart: defineAsyncComponent(() => import('@/components/PeoplePart.vue')),
   HomePart: defineAsyncComponent(() => import('@/components/HomePart.vue')),

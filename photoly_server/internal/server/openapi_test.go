@@ -187,6 +187,18 @@ func TestOpenAPIResponses(t *testing.T) {
 	}
 	capture("PUT", embeddingPath, "/uploads/{batch_id}/items/{item_id}/embedding", string(vectorBody), 200)                      // held
 	capture("PUT", embeddingPath, "/uploads/{batch_id}/items/{item_id}/embedding", `{"fingerprint":"sample","vector":[1]}`, 200) // msgCode 400
+	copyID := f.upload(f.root, "Duplicate.png")
+	group := duplicateGroupFor(f)
+	capture("GET", "/photo/duplicates", "/photo/duplicates", "", 200)
+	capture("GET", "/photo/duplicates/members?key="+url.QueryEscape(group["key"].(string))+"&version="+group["version"].(string), "/photo/duplicates/members", "", 200)
+	for _, action := range []string{"keep", "ignore", "delete"} {
+		fields := map[string]any{"value": true, "photoId": photoID}
+		if action == "delete" {
+			fields = map[string]any{"photoIds": []int64{copyID}}
+		}
+		body, _ := json.Marshal(duplicateBody(group, fields))
+		capture("POST", "/photo/duplicates/"+action, "/photo/duplicates/"+action, string(body), 200)
+	}
 	// Probe every documented account GET with synthetic IDs. Binary and public
 	// model/credential endpoints have separate auth/stream tests; never download models.
 	raw, _ := os.ReadFile("../../openapi.json")
@@ -273,6 +285,7 @@ func TestOpenAPIResponses(t *testing.T) {
 			samples = append(samples, contractSample{method, path, w.Code, body})
 		}
 	}
+
 	if path := os.Getenv("OPENAPI_SAMPLE_OUTPUT"); path != "" {
 		b, err := json.MarshalIndent(samples, "", "  ")
 		if err != nil {

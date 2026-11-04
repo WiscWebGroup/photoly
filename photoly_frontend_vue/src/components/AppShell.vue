@@ -95,6 +95,7 @@ const groups = computed<{ label: string; items: NavItem[] }[]>(() => [
       { part: 'GalleryPart', label: 'Galleries', icon: Images },
       { part: 'TagPart', label: 'Tags', icon: Tag },
       { part: 'DatesPart', label: 'Dates', icon: CalendarDays },
+      { part: 'DuplicatesPart', label: 'Duplicate Detection', icon: Images },
     ],
   },
   { label: 'Find', items: [{ part: 'SearchPart', label: 'Search', icon: Search, key: '/' }] },
@@ -317,6 +318,12 @@ const iconButton =
         />
       </router-link>
       <div class="ml-auto flex items-center gap-1">
+        <router-link
+          to="/home/DuplicatesPart"
+          aria-label="Duplicate Detection"
+          class="grid size-10 place-items-center rounded-md hover:bg-accent"
+          ><Images class="size-5"
+        /></router-link>
         <OnlineDownloadButton v-if="!desktop" /><UploadButton v-if="!desktop" /><StorageActivity
           v-if="!desktop"
         />
