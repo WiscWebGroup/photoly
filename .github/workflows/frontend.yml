@@ -70,13 +70,16 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium webkit
       # Reloading during mocked cross-origin polling can emit a WebKit CORS error.
       # Run all Dates tests below against the production same-origin proxy instead.
-      - run: pnpm test:e2e --grep-invert dates-details.spec.ts
+      # Linux WebKit uses GTK under Xvfb for reliable WebGL presentation.
+      - run: xvfb-run -a pnpm test:e2e --grep-invert dates-details.spec.ts
       - name: Check editor, dialogs, gallery and Dates with the Docker API prefix
-        run: pnpm exec playwright test e2e/editor.spec.ts e2e/dialog-overflow.spec.ts e2e/gallery-description.spec.ts e2e/dates-details.spec.ts
+        run: xvfb-run -a pnpm exec playwright test e2e/editor.spec.ts e2e/dialog-overflow.spec.ts e2e/gallery-description.spec.ts e2e/dates-details.spec.ts
         env:
           VITE_APP_BASE_URL: /api
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
-          path: photoly_frontend_vue/playwright-report
+          path: |
+            photoly_frontend_vue/playwright-report
+            photoly_frontend_vue/test-results

@@ -161,3 +161,44 @@ func SweepSources(ctx context.Context, q dbgen.DBTX, root string) {
 		}
 	}
 }
+
+// OpenFresh reads the backing object rather than a possibly stale remote cache.
+// Destructive duplicate cleanup must verify that a surviving original is online.
+func OpenFresh(ctx context.Context, path string) (io.ReadCloser, error) {
+	if loc, ok := remoteLocation(path); ok {
+		return loc.store.Get(ctx, loc.key)
+	}
+	return OpenFile(path)
+}
+
+// SameObject detects aliases of a single file through overlapping source bindings.
+// Removing such an alias would also remove the proposed surviving original.
+func SameObject(a, b string) bool {
+	if filepath.Clean(a) == filepath.Clean(b) {
+		return true
+	}
+	x, xok := remoteLocation(a)
+	y, yok := remoteLocation(b)
+	if !xok || !yok {
+		return false
+	}
+	switch xt := x.store.(type) {
+	case *DAV:
+		yt, ok := y.store.(*DAV)
+		if !ok {
+			return false
+		}
+		u, e := xt.address(x.key)
+		v, f := yt.address(y.key)
+		return e == nil && f == nil && u.String() == v.String()
+	case *SMB:
+		yt, ok := y.store.(*SMB)
+		if !ok {
+			return false
+		}
+		u, e := xt.key(x.key)
+		v, f := yt.key(y.key)
+		return e == nil && f == nil && xt.origin() == yt.origin() && strings.EqualFold(xt.share, yt.share) && strings.EqualFold(u, v)
+	}
+	return false
+}

@@ -54,6 +54,42 @@ type Cred struct {
 	Authorization *string
 }
 
+type DuplicateCandidate struct {
+	PhotoID        int64
+	UserID         *int64
+	SourceID       int64
+	NsID           *int64
+	FileName       string
+	PhotoName      *string
+	Format         *string
+	ContentVersion int64
+	Bytes          int32
+	StillHash      string
+	LiveHash       string
+	GroupKey       interface{}
+	Identity       interface{}
+}
+
+type DuplicateGroup struct {
+	UserID    *int64
+	GroupKey  interface{}
+	Count     int64
+	Version   string
+	KeptCount int64
+}
+
+type DuplicateIgnore struct {
+	UserID   int64
+	GroupKey string
+	Version  string
+}
+
+type DuplicateKeep struct {
+	PhotoID  int64
+	UserID   int64
+	Identity string
+}
+
 type EffectiveMediaCategory struct {
 	PhotoID  int64
 	UserID   *int64

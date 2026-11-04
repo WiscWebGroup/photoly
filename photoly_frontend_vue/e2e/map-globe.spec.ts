@@ -240,15 +240,20 @@ test('dense libraries render only visible cluster covers and no-location maps re
 })
 
 test('rotating the globe updates visible photos and the Places in view list', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.setViewportSize({ width: 1280, height: 900 })
   await setup(page, [located(1, 'Front', 0, 0), located(2, 'Back', 180, 0)])
   await page.goto('/home/MapPart')
   await expect(page.getByTitle('Front', { exact: true })).toBeVisible()
-  const canvas = page.locator('[data-engine] canvas')
+  const map = page.locator('[data-engine]')
+  const canvas = map.locator('canvas')
+  await expect(map).toHaveAttribute('data-ready', 'true')
   // Keyboard pan rotates the globe without platform-dependent pointer inertia.
   for (let i = 0; i < 20 && !(await page.getByTitle('Back', { exact: true }).count()); i++) {
+    const longitude = await map.getAttribute('data-longitude')
     await canvas.press('ArrowRight')
-    await page.waitForTimeout(350)
+    await expect(map).not.toHaveAttribute('data-longitude', longitude!)
+    await expect(map).toHaveAttribute('data-ready', 'true')
   }
   await expect(page.getByTitle('Back', { exact: true })).toBeVisible()
   await expect(page.getByTitle('Front', { exact: true })).toHaveCount(0)

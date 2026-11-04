@@ -179,6 +179,7 @@ func Register(a *app.App) {
 	s := For(a)
 	s.registerCredentialMedia()
 	s.registerNotes()
+	s.registerDuplicates()
 	s.registerCategories()
 	user.UploadPhotos = func(ctx context.Context, uid int64, files []*multipart.FileHeader, descs []map[string]any) ([]string, error) {
 		out, err := s.Upload(ctx, uid, files, descs)
