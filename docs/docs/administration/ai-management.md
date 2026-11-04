@@ -48,3 +48,11 @@ Storage and runtime:
 ## Related
 
 Sizes and upgrade notes are in [Media tools](media-tools.md), [Extract Text](extract-text.md) and [Smart Tag](smart-tag.md) operations.
+
+## Model controls and API clients
+
+The model cards expose separate load/unload actions for image, text and People models. A successful settings change is a desired configuration, not proof that a model is loaded; inspect the worker/model status. A low-memory load warning includes the estimated requirement and available memory. Loading anyway is an explicit override, not a persistent change to memory limits.
+
+The current server uses ONNX Runtime. Device choices are CPU, CUDA and CoreML where the provider is available; the supported precision is float32. Provider initialization can fall back to CPU, reported by `device_used` and `device_note`. Qwen profile creation and the old MPS/PyTorch precision combinations are not supported by this server.
+
+Integration clients should read `/ai/capabilities` for placement, the current browser fingerprint, model base URL and pinned files. See [API](../api.md) for indexing, vector submission and model load/unload contracts. Upload embedding success reports `state`; existing-photo embedding success reports `status`. Both can report a queued/waiting outcome instead of a stored vector.

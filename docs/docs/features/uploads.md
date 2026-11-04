@@ -19,7 +19,7 @@ If a top-level folder name already exists, Photoly adds a number to the new name
 
 The browser keeps one queue for the whole app. It sends two raw-file requests at a time.
 
-- There is no limit on file count or total size.
+- There is no fixed queue-wide file count or total-size limit. Account storage quotas, available disk space and per-request size limits still apply.
 - `MAX_CONTENT_LENGTH` limits each file or ZIP request. Default: 600 MiB.
 - A manifest page holds up to 500 entries. You can send more pages.
 - Photoly recognizes camera files without a MIME type by their extension.

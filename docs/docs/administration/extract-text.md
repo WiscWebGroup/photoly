@@ -14,32 +14,11 @@ The backend image installs Tesseract 5 and these Debian `tessdata_fast` packages
 - `tesseract-ocr-chi-tra`
 - `tesseract-ocr-jpn`
 
-Photoly installs language data at build time. It downloads nothing at runtime. The native MPS environment and the inference image get no OCR packages.
+Photoly installs the OCR language data in the backend image at build time; recognition does not download it. OCR runs on the CPU independently of AI model placement.
 
-To upgrade, rebuild the images and run the migration service before you restart. From the repository root, for the base deployment:
+Upgrade with the current [standard upgrade procedure](../install/upgrading.md). The Go backend applies embedded migrations on startup. There is no separate Flask migration, scheduler or OCR service in the standard Compose deployment.
 
-```sh
-docker compose stop backend
-docker compose build backend migrate web
-docker compose run --rm migrate
-docker compose up -d backend web
-```
-
-For CPU, CUDA and MPS deployments:
-
-- Use the same Compose files and profiles as your existing deployment.
-- Rebuild and restart the active scheduler and maintenance services. They share the application image and check the current schema.
-- Keep the existing inference runtime and model configuration.
-- Do not use test Compose commands on production data.
-
-### Migration
-
-Migration `0004_photo_ocr` follows `0003_video_vectors`. It adds `photo_ocr`. It does not change existing vectors.
-
-- A database trigger removes OCR results when `photo.content_version` changes.
-- Foreign-key cascade removes them when a photo is deleted.
-- Rename, move, tagging and gallery membership keep the text.
-- A downgrade discards saved OCR text only.
+The current database includes `photo_ocr`. A content-version change invalidates saved OCR, and deleting a photo cascades to its OCR record. Rename, move, tagging and gallery membership keep the saved text. Restore a matching database and media backup when reverting a release.
 
 ### Check the languages
 
@@ -50,7 +29,7 @@ docker compose exec backend tesseract --list-langs
 
 The list must contain `chi_sim`, `chi_tra`, `eng` and `jpn`. The panel reports missing binaries and data. Photoly never falls back to another language silently.
 
-If you run the Flask backend outside Docker, install the same Tesseract language data locally.
+If you run the Go backend outside Docker, install the same Tesseract language data locally.
 
 ## Processing
 
@@ -72,8 +51,8 @@ If you run the Flask backend outside Docker, install the same Tesseract language
 
 ### Time and concurrency
 
-- A disposable worker limits Pillow and Tesseract together to 45 seconds. Recognition has a separate 30-second timeout.
-- On timeout, Photoly kills the worker process group.
+- The Go recognition flow uses a 45-second overall deadline. Each Tesseract recognition process has a maximum 30-second timeout, bounded by the remaining overall time.
+- Context cancellation stops the invoked Tesseract process. Image preparation uses the server image decoders; there is no Pillow worker.
 - A PostgreSQL session advisory lock allows one OCR operation across all processes that share a database. A second request gets an immediate busy response. There is no queue.
 - Recognition holds no long database transaction.
 
@@ -108,7 +87,7 @@ For the full contract, read the OpenAPI definition.
 
 ## Measured resources
 
-Test setup, 2026-10-16:
+Historical test setup, 2026-10-16 (before the current Go implementation; these measurements are not a benchmark of the current release):
 
 - Apple M3, 16 GB unified memory
 - Linux ARM64 Docker

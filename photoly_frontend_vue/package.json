@@ -14,7 +14,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "licenses:maps": "node scripts/map-licenses.mjs",
-    "licenses:player": "node scripts/player-licenses.mjs"
+    "licenses:player": "node scripts/player-licenses.mjs",
+    "docs:screenshots": "PHOTOLY_DOCS_SCREENSHOTS=1 playwright test e2e/docs-screenshots.spec.ts --project=chromium --workers=1"
   },
   "dependencies": {
     "@huggingface/transformers": "4.3.1",

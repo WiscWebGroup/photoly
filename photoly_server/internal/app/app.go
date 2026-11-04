@@ -44,6 +44,15 @@ type User struct {
 	Role  string
 }
 
+// Router is implemented by http.ServeMux. Tests can observe registration while
+// delegating all matching and dispatch to the standard library.
+type Router interface {
+	http.Handler
+	Handle(string, http.Handler)
+	HandleFunc(string, func(http.ResponseWriter, *http.Request))
+	Handler(*http.Request) (http.Handler, string)
+}
+
 type App struct {
 	Context context.Context
 	Workers sync.WaitGroup
@@ -57,7 +66,7 @@ type App struct {
 	CredDelete  func(context.Context, int64, int64) error
 	Cfg         Config
 	Pool        *pgxpool.Pool
-	Mux         *http.ServeMux
+	Mux         Router
 	// Auth wraps a handler: resolves the session/token exactly like Flask and
 	// responds with the legacy error envelope when missing. Set by the skeleton.
 	Auth func(http.HandlerFunc) http.HandlerFunc

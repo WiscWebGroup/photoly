@@ -19,7 +19,7 @@ See the frontend README in the repository.
 
 ### Server
 
-The server uses Go 1.24 in `photoly_server`.
+Use the Go toolchain declared by `photoly_server/go.mod` (currently Go 1.26.10). Older local Devbox entries do not override the module requirement.
 
 `go test ./...` needs:
 
@@ -90,3 +90,41 @@ pnpm typecheck
 pnpm exec vitest run
 pnpm exec playwright test e2e/storage-sources.spec.ts e2e/folder-tiles.spec.ts
 ```
+
+## OpenAPI contract checks
+
+The Go integration suite records the actual ServeMux registrations, including loop-generated aliases, and compares normalized method/path pairs in both directions. `/docs`, `/docs/assets/` and `/openapi.json` are the explicit infrastructure exclusions. The maintenance controller predicates are extracted from its dispatcher source and have independent response tests. Neither the route check nor the schema checker regenerates the contract.
+
+From the repository root, install the checker in a virtual environment:
+
+```sh
+python3 -m venv /tmp/photoly-openapi-venv
+/tmp/photoly-openapi-venv/bin/pip install -r scripts/requirements-openapi.txt
+/tmp/photoly-openapi-venv/bin/python scripts/check-openapi.py
+```
+
+With `TEST_DATABASE_URL` pointing at a disposable migrated database, run in `photoly_server`:
+
+```sh
+OPENAPI_SAMPLE_OUTPUT=/tmp/openapi-samples.json OPENAPI_BACKUP_SAMPLE_OUTPUT=/tmp/openapi-backup-samples.json go test ./internal/server ./internal/backup -run TestOpenAPI -count=1
+```
+
+Then run the checker from the repository root with `--samples /tmp/openapi-samples.json --samples /tmp/openapi-backup-samples.json`. It checks references, operation IDs, path parameters, documented examples and actual JSON response samples. Server CI runs both stages and checks that the credential/resource generator reproduces the committed contract. The samples cover all session-authenticated operations without a session, account/admin GETs and targeted success/error flows; they do not prove every combination of request data or model inference.
+
+To check the actual bundled Swagger UI, start an isolated backend, then run in `photoly_frontend_vue`:
+
+```sh
+PHOTOLY_SWAGGER_URL=http://127.0.0.1:18484 pnpm exec playwright test e2e/swagger.spec.ts --project=chromium --workers=1
+```
+
+The browser test fetches the real UI/spec/assets and intercepts operation execution with synthetic replies. Real backend contracts are checked separately by the Go tests. It verifies authorization, GET/POST/PUT/PATCH/DELETE execution and clearing credentials on reload.
+
+## Reproduce documentation screenshots
+
+Run `pnpm docs:screenshots` in `photoly_frontend_vue` after installing dependencies and Playwright Chromium. This uses the real local Vue interface at a fixed 1440 × 1000 viewport, English locale and UTC time zone. It writes the seven public PNGs in `docs/screenshots`.
+
+The capture suite uses an isolated browser context, fictional account/folder/gallery/backup data, generated landscape illustrations, schematic map tiles and the project's synthetic video fixture. It intercepts backend calls and blocks external requests; it never signs in to a real account. Captions identify synthetic content. Do not replace these fixtures with production data or personal media.
+
+Before committing new captures, check names, paths, coordinates, passwords, tokens and image metadata, then build Docs with `pnpm --dir docs build`. Review the rendered pages on desktop and mobile. The existing welcome image contains bundled demonstration assets; the two point-note images use a synthetic landscape and sample notes.
+
+For the reviewed differences and validation boundaries, see [API and documentation audit](api-documentation-audit.md).

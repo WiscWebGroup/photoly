@@ -1,4 +1,4 @@
-// Package docs serves Swagger UI at /docs/ (same paths as the Flask blueprint).
+// Package docs serves the bundled Swagger UI at /docs/.
 package docs
 
 import (

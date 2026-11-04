@@ -38,6 +38,10 @@ type libraryTest struct {
 }
 
 func newLibraryTest(t *testing.T) *libraryTest {
+	return newLibraryTestWithRouter(t, http.NewServeMux())
+}
+
+func newLibraryTestWithRouter(t *testing.T, mux app.Router) *libraryTest {
 	t.Helper()
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
@@ -48,7 +52,7 @@ func newLibraryTest(t *testing.T) *libraryTest {
 	cfg := config.Load()
 	cfg.DatabaseURL = url
 	cfg.UploadFolder = t.TempDir()
-	a, h, e := New(ctx, cfg, []byte("{}"))
+	a, h, e := newWithRouter(ctx, cfg, []byte("{}"), mux)
 	if e != nil {
 		t.Fatal(e)
 	}

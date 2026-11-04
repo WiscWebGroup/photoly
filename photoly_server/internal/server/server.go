@@ -44,6 +44,10 @@ func Migrate(ctx context.Context, cfg app.Config, migrationURL string) error {
 
 // New builds the App and the root handler. openapi is served at /openapi.json.
 func New(ctx context.Context, cfg app.Config, openapi []byte) (*app.App, http.Handler, error) {
+	return newWithRouter(ctx, cfg, openapi, http.NewServeMux())
+}
+
+func newWithRouter(ctx context.Context, cfg app.Config, openapi []byte, mux app.Router) (*app.App, http.Handler, error) {
 	pool, err := db.Open(ctx, cfg.DatabaseURL, 60*time.Second)
 	if err != nil {
 		return nil, nil, err
@@ -66,7 +70,6 @@ func New(ctx context.Context, cfg app.Config, openapi []byte) (*app.App, http.Ha
 	store := session.Store{Pool: pool}
 	legacy.Sessions = store
 
-	mux := http.NewServeMux()
 	a := &app.App{Context: ctx, Cfg: cfg, Pool: pool, Mux: mux, StartedAt: time.Now(), BootID: legacy.NewUUID()}
 	a.Go(store.Sweep)
 	a.Go(func(ctx context.Context) { storage.SweepSources(ctx, pool, cfg.UploadFolder) })
