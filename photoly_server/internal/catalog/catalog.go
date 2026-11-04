@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"math"
 	"net/http"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
 	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
@@ -77,7 +79,7 @@ func (s *svc) list(ctx context.Context, k kind, uid int64, limit, offset int64) 
 		rows, err := q.ListGalleries(ctx, dbgen.ListGalleriesParams{UserID: uid, RowLimit: limit, RowOffset: offset})
 		for _, g := range rows {
 			out = append(out, map[string]any{"gaId": g.GaID, "gaName": g.GaName, "userId": g.UserID, "createDate": legacy.ISO(g.CreateDate),
-				"coverId": g.CoverID, "coverColor": g.CoverColor})
+				"coverId": g.CoverID, "coverColor": g.CoverColor, "description": g.Description})
 		}
 		return out, err
 	}
@@ -199,6 +201,19 @@ func optStr(v any) (*string, error) {
 	return nil, legacy.Bad()
 }
 
+// A nil description means the client omitted the field; updates preserve its value.
+func galleryDescription(data map[string]any) (*string, error) {
+	v, present := data["description"]
+	if !present {
+		return nil, nil
+	}
+	value, ok := v.(string)
+	if !ok || utf8.RuneCountInString(value) > 5000 || strings.ContainsRune(value, '\x00') {
+		return nil, legacy.Bad()
+	}
+	return &value, nil
+}
+
 func (s *svc) insert(k kind) legacy.Handler {
 	return func(w http.ResponseWriter, r *http.Request, uid int64) (any, error) {
 		data, err := legacy.Body(r)
@@ -221,7 +236,11 @@ func (s *svc) insert(k kind) legacy.Handler {
 				if err != nil {
 					return err
 				}
-				return q.InsertGallery(ctx, dbgen.InsertGalleryParams{UserID: uid, GaName: name, CreateDate: legacy.Now(), CoverID: cover, CoverColor: color})
+				description, err := galleryDescription(data)
+				if err != nil {
+					return err
+				}
+				return q.InsertGallery(ctx, dbgen.InsertGalleryParams{UserID: uid, GaName: name, CreateDate: legacy.Now(), CoverID: cover, CoverColor: color, Description: description})
 			}
 			name, err := legacy.ValidName(data["tagName"], false)
 			if err != nil {
@@ -291,7 +310,11 @@ func (s *svc) update(k kind) legacy.Handler {
 				if cover, err = optInt(data["coverId"]); err != nil {
 					return err
 				}
-				if err = q.UpdateGallery(ctx, dbgen.UpdateGalleryParams{GaID: id, GaName: name, CoverColor: color, CoverID: cover}); err != nil {
+				description, err := galleryDescription(data)
+				if err != nil {
+					return err
+				}
+				if err = q.UpdateGallery(ctx, dbgen.UpdateGalleryParams{GaID: id, GaName: name, CoverColor: color, CoverID: cover, Description: description}); err != nil {
 					return err
 				}
 			} else {

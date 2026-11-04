@@ -14,14 +14,15 @@ SELECT count(*) FROM gallery WHERE user_id = @user_id::int;
 INSERT INTO tag (user_id, tag_name) VALUES (@user_id::int, @tag_name::text);
 
 -- name: InsertGallery :exec
-INSERT INTO gallery (user_id, ga_name, create_date, cover_id, cover_color)
-VALUES (@user_id::int, @ga_name::text, @create_date::timestamp, @cover_id, @cover_color);
+INSERT INTO gallery (user_id, ga_name, create_date, cover_id, cover_color, description)
+VALUES (@user_id::int, @ga_name::text, @create_date::timestamp, @cover_id, @cover_color, coalesce(sqlc.narg(description)::text, ''));
 
 -- name: UpdateTag :exec
 UPDATE tag SET tag_name = @tag_name::text WHERE tag_id = @tag_id::int;
 
 -- name: UpdateGallery :exec
-UPDATE gallery SET ga_name = @ga_name::text, cover_color = @cover_color, cover_id = @cover_id WHERE ga_id = @ga_id::int;
+UPDATE gallery SET ga_name = @ga_name::text, cover_color = @cover_color, cover_id = @cover_id,
+    description = coalesce(sqlc.narg(description)::text, description) WHERE ga_id = @ga_id::int;
 
 -- name: DeleteTag :exec
 DELETE FROM tag WHERE tag_id = @tag_id::int;

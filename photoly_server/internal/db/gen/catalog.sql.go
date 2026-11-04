@@ -60,7 +60,7 @@ func (q *Queries) DeleteTag(ctx context.Context, tagID int64) error {
 }
 
 const getGallery = `-- name: GetGallery :one
-SELECT ga_id, ga_name, user_id, create_date, cover_id, cover_color FROM gallery WHERE ga_id = $1::int
+SELECT ga_id, ga_name, user_id, create_date, cover_id, cover_color, description FROM gallery WHERE ga_id = $1::int
 `
 
 func (q *Queries) GetGallery(ctx context.Context, gaID int64) (Gallery, error) {
@@ -73,6 +73,7 @@ func (q *Queries) GetGallery(ctx context.Context, gaID int64) (Gallery, error) {
 		&i.CreateDate,
 		&i.CoverID,
 		&i.CoverColor,
+		&i.Description,
 	)
 	return i, err
 }
@@ -136,16 +137,17 @@ func (q *Queries) GetTagName(ctx context.Context, tagID int64) (string, error) {
 }
 
 const insertGallery = `-- name: InsertGallery :exec
-INSERT INTO gallery (user_id, ga_name, create_date, cover_id, cover_color)
-VALUES ($1::int, $2::text, $3::timestamp, $4, $5)
+INSERT INTO gallery (user_id, ga_name, create_date, cover_id, cover_color, description)
+VALUES ($1::int, $2::text, $3::timestamp, $4, $5, coalesce($6::text, ''))
 `
 
 type InsertGalleryParams struct {
-	UserID     int64
-	GaName     string
-	CreateDate time.Time
-	CoverID    *int64
-	CoverColor *string
+	UserID      int64
+	GaName      string
+	CreateDate  time.Time
+	CoverID     *int64
+	CoverColor  *string
+	Description *string
 }
 
 func (q *Queries) InsertGallery(ctx context.Context, arg InsertGalleryParams) error {
@@ -155,6 +157,7 @@ func (q *Queries) InsertGallery(ctx context.Context, arg InsertGalleryParams) er
 		arg.CreateDate,
 		arg.CoverID,
 		arg.CoverColor,
+		arg.Description,
 	)
 	return err
 }
@@ -174,7 +177,7 @@ func (q *Queries) InsertTag(ctx context.Context, arg InsertTagParams) error {
 }
 
 const listGalleries = `-- name: ListGalleries :many
-SELECT ga_id, ga_name, user_id, create_date, cover_id, cover_color FROM gallery WHERE user_id = $1::int ORDER BY ga_id LIMIT $3::bigint OFFSET $2::bigint
+SELECT ga_id, ga_name, user_id, create_date, cover_id, cover_color, description FROM gallery WHERE user_id = $1::int ORDER BY ga_id LIMIT $3::bigint OFFSET $2::bigint
 `
 
 type ListGalleriesParams struct {
@@ -199,6 +202,7 @@ func (q *Queries) ListGalleries(ctx context.Context, arg ListGalleriesParams) ([
 			&i.CreateDate,
 			&i.CoverID,
 			&i.CoverColor,
+			&i.Description,
 		); err != nil {
 			return nil, err
 		}
@@ -474,14 +478,16 @@ func (q *Queries) SuppressSmartItem(ctx context.Context, itemID int64) error {
 }
 
 const updateGallery = `-- name: UpdateGallery :exec
-UPDATE gallery SET ga_name = $1::text, cover_color = $2, cover_id = $3 WHERE ga_id = $4::int
+UPDATE gallery SET ga_name = $1::text, cover_color = $2, cover_id = $3,
+    description = coalesce($4::text, description) WHERE ga_id = $5::int
 `
 
 type UpdateGalleryParams struct {
-	GaName     string
-	CoverColor *string
-	CoverID    *int64
-	GaID       int64
+	GaName      string
+	CoverColor  *string
+	CoverID     *int64
+	Description *string
+	GaID        int64
 }
 
 func (q *Queries) UpdateGallery(ctx context.Context, arg UpdateGalleryParams) error {
@@ -489,6 +495,7 @@ func (q *Queries) UpdateGallery(ctx context.Context, arg UpdateGalleryParams) er
 		arg.GaName,
 		arg.CoverColor,
 		arg.CoverID,
+		arg.Description,
 		arg.GaID,
 	)
 	return err

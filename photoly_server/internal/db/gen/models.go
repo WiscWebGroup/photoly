@@ -71,12 +71,13 @@ type EmbeddingProfile struct {
 }
 
 type Gallery struct {
-	GaID       int64
-	GaName     *string
-	UserID     *int64
-	CreateDate *time.Time
-	CoverID    *int64
-	CoverColor *string
+	GaID        int64
+	GaName      *string
+	UserID      *int64
+	CreateDate  *time.Time
+	CoverID     *int64
+	CoverColor  *string
+	Description string
 }
 
 type GalleryPhoto struct {

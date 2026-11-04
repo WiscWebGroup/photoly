@@ -68,9 +68,11 @@ jobs:
           cache-dependency-path: photoly_frontend_vue/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium webkit
-      - run: pnpm test:e2e
-      - name: Check editor and dialogs with the Docker API prefix
-        run: pnpm exec playwright test e2e/editor.spec.ts e2e/dialog-overflow.spec.ts
+      # Reloading during mocked cross-origin polling can emit a WebKit CORS error.
+      # Run all Dates tests below against the production same-origin proxy instead.
+      - run: pnpm test:e2e --grep-invert dates-details.spec.ts
+      - name: Check editor, dialogs, gallery and Dates with the Docker API prefix
+        run: pnpm exec playwright test e2e/editor.spec.ts e2e/dialog-overflow.spec.ts e2e/gallery-description.spec.ts e2e/dates-details.spec.ts
         env:
           VITE_APP_BASE_URL: /api
       - uses: actions/upload-artifact@v7

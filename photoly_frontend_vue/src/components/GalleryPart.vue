@@ -82,6 +82,7 @@ interface Gallery {
   smart?: SmartSource | null
   gaId: number
   gaName: string
+  description?: string
   userId?: number
   createDate: string
   coverId: number | null
@@ -117,9 +118,19 @@ const form = ref<{
   gaId?: number
   userId?: number
   gaName: string
+  description: string
   coverId: number
   coverColor: string
 } | null>(null)
+const descriptionLength = computed(() => [...(form.value?.description ?? '')].length)
+const descriptionError = computed(() =>
+  descriptionLength.value > 5000
+    ? 'Description must be 5,000 characters or fewer.'
+    : form.value?.description.includes('\0')
+      ? 'Description cannot contain null characters.'
+      : '',
+)
+const saving = ref(false)
 const deleting = ref<Gallery | null>(null)
 
 const tab = ref<'all' | 'yours' | 'smart'>('all')
@@ -173,7 +184,7 @@ const formatDate = (iso: string) => {
 }
 
 function startCreate() {
-  form.value = { gaName: '', coverId: 0, coverColor: colors[0]! }
+  form.value = { gaName: '', description: '', coverId: 0, coverColor: colors[0]! }
 }
 
 function startEdit(g: Gallery) {
@@ -181,6 +192,7 @@ function startEdit(g: Gallery) {
     gaId: g.gaId,
     userId: g.userId,
     gaName: g.gaName,
+    description: g.description ?? '',
     coverId: g.coverId ?? 0,
     coverColor: g.coverColor || colors[0]!,
   }
@@ -266,9 +278,11 @@ function closeGallery() {
 
 async function saveForm() {
   const f = form.value
-  if (!f) return
+  if (!f || saving.value) return
   if (!f.gaName.trim()) return toast.warning('Please Input a Valid Gallery Name!')
+  if (descriptionError.value) return toast.warning(descriptionError.value)
   const editing = f.gaId !== undefined
+  saving.value = true
   try {
     await call(
       editing
@@ -276,7 +290,12 @@ async function saveForm() {
         : {
             method: 'post',
             url: '/gallery/insert',
-            data: { gaName: f.gaName, coverId: f.coverId, coverColor: f.coverColor },
+            data: {
+              gaName: f.gaName,
+              description: f.description,
+              coverId: f.coverId,
+              coverColor: f.coverColor,
+            },
           },
     )
     toast.success(editing ? 'Information Updated!' : 'Created a New Gallery!')
@@ -284,6 +303,8 @@ async function saveForm() {
     await loadGalleries()
   } catch {
     toast.error(editing ? 'Update Response Error!' : 'createGa Response Error!')
+  } finally {
+    saving.value = false
   }
 }
 
@@ -566,6 +587,13 @@ onMounted(async () => {
           </DropdownMenu>
         </PageHeader>
       </div>
+      <p
+        v-if="current.description"
+        data-testid="gallery-description"
+        class="text-muted-foreground min-w-0 text-sm whitespace-pre-wrap [overflow-wrap:anywhere]"
+      >
+        {{ current.description }}
+      </p>
       <div
         v-if="sourceFolders.length"
         class="bg-card animate-fade flex flex-wrap items-center gap-2 rounded-[10px] border px-3.5 py-2.5 text-sm"
@@ -673,6 +701,29 @@ onMounted(async () => {
               <Label for="gallery-name">Name</Label>
               <Input id="gallery-name" v-model="form.gaName" placeholder="Gallery Name" />
             </div>
+            <div class="flex min-w-0 flex-col gap-2">
+              <Label for="gallery-description">Description</Label>
+              <textarea
+                id="gallery-description"
+                v-model="form.description"
+                rows="4"
+                placeholder="Add a description (optional)"
+                aria-describedby="gallery-description-help gallery-description-error"
+                :aria-invalid="!!descriptionError"
+                class="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 min-h-24 w-full resize-y rounded-md border px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+              />
+              <p id="gallery-description-help" class="text-muted-foreground text-xs">
+                Optional · {{ descriptionLength.toLocaleString('en-US') }} / 5,000 characters
+              </p>
+              <p
+                v-if="descriptionError"
+                id="gallery-description-error"
+                class="text-destructive text-xs"
+                role="alert"
+              >
+                {{ descriptionError }}
+              </p>
+            </div>
             <fieldset class="flex flex-col gap-2">
               <legend class="mb-2 text-sm font-medium">Color</legend>
               <div class="flex flex-wrap items-center gap-2">
@@ -724,7 +775,7 @@ onMounted(async () => {
         </form>
         <DialogFooter>
           <Button variant="outline" @click="form = null">Cancel</Button>
-          <Button @click="saveForm">{{
+          <Button :disabled="saving || !!descriptionError" @click="saveForm">{{
             form.gaId === undefined ? 'Create Gallery' : 'Save Changes'
           }}</Button>
         </DialogFooter>
