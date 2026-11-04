@@ -16,6 +16,7 @@ export interface MapEngine {
   camera(): Camera
   initialize(points: Coordinate[], view?: 'overview' | 'photos'): void
   projection(value: MapProjection): void
+  dayNight(enabled: boolean): void
   projectVisible(point: Coordinate): Pixel | null
   flyTo(point: Coordinate, zoom: number, done?: () => void): void
   resize(): void

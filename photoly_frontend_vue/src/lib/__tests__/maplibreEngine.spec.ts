@@ -4,6 +4,7 @@ const map = vi.hoisted(() => ({
   addControl: vi.fn(),
   addSource: vi.fn(),
   addLayer: vi.fn(),
+  setPaintProperty: vi.fn(),
   on: vi.fn(),
   off: vi.fn(),
   once: vi.fn((_event: string, callback: () => void) => queueMicrotask(callback)),

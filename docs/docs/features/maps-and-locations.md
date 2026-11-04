@@ -12,6 +12,7 @@ Open **Library → Map** to browse account media with valid GPS coordinates. Med
 - Choose a date range with **All time**. The selected range controls the displayed photos, places and heat layer.
 - Switch **Photos** to **Heat** to see the distribution of locations instead of individual photo markers.
 - Use the background control to choose stars, a gradient or a simple background. This preference is stored in your browser.
+- The globe has softer brightness and real-time sunlight. Use **Day/night** to toggle the night shading; the choice is remembered and shared with gallery maps. Sunlight follows your device clock and refreshes every minute while the page is visible. Both shading and brightness adjustment fade away as you zoom into cities. Photos and heat overlays remain clear. If day/night rendering is unavailable, the map remains usable.
 - Select a place or marker to inspect its photos. Open a photo from the popup to use the full media viewer.
 
 ![Globe view with projection, date, photo and heat controls and a places sidebar](../../screenshots/map-globe.png)

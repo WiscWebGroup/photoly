@@ -53,7 +53,7 @@ interface Place {
 const route = useRoute()
 const mobile = useMediaQuery('(max-width: 767px)')
 const mapEl = ref<HTMLElement | null>(null)
-const { map, fallback, failed } = usePhotoMap(mapEl)
+const { map, fallback, failed, dayNightUnavailable } = usePhotoMap(mapEl)
 const loading = ref(true)
 const locationsFailed = ref(false)
 const requestController = new AbortController()
@@ -511,7 +511,7 @@ const sheetPeers = computed(() => inView.value.slice(0, 8))
         >
           Map
         </h1>
-        <MapProjectionControl :fallback="fallback" />
+        <MapProjectionControl :fallback="fallback" :day-night-unavailable="dayNightUnavailable" />
         <MapDates
           v-model="range"
           :dates="takenDays"
