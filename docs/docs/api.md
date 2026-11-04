@@ -8,7 +8,26 @@ Photoly has a REST API.
 - Swagger UI: `/docs/`. Example: `http://localhost:8384/docs/`.
 - OpenAPI document: `/openapi.json`.
 
-Endpoints use the `HRD-Token` header for authentication. They respond in the `{msgCode, t}` envelope. HTTP 200 alone does not mean success. Check `msgCode`.
+## Try an authenticated operation
+
+1. Open Swagger UI on your backend origin. The standard Compose mapping is `http://localhost:8384/docs/`; use your deployment's API origin or proxy prefix when different.
+2. Call `POST /user/signIn` with your account email and password.
+3. Copy the returned `token`, choose **Authorize**, and paste it into **SessionToken**. This sends `HRD-Token`; do not add `Bearer`.
+4. Expand an operation, choose **Try it out**, supply its documented inputs, then **Execute**. GET, POST, PUT, PATCH and DELETE are supported. Write operations act on real data, including delete and restore operations.
+
+Authorization is kept in memory and clears on reload. Swagger assets are bundled with the server. During instance maintenance, ordinary routes (including the documentation UI) can return HTTP 503; use the maintenance page to inspect status.
+
+## Authentication and responses
+
+| Credential | Where it goes | Purpose |
+| --- | --- | --- |
+| Account session | `HRD-Token` via SessionToken | Account and admin operations; admin role is checked separately |
+| Scoped API token | `Authorization: Bearer YOUR_TOKEN` via ApiCredential | C/R/D integration operations only |
+| Legacy path/query token | The parameter specified by that operation | Media/download sessions or share tokens; not interchangeable |
+
+Legacy operations usually return HTTP 200 even for business failures. Check `msgCode` as well as HTTP status. AI routes and the newer scoped read APIs use actual HTTP error statuses. Some credential operations return raw text, arrays or binary content. A legacy `pageNum` means total pages, while newer cursor APIs return their documented cursor fields.
+
+`GET /healthz` reports database/controller readiness, including maintenance state. `GET /demo` exposes only the intentionally public demo configuration. Browser AI uses `/ai/preference`, `/ai/index`, `/ai/index/pending`, `/ai/search/vector`, photo/upload embedding endpoints and pinned `/models/...` assets; the complete contracts are in Swagger. Never substitute an API credential for an account session on these routes.
 
 ## Feature endpoints
 

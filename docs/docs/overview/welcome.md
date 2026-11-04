@@ -14,7 +14,9 @@ You can organize media with folders, tags and galleries. You can share selected 
 
 - Upload files, folders or ZIPs into real folders on disk.
 - Add tags and galleries. Share with links or QR codes.
-- See EXIF data, GPS location on a map, and camera and lens details.
+- Browse [maps and locations](../features/maps-and-locations.md) in 2D or on a globe.
+- Add [gallery descriptions](../features/galleries.md) and [pin a default folder](../features/dates-and-folders.md#pinned-folders-and-default-location).
+- Watch videos with [playback controls and keyboard shortcuts](../features/video-playback.md).
 - Find media with [Smart Search](../features/search.md). Semantic search is optional.
 - Read text in photos with [Extract Text](../features/extract-text.md).
 - Group photos by camera, lens and trip with [Smart Tag](../features/smart-tag.md).

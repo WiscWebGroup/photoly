@@ -20,6 +20,14 @@ Scroll down in the viewer to load **Similar photos and videos**.
 - If you keep viewing an item, its list does not expire.
 - **Back to top** collapses the list and clears the cache for that item.
 
+## Choose where AI runs
+
+Open account settings to inspect the available AI placement choices. When the administrator permits user choice, image indexing and text search can run in the browser or on the server. If a choice is fixed by the administrator, a user preference cannot override it.
+
+Browser processing downloads the pinned model assets when needed and requires a compatible browser with enough memory. Keep the app open while it indexes existing images. Closing the browser stops local work; it does not delete already stored vectors. Browser pending lists contain still images; video sampling remains a server task.
+
+Use the indexing action in the AI controls to request processing of existing media. Progress distinguishes browser-pending items from the server queue. Changing placement does not guarantee that every old item has been indexed already.
+
 ## How indexing works
 
 Photoly embeds photos and videos after upload. The server queue or the uploading browser does this.

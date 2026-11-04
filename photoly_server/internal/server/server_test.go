@@ -23,6 +23,8 @@ func TestAuthAndAdmin(t *testing.T) {
 	}
 	cfg := config.Load()
 	cfg.DatabaseURL = url
+	originalRegistrars := append([]func(*app.App){}, Registrars...)
+	t.Cleanup(func() { Registrars = originalRegistrars })
 	Registrars = append(Registrars, func(a *app.App) {
 		a.Mux.HandleFunc("GET /t/user", a.Auth(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, a.UserFrom(r.Context()).Email) }))
 		a.Mux.HandleFunc("GET /t/admin", a.Admin(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok") }))

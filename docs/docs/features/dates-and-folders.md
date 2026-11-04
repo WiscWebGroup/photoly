@@ -48,6 +48,18 @@ Right-click a folder and choose **Details**.
 - Places are approximate nearby towns from GPS data.
 - Cameras and lenses come from photo metadata. Counts are per photo.
 
+## Pinned folders and default location
+
+On desktop, right-click a folder and choose **Pin to sidebar**. It appears under **Pinned** for quick access. Right-click the pinned entry and choose **Set as default location** to open that folder when entering Photos without a specific folder link.
+
+The house marker identifies the default. **Clear default location** keeps the pin; **Unpin** removes the shortcut and also clears the default if it referred to that folder. Neither action moves or deletes media. Pins and the default are saved to your account and are read on other devices; the pinned sidebar itself is a desktop feature.
+
+An explicit folder link takes priority over the default. If the default is unavailable, Photoly falls back to the library root. Renaming or moving a folder keeps its pin attached to the folder ID. Deleted or inaccessible entries are no longer usable.
+
+![Pinned folder with its default-location marker and context menu](../../screenshots/pinned-default-location.png)
+
+*This example uses a fictional account, folder and synthetic illustrations.*
+
 ## API
 
 These endpoints are for the owner only:
@@ -59,4 +71,4 @@ These endpoints are for the owner only:
 
 For parameters, pagination and responses, see Swagger UI at `/docs`.
 
-Dates needs no schema change. Media tools use migration `0007_media_tools`. Upload activity controls use `0008_upload_activity`.
+For database changes and upgrade steps, see [Upgrading](../install/upgrading.md).

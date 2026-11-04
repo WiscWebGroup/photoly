@@ -13,6 +13,8 @@ def nullable(t): return {'type': [t, 'null']}
 def envelope(t): return {'type': 'object', 'required': ['msgCode','t'], 'properties': {'msgCode': {'type':'integer'}, 't':t}}
 def response(schema, description='Success'): return {'description': description, 'content': {'application/json': {'schema': schema}}}
 def param(name, where='query', schema=None): return {'name':name,'in':where,'required':where=='path','schema':schema or {'type':'string'}}
+maintenance_error = {'type':'object','properties':{'msgCode':{'const':503},'t':{'type':'object','properties':{'reason':{'const':'maintenance'},'message':{'type':'string'}},'required':['reason','message']}},'required':['msgCode','t']}
+maintenance_response = response(maintenance_error, 'Instance maintenance blocks this operation.')
 media = {'type':'object','required':['photoId','uuid','name','format','nsId','contentVersion','animated','live','categories'],'properties':{'photoId':{'type':'integer'},'uuid':{'type':'string'},'name':{'type':'string'},'format':{'type':'string'},'nsId':nullable('integer'),'contentVersion':{'type':'integer'},'animated':{'type':'boolean'},'live':{'type':'boolean'},'categories':{'type':'array','items':{'type':'string'}}},'additionalProperties':False}
 schemas['CredentialMedia']=media
 page=envelope({'type':'object','properties':{'items':{'type':'array','items':{'$ref':'#/components/schemas/CredentialMedia'}},'nextAfter':nullable('integer')}})
@@ -33,6 +35,7 @@ for e in endpoints:
         op['responses']['200']={'description':'Binary media with its actual Content-Type','content':{'application/octet-stream':{'schema':{'type':'string','format':'binary'}}}}
         op['responses']['206']={'description':'Requested byte range'}
     for code,label in [('400','Invalid request'),('401','Missing, invalid or revoked API credential'),('403','Insufficient scope'),('404','Media/folder unavailable to this account'),('503','Storage or service unavailable')]:op['responses'][code]=response(envelope({'type':['string','null']}),label)
+    op['responses']['503'] = response({'anyOf':[envelope({'type':['string','null']}), maintenance_error]}, 'Service unavailable or instance maintenance.')
     spec['paths'].setdefault(route,{})[method]=op
     if old and e['kind']=='original':
         old['responses']['200']=copy.deepcopy(op['responses']['200'])
@@ -44,7 +47,7 @@ point['properties'].update({k:{'type':'string','format':'date-time'} for k in ['
 point['properties'].update(bootId={'type':'string'},cpuSamples={'type':'integer'},memorySamples={'type':'integer'},partial={'type':'boolean'})
 schemas.update(ResourceSnapshot=snapshot,ResourceHistoryPoint=point)
 for route,data in [('/admin/resources/current',snapshot),('/admin/resources/history',{'type':'object','properties':{'items':{'type':'array','items':{'$ref':'#/components/schemas/ResourceHistoryPoint'}},'hours':{'type':'integer','enum':[12,24]},'bucketSeconds':{'type':'integer','const':600}}}),('/admin/runtime',{'type':'object','properties':{'bootId':{'type':'string'},'startedAt':{'type':'string','format':'date-time'},'uptimeSeconds':{'type':'integer','minimum':0}}})]:
-    op={'tags':['Admin'],'summary':route.rsplit('/',1)[1]+' (admin only)','operationId':route.strip('/').replace('/','_'),'security':[{'SessionToken':[]}],'responses':{'200':response(envelope(data))}}
+    op={'tags':['Admin'],'summary':route.rsplit('/',1)[1]+' (admin only)','operationId':route.strip('/').replace('/','_'),'security':[{'SessionToken':[]}],'responses':{'200':response({'anyOf':[envelope(data),{'type':'object','properties':{'t':{'type':'null'},'msgCode':{'const':403}},'required':['t','msgCode']}]}),'503':copy.deepcopy(maintenance_response)}}
     if route.endswith('history'):op['parameters']=[param('hours',schema={'type':'integer','enum':[12,24],'default':24})]
     spec['paths'][route]={'get':op}
 path.write_text(json.dumps(spec,separators=(',',':'),ensure_ascii=False)+'\n')

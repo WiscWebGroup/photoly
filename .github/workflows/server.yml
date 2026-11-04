@@ -3,7 +3,7 @@ name: Server
 on:
   push:
     branches: [main]
-    paths: ['photoly_server/**', 'database/postgres-init/**', 'docker-compose.yml', '.github/workflows/server.yml']
+    paths: ['photoly_server/**', 'scripts/check-openapi.py', 'scripts/requirements-openapi.txt', 'scripts/update-credential-openapi.py', 'photoly_frontend_vue/src/lib/credentialEndpoints.json', 'database/postgres-init/**', 'docker-compose.yml', '.github/workflows/server.yml']
   pull_request:
 
 permissions:
@@ -26,6 +26,10 @@ jobs:
           filters: |
             server:
               - 'photoly_server/**'
+              - 'scripts/check-openapi.py'
+              - 'scripts/requirements-openapi.txt'
+              - 'scripts/update-credential-openapi.py'
+              - 'photoly_frontend_vue/src/lib/credentialEndpoints.json'
               - 'database/postgres-init/**'
               - 'docker-compose.yml'
               - '.github/workflows/server.yml'
@@ -75,6 +79,15 @@ jobs:
       - run: go run ./cmd/photoly migrate
       # TestWorker needs the ONNX Runtime shared library, which only the image carries.
       - run: go vet ./... && go test -skip TestWorker ./...
+      - name: Validate OpenAPI and real response samples
+        env:
+          OPENAPI_SAMPLE_OUTPUT: /tmp/openapi-samples.json
+          OPENAPI_BACKUP_SAMPLE_OUTPUT: /tmp/openapi-backup-samples.json
+        run: |
+          python3 -m venv /tmp/photoly-openapi-venv
+          /tmp/photoly-openapi-venv/bin/pip install -r ../scripts/requirements-openapi.txt
+          go test ./internal/server ./internal/backup -run TestOpenAPI -count=1
+          /tmp/photoly-openapi-venv/bin/python ../scripts/check-openapi.py --samples /tmp/openapi-samples.json --samples /tmp/openapi-backup-samples.json
       - name: Test gallery descriptions and existing database upgrade
         run: |
           PGPASSWORD=ci createdb -h localhost -U postgres gallery_api

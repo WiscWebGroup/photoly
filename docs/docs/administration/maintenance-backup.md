@@ -13,6 +13,20 @@ If draining takes more than two minutes, the page reports that it is still waiti
 
 Maintenance survives restarts and remains enabled after a task succeeds or fails. Inspect the result, then explicitly exit maintenance. Only one backup or restore can run at a time.
 
+![Maintenance and Backup page with maintenance active, empty password fields and a sample backup](../../screenshots/maintenance-backup.png)
+
+*This screenshot uses a simulated maintenance state and a fictional backup. No backup was created or restored to make this image, and no password is shown.*
+
+## Create and verify a backup
+
+1. Enter maintenance and wait for **Maintenance active**. Resolve any capability problems shown on the page.
+2. Enter the backup password twice, then choose **Create Backup**.
+3. Watch the task's stage and result. While a task runs, backup, restore and exit controls are unavailable.
+4. After success, use **Refresh** to inspect **Available backups** and copy the complete encrypted directory to independent storage.
+5. Choose **Exit Maintenance** when you are ready to resume service. Completing a backup does not exit automatically.
+
+A failed task remains visible for inspection. Resolve the reported problem before starting again; do not treat an incomplete directory as a restorable backup.
+
 ## What is included
 
 - PostgreSQL data, including accounts, permissions, albums, notes and AI results.
