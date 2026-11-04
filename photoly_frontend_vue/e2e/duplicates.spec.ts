@@ -136,11 +136,11 @@ test('pagination, retry and partial failure clear stale selections', async ({ pa
   await page.getByRole('button', { name: 'Next photos', exact: true }).click()
   await expect(page.getByRole('checkbox', { name: 'Select copy-25.png' })).toBeVisible()
   await page.getByRole('button', { name: 'Previous photos', exact: true }).click()
-  await page.getByRole('button', { name: 'Next groups', exact: true }).click()
+  await page.getByRole('button', { name: 'Next groups', exact: true }).first().click()
   await expect(page.getByRole('checkbox', { name: 'Select copy-1.png', exact: true })).toHaveCount(
     0,
   )
-  await page.getByRole('button', { name: 'Previous groups', exact: true }).click()
+  await page.getByRole('button', { name: 'Previous groups', exact: true }).first().click()
   await page.getByRole('checkbox', { name: 'Select copy-1.png', exact: true }).check()
   await page.getByRole('checkbox', { name: 'Select copy-50.png', exact: true }).check()
   await page.getByRole('button', { name: 'Delete selected (2)' }).click()
@@ -149,4 +149,84 @@ test('pagination, retry and partial failure clear stale selections', async ({ pa
     '1 group(s) failed',
   )
   await expect(page.getByRole('button', { name: 'Delete selected (0)' })).toBeDisabled()
+})
+
+test('ten-item pagination and Keep preserve both pages, selections and scroll', async ({
+  page,
+}) => {
+  await signIn(page)
+  const groups = Array.from({ length: 12 }, (_, i) => ({
+    key: (i + 1).toString(16).padStart(64, '0') + ':still',
+    version,
+    count: i === 10 ? 12 : 2,
+    keptCount: 0,
+    ignored: false,
+  }))
+  const items = new Map(
+    groups.map((g, i) => [
+      g.key,
+      Array.from({ length: g.count }, (_, j) => member((i + 1) * 100 + j + 1)),
+    ]),
+  )
+  const calls = await mockApi(page, {
+    '/photo/duplicates': ({ query }) =>
+      ok({
+        items: groups.slice(Number(query.offset), Number(query.offset) + Number(query.limit)),
+        total: groups.length,
+      }),
+    '/photo/duplicates/members': ({ query }) => {
+      const photos = items.get(query.key!)!
+      return ok({
+        items: photos.slice(Number(query.offset), Number(query.offset) + Number(query.limit)),
+        total: photos.length,
+        version,
+      })
+    },
+    '/photo/duplicates/keep': ({ body }) => {
+      const b = body as { key: string; photoId: number; value: boolean }
+      items.get(b.key)!.find((p) => p.photoId === b.photoId)!.kept = b.value
+      groups.find((g) => g.key === b.key)!.keptCount += b.value ? 1 : -1
+      return ok({ ok: true })
+    },
+  })
+  await page.goto('/home/DuplicatesPart')
+  const pagination = page.getByRole('navigation', { name: 'Duplicate pagination top' })
+  await expect(pagination.getByLabel('Groups per page')).toHaveValue('10')
+  await expect(page.locator('section[aria-label="Duplicate group"]')).toHaveCount(10)
+  await pagination.getByRole('button', { name: 'Next groups' }).click()
+  await expect(pagination).toContainText('Page 2 of 2')
+  const group = page.locator('section[aria-label="Duplicate group"]').first()
+  await expect(group.getByRole('checkbox')).toHaveCount(10)
+  await group.getByRole('button', { name: 'Next photos' }).click()
+  await expect(group).toContainText('11–12 / 12')
+  await page.getByRole('checkbox', { name: 'Select copy-1201.png', exact: true }).check()
+  const keep = page.getByRole('button', { name: 'Keep copy-1111.png', exact: true })
+  await keep.scrollIntoViewIfNeeded()
+  const before = await page.locator('main').evaluate((el) => el.scrollTop)
+  expect(before).toBeGreaterThan(100)
+  const reads = calls.filter(
+    (c) => c.method === 'GET' && c.path.startsWith('/photo/duplicates'),
+  ).length
+  await keep.click()
+  await expect(page.getByRole('button', { name: 'Unmark copy-1111.png' })).toBeVisible()
+  await expect(group).toContainText('1 marked Keep')
+  expect(
+    Math.abs((await page.locator('main').evaluate((el) => el.scrollTop)) - before),
+  ).toBeLessThan(3)
+  await expect(group).toContainText('11–12 / 12')
+  await expect(pagination).toContainText('Page 2 of 2')
+  await expect(
+    page.getByRole('checkbox', { name: 'Select copy-1201.png', exact: true }),
+  ).toBeChecked()
+  await page.getByRole('button', { name: 'Unmark copy-1111.png' }).click()
+  await expect(keep).toBeVisible()
+  expect(
+    Math.abs((await page.locator('main').evaluate((el) => el.scrollTop)) - before),
+  ).toBeLessThan(3)
+  expect(
+    calls.filter((c) => c.method === 'GET' && c.path.startsWith('/photo/duplicates')),
+  ).toHaveLength(reads)
+  await pagination.getByLabel('Groups per page').selectOption('20')
+  await expect(pagination).toContainText('Page 1 of 1')
+  await expect(page.locator('section[aria-label="Duplicate group"]')).toHaveCount(12)
 })

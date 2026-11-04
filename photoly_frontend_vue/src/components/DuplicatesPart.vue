@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { Copy, RefreshCw, Trash2 } from '@lucide/vue'
 import { call } from '@/lib/http'
 import {
@@ -21,6 +21,7 @@ import {
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog'
 import DuplicateGroupCard from './DuplicateGroupCard.vue'
+import DuplicatePagination from './DuplicatePagination.vue'
 import PhotoViewer from './PhotoViewer.vue'
 const groups = ref<DuplicateGroup[]>([]),
   total = ref(0),
@@ -34,7 +35,8 @@ const loading = ref(false),
 const selection = ref(new Map<string, DuplicateMember[]>()),
   confirming = ref(false),
   preview = ref<DuplicateMember | null>(null)
-const limit = 10
+const limit = ref(10)
+const page = ref<HTMLElement>()
 const selectedCount = computed(() =>
   [...selection.value.values()].reduce((n, items) => n + items.length, 0),
 )
@@ -47,12 +49,12 @@ async function load() {
   try {
     const data = await call<DuplicatePage>({
       url: '/photo/duplicates',
-      params: { ignored: ignored.value, offset: offset.value, limit },
+      params: { ignored: ignored.value, offset: offset.value, limit: limit.value },
     })
     if (seq !== sequence) return
     total.value = data.total
     if (offset.value >= data.total && offset.value > 0) {
-      offset.value = Math.max(0, Math.floor((data.total - 1) / limit) * limit)
+      offset.value = Math.max(0, Math.floor((data.total - 1) / limit.value) * limit.value)
       return
     }
     groups.value = data.items
@@ -62,6 +64,12 @@ async function load() {
   } finally {
     if (seq === sequence) loading.value = false
   }
+}
+async function paginate(nextOffset: number, nextLimit = limit.value) {
+  offset.value = nextOffset
+  limit.value = nextLimit
+  await nextTick()
+  page.value?.closest('main')?.scrollTo({ top: 0 })
 }
 function filter(value: boolean) {
   ignored.value = value
@@ -93,7 +101,7 @@ async function remove() {
   await load()
   busy.value = false
 }
-watch([ignored, offset], load)
+watch([ignored, offset, limit], load)
 useStorageRevision(
   load,
   () =>
@@ -102,7 +110,7 @@ useStorageRevision(
 onMounted(load)
 </script>
 <template>
-  <div class="mx-auto w-full max-w-[1600px] space-y-6 p-4 md:p-8">
+  <div ref="page" class="mx-auto w-full max-w-[1600px] space-y-6 p-4 md:p-8">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h1 class="flex items-center gap-2 text-2xl font-semibold">
@@ -147,6 +155,14 @@ onMounted(load)
         ><Trash2 class="size-4" />Delete selected ({{ selectedCount }})</Button
       >
     </div>
+    <DuplicatePagination
+      :total="total"
+      :offset="offset"
+      :limit="limit"
+      :disabled="loading || busy"
+      position="top"
+      @page="paginate"
+    />
     <p v-if="result" role="status" class="bg-muted rounded-lg p-4 text-sm">{{ result }}</p>
     <div v-if="error" role="alert" class="flex items-center gap-3 text-sm text-destructive">
       {{ error }}<Button variant="outline" @click="load">Retry</Button>
@@ -175,22 +191,20 @@ onMounted(load)
         :group="group"
         :disabled="busy || loading"
         @changed="load"
+        @kept="group.keptCount += $event"
         @select="selection.set(group.key, $event)"
         @preview="preview = $event"
       />
     </div>
-    <div v-if="total > limit" class="flex items-center justify-center gap-4">
-      <Button variant="outline" :disabled="offset === 0 || loading || busy" @click="offset -= limit"
-        >Previous groups</Button
-      ><span class="text-sm"
-        >{{ Math.floor(offset / limit) + 1 }} / {{ Math.ceil(total / limit) }}</span
-      ><Button
-        variant="outline"
-        :disabled="offset + limit >= total || loading || busy"
-        @click="offset += limit"
-        >Next groups</Button
-      >
-    </div>
+    <DuplicatePagination
+      v-if="total > limit"
+      :total="total"
+      :offset="offset"
+      :limit="limit"
+      :disabled="loading || busy"
+      position="bottom"
+      @page="paginate"
+    />
     <AlertDialog :open="confirming" @update:open="!busy && (confirming = $event)"
       ><AlertDialogContent
         ><AlertDialogHeader

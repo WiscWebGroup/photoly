@@ -40,13 +40,44 @@ describe('DuplicateGroupCard', () => {
     button('Select other copies').click()
     await vi.waitFor(() => expect(w.emitted('select')?.at(-1)?.[0]).toEqual([member(2), member(3)]))
     await w.get('[aria-label="Unmark 1.png"]').trigger('click')
-    await vi.waitFor(() => expect(w.emitted('changed')).toHaveLength(1))
+    await vi.waitFor(() => expect(w.emitted('kept')).toEqual([[-1]]))
+    expect(w.emitted('changed')).toBeUndefined()
+    expect(w.find('[aria-label="Keep 1.png"]').exists()).toBe(true)
+    expect(w.get('[aria-label="Select 2.png"]').element).toHaveProperty('checked', true)
     expect(calls.find((c) => c.path.endsWith('/keep'))?.body).toEqual({
       key: group.key,
       version: group.version,
       value: false,
       photoId: 1,
     })
+  })
+  it('unselects only the newly protected copy and preserves state on save failure', async () => {
+    let fail = false
+    server.use(
+      http.get(`${API}/photo/duplicates/members`, () =>
+        ok({ items: [member(1), member(2)], total: 2, version: group.version }),
+      ),
+      http.post(`${API}/photo/duplicates/keep`, () =>
+        fail ? json({ msgCode: 409, t: 'duplicate_changed' }) : ok({ ok: true }),
+      ),
+    )
+    const w = mountWithApp(DuplicateGroupCard, {
+      group: { ...group, keptCount: 0 },
+      disabled: false,
+    })
+    await vi.waitFor(() => expect(w.findAll('input')).toHaveLength(2))
+    await w.get('[aria-label="Select 1.png"]').setValue(true)
+    await w.get('[aria-label="Select 2.png"]').setValue(true)
+    await w.get('[aria-label="Keep 1.png"]').trigger('click')
+    await vi.waitFor(() => expect(w.emitted('kept')).toEqual([[1]]))
+    expect(w.emitted('select')?.at(-1)?.[0]).toEqual([member(2)])
+    expect(w.get('[aria-label="Select 1.png"]').element).toHaveProperty('checked', false)
+    fail = true
+    await w.get('[aria-label="Unmark 1.png"]').trigger('click')
+    await vi.waitFor(() => expect(w.get('[role="alert"]').text()).toContain('duplicates changed'))
+    expect(w.find('[aria-label="Unmark 1.png"]').exists()).toBe(true)
+    expect(w.get('[aria-label="Select 2.png"]').element).toHaveProperty('checked', true)
+    expect(w.emitted('changed')).toBeUndefined()
   })
   it('shows stale results without reporting success', async () => {
     server.use(

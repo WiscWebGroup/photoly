@@ -6,7 +6,7 @@ Open **Organize → Duplicate Detection** to review identical photos across your
 
 Photoly compares the SHA-256 of indexed original files. Renamed copies match; resized, recompressed or visually similar pictures do not. Standalone videos are excluded. Live Photos match only when both their still image and original video match. Files with missing hashes or known missing originals are excluded; refresh the relevant storage folder to finish indexing external changes. Opening this page does not start an AI job or rescan every source.
 
-Each group shows filenames, source names, folder links, file sizes and previews. Group lists and photos within groups are paginated. Nothing is selected for deletion by default.
+Each group shows filenames, source names, folder links, file sizes and previews. Group lists default to 10 groups per page, with 20 and 50 available in the pagination controls at the top and bottom. Photos within each group use 10 per page. Keep/Kept updates in place without resetting the current page, scroll position or other selections. Nothing is selected for deletion by default.
 
 - **Keep** marks a photo to retain during duplicate cleanup. Click **Kept** to unmark it. Keep does not prevent normal deletion from the library.
 - **Select other copies** selects the group's unprotected copies after at least one photo is marked Keep. Groups above 1,000 photos use page selection; each cleanup request accepts at most 1,000 selected copies.

@@ -14,15 +14,17 @@ import { Button } from '@/components/ui/button'
 const props = defineProps<{ group: DuplicateGroup; disabled: boolean }>()
 const emit = defineEmits<{
   changed: []
+  kept: [delta: number]
   select: [items: DuplicateMember[]]
   preview: [photo: DuplicateMember]
 }>()
 const members = ref<DuplicateMember[]>([]),
   offset = ref(0),
   loading = ref(false),
+  saving = ref(false),
   error = ref('')
 const selected = ref(new Map<number, DuplicateMember>())
-const limit = 24
+const limit = 10
 let sequence = 0
 async function load() {
   const seq = ++sequence
@@ -82,7 +84,7 @@ async function selectOthers() {
   }
 }
 async function change(action: 'keep' | 'ignore', value: boolean, photoId?: number) {
-  loading.value = true
+  saving.value = true
   error.value = ''
   try {
     await call({
@@ -90,11 +92,20 @@ async function change(action: 'keep' | 'ignore', value: boolean, photoId?: numbe
       url: `/photo/duplicates/${action}`,
       data: { key: props.group.key, version: props.group.version, value, photoId },
     })
-    emit('changed')
+    if (action === 'keep') {
+      const member = members.value.find((p) => p.photoId === photoId)
+      if (member && member.kept !== value) {
+        member.kept = value
+        emit('kept', value ? 1 : -1)
+        if (value && selected.value.delete(member.photoId)) {
+          emit('select', [...selected.value.values()])
+        }
+      }
+    } else emit('changed')
   } catch (e) {
     error.value = duplicateError(e)
   } finally {
-    loading.value = false
+    saving.value = false
   }
 }
 watch(offset, load)
@@ -111,7 +122,7 @@ onMounted(load)
       <Button
         variant="outline"
         size="sm"
-        :disabled="disabled || loading || group.keptCount === 0"
+        :disabled="disabled || loading || saving || group.keptCount === 0"
         @click="selectOthers"
         >{{
           group.count > 1000 ? 'Select other copies on this page' : 'Select other copies'
@@ -120,7 +131,7 @@ onMounted(load)
       <Button
         variant="ghost"
         size="sm"
-        :disabled="disabled || loading"
+        :disabled="disabled || loading || saving"
         @click="change('ignore', !group.ignored)"
         >{{ group.ignored ? 'Restore group' : 'Ignore group' }}</Button
       >
@@ -131,7 +142,7 @@ onMounted(load)
       class="flex flex-wrap items-center gap-3 p-4 text-sm text-destructive"
     >
       {{ error
-      }}<Button variant="outline" size="sm" :disabled="disabled || loading" @click="load"
+      }}<Button variant="outline" size="sm" :disabled="disabled || loading || saving" @click="load"
         >Retry</Button
       >
     </div>
@@ -174,14 +185,14 @@ onMounted(load)
                 type="checkbox"
                 :aria-label="`Select ${member.fileName}`"
                 :checked="selected.has(member.photoId)"
-                :disabled="disabled || loading || member.kept"
+                :disabled="disabled || loading || saving || member.kept"
                 @change="choose(member)"
               />Select</label
             >
             <Button
               :variant="member.kept ? 'secondary' : 'outline'"
               size="sm"
-              :disabled="disabled || loading"
+              :disabled="disabled || loading || saving"
               :aria-label="`${member.kept ? 'Unmark' : 'Keep'} ${member.fileName}`"
               @click="change('keep', !member.kept, member.photoId)"
               ><ShieldCheck class="size-3.5" />{{ member.kept ? 'Kept' : 'Keep' }}</Button
@@ -197,7 +208,7 @@ onMounted(load)
       <Button
         variant="outline"
         size="sm"
-        :disabled="disabled || loading || offset === 0"
+        :disabled="disabled || loading || saving || offset === 0"
         @click="offset -= limit"
         >Previous photos</Button
       >
@@ -205,7 +216,7 @@ onMounted(load)
       <Button
         variant="outline"
         size="sm"
-        :disabled="disabled || loading || offset + limit >= group.count"
+        :disabled="disabled || loading || saving || offset + limit >= group.count"
         @click="offset += limit"
         >Next photos</Button
       >
