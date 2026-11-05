@@ -70,6 +70,13 @@ func run(ctx context.Context, cmd string) error {
 					}
 				}
 			}
+			if repaired, err := backup.ReconcileLocalIdentities(ctx, cfg); err != nil {
+				// Keep unchanged libraries available; failed verification leaves every
+				// saved identity intact so the affected source still fails closed.
+				log.Printf("photoly: local storage identity check: %v", err)
+			} else if repaired {
+				log.Print("photoly: verified local originals and rebuilt filesystem identities")
+			}
 			a, h, err := server.New(ctx, cfg, photolyserver.OpenAPI)
 			if err != nil {
 				return backup.Runtime{}, err

@@ -520,6 +520,10 @@ func (e *Engine) finalizeIdentities(ctx context.Context) error {
 		return err
 	}
 	defer c.Close(ctx)
+	return finalizeLocalIdentities(ctx, c, e.Cfg.UploadFolder)
+}
+
+func finalizeLocalIdentities(ctx context.Context, c *pgx.Conn, root string) error {
 	tx, err := c.Begin(ctx)
 	if err != nil {
 		return err
@@ -533,10 +537,10 @@ func (e *Engine) finalizeIdentities(ctx context.Context) error {
  `); err != nil {
 		return err
 	}
-	if err = checkOriginals(ctx, tx, e.Cfg.UploadFolder, true, true); err != nil {
+	if err = checkOriginals(ctx, tx, root, true, true); err != nil {
 		return err
 	}
-	if err = rebuildDirectories(ctx, tx, e.Cfg.UploadFolder); err != nil {
+	if err = rebuildDirectories(ctx, tx, root); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, `UPDATE storage_source SET scan_status='pending',scan_error=NULL WHERE is_default AND kind='local'`); err != nil {
