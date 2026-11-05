@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
-    "build": "pnpm licenses:player && vite build",
+    "build": "pnpm run licenses && pnpm licenses:maps && pnpm licenses:player && vite build",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint .",
@@ -15,7 +15,8 @@
     "test:e2e": "playwright test",
     "licenses:maps": "node scripts/map-licenses.mjs",
     "licenses:player": "node scripts/player-licenses.mjs",
-    "docs:screenshots": "PHOTOLY_DOCS_SCREENSHOTS=1 playwright test e2e/docs-screenshots.spec.ts --project=chromium --workers=1"
+    "docs:screenshots": "PHOTOLY_DOCS_SCREENSHOTS=1 playwright test e2e/docs-screenshots.spec.ts --project=chromium --workers=1",
+    "licenses": "node scripts/licenses.mjs"
   },
   "dependencies": {
     "@huggingface/transformers": "4.3.1",

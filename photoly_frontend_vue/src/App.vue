@@ -13,7 +13,7 @@ const { state } = useColorMode()
   <UploadCenter
     v-if="
       route.matched.length > 0 &&
-      !['/maintenance', '/thepersonincharge/maintenance', '/login'].includes(route.path)
+      !['/maintenance', '/thepersonincharge/maintenance', '/login', '/legal'].includes(route.path)
     "
   />
   <Toaster rich-colors position="top-center" :theme="state" />

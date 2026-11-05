@@ -44,6 +44,13 @@ jobs:
           build-contexts: ${{ matrix.build-contexts }}
           platforms: linux/arm64
           push: true
+          # The /legal page links to the exact commit these images were built from.
+          build-args: |
+            PHOTOLY_REVISION=${{ github.sha }}
+            PHOTOLY_SOURCE_URL=${{ github.server_url }}/${{ github.repository }}/tree/${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
           tags: |
             ${{ steps.ref.outputs.name }}:latest
             ${{ steps.ref.outputs.name }}:${{ github.sha }}

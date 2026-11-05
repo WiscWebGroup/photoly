@@ -6,9 +6,9 @@ name: Docs
 on:
   push:
     branches: [main]
-    paths: ['docs/**', '.github/workflows/docs.yml']
+    paths: ['docs/**', 'photoly_frontend_vue/scripts/license*.mjs', 'photoly_frontend_vue/licenses/**', '.github/workflows/docs.yml']
   pull_request:
-    paths: ['docs/**', '.github/workflows/docs.yml']
+    paths: ['docs/**', 'photoly_frontend_vue/scripts/license*.mjs', 'photoly_frontend_vue/licenses/**', '.github/workflows/docs.yml']
 
 permissions:
   contents: read

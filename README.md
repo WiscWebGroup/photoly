@@ -121,3 +121,10 @@ notices. Run `pnpm licenses:player` in `photoly_frontend_vue` to regenerate it;
 `pnpm build` also generates it for Vite and Docker distributions. See
 [notice sources](photoly_frontend_vue/licenses/artplayer/README.md) when upgrading.
 Photoly remains AGPL-3.0-or-later; these components retain their own licenses.
+
+### Licenses and corresponding source
+
+Open **Licenses & source** (`/legal`) for Photoly's AGPL license, third-party
+notices, pinned model grants and the source of the frontend/backend versions.
+See [licensing and redistribution](docs/docs/overview/licenses.md) for container
+container source information, deployment configuration and dependency-upgrade checks.

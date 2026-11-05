@@ -729,5 +729,10 @@ onMounted(() => {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    <RouterLink
+      to="/legal"
+      class="text-muted-foreground block px-5 py-4 text-sm underline underline-offset-4"
+      >Licenses &amp; source</RouterLink
+    >
   </div>
 </template>

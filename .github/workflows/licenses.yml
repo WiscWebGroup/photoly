@@ -1,0 +1,32 @@
+name: License materials
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths: ['LICENSE', 'photoly_frontend_vue/licenses/**', 'photoly_frontend_vue/scripts/license*.mjs', 'photoly_server/internal/legal/**', '.github/workflows/licenses.yml']
+permissions:
+  contents: read
+jobs:
+  notices:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: photoly_frontend_vue/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: |
+          cmp LICENSE photoly_frontend_vue/licenses/AGPL-3.0.txt
+          cmp LICENSE photoly_server/internal/legal/data/AGPL-3.0.txt
+          pnpm install --frozen-lockfile
+          pnpm --dir photoly_frontend_vue install --frozen-lockfile
+          node --test photoly_frontend_vue/scripts/licenses.test.mjs photoly_frontend_vue/scripts/license-materials.test.mjs
+          node photoly_frontend_vue/scripts/licenses.mjs
+          node photoly_frontend_vue/scripts/licenses.mjs photoly_frontend_vue photoly_frontend_vue/public/legal --check
+      - uses: actions/upload-artifact@v7
+        with:
+          name: license-inventory
+          path: |
+            photoly_frontend_vue/public/legal/

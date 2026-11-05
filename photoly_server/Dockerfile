@@ -17,14 +17,28 @@ RUN case "$TARGETARCH" in \
     && mkdir -p /out/lib /out/data /out/tmp \
     && cp -L $ort/lib/libonnxruntime.so.1 /out/lib/ \
     && cp $ort/LICENSE /out/lib/LICENSE.onnxruntime.txt \
+    && cp $ort/ThirdPartyNotices.txt /out/lib/ThirdPartyNotices.onnxruntime.txt \
     && rm -rf /tmp/ort.tgz $ort
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY third_party ./third_party
 RUN go mod download
 COPY . .
-RUN go vet ./... \
-    && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/photoly-bin ./cmd/photoly
+ARG PHOTOLY_REVISION=development
+ARG PHOTOLY_SOURCE_URL=
+RUN go run ./scripts/licenses --check \
+    && mkdir -p /out/licenses /out/sources \
+    && cp -a internal/legal/data/. /out/licenses/ \
+    && cp /out/lib/*.txt /out/licenses/ \
+    && cp licenses/* /out/licenses/ \
+    && curl -fsSL --retry 3 -o /out/sources/pgvector.tar.gz "https://codeload.github.com/pgvector/pgvector/tar.gz/refs/tags/v0.8.7" \
+    && echo "cac0b10c360f05b2d521200105ba3697e773d4cd3731f5a915a7e37ebe0bea85  /out/sources/pgvector.tar.gz" | sha256sum -c - \
+    && cp -a internal/ai/modeldata /out/licenses/siglip2 \
+    && cp -a internal/ai/peopledata /out/licenses/people \
+    && cp -a internal/ai/smartdata/README.md /out/licenses/GeoNames.txt \
+    && tar --exclude=cache -czf /out/sources/go-modules.tar.gz -C /go/pkg mod \
+    && go vet ./... \
+    && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/WiscWebGroup/photoly/photoly_server/internal/legal.Revision=$PHOTOLY_REVISION -X github.com/WiscWebGroup/photoly/photoly_server/internal/legal.SourceURL=$PHOTOLY_SOURCE_URL" -o /out/photoly-bin ./cmd/photoly
 
 FROM debian:bookworm-slim AS standalone
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
@@ -37,6 +51,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -g 65532 nonroot && useradd -u 65532 -g 65532 -M -s /usr/sbin/nologin nonroot
 COPY --from=build /out/lib /usr/local/lib/onnxruntime
+COPY --from=build /out/licenses /usr/share/photoly/licenses
+COPY --from=build /out/sources /usr/share/photoly/sources
+COPY scripts/container-notices.sh /tmp/container-notices.sh
+RUN sh /tmp/container-notices.sh && rm /tmp/container-notices.sh
 COPY --from=build /out/photoly-bin /usr/local/bin/photoly
 COPY --from=build --chown=65532:65532 --chmod=1777 /out/tmp /tmp
 # Uploaded media lives in UPLOAD_FOLDER (mount ./upload_data here, owned by uid 65532).
@@ -61,6 +79,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     && groupadd -g 65532 nonroot && useradd -u 65532 -g 65532 -M -s /usr/sbin/nologin nonroot \
     && mkdir -p /photoly /var/lib/photoly /backups && chown 65532:65532 /photoly /var/lib/photoly /backups
 COPY --from=build /out/lib /usr/local/lib/onnxruntime
+COPY --from=build /out/licenses /usr/share/photoly/licenses
+COPY --from=build /out/sources /usr/share/photoly/sources
+COPY scripts/container-notices.sh /tmp/container-notices.sh
+RUN sh /tmp/container-notices.sh && rm /tmp/container-notices.sh
 COPY --from=build /out/photoly-bin /usr/local/bin/photoly
 COPY --from=dbinit . /docker-entrypoint-initdb.d/
 COPY docker/aio-entrypoint.sh /usr/local/bin/aio-entrypoint.sh

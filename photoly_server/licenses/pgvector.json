@@ -1,0 +1,8 @@
+{
+  "version": "0.8.7",
+  "license": "PostgreSQL",
+  "licenseSource": "https://raw.githubusercontent.com/pgvector/pgvector/v0.8.7/LICENSE",
+  "licenseSHA256": "6bba9ebeb73e27477463b05e5ef1bf303bccbddb3db9bbc95905d351604d6a87",
+  "source": "https://codeload.github.com/pgvector/pgvector/tar.gz/refs/tags/v0.8.7",
+  "sourceSHA256": "cac0b10c360f05b2d521200105ba3697e773d4cd3731f5a915a7e37ebe0bea85"
+}

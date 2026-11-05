@@ -5,6 +5,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { licenseBundle } from './scripts/license-bundle.mjs'
 
 // Browser AI runs WebAssembly threads, which need cross-origin isolation. `credentialless`
 // (not `require-corp`) keeps cross-origin map tiles loading. Mirrored in nginx.conf.
@@ -40,6 +41,7 @@ export default defineConfig({
     },
   },
   worker: {
+    plugins: () => [licenseBundle(fileURLToPath(new URL('.', import.meta.url)), 'worker')],
     format: 'es',
     rollupOptions: {
       output: {
@@ -54,6 +56,7 @@ export default defineConfig({
   cacheDir: process.env.PHOTOLY_VITE_CACHE_DIR ?? 'node_modules/.vite',
   plugins: [
     vue(),
+    licenseBundle(fileURLToPath(new URL('.', import.meta.url))),
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -71,8 +74,8 @@ export default defineConfig({
       },
       workbox: {
         // Browser AI is opt-in: its runtime and models never ride along in the offline precache.
-        globIgnores: ['**/browser-ai-*.js', '**/*.wasm', '**/ort-wasm-*'],
-        navigateFallbackDenylist: [/^\/api\//, /^\/models\//],
+        globIgnores: ['**/browser-ai-*.js', '**/*.wasm', '**/ort-wasm-*', '**/legal/**'],
+        navigateFallbackDenylist: [/^\/api\//, /^\/models\//, /^\/legal\//],
         runtimeCaching: [
           {
             urlPattern: /\/photo\/renderThumbnail\//,

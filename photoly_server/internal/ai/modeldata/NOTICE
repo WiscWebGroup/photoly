@@ -1,0 +1,20 @@
+SigLIP 2 Base — model provenance
+
+Base model: google/siglip2-base-patch16-224
+Revision: 75de2d55ec2d0b4efc50b3e9ad70dba96a7b2fa2
+Source: https://huggingface.co/google/siglip2-base-patch16-224/tree/75de2d55ec2d0b4efc50b3e9ad70dba96a7b2fa2
+The base model card declares Apache-2.0. The accompanying LICENSE reproduces that license.
+
+ONNX conversion: onnx-community/siglip2-base-patch16-224-ONNX
+Revision: ba1f3b0843f24bc5417d38e19c37b287d719b2f4
+Source: https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/tree/ba1f3b0843f24bc5417d38e19c37b287d719b2f4
+The conversion's model card identifies the Google base model and conversion for
+Transformers.js; it does not provide an independent license declaration.
+Photoly records the base model grant and conversion provenance, not a separate
+license grant from the converter. Formats include fp32, fp16 and int8 ONNX exports.
+Photoly does not modify the downloaded weight files; their checksums are pinned.
+
+This provenance note was assembled by Photoly; it is not an upstream NOTICE or
+an endorsement by Google, Hugging Face or the conversion authors. Model licensing
+does not establish rights in every training image or authorize any particular
+processing of personal data. Training-data rights have not been audited.

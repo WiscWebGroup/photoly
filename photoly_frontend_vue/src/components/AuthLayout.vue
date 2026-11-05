@@ -108,6 +108,11 @@ useResizeObserver(content, ([entry]) => {
         </div>
       </div>
     </main>
+    <RouterLink
+      to="/legal"
+      class="relative mt-4 text-center text-xs text-teal-100/75 underline underline-offset-4 sm:mt-0"
+      >Licenses &amp; source</RouterLink
+    >
 
     <p
       style="animation-delay: 160ms"

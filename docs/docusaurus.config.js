@@ -10,6 +10,7 @@ module.exports = {
   onBrokenLinks: 'throw',
   // The existing docs are plain CommonMark, not MDX.
   markdown: { format: 'detect', hooks: { onBrokenMarkdownLinks: 'throw' } },
+  plugins: [require.resolve('./license-plugin.cjs')],
   presets: [
     [
       'classic',
@@ -31,6 +32,7 @@ module.exports = {
       items: [
         { to: '/', label: 'Docs', position: 'left' },
         { to: '/api', label: 'API', position: 'left' },
+        { to: '/overview/licenses', label: 'Licenses', position: 'right' },
         { href: 'https://github.com/WiscWebGroup/photoly', label: 'GitHub', position: 'right' },
       ],
     },

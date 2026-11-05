@@ -14,6 +14,7 @@ declare module 'vue-router' {
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    { path: '/legal', name: 'legal', component: () => import('@/views/LegalView.vue') },
     {
       path: '/maintenance',
       name: 'maintenance',

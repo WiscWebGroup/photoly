@@ -194,7 +194,8 @@ onBeforeUnmount(() => {
       <a href="https://www.geonames.org/" class="underline" target="_blank" rel="noreferrer"
         >GeoNames</a
       >
-      (CC BY 4.0). Location data stays on your server.
+      (<a href="https://creativecommons.org/licenses/by/4.0/" class="underline">CC BY 4.0</a>).
+      Location data stays on your server.
     </p>
   </div>
 </template>

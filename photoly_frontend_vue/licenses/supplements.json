@@ -1,0 +1,376 @@
+{
+  "@algolia/autocomplete-core@1.19.12": {
+    "files": [
+      {
+        "file": "supplemental/_algolia_autocomplete-core_1.19.12.txt",
+        "sha256": "1e605499213e06118cc81abc00b32bbb33ead185d9b0e190f2662588e8806f02",
+        "source": "https://raw.githubusercontent.com/algolia/autocomplete/3415a82bfaa34dfa6c7ec614b37f069c2c20842a/LICENSE"
+      }
+    ]
+  },
+  "@algolia/autocomplete-core@1.19.2": {
+    "files": [
+      {
+        "file": "supplemental/_algolia_autocomplete-core_1.19.2.txt",
+        "sha256": "1e605499213e06118cc81abc00b32bbb33ead185d9b0e190f2662588e8806f02",
+        "source": "https://raw.githubusercontent.com/algolia/autocomplete/de8a1955e67b8df9a7f29f8114e3c579de86bab1/LICENSE"
+      }
+    ]
+  },
+  "@algolia/autocomplete-plugin-algolia-insights@1.19.12": {
+    "files": [
+      {
+        "file": "supplemental/_algolia_autocomplete-plugin-algolia-insights_1.19.12.txt",
+        "sha256": "1e605499213e06118cc81abc00b32bbb33ead185d9b0e190f2662588e8806f02",
+        "source": "https://raw.githubusercontent.com/algolia/autocomplete/3415a82bfaa34dfa6c7ec614b37f069c2c20842a/LICENSE"
+      }
+    ]
+  },
+  "@algolia/autocomplete-plugin-algolia-insights@1.19.2": {
+    "files": [
+      {
+        "file": "supplemental/_algolia_autocomplete-plugin-algolia-insights_1.19.2.txt",
+        "sha256": "1e605499213e06118cc81abc00b32bbb33ead185d9b0e190f2662588e8806f02",
+        "source": "https://raw.githubusercontent.com/algolia/autocomplete/de8a1955e67b8df9a7f29f8114e3c579de86bab1/LICENSE"
+      }
+    ]
+  },
+  "@algolia/autocomplete-shared@1.19.12": {
+    "files": [
+      {
+        "file": "supplemental/_algolia_autocomplete-shared_1.19.12.txt",
+        "sha256": "1e605499213e06118cc81abc00b32bbb33ead185d9b0e190f2662588e8806f02",
+        "source": "https://raw.githubusercontent.com/algolia/autocomplete/3415a82bfaa34dfa6c7ec614b37f069c2c20842a/LICENSE"
+      }
+    ]
+  },
+  "@algolia/autocomplete-shared@1.19.2": {
+    "files": [
+      {
+        "file": "supplemental/_algolia_autocomplete-shared_1.19.2.txt",
+        "sha256": "1e605499213e06118cc81abc00b32bbb33ead185d9b0e190f2662588e8806f02",
+        "source": "https://raw.githubusercontent.com/algolia/autocomplete/de8a1955e67b8df9a7f29f8114e3c579de86bab1/LICENSE"
+      }
+    ]
+  },
+  "@cloudflare/kv-asset-handler@0.5.0": {
+    "files": [
+      {
+        "file": "supplemental/_cloudflare_kv-asset-handler_0.5.0.txt",
+        "sha256": "9bb3b077cc8628334bab25961223dd8207252c8a56aa054195be38f1c042aaf4",
+        "source": "https://raw.githubusercontent.com/cloudflare/workers-sdk/47cf644ab0e22ee2e429f19dd7ca4e84955be59b/LICENSE-MIT"
+      }
+    ]
+  },
+  "@cloudflare/unenv-preset@2.16.2": {
+    "files": [
+      {
+        "file": "supplemental/_cloudflare_unenv-preset_2.16.2.txt",
+        "sha256": "9bb3b077cc8628334bab25961223dd8207252c8a56aa054195be38f1c042aaf4",
+        "source": "https://raw.githubusercontent.com/cloudflare/workers-sdk/6e7712725698df46db9ec25ac738dd155ff8d39e/LICENSE-MIT"
+      }
+    ]
+  },
+  "@cloudflare/workerd-darwin-arm64@1.20261023.1": {
+    "files": [
+      {
+        "file": "supplemental/_cloudflare_workerd-darwin-arm64_1.20261023.1.txt",
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+        "source": "https://raw.githubusercontent.com/cloudflare/workerd/7caf6dee5bfe9af1b7710ddf66222900007af080/LICENSE"
+      }
+    ]
+  },
+  "@docsearch/core@4.7.1": {
+    "files": [
+      {
+        "file": "supplemental/_docsearch_core_4.7.1.txt",
+        "sha256": "1e605499213e06118cc81abc00b32bbb33ead185d9b0e190f2662588e8806f02",
+        "source": "https://raw.githubusercontent.com/algolia/docsearch/42eb3c5f6c4edff131932cd7fd814b11320c6311/LICENSE"
+      }
+    ]
+  },
+  "@docsearch/css@4.7.1": {
+    "files": [
+      {
+        "file": "supplemental/_docsearch_css_4.7.1.txt",
+        "sha256": "1e605499213e06118cc81abc00b32bbb33ead185d9b0e190f2662588e8806f02",
+        "source": "https://raw.githubusercontent.com/algolia/docsearch/42eb3c5f6c4edff131932cd7fd814b11320c6311/LICENSE"
+      }
+    ]
+  },
+  "@docsearch/react@4.7.1": {
+    "files": [
+      {
+        "file": "supplemental/_docsearch_react_4.7.1.txt",
+        "sha256": "1e605499213e06118cc81abc00b32bbb33ead185d9b0e190f2662588e8806f02",
+        "source": "https://raw.githubusercontent.com/algolia/docsearch/42eb3c5f6c4edff131932cd7fd814b11320c6311/LICENSE"
+      }
+    ]
+  },
+  "@esbuild/darwin-arm64@0.28.2": {
+    "files": [
+      {
+        "file": "supplemental/_esbuild_darwin-arm64_0.28.2.txt",
+        "sha256": "b40ec5baec7bb34fa5b1c09521fa3cd52d5fad7adafed74932a2010d3612a681",
+        "source": "https://raw.githubusercontent.com/evanw/esbuild/609683d892977362a0f99026cb74b96263d728a9/LICENSE.md"
+      }
+    ]
+  },
+  "@pkgr/core@0.3.6": {
+    "files": [
+      {
+        "file": "supplemental/_pkgr_core_0.3.6.txt",
+        "sha256": "82a222189ab9764f8ec1c052b9661f2c9f12db52387312acbf73b2be5b8b6c32",
+        "source": "https://raw.githubusercontent.com/un-ts/pkgr/6e1c7260486c7251e61404176a293986229a5869/LICENSE"
+      }
+    ]
+  },
+  "@polka/url@1.0.0-next.29": {
+    "files": [
+      {
+        "file": "supplemental/_polka_url_1.0.0-next.29.txt",
+        "sha256": "ba573393f24555ac0528612ad39665fab5bdcc80330a61096024bbf5f736526d",
+        "source": "https://raw.githubusercontent.com/lukeed/polka/02cbdb529ddca0a9f3d225e2abb2931924219cc3/license"
+      }
+    ]
+  },
+  "@rolldown/binding-darwin-arm64@1.2.13": {
+    "files": [
+      {
+        "file": "supplemental/_rolldown_binding-darwin-arm64_1.2.13.txt",
+        "sha256": "23ecfff35a5a2e80d92142f75228912c3b1abc4b5a8337a821ff4397e2f9f734",
+        "source": "https://raw.githubusercontent.com/rolldown/rolldown/f7de35f45bcd4cb8e4b6d8d11e74fbfb20b03127/LICENSE"
+      }
+    ]
+  },
+  "@rollup/rollup-darwin-arm64@4.64.6": {
+    "files": [
+      {
+        "file": "supplemental/_rollup_rollup-darwin-arm64_4.64.6.txt",
+        "sha256": "fa1bd040c5bdeefe65b3821cebf474f2733ce65df13089bd151dda1778e62fe8",
+        "source": "https://raw.githubusercontent.com/rollup/rollup/3ba51901a0f41d8e6d4152c407cba036fb599feb/LICENSE.md"
+      }
+    ]
+  },
+  "artplayer@5.4.0": {
+    "files": [
+      {
+        "file": "artplayer/LICENSE",
+        "sha256": "fd4827cb17ddd9ad15d2344b37221ad5e9c21f6cf35598cadaec5aed42115d5a",
+        "source": "See licenses/artplayer/README.md (pinned upstream sources)"
+      },
+      {
+        "file": "artplayer/screenfull-license",
+        "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+        "source": "See licenses/artplayer/README.md (pinned upstream sources)"
+      },
+      {
+        "file": "artplayer/hint-css-LICENSE",
+        "sha256": "55cee0a0645d18366eaa0cd21208c224568e14c38b7894e0f9ff537702ff8ea0",
+        "source": "See licenses/artplayer/README.md (pinned upstream sources)"
+      }
+    ]
+  },
+  "filelist@1.0.6": {
+    "files": [
+      {
+        "file": "supplemental/filelist_1.0.6.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "source": "https://raw.githubusercontent.com/mde/filelist/7032f94d04ad905b4f32b92d2278785859e1d55f/LICENSE"
+      }
+    ]
+  },
+  "infima@0.2.0-alpha.45": {
+    "files": [
+      {
+        "file": "supplemental/infima_0.2.0-alpha.45.txt",
+        "sha256": "52412d7bc7ce4157ea628bbaacb8829e0a9cb3c58f57f99176126bc8cf2bfc85",
+        "source": "https://raw.githubusercontent.com/facebookincubator/infima/205b8aedc62496839991b75a8bc2922350766fe4/LICENSE"
+      }
+    ]
+  },
+  "is-regexp@1.0.0": {
+    "files": [
+      {
+        "file": "supplemental/is-regexp_1.0.0.txt",
+        "sha256": "6fb9754611c20f6649f68805e8c990e83261f29316e29de9e6cedae607b8634c",
+        "source": "https://raw.githubusercontent.com/sindresorhus/is-regexp/ccbe7faf479d3abc4c958df1cf94898f902c2dc4/license"
+      }
+    ]
+  },
+  "jake@10.9.4": {
+    "files": [
+      {
+        "file": "supplemental/jake_10.9.4.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "source": "https://raw.githubusercontent.com/jakejs/jake/28a9960b506d3259dd2f708ea9bc82f615be91b5/LICENSE"
+      }
+    ]
+  },
+  "micromark-factory-space@1.1.0": {
+    "files": [
+      {
+        "file": "supplemental/micromark-factory-space_1.1.0.txt",
+        "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61",
+        "source": "https://raw.githubusercontent.com/micromark/micromark/a79b757a66a748c789d0746acfc766724c4e7abd/license"
+      }
+    ]
+  },
+  "micromark-util-character@1.2.0": {
+    "files": [
+      {
+        "file": "supplemental/micromark-util-character_1.2.0.txt",
+        "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61",
+        "source": "https://raw.githubusercontent.com/micromark/micromark/b5be2e0eb8a58f017047dc62e119a8155d387d54/license"
+      }
+    ]
+  },
+  "micromark-util-symbol@1.1.0": {
+    "files": [
+      {
+        "file": "supplemental/micromark-util-symbol_1.1.0.txt",
+        "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61",
+        "source": "https://raw.githubusercontent.com/micromark/micromark/78e7b7b45d9bae8f38e4fa6bdb0ff791a7ac9e49/license"
+      }
+    ]
+  },
+  "micromark-util-types@1.1.0": {
+    "files": [
+      {
+        "file": "supplemental/micromark-util-types_1.1.0.txt",
+        "sha256": "536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61",
+        "source": "https://raw.githubusercontent.com/micromark/micromark/2cc11bb2974020488176c8698173d71ba36c127d/license"
+      }
+    ]
+  },
+  "miniflare@5.20261023.3-beta": {
+    "files": [
+      {
+        "file": "supplemental/miniflare_5.20261023.3-beta.txt",
+        "sha256": "9bb3b077cc8628334bab25961223dd8207252c8a56aa054195be38f1c042aaf4",
+        "source": "https://raw.githubusercontent.com/cloudflare/workers-sdk/b1ced56e11378efe3742c6eb51f96e70d572f0a4/LICENSE-MIT"
+      }
+    ]
+  },
+  "onnxruntime-common@1.30.0": {
+    "files": [
+      {
+        "file": "supplemental/onnxruntime-common_1.30.0.txt",
+        "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+        "source": "https://raw.githubusercontent.com/Microsoft/onnxruntime/f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7/LICENSE"
+      },
+      {
+        "file": "supplemental/onnxruntime-v1.30.0-LICENSE.txt",
+        "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+        "source": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.30.0/LICENSE"
+      },
+      {
+        "file": "supplemental/onnxruntime-v1.30.0-ThirdPartyNotices.txt.txt",
+        "sha256": "143764b952fdb1a7c69ce653bfba74a7744d6a8a573bfb73e235fba356c83de3",
+        "source": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.30.0/ThirdPartyNotices.txt"
+      }
+    ]
+  },
+  "onnxruntime-common@1.31.0-dev.20260911-2a43ec07e": {
+    "files": [
+      {
+        "file": "supplemental/onnxruntime-2a43ec07e-LICENSE.txt",
+        "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+        "source": "https://raw.githubusercontent.com/microsoft/onnxruntime/2a43ec07e/LICENSE"
+      },
+      {
+        "file": "supplemental/onnxruntime-2a43ec07e-ThirdPartyNotices.txt.txt",
+        "sha256": "143764b952fdb1a7c69ce653bfba74a7744d6a8a573bfb73e235fba356c83de3",
+        "source": "https://raw.githubusercontent.com/microsoft/onnxruntime/2a43ec07e/ThirdPartyNotices.txt"
+      }
+    ]
+  },
+  "onnxruntime-node@1.30.0": {
+    "files": [
+      {
+        "file": "supplemental/onnxruntime-node_1.30.0.txt",
+        "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+        "source": "https://raw.githubusercontent.com/Microsoft/onnxruntime/f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7/LICENSE"
+      },
+      {
+        "file": "supplemental/onnxruntime-v1.30.0-LICENSE.txt",
+        "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+        "source": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.30.0/LICENSE"
+      },
+      {
+        "file": "supplemental/onnxruntime-v1.30.0-ThirdPartyNotices.txt.txt",
+        "sha256": "143764b952fdb1a7c69ce653bfba74a7744d6a8a573bfb73e235fba356c83de3",
+        "source": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.30.0/ThirdPartyNotices.txt"
+      }
+    ]
+  },
+  "onnxruntime-web@1.31.0-dev.20260914-8d85527a0": {
+    "files": [
+      {
+        "file": "supplemental/onnxruntime-8d85527a0-LICENSE.txt",
+        "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+        "source": "https://raw.githubusercontent.com/microsoft/onnxruntime/8d85527a0/LICENSE"
+      },
+      {
+        "file": "supplemental/onnxruntime-8d85527a0-ThirdPartyNotices.txt.txt",
+        "sha256": "143764b952fdb1a7c69ce653bfba74a7744d6a8a573bfb73e235fba356c83de3",
+        "source": "https://raw.githubusercontent.com/microsoft/onnxruntime/8d85527a0/ThirdPartyNotices.txt"
+      }
+    ]
+  },
+  "require-like@0.1.2": {
+    "files": [
+      {
+        "file": "supplemental/require-like_0.1.2.txt",
+        "sha256": "c5ece09265dbd6335030832335dec72919b9ecfd4db126cb9bb9b8d023970304",
+        "source": "https://raw.githubusercontent.com/felixge/node-require-like/2206412b5095470de83a2c03c2593ee6315423ab/License"
+      }
+    ],
+    "license": "MIT"
+  },
+  "saxes@6.0.0": {
+    "files": [
+      {
+        "file": "supplemental/saxes_6.0.0.txt",
+        "sha256": "0fac2374380621b22e6b50451057721a9c52935b02d16d106a9f04897f061d0e",
+        "source": "https://raw.githubusercontent.com/lddubeau/saxes/211fa0ebec9b628affc09219199639887174bfc3/LICENSE"
+      }
+    ]
+  },
+  "sirv@2.0.4": {
+    "files": [
+      {
+        "file": "supplemental/sirv_2.0.4.txt",
+        "sha256": "ba573393f24555ac0528612ad39665fab5bdcc80330a61096024bbf5f736526d",
+        "source": "https://raw.githubusercontent.com/lukeed/sirv/50b1964b8a8342e14a711d47f793298c2a7aeeb7/license"
+      }
+    ]
+  },
+  "type-fest@2.19.0": {
+    "files": [
+      {
+        "file": "supplemental/type-fest_2.19.0.txt",
+        "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+        "source": "https://raw.githubusercontent.com/sindresorhus/type-fest/d07df21f8b79e35ad8411cb9ceb8b5cb8f40f9d4/license-mit"
+      }
+    ]
+  },
+  "workerd@1.20261023.1": {
+    "files": [
+      {
+        "file": "supplemental/workerd_1.20261023.1.txt",
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+        "source": "https://raw.githubusercontent.com/cloudflare/workerd/7caf6dee5bfe9af1b7710ddf66222900007af080/LICENSE"
+      }
+    ]
+  },
+  "wrangler@4.156.0": {
+    "files": [
+      {
+        "file": "supplemental/wrangler_4.156.0.txt",
+        "sha256": "9bb3b077cc8628334bab25961223dd8207252c8a56aa054195be38f1c042aaf4",
+        "source": "https://raw.githubusercontent.com/cloudflare/workers-sdk/b1ced56e11378efe3742c6eb51f96e70d572f0a4/LICENSE-MIT"
+      }
+    ]
+  }
+}

@@ -3,6 +3,7 @@ package ai
 import (
 	"context"
 	"crypto/sha256"
+	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -28,6 +29,44 @@ const (
 	// Bump when the browser's image preparation changes; it is part of the fingerprint.
 	preprocessing = "exif-white-rgb-224-bilinear-v1"
 )
+
+//go:embed modeldata/*
+var modelNotices embed.FS
+
+func (c *ModelCache) ensureNotices() error {
+	dir := filepath.Dir(c.path("LICENSE"))
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	for _, name := range []string{"LICENSE", "NOTICE"} {
+		b, err := modelNotices.ReadFile("modeldata/" + name)
+		if err != nil {
+			return err
+		}
+		// Write atomically: simultaneous model downloads must never expose a partial notice.
+		f, err := os.CreateTemp(dir, ".notice-*")
+		if err != nil {
+			return err
+		}
+		tmp := f.Name()
+		err = f.Chmod(0644)
+		if err == nil {
+			_, err = f.Write(b)
+		}
+		closeErr := f.Close()
+		if err == nil {
+			err = closeErr
+		}
+		if err == nil {
+			err = os.Rename(tmp, filepath.Join(dir, name))
+		}
+		_ = os.Remove(tmp)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 type modelFile struct {
 	Size   int64  `json:"size"`
@@ -121,6 +160,12 @@ func (c *ModelCache) path(name string) string {
 // Ensure returns the local path of a verified copy of name, downloading it if needed.
 // Concurrent callers for the same file wait for one download.
 func (c *ModelCache) Ensure(ctx context.Context, name string) (string, error) {
+	if name == "LICENSE" || name == "NOTICE" {
+		if err := c.ensureNotices(); err != nil {
+			return "", err
+		}
+		return c.path(name), nil
+	}
 	want, ok := modelFiles[name]
 	if !ok {
 		return "", errNotInManifest
@@ -135,6 +180,9 @@ func (c *ModelCache) Ensure(ctx context.Context, name string) (string, error) {
 	lock.Lock()
 	defer lock.Unlock()
 
+	if err := c.ensureNotices(); err != nil {
+		return "", err
+	}
 	dst := c.path(name)
 	if st, err := os.Stat(dst); err == nil && st.Size() == want.Size {
 		return dst, nil
@@ -187,6 +235,16 @@ func (c *ModelCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := r.PathValue("file")
+	if name == "LICENSE" || name == "NOTICE" {
+		b, err := modelNotices.ReadFile("modeldata/" + name)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = w.Write(b)
+		return
+	}
 	path, err := c.Ensure(r.Context(), name)
 	if errors.Is(err, errNotInManifest) {
 		http.NotFound(w, r)
