@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@huggingface/transformers": "4.3.1",
-    "@lucide/vue": "^1.55.0",
+    "@lucide/vue": "^1.66.0",
     "@noble/hashes": "2.4.0",
     "@vueuse/core": "^15.0.0",
     "artplayer": "5.4.0",
