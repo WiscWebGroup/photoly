@@ -27,16 +27,15 @@ historical release is cleared. The outstanding evidence below remains explicit.
 | Native/browser ONNX Runtime notices incomplete | Version-bound upstream LICENSE and ThirdPartyNotices are included. Supplement files have upstream URLs and SHA-256 checks, without assuming all components in an umbrella notice are enabled. |
 | Linked LGPL library | `github.com/cloudsoda/sddl` contains the LGPLv3 grant. Its notice, accompanying GPLv3 text, exact Go module source and rebuild instructions are now provided. |
 | Modified SMB snapshot | Preserve upstream BSD-2-Clause and Go-derived BSD-3-Clause notices, including the source-file headers. Identify Photoly's AGPL modifications and include the actual replacement source. |
-| Container source obligations | Inventory installed packages, retain copyright/common-license files, and collect exact source packages with `.dsc` SHA-256 verification before image publication. FFmpeg's Debian GPL build is not labeled LGPL-only. pgvector is accounted for separately because it is compiled into its base image. |
-| Frontend corresponding source | Release collection includes integrity-checked npm archives and fixed upstream source revisions for the 40 packages in browser/worker output, alongside the exact Photoly source and build instructions. No upstream HEAD fallback. |
+| Container source obligations | The backend image records installed packages, keeps their copyright and common-license files, and carries Go module and pgvector sources. Debian sources are available from the Debian archive or on request. FFmpeg's Debian GPL build is not labeled LGPL-only. |
+| Frontend corresponding source | `/legal` links to the exact Photoly commit, which holds the frontend source and build instructions. |
 | Missing public legal/source entry | `/legal` is public and linked from login, welcome, Library/account and administrator navigation. Frontend/backend revision and source addresses are independent; missing configuration is stated rather than falsely pointing to upstream main. Backend legal resources also remain available during maintenance. |
 | Geographic attribution | Retain map-local OSM credit, link GeoNames' CC BY 4.0 terms, document the derived city snapshot and repair the stale Python-directory documentation link. |
 | Contributor identity | Harold Ye confirmed that `Ye <Yixuan.Ye@Dell.com>` identifies his personal contributions unrelated to Dell work. The register records that clarification under his existing consent without rewriting history or inventing a new signature. |
 
-The web runtime moves from Alpine to the **Debian variant of the same nginx
-1.31.8**, pinned by digest, so both images share the verified source-collection
-workflow. This increases image size. Debian security packages are refreshed; every
-published image is paired with its exact package graph and retained source assets.
+The web runtime stays on `nginx:alpine`; both images list their installed system
+packages. Debian package sources are provided from the Debian archive or on request
+(see [Licenses and source](../overview/licenses.md)), not as per-image source archives.
 
 ## Inventory and remaining evidence
 
@@ -82,12 +81,6 @@ They are not absorbed into Photoly's AGPL grant.
 - Go notice regeneration/check, Docker build/vet, and focused tests for public resources, unsafe source URLs, model notices without network access and backfilling an existing cache passed.
 - Docusaurus production build passed with emitted-module license validation.
 - Generator tests reject absent/unknown/upgraded missing grants and check supplement hashes, duplicated project licenses and model links against pinned backend versions.
-- Candidate source collection retrieved and verified **263 backend system source packages**, and **116 web system source packages plus 40 emitted npm packages with upstream sources**. Source collection is exercised against real images; release upload and registry publication are intentionally left to the post-merge publishing workflow.
-
-Source-archive tests use disposable containers and do not mount the live database
-or media. The publication workflow retains per-image source assets, splits them
-below hosting limits and refuses conflicting overwrites. Network/source-archive
-failures block publication; they are not converted into a passing compliance claim.
 
 See [Licenses and source](../overview/licenses.md) for operator instructions and
 `photoly_frontend_vue/licenses/README.md` for evidence-maintenance details.

@@ -14,5 +14,3 @@ backup_data/
 .agents
 skills-lock.json
 .mcp.json
-/compliance-output/
-/scripts/compliance/__pycache__/

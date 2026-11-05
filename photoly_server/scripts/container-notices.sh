@@ -12,4 +12,4 @@ while IFS="$(printf '\t')" read -r package version source source_version; do
  fi
 done < "$out/system-packages.tsv"
 cp -a /usr/share/common-licenses "$out/"
-printf '%s\n' 'Exact source packages must accompany public image distribution. See the source archive for this image digest; a package homepage alone is not a source offer.' > "$out/README.txt"
+printf '%s\n' 'Source for GPL/LGPL and other Debian packages in this image: the exact package versions are listed in system-packages.tsv. Corresponding source is available from the Debian archive (https://snapshot.debian.org/) and, on request, from the Photoly maintainers at https://github.com/WiscWebGroup/photoly/issues for at least three years after the image is distributed. Photoly, Go module and pgvector sources are in /usr/share/photoly/sources and at the source address shown on the /legal page.' > "$out/README.txt"

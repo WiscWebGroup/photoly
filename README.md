@@ -127,4 +127,4 @@ Photoly remains AGPL-3.0-or-later; these components retain their own licenses.
 Open **Licenses & source** (`/legal`) for Photoly's AGPL license, third-party
 notices, pinned model grants and the source of the frontend/backend versions.
 See [licensing and redistribution](docs/docs/overview/licenses.md) for container
-source archives, deployment configuration and dependency-upgrade checks.
+container source information, deployment configuration and dependency-upgrade checks.

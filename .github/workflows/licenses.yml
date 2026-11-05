@@ -3,7 +3,7 @@ on:
   pull_request:
   push:
     branches: [main]
-    paths: ['LICENSE', 'scripts/compliance/**', 'photoly_frontend_vue/licenses/**', 'photoly_frontend_vue/scripts/license*.mjs', 'photoly_server/internal/legal/**', '.github/workflows/licenses.yml']
+    paths: ['LICENSE', 'photoly_frontend_vue/licenses/**', 'photoly_frontend_vue/scripts/license*.mjs', 'photoly_server/internal/legal/**', '.github/workflows/licenses.yml']
 permissions:
   contents: read
 jobs:
@@ -20,12 +20,8 @@ jobs:
       - run: |
           cmp LICENSE photoly_frontend_vue/licenses/AGPL-3.0.txt
           cmp LICENSE photoly_server/internal/legal/data/AGPL-3.0.txt
-          cmp photoly_frontend_vue/scripts/container-notices.sh photoly_server/scripts/container-notices.sh
-          python3 -m py_compile scripts/compliance/collect-*-sources.py
-          python3 -m unittest discover -s scripts/compliance
           pnpm install --frozen-lockfile
           pnpm --dir photoly_frontend_vue install --frozen-lockfile
-          node photoly_frontend_vue/scripts/licenses.mjs . compliance-output/tooling
           node --test photoly_frontend_vue/scripts/licenses.test.mjs photoly_frontend_vue/scripts/license-materials.test.mjs
           node photoly_frontend_vue/scripts/licenses.mjs
           node photoly_frontend_vue/scripts/licenses.mjs photoly_frontend_vue photoly_frontend_vue/public/legal --check
@@ -33,5 +29,4 @@ jobs:
         with:
           name: license-inventory
           path: |
-            compliance-output/tooling/
             photoly_frontend_vue/public/legal/

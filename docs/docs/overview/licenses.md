@@ -34,9 +34,9 @@ For modified network deployments, offer users the corresponding source of the ve
 
 Build both Dockerfiles with `PHOTOLY_REVISION` and `PHOTOLY_SOURCE_URL`. The frontend embeds these at build time. The backend also accepts a runtime `PHOTOLY_SOURCE_URL` override. Use an HTTP(S) URL providing your actual source. Without configuration, the UI clearly identifies a development build or missing source URL instead of claiming it matches upstream. Set these explicitly when using a custom Compose configuration.
 
-Official image publishing creates durable `sources-<commit>` release assets **before** pushing the binaries. Each image's archive contains the exact Photoly revision, collected license notices, the original installed package graph, exact Debian source packages with packaging/build recipes and checksum verification, Go module sources and the pinned pgvector source for the backend, and both npm archives and pinned upstream sources for emitted frontend packages. Archives are split into numbered parts below the hosting size limit; concatenate the parts and verify the accompanying SHA-256 file before extraction. Asset names identify the Docker image configuration ID, and `image.json` records that identity. Rebuilds of the same Git revision retain their distinct source assets. Missing exact sources stop publication. Retain source assets while distributing the images; verify their availability and meet any longer retention obligations of the applicable licenses.
+Published images are built from a specific commit. Their `/legal` page links to that exact commit, and the image labels record it. The backend image also carries the Go module and pinned pgvector sources under `/usr/share/photoly/sources`, and a list of installed Debian packages with their copyright files under `/usr/share/photoly/licenses`. Corresponding source for the Debian packages (including the GPL FFmpeg build) comes from the Debian archive, or on request from the maintainers through the project issue tracker, for at least three years after distribution. The web image uses `nginx:alpine` and lists its installed Alpine packages the same way.
 
-Runtime container notices are under `/usr/share/photoly/licenses`; Go dependency source archives are under `/usr/share/photoly/sources`. The web runtime uses the official nginx **1.31.8 Debian trixie** variant (pinned by digest, matching the previous deployment’s nginx version) so both runtime images use the same Debian source-retrieval and verification process. This increases image size compared with Alpine while retaining the nginx template entrypoint.
+Runtime container notices are under `/usr/share/photoly/licenses`; Go dependency source archives are under `/usr/share/photoly/sources` in the backend image.
 
 To rebuild with a modified LGPL SMB dependency, unpack the backend's
 `dependencies/go-modules.tar.gz`, copy the `github.com/cloudsoda/sddl@...` directory
@@ -50,9 +50,9 @@ provide the modified corresponding source when redistributing the result.
 ## Updating dependencies
 
 1. Install with the lockfile frozen. Review the exact upstream grant, bundled code and NOTICE files when updating a model, package, native library or base image.
-2. Run `pnpm run licenses` and build the frontend/docs. Root-tooling inventory: `node photoly_frontend_vue/scripts/licenses.mjs . compliance-output/tooling`.
+2. Run `pnpm run licenses` and build the frontend/docs.
 3. In `photoly_server`, run `go mod download`, `go run ./scripts/licenses`, then `go run ./scripts/licenses --check`. Commit regenerated Go notices with the dependency change.
 4. Manual npm supplements live in `photoly_frontend_vue/licenses/supplements.json`; every file is bound to an exact package version, upstream URL and SHA-256. Do not copy an old exception to a new version without review.
-5. Validate the final image and source archive. The release source collector runs in a disposable image, never in the live service. A failed collector is a publication failure, not permission to publish without sources.
+5. Check that the final image contains the notices under `/usr/share/photoly/licenses`.
 
 This audit addresses licensing evidence and distribution engineering. It does not certify rights to every model-training image, biometric-data processing, codec patents or trademarks for a particular deployment.
