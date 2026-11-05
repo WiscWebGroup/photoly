@@ -44,6 +44,11 @@ const pill =
           {{ item.label }}
         </router-link>
       </nav>
+      <RouterLink
+        to="/legal"
+        class="text-muted-foreground px-2.5 text-xs underline underline-offset-4"
+        >Licenses &amp; source</RouterLink
+      >
       <div class="mt-auto flex items-center gap-1">
         <router-link to="/home/HomePart" :class="[link, 'text-muted-foreground flex-1']">
           <ArrowLeft class="size-4" aria-hidden="true" />
@@ -63,9 +68,10 @@ const pill =
         class="h-[22px] invert dark:invert-0"
       />
       <span :class="pill">Admin</span>
-      <UploadButton v-if="!maintenance" class="ml-auto" /><ThemeToggle
-        :class="maintenance ? 'ml-auto' : ''"
-      />
+      <RouterLink to="/legal" class="ml-auto text-xs underline underline-offset-4"
+        >Licenses &amp; source</RouterLink
+      >
+      <UploadButton v-if="!maintenance" /><ThemeToggle :class="maintenance ? 'ml-auto' : ''" />
     </header>
 
     <main class="min-h-0 min-w-0 flex-1 overflow-auto">

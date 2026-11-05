@@ -1,0 +1,15 @@
+[
+  {
+    "name": "shadcn-vue UI components",
+    "license": "MIT",
+    "paths": [
+      "src/components/ui",
+      "src/lib/utils.ts"
+    ],
+    "source": "https://raw.githubusercontent.com/unovue/shadcn-vue/d1bf1b3a2d1a824b19f32d7253a28a43797b8253/LICENSE",
+    "file": "shadcn-vue-LICENSE.txt",
+    "sha256": "69f84f4ad77be299dbf42d03d7fd862ab3ab05546c6e573c6c7c875b0168a94d",
+    "status": "license-retained; original generator revision not recorded",
+    "note": "components.json and generated component structure identify shadcn-vue. This revision pins license evidence collected during the audit, not the original generator version. Photoly has modified the generated components."
+  }
+]

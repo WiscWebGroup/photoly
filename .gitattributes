@@ -1,1 +1,4 @@
 *.sh text eol=lf
+# Preserve checksum-bound upstream license evidence, including original whitespace.
+photoly_frontend_vue/licenses/supplemental/* -text -whitespace
+photoly_server/internal/legal/data/third-party-notices.txt -text -whitespace

@@ -92,6 +92,7 @@ const card =
           <img src="@/assets/photoly-wordmark.svg" alt="Photoly" class="h-8" />
         </RouterLink>
 
+        <RouterLink to="/legal" :class="ghost">Licenses &amp; source</RouterLink>
         <a :href="GITHUB" :class="[ghost, 'ml-auto']">GitHub</a>
       </header>
 

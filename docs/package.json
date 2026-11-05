@@ -3,9 +3,10 @@
   "private": true,
   "scripts": {
     "start": "docusaurus start",
-    "build": "docusaurus build",
+    "build": "pnpm run licenses && docusaurus build",
     "serve": "docusaurus serve",
-    "deploy": "wrangler pages deploy build --project-name \"$PROJECT_NAME\" --branch \"$BRANCH_NAME\""
+    "deploy": "wrangler pages deploy build --project-name \"$PROJECT_NAME\" --branch \"$BRANCH_NAME\"",
+    "licenses": "node ../photoly_frontend_vue/scripts/licenses.mjs . static/legal"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.2",

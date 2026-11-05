@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/legal"
 	"log"
 	"net/http"
 	"os"
@@ -198,6 +199,9 @@ func (c *Controller) authorize(r *http.Request) bool {
 	return true
 }
 func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if legal.Serve(w, r) {
+		return
+	}
 	path := strings.TrimRight(r.URL.Path, "/")
 	if path == "" {
 		path = "/"

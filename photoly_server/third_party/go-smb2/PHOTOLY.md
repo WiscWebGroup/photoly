@@ -21,3 +21,11 @@ rejecting negative or overflowing sizes before slicing or allocating. Keep this
 guard when updating the snapshot. Run `go test -race ./internal/crypto/...` from
 this module; the parent module's `go test ./...` does not include replacement
 module tests.
+
+## License scope
+
+Upstream source retains its original BSD-2-Clause grant; Go-derived files retain
+their BSD-3-Clause copyright headers. Photoly's additions and modifications are
+part of Photoly under AGPL-3.0-or-later. This does not relicense the upstream
+material or remove its attribution. The combined application's corresponding
+source includes this modified snapshot, not just the upstream module version.

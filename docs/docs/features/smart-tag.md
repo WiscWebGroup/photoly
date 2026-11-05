@@ -69,7 +69,7 @@ Gallery names use `Times in CITY and CITY · START – END`.
 - All cities stay in the basis.
 - If the location is unknown, the name is `Travel moments`.
 - City assignments are approximate. The limit is 100 km.
-- Photoly uses a fixed [GeoNames snapshot](https://github.com/WiscWebGroup/photoly/blob/main/photoly_backend/app/smart/data/README.md).
+- Photoly uses a fixed [GeoNames snapshot](https://github.com/WiscWebGroup/photoly/blob/main/photoly_server/internal/ai/smartdata/README.md).
 
 ## What Photoly stores
 

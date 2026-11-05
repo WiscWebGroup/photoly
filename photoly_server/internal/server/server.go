@@ -12,6 +12,7 @@ import (
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/app"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/db"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/httpx"
+	"github.com/WiscWebGroup/photoly/photoly_server/internal/legal"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/migrations"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/session"
 	"github.com/WiscWebGroup/photoly/photoly_server/internal/storage"
@@ -118,6 +119,9 @@ func newWithRouter(ctx context.Context, cfg app.Config, openapi []byte, mux app.
 	}
 	// "/x/" and "/x" are the same route.
 	var h http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if legal.Serve(w, r) {
+			return
+		}
 		if p := r.URL.Path; len(p) > 1 && p[len(p)-1] == '/' {
 			r.URL.Path = p[:len(p)-1]
 			r.URL.RawPath = ""
