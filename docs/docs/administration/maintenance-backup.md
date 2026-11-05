@@ -57,6 +57,19 @@ Each completed backup has a UUID directory containing encrypted archives, sequen
 
 ## Restore and migration
 
+Docker Desktop or a remounted local filesystem can assign new inode numbers to
+unchanged media. Before serving requests or starting workers, Photoly checks the
+default local library roots. If a root identity changed, it verifies the saved
+SHA-256 checksums of all managed originals and Live Photo companions, then rebuilds
+file and folder identities in one transaction. Media IDs, albums and notes remain
+intact. This verification can delay startup for large libraries; ordinary starts
+with unchanged root identities do not hash media. External sources are untouched.
+Missing files, changed or absent checksums, symlinks, and unverified content in a
+previously empty library are not accepted. Failed verification leaves identities intact
+and logs `local storage identity check`; the affected source remains unavailable.
+Restore the expected files before restarting, and keep other applications from
+modifying the managed library during verification.
+
 Copy a completed backup directory into the destination backup volume and refresh the page. Enter maintenance, select **Restore**, enter its password and confirm replacement of all current users, database records and local media.
 
 The destination must have the same schema revision, PostgreSQL major version and pgvector version. Restore does not upgrade an older backup. Deploy a compatible Photoly release first.
