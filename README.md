@@ -20,12 +20,30 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 - Circular avatar crop preview with square 512 × 512 JPEG output
 - Create API to operate your photo using REST API
 
+## Photoly vs Immich
+
+Both are self-hosted, AGPL-3.0 photo libraries. Immich is the larger, mobile-first project; Photoly targets web-first, NAS-style libraries. Immich details reflect its public docs at the time of writing; check [immich.app](https://immich.app) for current status.
+
+| Feature | Photoly | Immich |
+| --- | --- | --- |
+| Native iOS/Android app with auto-backup | No (installable PWA) | Yes |
+| Semantic (CLIP-style) search | Yes (SigLIP2, server or browser) | Yes |
+| Face recognition / People | Yes, opt-in | Yes |
+| Duplicate detection | Yes (SHA-256 exact copies, per-group review) | Yes (visual similarity) |
+| Text recognition (OCR) | On demand (Tesseract) | Yes |
+| Use existing folders / NAS as library | Yes (real folders, external WebDAV storage) | Yes (external libraries) |
+| Per-user S3 storage | Yes (personal S3) | No (local filesystem) |
+| Map and EXIF details | Yes | Yes |
+| Live Photos | Yes | Yes |
+| Share links and QR codes | Yes | Yes |
+| Shared albums and partner sharing | Galleries and share links | Yes |
+| Per-user quotas and groups | Yes | Quotas only |
+| OAuth / OIDC login | No | Yes |
+| REST API | Yes (Swagger UI, OpenAPI) | Yes |
+| Single binary + PostgreSQL | Yes | No (server, ML and Redis containers) |
+
 ## Screenshots
 ![The Photoly welcome page: “Your photos, on your terms” beside a photo grid with a search-by-meaning demo](docs/screenshots/welcome.webp)
-
-### Duplicate Detection
-
-Find identical photos across folders with **Organize → Duplicate Detection**. Mark copies Keep, ignore reviewed groups, or confirm permanent removal of selected extras. Decisions persist across devices; cleanup verifies that a readable matching copy remains. See [Duplicate Detection](docs/docs/features/duplicate-detection.md).
 
 ## Specifications
 
@@ -59,18 +77,6 @@ Frontend: `docker compose -f compose.dev.yml up -d --build`, then `pnpm dev` in 
 ## License
 See [LICENSE](LICENSE).
 
-
-## Search, recognition and smart organization
-
-**Smart Search** is the default search mode: one text box, up to 100 results, with name/tag/gallery matches shown first and semantic results fused when available. Semantic failure preserves text results. See [AI operations](docs/docs/administration/ai-management.md) for indexing, quotas, model lifecycle and mixed photo/video search.
-
-Scroll down in the viewer to load **Similar photos and videos**. Each item has independent results and scroll state. Returning within 30 seconds of leaving restores it; after that it starts collapsed. Viewing an item continuously does not expire it. **Back to top** collapses recommendations and clears that item's cache.
-
-**Extract Text** runs only when requested. Tesseract recognizes simplified/traditional Chinese, English and Japanese on CPU, independently of AI permissions or the model runtime. Results are saved and can be edited or copied. See [OCR limits and operation](docs/docs/features/extract-text.md).
-
-**People** adds private person albums, photo/Gallery people dialogs and manual merge/split controls. Both feature switches default off. See [People](docs/docs/features/people.md) and [model pins, operations and evaluation limits](docs/docs/administration/people.md).
-
-**Smart Tag** requires global AI, administrator Smart Tag, user AI permission and personal Smart Tag to be enabled. Both Smart Tag switches default off. It runs inside the existing scheduler process, with no extra container or model inference. Turning it off retains editable results. See [rules, controls and offline city attribution](docs/docs/features/smart-tag.md).
 
 ### Real folders and personal S3
 
