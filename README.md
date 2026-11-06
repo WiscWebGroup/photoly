@@ -20,28 +20,6 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 - Circular avatar crop preview with square 512 × 512 JPEG output
 - Create API to operate your photo using REST API
 
-## Photoly vs Immich
-
-Both are self-hosted, AGPL-3.0 photo libraries. Immich is the larger, mobile-first project; Photoly targets web-first, NAS-style libraries. Immich details reflect its public docs at the time of writing; check [immich.app](https://immich.app) for current status.
-
-| Feature | Photoly | Immich |
-| --- | --- | --- |
-| Native iOS/Android app with auto-backup | No (installable PWA) | Yes |
-| Semantic (CLIP-style) search | Yes (SigLIP2, server or browser) | Yes |
-| Face recognition / People | Yes, opt-in | Yes |
-| Duplicate detection | Yes (SHA-256 exact copies, per-group review) | Yes (visual similarity) |
-| Text recognition (OCR) | On demand (Tesseract) | Yes |
-| Use existing folders / NAS as library | Yes (real folders, external WebDAV storage) | Yes (external libraries) |
-| Per-user S3 storage | Yes (personal S3) | No (local filesystem) |
-| Map and EXIF details | Yes | Yes |
-| Live Photos | Yes | Yes |
-| Share links and QR codes | Yes | Yes |
-| Shared albums and partner sharing | Galleries and share links | Yes |
-| Per-user quotas and groups | Yes | Quotas only |
-| OAuth / OIDC login | No | Yes |
-| REST API | Yes (Swagger UI, OpenAPI) | Yes |
-| Single binary + PostgreSQL | Yes | No (server, ML and Redis containers) |
-
 ## Screenshots
 ![The Photoly welcome page: “Your photos, on your terms” beside a photo grid with a search-by-meaning demo](docs/screenshots/welcome.webp)
 
