@@ -60,7 +60,13 @@ const defaults: Record<string, Reply> = {
     model: {},
   }),
   '/ai/people/status': ok({ total: 0, ready: 0, failed: 0, processing: 0, pending: 0 }),
-  '/ai/smart/settings': ok({ enabled: false, available: false, reason: 'smart_tag_disabled' }),
+  '/ai/smart/settings': ok({
+    enabled: false,
+    devices: false,
+    trips: false,
+    available: false,
+    reason: 'smart_tag_disabled',
+  }),
   '/ai/smart/status': ok({
     processed: 0,
     total: 0,

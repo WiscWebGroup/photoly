@@ -27,7 +27,8 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('opt in, refresh and restore smart items', async ({ page }) => {
-  let enabled = false
+  let devices = false
+  let trips = false
   let removed = true
   const calls = await mockApi(page, {
     '/user/getInfo': ok({
@@ -37,8 +38,12 @@ test('opt in, refresh and restore smart items', async ({ page }) => {
       createDate: '2026-01-01',
     }),
     '/ai/smart/settings': (call) => {
-      if (call.method === 'PATCH') enabled = (call.body as { enabled: boolean }).enabled
-      return ok({ enabled, available: true, reason: null })
+      if (call.method === 'PATCH') {
+        const body = call.body as { devices?: boolean; trips?: boolean }
+        devices = body.devices ?? devices
+        trips = body.trips ?? trips
+      }
+      return ok({ enabled: devices || trips, devices, trips, available: true, reason: null })
     },
     '/ai/smart/status': ok({
       processed: 25,
@@ -55,10 +60,12 @@ test('opt in, refresh and restore smart items', async ({ page }) => {
     },
   })
   await page.goto('/home/ManagePart#smart')
-  const toggle = page.getByRole('checkbox', { name: 'Enable my Smart Organization' })
+  const toggle = page.getByRole('checkbox', { name: 'Enable Camera and lens tags' })
   await expect(toggle).not.toBeChecked()
+  await expect(page.getByRole('checkbox', { name: 'Enable Trip galleries' })).not.toBeChecked()
   await toggle.check()
   await expect(page.getByText('Smart Organization settings saved.')).toBeVisible()
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ devices: true })
   await expect(page.getByText('25 / 50 media inspected · 1 failed')).toBeVisible()
   await page.getByRole('button', { name: 'Refresh and retry' }).click()
   await page.getByText('Deleted smart items', { exact: true }).click()
@@ -125,7 +132,9 @@ test('smart tags, gallery details and viewer selectors have consistent badges', 
   ).toBe(true)
 })
 
-test('administrator enables Smart Organization and sees progress and pause reasons', async ({ page }) => {
+test('administrator enables Smart Organization and sees progress and pause reasons', async ({
+  page,
+}) => {
   let settings = { ...settingsFixture, smart_tag_enabled: false }
   const calls = await mockApi(page, {
     '/admin/auth': ok(true),
@@ -150,7 +159,9 @@ test('administrator enables Smart Organization and sees progress and pause reaso
   await page.goto('/thepersonincharge/ai')
   await page.getByLabel('Smart Organization', { exact: true }).check()
   await expect(page.getByLabel('Smart Organization progress')).toContainText('30 / 50')
-  await expect(page.getByLabel('Smart Organization progress')).toContainText('Paused for maintenance')
+  await expect(page.getByLabel('Smart Organization progress')).toContainText(
+    'Paused for maintenance',
+  )
   await expect
     .poll(() =>
       calls.some(
