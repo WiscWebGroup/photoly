@@ -23,10 +23,6 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 ## Screenshots
 ![The Photoly welcome page: “Your photos, on your terms” beside a photo grid with a search-by-meaning demo](docs/screenshots/welcome.webp)
 
-### Duplicate Detection
-
-Find identical photos across folders with **Organize → Duplicate Detection**. Mark copies Keep, ignore reviewed groups, or confirm permanent removal of selected extras. Decisions persist across devices; cleanup verifies that a readable matching copy remains. See [Duplicate Detection](docs/docs/features/duplicate-detection.md).
-
 ## Specifications
 
 One Go binary (`photoly`) plus PostgreSQL 17 with pgvector 0.8.7. AI search uses SigLIP2 on ONNX Runtime, in the server or in the user's browser (the administrator chooses where each model runs).
@@ -58,73 +54,3 @@ Frontend: `docker compose -f compose.dev.yml up -d --build`, then `pnpm dev` in 
 
 ## License
 See [LICENSE](LICENSE).
-
-
-## Search, recognition and smart organization
-
-**Smart Search** is the default search mode: one text box, up to 100 results, with name/tag/gallery matches shown first and semantic results fused when available. Semantic failure preserves text results. See [AI operations](docs/docs/administration/ai-management.md) for indexing, quotas, model lifecycle and mixed photo/video search.
-
-Scroll down in the viewer to load **Similar photos and videos**. Each item has independent results and scroll state. Returning within 30 seconds of leaving restores it; after that it starts collapsed. Viewing an item continuously does not expire it. **Back to top** collapses recommendations and clears that item's cache.
-
-**Extract Text** runs only when requested. Tesseract recognizes simplified/traditional Chinese, English and Japanese on CPU, independently of AI permissions or the model runtime. Results are saved and can be edited or copied. See [OCR limits and operation](docs/docs/features/extract-text.md).
-
-**People** adds private person albums, photo/Gallery people dialogs and manual merge/split controls. Both feature switches default off. See [People](docs/docs/features/people.md) and [model pins, operations and evaluation limits](docs/docs/administration/people.md).
-
-**Smart Tag** requires global AI, administrator Smart Tag, user AI permission and personal Smart Tag to be enabled. Both Smart Tag switches default off. It runs inside the existing scheduler process, with no extra container or model inference. Turning it off retains editable results. See [rules, controls and offline city attribution](docs/docs/features/smart-tag.md).
-
-### Real folders and personal S3
-
-The local library mirrors each user’s actual UUID directory. External changes are scanned automatically; users can connect multiple personal S3 buckets as named cloud folders alongside local content. This release requires a fresh library and refuses old flat-layout media. See [layout, synchronization, S3, downloads and deployment](docs/docs/features/storage/real-folders.md).
-
-### Bulk uploads and storage groups
-
-Files, folders and ZIPs can be uploaded in unlimited-count batches. The global Upload activity panel stays available while browsing. Each account inherits a default 50 GB group quota, with administrator-managed groups and personal overrides. See [uploads, storage, migration and worker operations](docs/docs/features/uploads.md).
-
-### Dates and folder details
-
-**Organize → Dates** brings together the signed-in user's photos across all folders. Latest/Oldest
-uses EXIF capture time, falling back to upload time; records with neither appear last under Undated.
-Year and month headings show photo totals. Years start expanded; only the first month in the chosen
-sort order opens automatically. Each month card shows up to ten thumbnail previews (up to five on phones), loaded only near the viewport; collapsed months do not fetch full photo pages. Multiple months can stay open. Photos load near the viewport in
-100-image pages per day; offscreen pages retain their layout but release their rendered cards.
-The ordinary page cache is bounded (20 pages, with visible pages retained while in use).
-The floating photo calendar shows monthly and daily counts. Choose a year/month and click a day to
-jump directly to it without loading earlier photos. Hide the calendar to leave a small restore button;
-this preference is remembered on the device. Undated photos remain in a separate expandable section.
-Changing the sort, editing a photo or completing an upload refreshes the counts and loaded content.
-Selection survives page recycling; Select All applies to loaded photos, not the entire library.
-The photo viewer's **Open folder** link returns to the containing folder.
-
-Right-click a folder and choose **Details** to view recursive photo,
-video and subfolder counts. Storage separates original files from thumbnails and excludes avatars
-and temporary files. Missing expected files are reported as incomplete totals. Places are approximate
-nearby towns derived from GPS; cameras and lenses come from photo metadata, with counts per photo.
-
-The new owner-only endpoints are `GET /photo/getDateSummary`, `GET /photo/getByDate`, `GET /photo/getMonthPreview` and `GET /namespace/getDetails`; see `/docs`
-for parameters, pagination and response schemas. Dates itself requires no schema changes. Media tools use migration `0007_media_tools`; persistent upload activity controls use `0008_upload_activity`.
-
-### Media tools
-
-Right-click an image and choose **Format Convert** to save a JPEG, PNG or GIF copy in its actual folder. GIFs animate in the viewer; newly uploaded Apple Live Photo pairs have a LIVE playback control and original-pair ZIP download. Upload pickers accept pasted images with Cmd+V / Ctrl+V. Administrators can enable **Online Download** in Settings; the download icon appears immediately left of Upload. See [format support, pairing, security limits and upgrade instructions](docs/docs/features/media-tools.md).
-
-See [external local mounts and WebDAV](docs/docs/features/storage/external-storage.md) for multi-source setup, Docker mounts, scanning and file retention.
-
-Personal Storage supports multiple WebDAV and SMB connections, plus administrator-assigned local mounts. Folder pages show indexing progress and offer recursive folder refresh. See [external storage deployment and testing](docs/docs/features/storage/external-storage.md).
-
-### Video player licenses
-
-Ordinary videos use ArtPlayer 5.4.0 (MIT), loaded when the viewer opens a video.
-Playback uses the existing media endpoint and the browser's supported codecs;
-Live Photo playback remains separate. Player settings link to
-`/player-licenses.txt`, including ArtPlayer and its runtime/bundled dependency
-notices. Run `pnpm licenses:player` in `photoly_frontend_vue` to regenerate it;
-`pnpm build` also generates it for Vite and Docker distributions. See
-[notice sources](photoly_frontend_vue/licenses/artplayer/README.md) when upgrading.
-Photoly remains AGPL-3.0-or-later; these components retain their own licenses.
-
-### Licenses and corresponding source
-
-Open **Licenses & source** (`/legal`) for Photoly's AGPL license, third-party
-notices, pinned model grants and the source of the frontend/backend versions.
-See [licensing and redistribution](docs/docs/overview/licenses.md) for container
-container source information, deployment configuration and dependency-upgrade checks.
