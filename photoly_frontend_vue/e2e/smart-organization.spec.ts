@@ -68,7 +68,7 @@ test('opt in, refresh and restore smart items', async ({ page }) => {
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ devices: true })
   await expect(page.getByText('25 / 50 media inspected · 1 failed')).toBeVisible()
   await page.getByRole('button', { name: 'Refresh and retry' }).click()
-  await page.getByText('Deleted smart items', { exact: true }).click()
+  await page.locator('summary', { hasText: 'Deleted smart items' }).click()
   await page.getByRole('button', { name: 'Restore iPhone 13' }).click()
   await expect(page.getByText('No deleted smart items.')).toBeVisible()
   expect(calls.some((c) => c.path === '/ai/smart/refresh')).toBe(true)
