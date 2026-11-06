@@ -165,11 +165,13 @@ let timer: ReturnType<typeof setTimeout> | undefined
 let run = 0
 watch([rotated, crop, limitOn, maxBytes, encoding], () => {
   clearTimeout(timer)
+  // Invalidate now, not when the timer fires, so an encode still running for the old
+  // settings can't land after the user has changed them.
+  const id = ++run
   estimate.value = undefined
   if (!rotated.value || unchanged.value || limitInvalid.value) return (estimating.value = false)
   estimating.value = true
   timer = setTimeout(async () => {
-    const id = ++run
     try {
       const result = await build()
       if (id === run) estimate.value = result
