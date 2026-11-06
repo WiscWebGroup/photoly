@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoTip from '@/components/InfoTip.vue'
 import StorageScanProgress from '@/components/StorageScanProgress.vue'
 import type { StorageStatus } from '@/composables/useStorageRevision'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
@@ -209,15 +210,15 @@ onUnmounted(() => clearInterval(timer))
         v-else
         class="size-5 text-purple-600"
       />{{ admin ? 'Local mounts' : 'External storage connections' }}
+      <InfoTip label="external storage" doc="/features/storage/external-storage">
+        Each connection appears as a separate library folder. External changes sync automatically.
+        Originals do not count toward your quota; thumbnails and previews do.
+        <template v-if="admin">
+          Shared or overlapping folders have independent indexes. Editing or deleting files affects
+          everyone using the same actual folder.
+        </template>
+      </InfoTip>
     </h3>
-    <p class="text-muted-foreground text-sm">
-      Each connection appears as a separate library folder. External changes sync automatically.
-      Originals do not count toward your quota; thumbnails and previews do.
-    </p>
-    <p v-if="admin" class="text-muted-foreground text-sm">
-      Shared or overlapping folders have independent indexes. Editing or deleting files affects
-      everyone using the same actual folder.
-    </p>
     <p v-if="failure" role="alert" class="text-destructive text-sm">{{ failure }}</p>
     <article
       v-for="binding in bindings"

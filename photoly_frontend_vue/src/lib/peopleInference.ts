@@ -1,4 +1,6 @@
 /** Versioned YuNet/SFace numerical contract, mirrored by people_preprocess.go. */
+/** Cache Storage name holding the downloaded face models. */
+export const PEOPLE_MODEL_CACHE = 'photoly-people-models-v1'
 export interface FaceDetection {
   box: number[]
   landmarks: number[]

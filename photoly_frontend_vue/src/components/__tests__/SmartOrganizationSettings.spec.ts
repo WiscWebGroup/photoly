@@ -16,13 +16,23 @@ const item = {
 }
 function mock(enabled = false, available = true) {
   let removed = false
+  let devices = enabled
+  let trips = enabled
   server.use(
     http.get(`${API}/ai/smart/settings`, () =>
-      ok({ enabled, available, reason: available ? null : 'ai_permission_required' }),
+      ok({
+        enabled: devices || trips,
+        devices,
+        trips,
+        available,
+        reason: available ? null : 'ai_permission_required',
+      }),
     ),
     http.patch(`${API}/ai/smart/settings`, async ({ request }) => {
-      enabled = ((await request.json()) as { enabled: boolean }).enabled
-      return ok({ enabled, available })
+      const body = (await request.json()) as { devices?: boolean; trips?: boolean }
+      devices = body.devices ?? devices
+      trips = body.trips ?? trips
+      return ok({ enabled: devices || trips, devices, trips, available })
     }),
     http.get(`${API}/ai/smart/status`, () =>
       ok({
@@ -61,7 +71,10 @@ describe('Smart organization settings', () => {
     await vi.waitFor(() => expect(button('Restore').disabled).toBe(false))
     button('Restore').click()
     await vi.waitFor(() => expect(pageText()).toContain('No deleted smart items.'))
-    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ enabled: true })
+    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ devices: true })
+    expect((wrapper.findAll('input[type=checkbox]')[1].element as HTMLInputElement).checked).toBe(
+      false,
+    )
     expect(pageText()).toContain('2 failed')
   })
 
@@ -83,7 +96,7 @@ describe('Smart organization settings', () => {
     const wrapper = mountWithApp(SmartOrganizationSettings)
     await vi.waitFor(() => expect(pageText()).toContain('25 / 50'))
     await wrapper.get('input').setValue(true)
-    await vi.waitFor(() => expect(pageText()).toContain('Could not save Smart Tag changes'))
+    await vi.waitFor(() => expect(pageText()).toContain('Could not save Smart Organization changes'))
     expect((wrapper.get('input').element as HTMLInputElement).checked).toBe(false)
   })
 
@@ -110,6 +123,6 @@ it('rejects malformed settings responses without breaking the account page', asy
   mock()
   server.use(http.get(`${API}/ai/smart/dismissed`, () => ok([])))
   const wrapper = mountWithApp(SmartOrganizationSettings)
-  await vi.waitFor(() => expect(pageText()).toContain('Could not load Smart Tag settings'))
+  await vi.waitFor(() => expect(pageText()).toContain('Could not load Smart Organization settings'))
   expect(wrapper.text()).toContain('No deleted smart items.')
 })

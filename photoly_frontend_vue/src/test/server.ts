@@ -57,7 +57,16 @@ export const server = setupServer(
     }),
   ),
   http.get(`${API}/ai/smart/settings`, () =>
-    json({ msgCode: 200, t: { enabled: false, available: false, reason: 'smart_tag_disabled' } }),
+    json({
+      msgCode: 200,
+      t: {
+        enabled: false,
+        devices: false,
+        trips: false,
+        available: false,
+        reason: 'smart_tag_disabled',
+      },
+    }),
   ),
   http.get(`${API}/ai/smart/status`, () =>
     json({

@@ -72,7 +72,7 @@ const hasAiSettings = computed(() => !!browserAi.capabilities?.placement)
 const allSections = [
   { id: 'profile', label: 'Profile' },
   { id: 'password', label: 'Password' },
-  { id: 'smart', label: 'Smart Tag' },
+  { id: 'smart', label: 'Smart Organization' },
   { id: 'people', label: 'People' },
   { id: 'storage', label: 'Storage' },
   { id: 'ai', label: 'AI on this device' },
@@ -311,7 +311,7 @@ onMounted(() => {
           <li
             v-for="row in [
               { id: 'password', label: 'Password', icon: KeyRound, meta: '' },
-              { id: 'smart', label: 'Smart Tag', icon: Sparkles, meta: '' },
+              { id: 'smart', label: 'Smart Organization', icon: Sparkles, meta: '' },
               { id: 'people', label: 'People', icon: Sparkles, meta: '' },
               { id: 'storage', label: 'Storage', icon: HardDrive, meta: '' },
               ...(hasAiSettings
@@ -516,7 +516,7 @@ onMounted(() => {
           id="smart-h"
           class="mb-1 text-base font-semibold max-md:text-2xl max-md:leading-8 max-md:tracking-[-0.01em]"
         >
-          Smart Tag
+          Smart Organization
         </h2>
         <p class="text-muted-foreground text-sm">
           Sorts photos and videos into camera and lens tags, and trip galleries from time and place.

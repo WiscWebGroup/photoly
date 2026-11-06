@@ -399,6 +399,9 @@ type SmartPreference struct {
 	Checkpoint        []byte
 	Reason            *string
 	UpdatedAt         *time.Time
+	DevicesEnabled    bool
+	TripsEnabled      bool
+	DevicesDirty      bool
 }
 
 type StorageObservation struct {

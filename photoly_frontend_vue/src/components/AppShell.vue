@@ -259,11 +259,6 @@ const iconButton =
                 Using {{ storage.usage.value.backend }}
               </p>
             </div>
-            <RouterLink
-              to="/legal"
-              class="text-muted-foreground block px-2.5 py-2 text-xs underline underline-offset-4"
-              >Licenses &amp; source</RouterLink
-            >
             <div class="flex items-center gap-1 border-t pt-3">
               <router-link
                 to="/home/ManagePart"

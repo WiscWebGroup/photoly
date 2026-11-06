@@ -1,6 +1,6 @@
 package ai
 
-// Smart Tag scheduler and bounded organization steps (scheduler/smart_tag_scheduler.py, smart/organize.py).
+// Smart Organization scheduler and bounded organization steps (scheduler/smart_tag_scheduler.py, smart/organize.py).
 
 import (
 	"context"
@@ -248,10 +248,12 @@ func (s *SmartSched) batch(ctx context.Context, t *Task, uid int64) error {
 					}
 					meta = &todo{pid, uid, ver, path}
 				case errors.Is(err, pgx.ErrNoRows):
-					cp["phase"] = "anchors"
+					cp["phase"], cp["cursor"] = "devices", 0
 				default:
 					return false, err
 				}
+			case "devices":
+				err = devicesPhase(ctx, tx, pref, cp)
 			case "anchors":
 				err = anchorStep(ctx, tx, pref, cp)
 			case "missing":
@@ -331,7 +333,11 @@ func (s *SmartSched) batch(ctx context.Context, t *Task, uid int64) error {
 				return false, err
 			}
 			if code == "" {
-				if err := devicesStep(ctx, tx, uid, meta.photoID, meta.version, facts.Facts); err != nil {
+				f := facts.Facts
+				if !pref.Devices {
+					f = map[string]any{}
+				}
+				if err := devicesStep(ctx, tx, uid, meta.photoID, meta.version, f); err != nil {
 					return false, err
 				}
 			}
@@ -488,7 +494,35 @@ type mediaRow struct {
 
 func localDate(m *mediaRow) any { return m.Facts["localDate"] }
 
+// devicesPhase re-applies camera/lens tags to already-inspected media after the toggle changed.
+func devicesPhase(ctx context.Context, q Q, pref *smartPref, cp map[string]any) error {
+	cursor, _ := toInt(cp["cursor"])
+	var id int64
+	var ver int32
+	var facts map[string]any
+	err := q.QueryRow(ctx, `SELECT s.photo_id, s.content_version, s.facts FROM smart_media s JOIN photo p ON p.photo_id=s.photo_id
+		WHERE s.user_id=$1 AND s.photo_id>$2 AND s.error IS NULL AND s.content_version=p.content_version
+		ORDER BY s.photo_id LIMIT 1`, pref.UserID, cursor).Scan(&id, &ver, &facts)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !pref.DevicesDirty) {
+		pref.DevicesDirty = false
+		cp["phase"], cp["cursor"] = "anchors", 0
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	cp["cursor"] = id
+	if !pref.Devices || facts == nil {
+		facts = map[string]any{}
+	}
+	return devicesStep(ctx, q, pref.UserID, id, ver, facts)
+}
+
 func anchorStep(ctx context.Context, q Q, pref *smartPref, cp map[string]any) error {
+	if !pref.Trips {
+		cp["phase"], cp["cursor"] = "items", 0
+		return nil
+	}
 	sql := `SELECT s.photo_id, s.user_id, s.content_version, s.captured_at, s.facts FROM smart_media s JOIN photo p ON p.photo_id=s.photo_id
 		WHERE s.user_id=$1 AND s.content_version=p.content_version AND s.error IS NULL AND s.captured_at IS NOT NULL AND s.latitude IS NOT NULL`
 	args := []any{pref.UserID}
@@ -828,6 +862,9 @@ func itemStep(ctx context.Context, q Q, pref *smartPref, cp map[string]any) erro
 	if err != nil {
 		return err
 	}
+	if !pref.Trips {
+		return ensureCatalog(ctx, q, it, false)
+	}
 	var count, anchors int64
 	if err := q.QueryRow(ctx, `SELECT count(*), count(*) FILTER (WHERE anchor) FROM smart_member WHERE item_id=$1 AND run=$2`, id, run).Scan(&count, &anchors); err != nil {
 		return err
@@ -896,7 +933,7 @@ func memberStep(ctx context.Context, q Q, pref *smartPref, cp map[string]any) er
 	}
 	cp["cursor"], cp["member"] = item, photo
 	run, _ := cp["run"].(string)
-	auto := mrun != nil && *mrun == run
+	auto := pref.Trips && mrun != nil && *mrun == run
 	if _, err := q.Exec(ctx, `UPDATE smart_member SET automatic=$3 WHERE item_id=$1 AND photo_id=$2`, item, photo, auto); err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ import * as ort from 'onnxruntime-web/webgpu'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { ortWasmPaths } from './ortAssets'
 import {
+  PEOPLE_MODEL_CACHE,
   alignedFaceTensor,
   decodeFaces,
   detectorTensor,
@@ -28,9 +29,7 @@ async function modelBytes(manifest: FaceManifest, kind: 'detector' | 'embedder')
   const file = manifest.files[kind],
     url = new URL(manifest.baseUrl + file.file, self.location.origin).href
   const cache =
-    typeof caches === 'undefined'
-      ? null
-      : await caches.open('photoly-people-models-v1').catch(() => null)
+    typeof caches === 'undefined' ? null : await caches.open(PEOPLE_MODEL_CACHE).catch(() => null)
   let response = await cache?.match(url)
   if (!response) {
     self.postMessage({ type: 'progress', message: `Downloading ${kind} model` })

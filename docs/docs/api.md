@@ -33,7 +33,7 @@ Legacy operations usually return HTTP 200 even for business failures. Check `msg
 
 - Uploads and quotas: [Groups and quotas](administration/groups-and-quotas.md)
 - Extract Text: [Processing and API](administration/extract-text.md)
-- Smart Tag: [API](administration/smart-tag.md)
+- Smart Organization: [API](administration/smart-organization.md)
 - External storage: [Storage deployment](administration/storage-deployment.md)
 - Dates and folder details: [Dates and folder details](features/dates-and-folders.md)
 

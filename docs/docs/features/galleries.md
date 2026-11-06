@@ -27,7 +27,7 @@ Open a gallery to see its description, media count and source folders. Switch am
 
 *All names, descriptions and media in this example are synthetic.*
 
-A gallery is an account-owned organization tool. Adding a description does not enable public sharing. A photo's share link is controlled separately in its viewer. For automatically suggested trip galleries and manual membership overrides, read [Smart Tag](smart-tag.md). For projections and location controls, read [Maps and locations](maps-and-locations.md).
+A gallery is an account-owned organization tool. Adding a description does not enable public sharing. A photo's share link is controlled separately in its viewer. For automatically suggested trip galleries and manual membership overrides, read [Smart Organization](smart-organization.md). For projections and location controls, read [Maps and locations](maps-and-locations.md).
 
 ## Integration behavior
 

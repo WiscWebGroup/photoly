@@ -47,7 +47,7 @@ Storage and runtime:
 
 ## Related
 
-Sizes and upgrade notes are in [Media tools](media-tools.md), [Extract Text](extract-text.md) and [Smart Tag](smart-tag.md) operations.
+Sizes and upgrade notes are in [Media tools](media-tools.md), [Extract Text](extract-text.md) and [Smart Organization](smart-organization.md) operations.
 
 ## Model controls and API clients
 
