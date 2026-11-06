@@ -9,6 +9,7 @@ const map = vi.hoisted(() => ({
   off: vi.fn(),
   once: vi.fn((_event: string, callback: () => void) => queueMicrotask(callback)),
   loaded: () => true,
+  isMoving: () => false,
   getZoom: () => 0,
   getCenter: () => ({ lng: 10, lat: 19 }),
   jumpTo: vi.fn(),

@@ -29,6 +29,11 @@ export default defineConfig({
     },
   },
   preview: { headers: isolation },
+  optimizeDeps: {
+    // The pre-scan misses ortAssets.ts's `?url` imports (unused in dev). Finding them on
+    // first load re-optimizes and force-reloads every open page, which breaks e2e tests mid-run.
+    exclude: ['@ort'],
+  },
   build: {
     rollupOptions: {
       output: {

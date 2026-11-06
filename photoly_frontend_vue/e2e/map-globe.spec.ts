@@ -30,7 +30,10 @@ test('defaults to a globe, hides the far hemisphere and remembers a shared proje
   page,
 }, info) => {
   const errors: string[] = []
-  page.on('pageerror', (e) => errors.push(e.message))
+  page.on('pageerror', (e) => {
+    // WebKit reports the mocked cross-origin upload poll that navigation aborts as a CORS error.
+    if (!/due to access control checks/.test(e.message)) errors.push(e.message)
+  })
   const calls = await setup(page)
   await page.goto('/home/MapPart')
   const map = page.locator('[data-engine]')

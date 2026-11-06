@@ -92,12 +92,11 @@ test('offscreen maps wait; tile failures retry and a pending map never blocks cl
     return fail ? route.abort() : route.fulfill({ body: PNG, contentType: 'image/png' })
   })
   await page.goto('/home/HomePart')
+  // Keep Location offscreen regardless of viewport height, from the viewer's first render,
+  // so a slow runner can't see the map onscreen before the margin applies.
+  await page.addStyleTag({ content: '[data-location-section] { margin-top: 1500px }' })
   await page.locator('[data-photo-id="1"]').click()
   const map = page.getByRole('region', { name: 'Photo location map' })
-  // Keep Location offscreen regardless of desktop/mobile viewport height.
-  await page.locator('[data-location-section]').evaluate((el) => {
-    ;(el as HTMLElement).style.marginTop = '1500px'
-  })
   await expect(page.locator('[data-photo-zoom]').filter({ visible: true })).toBeVisible()
   await page.waitForTimeout(600)
   expect(tiles).toBe(0)

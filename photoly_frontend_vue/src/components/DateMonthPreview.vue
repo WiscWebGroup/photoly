@@ -12,8 +12,9 @@ let loadedKey = ''
 let observer: IntersectionObserver | undefined
 onMounted(() => {
   observer = new IntersectionObserver(
-    ([entry]) => {
-      visible.value = !!entry?.isIntersecting
+    // One callback can carry several queued changes; the last one is current.
+    (entries) => {
+      visible.value = !!entries.at(-1)?.isIntersecting
     },
     { rootMargin: '150px' },
   )

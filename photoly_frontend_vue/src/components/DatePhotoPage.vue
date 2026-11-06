@@ -48,8 +48,9 @@ function observe() {
   const scrollRoot = root.value.closest('main')
   const overscan = scrollRoot?.clientHeight || window.innerHeight
   intersection = new IntersectionObserver(
-    ([entry]) => {
-      near.value = !!entry?.isIntersecting
+    // One callback can carry several queued changes; the last one is current.
+    (entries) => {
+      near.value = !!entries.at(-1)?.isIntersecting
     },
     { root: scrollRoot, rootMargin: `${overscan}px 0px` },
   )
