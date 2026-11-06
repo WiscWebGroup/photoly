@@ -109,7 +109,8 @@ export async function createMapLibreEngine(
   const pins = new Map<string, { marker: Marker; pin: MapPin }>()
   const callbacks = new Set<() => void>()
   const changed = () => {
-    el.dataset.ready = String(map.loaded())
+    // Test hook: tiles are loaded and the camera has settled. 'idle' sets it once both hold.
+    el.dataset.ready = String(map.loaded() && !map.isMoving())
     el.dataset.zoom = String(map.getZoom())
     el.dataset.longitude = String(map.getCenter().lng)
     el.dataset.latitude = String(map.getCenter().lat)

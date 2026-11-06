@@ -54,6 +54,10 @@ async function harness(page: Page) {
 
 // Decode screenshots instead of reading an already-cleared WebGL drawing buffer.
 async function samples(page: Page, positions: number[][]) {
+  // Under CI load, Linux WebKit can keep showing a frame drawn before the last tile arrived,
+  // even after the map reports idle. resize() redraws everything; wait until that redraw settles.
+  await page.evaluate(() => window.lightingTest.resize())
+  await expect(page.locator('#map')).toHaveAttribute('data-ready', 'true')
   // Wait for the map render and the following compositor frame, including WebKit.
   await page.evaluate(
     () =>
