@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoTip from '@/components/InfoTip.vue'
 import { onMounted } from 'vue'
 import StorageScanProgress from './StorageScanProgress.vue'
 import { useStorageRevision } from '@/composables/useStorageRevision'
@@ -30,11 +31,13 @@ onMounted(load)
 <template>
   <section class="flex max-w-[560px] flex-col gap-5" aria-label="Personal storage">
     <div>
-      <h3 class="font-medium">Local library</h3>
-      <p class="text-muted-foreground text-sm">
-        Your library folders are stored on disk. External changes are scanned automatically,
-        normally every minute.
-      </p>
+      <h3 class="flex items-center gap-2 font-medium">
+        Local library
+        <InfoTip label="Local library" doc="/features/storage/real-folders">
+          Your library folders are stored on disk. External changes are scanned automatically,
+          normally every minute.
+        </InfoTip>
+      </h3>
       <template
         v-for="source in sources.filter((s) => s.sourceType === 'local')"
         :key="source.sourceId"

@@ -5,7 +5,7 @@ Photoly is a self-hosted photo and video library. Organize media with folders, t
 
 Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自助图片托管应用需求增加，Photoly应运而生。使用 Photoly，您可以轻松管理图片和视频，并使用标签、图库和文件夹对图片和视频进行分类；利用搜索功能，充分探索您的媒体库。此外，Photoly 还提供 API，方便您将我们的功能嵌入到其他应用程序中。
 
-## Functionalities
+## Features
 - Upload Photo / Video, and store them in folders
 - Attach a Photo / Video with a Gallery or a Tag
 - Add optional Gallery descriptions (up to 5,000 characters of plain text with line breaks), editable in New/Edit Gallery and displayed only in gallery details
@@ -15,7 +15,7 @@ Photoly是一款非常美丽的图床网页应用。随着人们对可靠的 自
 - Smart Search combines photo/video names, tags and galleries with optional semantic search; existing search modes remain available
 - Similar photos and videos, including five-frame video indexing and per-media recommendation state
 - On-demand multilingual text recognition with editable, saved results and copy support (Tesseract CPU)
-- Optional Smart Tag camera/lens labels and time/location-based trip galleries
+- Optional Smart Organization camera/lens labels and time/location-based trip galleries
 - Opt-in private People albums with YuNet/SFace face grouping, persistent names and manual corrections; server or browser inference
 - Circular avatar crop preview with square 512 × 512 JPEG output
 - Create API to operate your photo using REST API

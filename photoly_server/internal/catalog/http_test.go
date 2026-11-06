@@ -103,7 +103,7 @@ func TestTagGalleryNamespaceFlow(t *testing.T) {
 	}
 	u1.Want(u1.JSON("POST", "/tag/update", map[string]any{"tagId": tag["tagId"], "tagName": "sea"}), 200)
 
-	// smart tag: update renames, delete dismisses (keeps suppressed item)
+	// smart organization: update renames, delete dismisses (keeps suppressed item)
 	smart := q(`INSERT INTO smart_item(user_id,source,tag_id,name,basis) VALUES ($1,'camera',$2,'Canon','{"k":1}') RETURNING item_id`, q("uid"), int64(tag["tagId"].(float64)))
 	q(`INSERT INTO smart_preference(user_id) VALUES ($1) RETURNING revision`, q("uid"))
 	u1.Want(u1.JSON("POST", "/tag/update", map[string]any{"tagId": tag["tagId"], "tagName": "sea"}), 200)

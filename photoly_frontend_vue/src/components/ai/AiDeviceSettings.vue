@@ -9,12 +9,17 @@ import { aiMessage, type AiModelKind, type BrowserTextModel, type Placement } fr
 import { threadCount } from '@/lib/browserAi'
 import { modelSizes, sizeLabel } from '@/lib/browserAiCopy'
 import { useBrowserAiStore } from '@/stores/browserAi'
+import { usePeopleStore } from '@/stores/people'
 
 const store = useBrowserAiStore()
+const people = usePeopleStore()
 const state = store.state
 const caps = computed(() => store.capabilities)
 const placement = computed(() => caps.value?.placement)
 const sizes = computed(() => modelSizes(caps.value?.browser?.sizesMB))
+const peopleMB = computed(() =>
+  Math.round(Object.values(people.model?.files ?? {}).reduce((n, f) => n + f.size, 0) / 1e6),
+)
 const version = computed(() => caps.value?.browser?.fingerprint?.slice(0, 7) ?? '')
 const library = computed(() => store.library)
 const coveragePct = computed(() => Math.round((caps.value?.coverage?.ratio ?? 0) * 100))
@@ -35,34 +40,51 @@ const busy = ref(false)
 const graphics = ref('')
 const threads = threadCount(globalThis.crossOriginIsolated === true, navigator.hardwareConcurrency)
 
-const rows: { kind: AiModelKind; label: string; what: string }[] = [
-  { kind: 'text', label: 'Search queries', what: 'search' },
-  { kind: 'image', label: 'Photo indexing', what: 'image' },
+type Row = AiModelKind | 'people'
+const baseRows: { kind: Row; label: string }[] = [
+  { kind: 'text', label: 'Search queries' },
+  { kind: 'image', label: 'Photo indexing' },
 ]
-const downloadMB = (kind: AiModelKind) =>
-  kind === 'image'
+// People has its own preference; show it only when the admin lets this user choose.
+const rows = computed(() =>
+  people.preference?.choosable
+    ? [...baseRows, { kind: 'people' as const, label: 'People' }]
+    : baseRows,
+)
+const downloadMB = (kind: Row) =>
+  kind === 'image' || kind === 'people'
     ? sizes.value.image
     : sizes.value[state.textModel === 'full' ? 'textFull' : 'textSmall']
-const choices = (kind: AiModelKind): { id: Placement; title: string; desc: string }[] => [
+const choices = (kind: Row): { id: Placement; title: string; desc: string }[] => [
   {
     id: 'browser',
     title: 'In this browser',
-    desc: `Fast on this computer. Downloads ${sizeLabel(downloadMB(kind))} once and keeps it here.`,
+    desc:
+      kind === 'people'
+        ? 'Keep Photoly open to process photos on this device. Devices without WebGPU use the CPU.'
+        : `Fast on this computer. Downloads ${sizeLabel(downloadMB(kind))} once and keeps it here.`,
   },
   {
     id: 'server',
     title: 'On the server',
-    desc: 'Nothing to download. Searches may wait when the server is busy.',
+    desc:
+      kind === 'people'
+        ? 'Photos are processed in the background on the server.'
+        : 'Nothing to download. Searches may wait when the server is busy.',
   },
 ]
-const locked = (kind: AiModelKind) => !store.choosable[kind]
-const where = (kind: AiModelKind) => placement.value?.[kind] ?? 'server'
+const locked = (kind: Row) => (kind === 'people' ? false : !store.choosable[kind])
+const where = (kind: Row): Placement =>
+  kind === 'people'
+    ? (people.preference?.placement ?? 'server')
+    : (placement.value?.[kind] ?? 'server')
 
-async function pick(kind: AiModelKind, to: Placement) {
+async function pick(kind: Row, to: Placement) {
   if (busy.value || where(kind) === to) return
   busy.value = true
   try {
-    await store.setPreference(kind, to)
+    if (kind === 'people') await people.change({ placement: to })
+    else await store.setPreference(kind, to)
   } catch (e) {
     toast.error(aiMessage(e))
   } finally {
@@ -71,6 +93,15 @@ async function pick(kind: AiModelKind, to: Placement) {
 }
 async function chooseSize(event: Event) {
   await store.setTextModel((event.target as HTMLSelectElement).value as BrowserTextModel)
+}
+async function removeOne(fn: () => Promise<void>) {
+  busy.value = true
+  try {
+    await fn()
+    toast.success('Removed from this device.')
+  } finally {
+    busy.value = false
+  }
 }
 async function keep() {
   const ok = await store.keepOnDevice()
@@ -81,6 +112,7 @@ async function remove() {
   busy.value = true
   try {
     await store.removeFromDevice()
+    await people.removeSaved()
     toast.success('Removed from this device.')
   } finally {
     busy.value = false
@@ -100,6 +132,7 @@ const speed = computed(() =>
 )
 
 onMounted(async () => {
+  void people.refresh().then(people.refreshSaved)
   await store.refreshCapabilities(true)
   await store.refreshSaved()
   const gpu = await store.ai.detectGpu()
@@ -199,6 +232,16 @@ const grid = 'grid gap-x-12 gap-y-5 border-b pb-8 md:grid-cols-[minmax(0,280px)_
               class="bg-accent text-accent-foreground inline-flex h-[22px] items-center gap-1.5 rounded-full px-2 text-xs font-medium"
               ><Check class="size-3" aria-hidden="true" />Saved</span
             >
+            <Button
+              v-if="store.saved.text"
+              type="button"
+              variant="ghost"
+              size="sm"
+              :disabled="busy"
+              aria-label="Remove search model from this device"
+              @click="removeOne(() => store.removeModel('text'))"
+              >Remove</Button
+            >
             <span v-else class="text-muted-foreground text-xs">Not downloaded</span>
           </li>
           <li class="flex items-center gap-3 px-4 py-3.5">
@@ -214,6 +257,42 @@ const grid = 'grid gap-x-12 gap-y-5 border-b pb-8 md:grid-cols-[minmax(0,280px)_
               v-if="store.saved.image"
               class="bg-accent text-accent-foreground inline-flex h-[22px] items-center gap-1.5 rounded-full px-2 text-xs font-medium"
               ><Check class="size-3" aria-hidden="true" />Saved</span
+            >
+            <Button
+              v-if="store.saved.image"
+              type="button"
+              variant="ghost"
+              size="sm"
+              :disabled="busy"
+              aria-label="Remove image model from this device"
+              @click="removeOne(() => store.removeModel('image'))"
+              >Remove</Button
+            >
+            <span v-else class="text-muted-foreground text-xs">Not downloaded</span>
+          </li>
+          <li v-if="people.model" class="flex items-center gap-3 px-4 py-3.5">
+            <span class="flex min-w-0 flex-1 flex-col"
+              ><span class="font-medium">People model</span
+              ><span class="text-muted-foreground text-xs">{{
+                where('people') === 'browser' || people.savedModel
+                  ? sizeLabel(peopleMB)
+                  : 'Not needed: faces are processed on the server'
+              }}</span></span
+            >
+            <span
+              v-if="people.savedModel"
+              class="bg-accent text-accent-foreground inline-flex h-[22px] items-center gap-1.5 rounded-full px-2 text-xs font-medium"
+              ><Check class="size-3" aria-hidden="true" />Saved</span
+            >
+            <Button
+              v-if="people.savedModel"
+              type="button"
+              variant="ghost"
+              size="sm"
+              :disabled="busy"
+              aria-label="Remove people model from this device"
+              @click="removeOne(() => people.removeSaved())"
+              >Remove</Button
             >
             <span v-else class="text-muted-foreground text-xs">Not downloaded</span>
           </li>

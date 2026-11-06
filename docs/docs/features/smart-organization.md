@@ -1,15 +1,15 @@
 ---
-title: Smart Tag
+title: Smart Organization
 sidebar_position: 6
 ---
+Smart Organization organizes existing photos and videos. You can turn on each feature on its own: camera and lens tags, and trip galleries from capture time and location.
+Smart Organization organizes existing photos and videos. It makes camera and lens tags. It also makes galleries from capture time and location.
 
-Smart Tag organizes existing photos and videos. It makes camera and lens tags. It also makes galleries from capture time and location.
-
-Smart Tag runs in the existing `ai-scheduler` Python process. It uses the existing PostgreSQL job leases. It adds no container, model, inference request, online geocoder or daemon.
+Smart Organization runs in the existing `ai-scheduler` Python process. It uses the existing PostgreSQL job leases. It adds no container, model, inference request, online geocoder or daemon.
 
 OCR, search, avatars and video recommendations keep their own paths.
 
-To turn it on, see [Smart Tag operations](../administration/smart-tag.md).
+To turn it on, see [Smart Organization operations](../administration/smart-organization.md).
 
 ## Organization rules
 
@@ -75,7 +75,7 @@ Gallery names use `Times in CITY and CITY · START – END`.
 
 | Table | Content |
 | --- | --- |
-| `smart_preference` | Opt-in, dirty and completed revisions, resumable phase checkpoint |
+| `smart_preference` | Opt-in per feature (`devices_enabled`, `trips_enabled`), dirty and completed revisions, resumable phase checkpoint |
 | `smart_media` | EXIF facts with content version, UTC capture time, GPS and time-zone evidence |
 | `smart_item` | Stable identity, source, generated basis, custom name and cover, dismissal |
 | `smart_member` | Automatic membership, and explicit include and exclude choices |

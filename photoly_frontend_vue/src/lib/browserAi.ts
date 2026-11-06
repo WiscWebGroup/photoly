@@ -507,7 +507,28 @@ export function createBrowserAi(options: BrowserAiOptions = {}) {
   /** Which models are saved on this device right now. */
   async function savedOnDevice() {
     if (!config) return { text: false, image: false }
-    return cachedTowers(await cachedUrls(), textDtype(state.textModel, 'wasm', config.dtype), config.dtype)
+    return cachedTowers(
+      await cachedUrls(),
+      textDtype(state.textModel, 'wasm', config.dtype),
+      config.dtype,
+    )
+  }
+
+  /** Deletes one model's saved file (the size currently selected for search) and frees it. */
+  async function removeModel(kind: AiModelKind) {
+    await unload([kind])
+    if (!config) return
+    const dtype = kind === 'text' ? textDtype(state.textModel, 'wasm', config.dtype) : config.dtype
+    const file = `/${kind === 'text' ? 'text_model' : 'vision_model'}${dtype === 'fp32' ? '' : `_${dtype}`}.onnx`
+    const rt = await getRuntime().catch(() => undefined)
+    const cache = await cacheApi()?.open(rt?.env.cacheKey ?? 'transformers-cache')
+    const prefix = new URL(
+      `${config.modelBaseUrl.replace(/\/?$/, '/')}${config.modelName}/`,
+      location.href,
+    ).href
+    for (const req of (await cache?.keys()) ?? [])
+      if (req.url.startsWith(prefix) && req.url.split('?')[0]!.endsWith(file))
+        await cache!.delete(req)
   }
 
   /** Deletes every model file this browser saved and frees what is loaded. */
@@ -523,7 +544,10 @@ export function createBrowserAi(options: BrowserAiOptions = {}) {
   /** Whether the browser can run the model at all (OffscreenCanvas/createImageBitmap for photos). */
   function supported(kind: AiModelKind) {
     if (typeof WebAssembly === 'undefined') return false
-    return kind === 'text' || (typeof createImageBitmap === 'function' && typeof OffscreenCanvas === 'function')
+    return (
+      kind === 'text' ||
+      (typeof createImageBitmap === 'function' && typeof OffscreenCanvas === 'function')
+    )
   }
 
   return {
@@ -538,6 +562,7 @@ export function createBrowserAi(options: BrowserAiOptions = {}) {
     reloadPage,
     setTextModel,
     savedOnDevice,
+    removeModel,
     removeFromDevice,
     supported,
     detectGpu: getGpu,

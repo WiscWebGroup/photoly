@@ -19,7 +19,7 @@ You can organize media with folders, tags and galleries. You can share selected 
 - Watch videos with [playback controls and keyboard shortcuts](../features/video-playback.md).
 - Find media with [Smart Search](../features/search.md). Semantic search is optional.
 - Read text in photos with [Extract Text](../features/extract-text.md).
-- Group photos by camera, lens and trip with [Smart Tag](../features/smart-tag.md).
+- Group photos by camera, lens and trip with [Smart Organization](../features/smart-organization.md).
 - Connect [S3, WebDAV, SMB and local mounts](../features/storage/external-storage.md).
 - Install the web app as a PWA.
 

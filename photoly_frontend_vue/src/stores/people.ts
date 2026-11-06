@@ -1,4 +1,4 @@
-import { computed, ref, watch, onScopeDispose } from 'vue'
+import { computed, ref, toRaw, watch, onScopeDispose } from 'vue'
 import { defineStore } from 'pinia'
 import { useAuthStore } from './auth'
 import { call, http, ApiError } from '@/lib/http'
@@ -6,7 +6,7 @@ import { isAxiosError } from 'axios'
 import { useUploadsStore } from './uploads'
 import { AvatarCache } from '@/lib/peopleCache'
 import type { Photo } from '@/composables/usePhotos'
-import type { FaceDetection } from '@/lib/peopleInference'
+import { PEOPLE_MODEL_CACHE, type FaceDetection } from '@/lib/peopleInference'
 import type { FaceManifest } from '@/lib/people.worker'
 
 export interface PeoplePreference {
@@ -272,7 +272,7 @@ export const usePeopleStore = defineStore('people', () => {
         cancelInference = undefined
         reject(Error(e.message))
       }
-      worker!.postMessage({ id: 1, image, manifest }, [image])
+      worker!.postMessage({ id: 1, image, manifest: structuredClone(toRaw(manifest)) }, [image])
     })
   }
   async function processNext() {
@@ -383,7 +383,32 @@ export const usePeopleStore = defineStore('people', () => {
     },
     { flush: 'sync' },
   )
+  // Face models the browser has saved; the worker puts them in Cache Storage.
+  const savedModel = ref(false)
+  const modelFiles = () =>
+    Object.values(model.value?.files ?? {}).map(
+      (f) => new URL(model.value!.baseUrl + f.file, location.origin).href,
+    )
+  async function refreshSaved() {
+    try {
+      const cache = await caches.open(PEOPLE_MODEL_CACHE)
+      const urls = modelFiles()
+      savedModel.value =
+        urls.length > 0 && (await Promise.all(urls.map((u) => cache.match(u)))).every(Boolean)
+    } catch {
+      savedModel.value = false
+    }
+  }
+  async function removeSaved() {
+    worker?.terminate()
+    worker = undefined
+    await caches.delete(PEOPLE_MODEL_CACHE).catch(() => false)
+    await refreshSaved()
+  }
   return {
+    savedModel,
+    refreshSaved,
+    removeSaved,
     browseMode,
     browseQuery,
     view,

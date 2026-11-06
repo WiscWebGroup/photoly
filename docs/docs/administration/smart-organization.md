@@ -1,19 +1,19 @@
 ---
-title: Smart Tag operations
+title: Smart Organization operations
 sidebar_position: 6
 ---
 
-For rules and user controls, see [Smart Tag](../features/smart-tag.md).
+For rules and user controls, see [Smart Organization](../features/smart-organization.md).
 
 ## Deploy and enable
 
 1. Rebuild and restart. Migration `0005_smart_organization` adds five companion tables and content and vector invalidation triggers. It does not rewrite existing vectors, media or catalogs.
-2. Go to **Admin → AI → Settings and resource limits**. Enable global AI and **Enable Smart Tag**.
+2. Go to **Admin → AI → Settings and resource limits**. Enable global AI and **Enable Smart Organization**.
 3. Grant the account AI access.
 4. Start or resume the existing background scheduler.
-5. In personal settings, enable **Smart Tag for my library**.
+5. In personal settings, enable **Smart Organization for my library**.
 
-Both Smart Tag switches are off by default.
+Both Smart Organization switches are off by default.
 
 Personal settings show progress, wait reasons and failures. **Refresh and retry** requests another pass. It also retries failed metadata reads.
 
@@ -24,7 +24,7 @@ Deployment uses the existing Compose services and migration steps. See [AI manag
 Photoly checks all four gates again before each automatic commit:
 
 1. Global AI
-2. Administrator Smart Tag setting
+2. Administrator Smart Organization setting
 3. Account AI access
 4. User opt-in
 
@@ -34,7 +34,7 @@ Processing pauses for:
 - Scheduler pause or stop
 - CPU, RAM or disk pressure
 
-An offline or unloaded model does not block EXIF work or existing-vector work. If you disable Smart Tag, generated results and manual edits stay. You can still restore a deleted item while automatic processing is off.
+An offline or unloaded model does not block EXIF work or existing-vector work. If you disable Smart Organization, generated results and manual edits stay. You can still restore a deleted item while automatic processing is off.
 
 ### Privacy
 
@@ -46,7 +46,7 @@ An offline or unloaded model does not block EXIF work or existing-vector work. I
 
 - Discovery checks every 60 seconds. It rotates through up to 25 opted-in users. It queues one deduplicated `smart` job per user. Pending jobs rotate between users.
 - Each cooperative batch does at most 25 work units in about 5 seconds.
-- Order in a batch: admin operations, then bounded Smart Tag work, then existing vector scheduling.
+- Order in a batch: admin operations, then bounded Smart Organization work, then existing vector scheduling.
 - EXIF subprocess deadlines use the time left in the batch.
 - Three failed metadata reads mark the media failed. **Refresh** retries it.
 - Missing EXIF is a normal skip.

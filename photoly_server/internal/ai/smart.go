@@ -1,6 +1,6 @@
 package ai
 
-// Smart Tag: opt-in organization of a user's library into camera / lens tags and trip
+// Smart Organization: opt-in organization of a user's library into camera / lens tags and trip
 // galleries (services/smart.py). The scheduler half is in smart_sched.go.
 
 import (
@@ -21,6 +21,8 @@ type Smart struct {
 type smartPref struct {
 	UserID              int64
 	Enabled             bool
+	Devices, Trips      bool
+	DevicesDirty        bool
 	Revision, Completed int64
 	ProfileID           *int64
 	Checkpoint          map[string]any
@@ -28,10 +30,10 @@ type smartPref struct {
 	UpdatedAt           *time.Time
 }
 
-const prefCols = `user_id, enabled, revision, completed_revision, profile_id, checkpoint, reason, updated_at`
+const prefCols = `user_id, enabled, devices_enabled, trips_enabled, devices_dirty, revision, completed_revision, profile_id, checkpoint, reason, updated_at`
 
 func (p *smartPref) scan(r pgx.Row) error {
-	return r.Scan(&p.UserID, &p.Enabled, &p.Revision, &p.Completed, &p.ProfileID, &p.Checkpoint, &p.Reason, &p.UpdatedAt)
+	return r.Scan(&p.UserID, &p.Enabled, &p.Devices, &p.Trips, &p.DevicesDirty, &p.Revision, &p.Completed, &p.ProfileID, &p.Checkpoint, &p.Reason, &p.UpdatedAt)
 }
 
 // preference returns (creating if needed) a user's smart_preference row.
@@ -48,8 +50,8 @@ func preference(ctx context.Context, q Q, uid int64) (*smartPref, error) {
 }
 
 func (p *smartPref) save(ctx context.Context, q Q) error {
-	_, err := q.Exec(ctx, `UPDATE smart_preference SET enabled=$2, revision=$3, completed_revision=$4, profile_id=$5, checkpoint=$6, reason=$7, updated_at=$8 WHERE user_id=$1`,
-		p.UserID, p.Enabled, p.Revision, p.Completed, p.ProfileID, p.Checkpoint, p.Reason, p.UpdatedAt)
+	_, err := q.Exec(ctx, `UPDATE smart_preference SET enabled=$2, devices_enabled=$9, trips_enabled=$10, devices_dirty=$11, revision=$3, completed_revision=$4, profile_id=$5, checkpoint=$6, reason=$7, updated_at=$8 WHERE user_id=$1`,
+		p.UserID, p.Enabled, p.Revision, p.Completed, p.ProfileID, p.Checkpoint, p.Reason, p.UpdatedAt, p.Devices, p.Trips, p.DevicesDirty)
 	return err
 }
 
@@ -113,8 +115,8 @@ func (s *Smart) lockUser(ctx context.Context, q Q, uid int64) error {
 }
 
 func (s *Smart) settings(ctx context.Context, q Q, uid int64) (map[string]any, error) {
-	var on bool
-	err := q.QueryRow(ctx, `SELECT enabled FROM smart_preference WHERE user_id=$1`, uid).Scan(&on)
+	var on, devices, trips bool
+	err := q.QueryRow(ctx, `SELECT enabled, devices_enabled, trips_enabled FROM smart_preference WHERE user_id=$1`, uid).Scan(&on, &devices, &trips)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
@@ -128,7 +130,7 @@ func (s *Smart) settings(ctx context.Context, q Q, uid int64) (map[string]any, e
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"enabled": on, "available": cfg.Bool("enabled") && cfg.Bool("smart_tag_enabled") && userOn,
+	return map[string]any{"enabled": on, "devices": devices, "trips": trips, "available": cfg.Bool("enabled") && cfg.Bool("smart_tag_enabled") && userOn,
 		"reason": nilIfEmpty(reason), "intervalSeconds": 60}, nil
 }
 
@@ -137,8 +139,25 @@ func (s *Smart) GetSettings(ctx context.Context, uid int64) (map[string]any, err
 }
 
 func (s *Smart) PatchSettings(ctx context.Context, uid int64, data map[string]any) (map[string]any, error) {
-	on, ok := data["enabled"].(bool)
-	if len(data) != 1 || !ok {
+	// devices/trips toggle each feature; legacy {"enabled": bool} sets both.
+	var devices, trips *bool
+	for k, v := range data {
+		b, ok := v.(bool)
+		if !ok {
+			return nil, fail("invalid_settings")
+		}
+		switch k {
+		case "devices":
+			devices = &b
+		case "trips":
+			trips = &b
+		case "enabled":
+			devices, trips = &b, &b
+		default:
+			return nil, fail("invalid_settings")
+		}
+	}
+	if devices == nil && trips == nil {
 		return nil, fail("invalid_settings")
 	}
 	tx, err := s.pool.Begin(ctx)
@@ -153,8 +172,16 @@ func (s *Smart) PatchSettings(ctx context.Context, uid int64, data map[string]an
 	if err != nil {
 		return nil, err
 	}
-	if pref.Enabled != on {
-		pref.Enabled = on
+	d, t := pref.Devices, pref.Trips
+	if devices != nil {
+		d = *devices
+	}
+	if trips != nil {
+		t = *trips
+	}
+	if d != pref.Devices || t != pref.Trips {
+		pref.DevicesDirty = pref.DevicesDirty || d != pref.Devices
+		pref.Devices, pref.Trips, pref.Enabled = d, t, d || t
 		pref.Revision++
 		if err := pref.save(ctx, tx); err != nil {
 			return nil, err

@@ -26,7 +26,7 @@ export interface SmartStatus {
 export function smartReason(reason: string | null | undefined): string {
   const messages: Record<string, string> = {
     ai_disabled: 'An administrator must enable AI first.',
-    smart_tag_disabled: 'An administrator must enable Smart Tag first.',
+    smart_tag_disabled: 'An administrator must enable Smart Organization first.',
     ai_permission_required: 'Your account needs AI access from an administrator.',
     user_disabled: 'Automatic organization is off. Existing smart items remain editable.',
     maintenance: 'Paused for maintenance.',

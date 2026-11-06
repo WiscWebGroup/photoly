@@ -637,7 +637,7 @@ func (s *Scheduler) tick(ctx context.Context) error {
 		return nil
 	}
 	if _, err := s.smart.Tick(ctx); err != nil {
-		logf("Smart Tag batch failed: %v", err)
+		logf("Smart Organization batch failed: %v", err)
 	}
 	observed := s.rt.Status()
 	res, _ := observed["resources"].(map[string]any)

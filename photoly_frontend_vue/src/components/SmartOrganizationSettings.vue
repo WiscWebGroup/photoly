@@ -3,18 +3,30 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { RefreshCw } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
+import InfoTip from '@/components/InfoTip.vue'
 import SmartBadge from '@/components/SmartBadge.vue'
 import { call } from '@/lib/http'
 import { useAuthStore } from '@/stores/auth'
 import { smartReason, type SmartSource, type SmartStatus } from '@/lib/smartOrganization'
 
 const auth = useAuthStore()
-const settings = ref<{ enabled: boolean; available: boolean; reason: string | null } | null>(null)
+type Feature = 'devices' | 'trips'
+const features: { key: Feature; label: string }[] = [
+  { key: 'devices', label: 'Camera and lens tags' },
+  { key: 'trips', label: 'Trip galleries' },
+]
+const settings = ref<{
+  enabled: boolean
+  devices: boolean
+  trips: boolean
+  available: boolean
+  reason: string | null
+} | null>(null)
 const status = ref<SmartStatus | null>(null)
 const dismissed = ref<SmartSource[]>([])
 const nextAfter = ref<number | null>(null)
 const busy = ref(false)
-const pendingToggle = ref<boolean | null>(null)
+const pendingToggle = ref<{ key: Feature; value: boolean } | null>(null)
 const error = ref('')
 let controller = new AbortController()
 let sequence = 0
@@ -37,11 +49,12 @@ async function load(more = false) {
     ])
     if (current !== sequence || signal.aborted || request !== loadSequence) return
     if (
-      typeof config?.enabled !== 'boolean' ||
+      typeof config?.devices !== 'boolean' ||
+      typeof config?.trips !== 'boolean' ||
       typeof progress?.total !== 'number' ||
       !Array.isArray(deleted?.items)
     )
-      throw new Error('Invalid Smart Tag response')
+      throw new Error('Invalid Smart Organization response')
     settings.value = config
     status.value = progress
     dismissed.value = more ? [...dismissed.value, ...deleted.items] : deleted.items
@@ -49,13 +62,15 @@ async function load(more = false) {
     error.value = ''
   } catch {
     if (current === sequence && !signal.aborted && request === loadSequence)
-      error.value = 'Could not load Smart Tag settings. Please retry.'
+      error.value = 'Could not load Smart Organization settings. Please retry.'
   }
 }
-async function change(action: 'toggle' | 'refresh' | 'restore', item?: SmartSource) {
+const isOn = (key: Feature) =>
+  pendingToggle.value?.key === key ? pendingToggle.value.value : (settings.value?.[key] ?? false)
+async function change(action: 'toggle' | 'refresh' | 'restore', item?: SmartSource, key?: Feature) {
   if (busy.value || !settings.value) return
   busy.value = true
-  if (action === 'toggle') pendingToggle.value = !settings.value.enabled
+  if (action === 'toggle') pendingToggle.value = { key: key!, value: !settings.value[key!] }
   loadSequence++
   const current = sequence
   const signal = controller.signal
@@ -68,7 +83,7 @@ async function change(action: 'toggle' | 'refresh' | 'restore', item?: SmartSour
           : action === 'refresh'
             ? '/ai/smart/refresh'
             : `/ai/smart/items/${item!.id}/restore`,
-      data: action === 'toggle' ? { enabled: !settings.value.enabled } : undefined,
+      data: action === 'toggle' ? { [key!]: !settings.value[key!] } : undefined,
       signal,
     })
     if (current !== sequence || signal.aborted) return
@@ -79,11 +94,11 @@ async function change(action: 'toggle' | 'refresh' | 'restore', item?: SmartSour
           ? 'Smart item restored.'
           : action === 'refresh'
             ? 'Refresh requested.'
-            : 'Smart Tag settings saved.',
+            : 'Smart Organization settings saved.',
       )
   } catch {
     if (current === sequence && !signal.aborted)
-      error.value = 'Could not save Smart Tag changes. Please retry.'
+      error.value = 'Could not save Smart Organization changes. Please retry.'
   } finally {
     if (current === sequence) {
       busy.value = false
@@ -119,16 +134,18 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div aria-label="Smart Tag settings" class="space-y-4 rounded-xl border bg-card p-5 shadow-xs">
-    <label class="flex items-center gap-2 text-sm font-medium">
-      <input
-        type="checkbox"
-        aria-label="Enable my Smart Tag"
-        :checked="pendingToggle ?? settings?.enabled ?? false"
-        :disabled="busy || !settings || (!settings.available && !settings.enabled)"
-        @change="change('toggle')"
-      />Enable Smart Tag for my library
-    </label>
+  <div aria-label="Smart Organization settings" class="space-y-4 rounded-xl border bg-card p-5 shadow-xs">
+    <div v-for="f in features" :key="f.key" class="flex items-center gap-2 text-sm font-medium">
+      <label class="flex items-center gap-2">
+        <input
+          type="checkbox"
+          :aria-label="`Enable ${f.label}`"
+          :checked="isOn(f.key)"
+          :disabled="busy || !settings || (!settings.available && !settings[f.key])"
+          @change="change('toggle', undefined, f.key)"
+        />{{ f.label }}
+      </label>
+    </div>
     <p v-if="settings?.reason || status?.reason" role="status" class="text-sm">
       {{ smartReason(settings?.reason || status?.reason) }}
     </p>
@@ -162,11 +179,13 @@ onBeforeUnmount(() => {
     </div>
     <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
     <details class="rounded-lg border p-3">
-      <summary class="cursor-pointer text-sm font-medium">Deleted smart items</summary>
-      <p class="mt-2 text-xs text-muted-foreground">
-        Deleted items stay hidden until restored. Restoring an item also restores its related merged
-        or split items.
-      </p>
+      <summary class="cursor-pointer text-sm font-medium">
+        Deleted smart items
+        <InfoTip label="Deleted smart items" class="ml-1 align-middle">
+          Deleted items stay hidden until restored. Restoring an item also restores its related
+          merged or split items.
+        </InfoTip>
+      </summary>
       <p v-if="!dismissed.length" class="mt-2 text-sm">No deleted smart items.</p>
       <ul v-else class="mt-3 space-y-3">
         <li

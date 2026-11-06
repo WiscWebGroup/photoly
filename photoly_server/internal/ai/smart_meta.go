@@ -1,6 +1,6 @@
 package ai
 
-// Smart Tag metadata: gazetteer, EXIF facts and capture time (smart/{geography,metadata}.py).
+// Smart Organization metadata: gazetteer, EXIF facts and capture time (smart/{geography,metadata}.py).
 
 import (
 	"bufio"

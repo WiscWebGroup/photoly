@@ -233,6 +233,12 @@ export const useBrowserAiStore = defineStore('browserAi', () => {
     if (hadMemory)
       ai.reloadPage('Saved models removed; the page reloaded to give browser memory back.')
   }
+  async function removeModel(kind: AiModelKind) {
+    const hadMemory = state.ready[kind]
+    await ai.removeModel(kind)
+    await refreshSaved()
+    if (hadMemory) ai.reloadPage('Model removed; the page reloaded to give browser memory back.')
+  }
   async function unload() {
     await ai.unload()
   }
@@ -268,6 +274,7 @@ export const useBrowserAiStore = defineStore('browserAi', () => {
     refreshSaved,
     keepOnDevice,
     removeFromDevice,
+    removeModel,
     unload,
   }
 })

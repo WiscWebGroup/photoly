@@ -39,9 +39,9 @@ On Linux, `CI=1` runs WebKit in GTK mode to avoid stale WebGL screenshots in the
 - Photos and videos share the media viewer and similar recommendations. Results belong to each item and expire 30 seconds after leaving; Back to top also collapses them.
 - Edit Avatar supports dragging, zoom and keyboard adjustment within a circular preview; the upload is a complete square 512 × 512 JPEG.
 - Extract Text provides explicit recognition, editing, saving, copying and unsaved-change prompts. Recognition uses backend Tesseract, independently of model availability.
-- Smart tags/galleries have icons, labels and distinct styling. Personal settings provide opt-in, progress, refresh and restoration; administrators control availability in AI Management.
+- Smart Organization tags and galleries have icons, labels and distinct styling. Personal settings provide opt-in, progress, refresh and restoration; administrators control availability in AI Management.
 
-See [deployment](../README.md), [OCR](../docs/docs/ocr.md) and [Smart Tag](../docs/docs/smart-tag.md) for backend requirements and limits.
+See [deployment](../README.md), [OCR](../docs/docs/ocr.md) and [Smart Organization](../docs/docs/smart-organization.md) for backend requirements and limits.
 
 
 ### Photo maps

@@ -487,7 +487,7 @@ test('feature switches save independently and failed startup can retry', async (
   await expect(page.getByText('AI startup failed', { exact: true })).toBeVisible()
   await page.getByLabel('AI Search', { exact: true }).uncheck()
   await expect.poll(() => state.settings.search_enabled).toBe(false)
-  await page.getByLabel('Smart Tag', { exact: true }).check()
+  await page.getByLabel('Smart Organization', { exact: true }).check()
   await expect.poll(() => state.settings.smart_tag_enabled).toBe(true)
   expect(state.settings.enabled).toBe(true)
   expect(
@@ -523,7 +523,7 @@ test('feature toggles preserve an unsaved resource draft', async ({ page }) => {
   const { state } = await adminMocks(page)
   await page.goto('/thepersonincharge/ai')
   await page.getByLabel('CPU utilization (%)', { exact: true }).fill('80')
-  await page.getByLabel('Smart Tag', { exact: true }).check()
+  await page.getByLabel('Smart Organization', { exact: true }).check()
   await expect.poll(() => state.settings.smart_tag_enabled).toBe(true)
   await expect(page.getByLabel('CPU utilization (%)', { exact: true })).toHaveValue('80')
   await page.getByRole('button', { name: 'Save AI settings', exact: true }).click()

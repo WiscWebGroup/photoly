@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoTip from '@/components/InfoTip.vue'
 import { onMounted, ref } from 'vue'
 import { Cloud, Plus } from '@lucide/vue'
 import { toast } from 'vue-sonner'
@@ -137,11 +138,11 @@ onMounted(load)
   <section class="flex flex-col gap-4 rounded-xl border p-4" aria-label="S3 connections">
     <h3 class="flex items-center gap-2 font-medium">
       <Cloud class="size-5 text-sky-600" /> Your S3 storage
+      <InfoTip label="S3 storage" doc="/features/storage/personal-s3">
+        Connect S3-compatible buckets. Each connection appears as a cloud folder in your library.
+        Only Photoly uploads are shown; buckets are not scanned.
+      </InfoTip>
     </h3>
-    <p class="text-muted-foreground text-sm">
-      Connect S3-compatible buckets. Each connection appears as a cloud folder in your library. Only
-      Photoly uploads are shown; buckets are not scanned.
-    </p>
     <article
       v-for="connection in settings?.connections"
       :key="connection.sourceId"

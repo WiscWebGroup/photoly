@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { usePeopleStore, peopleLabel } from '@/stores/people'
+import InfoTip from '@/components/InfoTip.vue'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -31,43 +32,25 @@ async function run(fn: () => Promise<void>) {
 </script>
 <template>
   <div class="flex flex-col gap-4 text-sm">
-    <label class="flex items-center gap-2 font-medium"
-      ><input
-        type="checkbox"
-        aria-label="People for my library"
-        class="accent-primary size-4"
-        :checked="store.preference?.enabled"
-        :disabled="busy || (!store.preference?.available && !store.preference?.enabled)"
-        @change="run(() => store.change({ enabled: ($event.target as HTMLInputElement).checked }))"
-      />People for my library</label
-    >
-    <p class="text-muted-foreground">
-      Find faces in photos, group people, and keep the names and corrections you choose. Only you
-      can see your people.
-    </p>
-    <p v-if="store.preference?.reason" role="status">{{ peopleLabel(store.preference.reason) }}</p>
-    <label v-if="store.preference?.choosable" class="flex items-center gap-3"
-      >Where People runs<select
-        aria-label="Where People runs"
-        class="bg-background rounded-md border p-2"
-        :value="store.preference.placement"
-        :disabled="busy"
-        @change="
-          run(() =>
-            store.change({
-              placement: ($event.target as HTMLSelectElement).value as 'browser' | 'server',
-            }),
-          )
-        "
+    <div class="flex items-center gap-2">
+      <label class="flex items-center gap-2 font-medium"
+        ><input
+          type="checkbox"
+          aria-label="People for my library"
+          class="accent-primary size-4"
+          :checked="store.preference?.enabled"
+          :disabled="busy || (!store.preference?.available && !store.preference?.enabled)"
+          @change="
+            run(() => store.change({ enabled: ($event.target as HTMLInputElement).checked }))
+          "
+        />People for my library</label
       >
-        <option value="browser">Browser</option>
-        <option value="server">Server</option>
-      </select></label
-    >
-    <p v-if="store.preference?.placement === 'browser'" class="text-muted-foreground">
-      Keep Photoly open to process photos on this device. Processing continues next time you open
-      it. Devices without WebGPU use the browser CPU.
-    </p>
+      <InfoTip label="People" doc="/features/people">
+        Find faces in photos, group people, and keep the names and corrections you choose. Only you
+        can see your people.
+      </InfoTip>
+    </div>
+    <p v-if="store.preference?.reason" role="status">{{ peopleLabel(store.preference.reason) }}</p>
     <div v-if="store.preference?.enabled && store.status" class="flex flex-col gap-2">
       <progress
         class="h-2 w-full accent-primary"

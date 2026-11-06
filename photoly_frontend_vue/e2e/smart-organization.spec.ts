@@ -55,10 +55,10 @@ test('opt in, refresh and restore smart items', async ({ page }) => {
     },
   })
   await page.goto('/home/ManagePart#smart')
-  const toggle = page.getByRole('checkbox', { name: 'Enable my Smart Tag' })
+  const toggle = page.getByRole('checkbox', { name: 'Enable my Smart Organization' })
   await expect(toggle).not.toBeChecked()
   await toggle.check()
-  await expect(page.getByText('Smart Tag settings saved.')).toBeVisible()
+  await expect(page.getByText('Smart Organization settings saved.')).toBeVisible()
   await expect(page.getByText('25 / 50 media inspected · 1 failed')).toBeVisible()
   await page.getByRole('button', { name: 'Refresh and retry' }).click()
   await page.getByText('Deleted smart items', { exact: true }).click()
@@ -66,7 +66,7 @@ test('opt in, refresh and restore smart items', async ({ page }) => {
   await expect(page.getByText('No deleted smart items.')).toBeVisible()
   expect(calls.some((c) => c.path === '/ai/smart/refresh')).toBe(true)
   await page
-    .locator('[aria-label="Smart Tag settings"]')
+    .locator('[aria-label="Smart Organization settings"]')
     .screenshot({ path: test.info().outputPath('smart-settings.png') })
 })
 
@@ -125,7 +125,7 @@ test('smart tags, gallery details and viewer selectors have consistent badges', 
   ).toBe(true)
 })
 
-test('administrator enables Smart Tag and sees progress and pause reasons', async ({ page }) => {
+test('administrator enables Smart Organization and sees progress and pause reasons', async ({ page }) => {
   let settings = { ...settingsFixture, smart_tag_enabled: false }
   const calls = await mockApi(page, {
     '/admin/auth': ok(true),
@@ -148,9 +148,9 @@ test('administrator enables Smart Tag and sees progress and pause reasons', asyn
       }),
   })
   await page.goto('/thepersonincharge/ai')
-  await page.getByLabel('Smart Tag', { exact: true }).check()
-  await expect(page.getByLabel('Smart Tag progress')).toContainText('30 / 50')
-  await expect(page.getByLabel('Smart Tag progress')).toContainText('Paused for maintenance')
+  await page.getByLabel('Smart Organization', { exact: true }).check()
+  await expect(page.getByLabel('Smart Organization progress')).toContainText('30 / 50')
+  await expect(page.getByLabel('Smart Organization progress')).toContainText('Paused for maintenance')
   await expect
     .poll(() =>
       calls.some(

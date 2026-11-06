@@ -18,7 +18,7 @@ A database from the earlier Python release must be at Alembic `0008_upload_activ
 
 - Text recognition image and migration: [Extract Text operations](../administration/extract-text.md).
 - Media tasks and migration `0007_media_tools`: [Media tools operations](../administration/media-tools.md).
-- Smart Tag migration: [Smart Tag operations](../administration/smart-tag.md).
+- Smart Organization migration: [Smart Organization operations](../administration/smart-organization.md).
 - External storage migration 9: [Local mounts, WebDAV and SMB](../features/storage/external-storage.md).
 - S3 migration 12: [Personal S3](../features/storage/personal-s3.md).
 - Current organization and viewer features: [Pinned folders](../features/dates-and-folders.md#pinned-folders-and-default-location), [gallery descriptions](../features/galleries.md), [maps](../features/maps-and-locations.md) and [video playback](../features/video-playback.md).

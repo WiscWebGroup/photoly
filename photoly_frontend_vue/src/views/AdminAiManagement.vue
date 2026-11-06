@@ -270,7 +270,7 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
 </script>
 <template>
   <AdminLayout wide>
-    <PageHeader title="AI Management" description="Search, Smart Tag and background processing.">
+    <PageHeader title="AI Management" description="Search, Smart Organization and background processing.">
       <span
         v-if="status"
         class="bg-card flex h-9 items-center gap-2 rounded-full border px-3.5 text-sm"
@@ -401,9 +401,9 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                   class="accent-primary size-4"
                   :checked="status.settings.smart_tag_enabled"
                   :disabled="locked"
-                  aria-label="Smart Tag"
+                  aria-label="Smart Organization"
                   @change="feature('smart_tag_enabled', $event)"
-                />Smart Tag</label
+                />Smart Organization</label
               >
               <label class="flex items-center gap-2 text-sm font-medium"
                 ><input
@@ -423,7 +423,7 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                 class="text-primary font-medium hover:underline"
                 to="/thepersonincharge/usermanage"
                 >User Management</router-link
-              >; Smart Tag also requires user opt-in.
+              >; Smart Organization also requires user opt-in.
             </p>
           </section>
           <AdminInferenceCard
@@ -702,9 +702,9 @@ const time = (value: string | null | undefined) => (value ? new Date(value).toLo
                 becomes ready.
               </p>
             </div>
-            <div v-if="status.smartTag" class="text-sm" aria-label="Smart Tag progress">
+            <div v-if="status.smartTag" class="text-sm" aria-label="Smart Organization progress">
               <p>
-                Smart Tag: {{ status.smartTag.processed }} / {{ status.smartTag.total }} media
+                Smart Organization: {{ status.smartTag.processed }} / {{ status.smartTag.total }} media
                 inspected · {{ status.smartTag.failed }} failed
               </p>
               <p v-if="status.smartTag.reason">{{ smartReason(status.smartTag.reason) }}</p>
