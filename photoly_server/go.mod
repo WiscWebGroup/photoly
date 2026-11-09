@@ -9,7 +9,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.4
 	github.com/klauspost/compress v1.18.0
 	github.com/minio/minio-go/v7 v7.0.97
-	github.com/pgvector/pgvector-go v0.2.2
+	github.com/pgvector/pgvector-go v0.4.1
 	github.com/pressly/goose/v3 v3.24.3
 	github.com/yalue/onnxruntime_go v1.37.0
 	golang.org/x/crypto v0.45.0
