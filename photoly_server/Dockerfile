@@ -72,7 +72,7 @@ CMD ["serve"]
 # One-container variant: PostgreSQL (with pgvector) and photoly in the same image. Build with
 # `--build-context dbinit=database/postgres-init`; see docker-compose.yml. Photoly runs as uid 65532
 # like the standalone image, so existing ./upload_data and model volumes keep working.
-FROM pgvector/pgvector:0.8.7-pg17-bookworm@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d AS aio
+FROM pgvector/pgvector:0.8.7-pg17-bookworm@sha256:7d0a41464797aeb9862dfdc0bbf1526b82cfd324cdd8036df19e3545f4a9ccb8 AS aio
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 ffmpeg libheif-examples libvips-tools util-linux \
       libimage-exiftool-perl tesseract-ocr tesseract-ocr-eng tesseract-ocr-chi-sim tesseract-ocr-chi-tra tesseract-ocr-jpn \
     && rm -rf /var/lib/apt/lists/* \
