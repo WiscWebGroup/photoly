@@ -112,6 +112,50 @@ const folderHealth = computed(() => sourceHealth.states.value[folders.current.va
 const reorder = useFolderReorder(folders.children, folders.reorder, () =>
   toast.error('Could not save folder order. Please try again.'),
 )
+// While dragging, preview the would-be order with CSS `order` so siblings slide aside live.
+// The DOM itself must not move: detaching the handle would drop its pointer capture.
+const previewOrder = computed(() => {
+  const list = folders.children.value
+  const id = reorder.moving.value,
+    target = reorder.before.value
+  if (id === null || target === undefined) return null
+  const next = list.filter((f) => f.nsId !== id)
+  const at = target === null ? next.length : next.findIndex((f) => f.nsId === target)
+  next.splice(
+    at < 0 ? next.length : at,
+    0,
+    list.find((f) => f.nsId === id)!,
+  )
+  return new Map(next.map((f, i) => [f.nsId, i]))
+})
+// FLIP: siblings slide into their preview slots. (TransitionGroup skips this because `animate-rise` outlasts its move transition.)
+let lastRects = new Map<Element, DOMRect>()
+watch(
+  previewOrder,
+  () => {
+    lastRects = new Map(
+      [...(folderGrid.value?.children ?? [])].map((el) => [el, el.getBoundingClientRect()]),
+    )
+  },
+  { flush: 'pre' },
+)
+watch(
+  previewOrder,
+  () => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    for (const [el, from] of lastRects) {
+      const to = el.getBoundingClientRect()
+      const dx = from.left - to.left,
+        dy = from.top - to.top
+      if (dx || dy)
+        el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], {
+          duration: 200,
+          easing: 'ease-out',
+        })
+    }
+  },
+  { flush: 'post' },
+)
 const library = usePhotos()
 const pageLoading = ref(true)
 const pageError = ref(false)
@@ -742,24 +786,27 @@ watch(
                 v-for="(folder, i) in folders.children.value"
                 :key="folder.nsId"
                 :data-order-id="folder.nsId"
-                :data-order-edge="
-                  reorder.before.value === folder.nsId
-                    ? 'before'
-                    : reorder.before.value === null && i === folders.children.value.length - 1
-                      ? 'after'
-                      : undefined
-                "
                 :class="[
-                  'animate-rise relative',
+                  'animate-rise group relative',
+                  reorder.moving.value === folder.nsId &&
+                    reorder.before.value !== undefined &&
+                    'z-20 opacity-80',
                   viewMode !== 'list' && 'flex w-36 shrink-0 sm:w-auto',
                   viewMode === 'compact' && 'compact-folder',
                 ]"
-                :style="{ animationDelay: `${Math.min(i, 12) * 30}ms` }"
+                :style="{
+                  animationDelay: `${Math.min(i, 12) * 30}ms`,
+                  order: previewOrder?.get(folder.nsId),
+                }"
               >
                 <button
                   type="button"
-                  class="folder-reorder-handle bg-card/90 text-muted-foreground hover:text-foreground absolute top-1 right-1 z-10 grid size-7 touch-none place-items-center rounded-md border shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                  :class="reorder.moving.value === folder.nsId ? 'cursor-grabbing' : 'cursor-grab'"
+                  class="folder-reorder-handle text-foreground/55 hover:bg-background/85 hover:text-foreground focus-visible:ring-ring absolute top-1.5 right-1.5 z-10 grid size-7 touch-none place-items-center rounded-full opacity-0 transition-[opacity,background-color,color] duration-150 outline-none group-focus-within:opacity-100 group-hover:opacity-100 hover:shadow-sm hover:backdrop-blur-sm focus-visible:opacity-100 focus-visible:ring-2 [@media(hover:none)]:opacity-100"
+                  :class="
+                    reorder.moving.value === folder.nsId
+                      ? 'bg-background/85 text-foreground cursor-grabbing opacity-100 shadow-sm'
+                      : 'cursor-grab'
+                  "
                   :aria-label="`Reorder ${folder.nsName}`"
                   title="Drag to reorder; use arrow keys to adjust, Home or End to move to an edge"
                   :disabled="reorder.saving.value"
@@ -858,7 +905,7 @@ watch(
                         >
                           <span
                             v-if="folder.isMount"
-                            class="mount-label mr-1 rounded px-1 text-xs"
+                            class="mount-label mr-1 w-fit rounded px-1 text-xs"
                             :class="mountColor(folder.sourceType)"
                             >{{ mountLabel(folder.sourceType) }}</span
                           ><span class="truncate font-medium" :title="folder.nsName">{{
@@ -1115,38 +1162,6 @@ watch(
 </template>
 
 <style scoped>
-[data-order-edge]::after {
-  content: '';
-  position: absolute;
-  pointer-events: none;
-  z-index: 20;
-  background: var(--primary);
-  border-radius: 2px;
-  width: 3px;
-  top: 0;
-  bottom: 0;
-}
-[data-order-edge='before']::after {
-  left: -6px;
-}
-[data-order-edge='after']::after {
-  right: -6px;
-}
-[data-layout='list'] [data-order-edge]::after {
-  height: 3px;
-  width: auto;
-  left: 0;
-  right: 0;
-  bottom: auto;
-}
-[data-layout='list'] [data-order-edge='before']::after {
-  top: -3px;
-}
-[data-layout='list'] [data-order-edge='after']::after {
-  top: auto;
-  bottom: -3px;
-}
-
 .compact-folder {
   width: 72px;
 }
