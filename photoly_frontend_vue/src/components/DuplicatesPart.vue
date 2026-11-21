@@ -45,7 +45,6 @@ async function load() {
   const seq = ++sequence
   loading.value = true
   error.value = ''
-  selection.value.clear()
   try {
     const data = await call<DuplicatePage>({
       url: '/photo/duplicates',
@@ -57,6 +56,9 @@ async function load() {
       offset.value = Math.max(0, Math.floor((data.total - 1) / limit.value) * limit.value)
       return
     }
+    // Unchanged results keep the mounted cards and their selection.
+    if (JSON.stringify(data.items) === JSON.stringify(groups.value)) return
+    selection.value.clear()
     groups.value = data.items
     generation.value++
   } catch (e) {
@@ -167,7 +169,11 @@ onMounted(load)
     <div v-if="error" role="alert" class="flex items-center gap-3 text-sm text-destructive">
       {{ error }}<Button variant="outline" @click="load">Retry</Button>
     </div>
-    <p v-if="loading" role="status" class="text-muted-foreground py-8 text-center">
+    <p
+      v-if="loading && !groups.length"
+      role="status"
+      class="text-muted-foreground py-8 text-center"
+    >
       Loading duplicates…
     </p>
     <div

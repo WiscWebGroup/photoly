@@ -26,7 +26,8 @@ watch(
   async (_, __, cleanup) => {
     const key = `${props.month}:${props.order}:${props.revision}`
     if (!visible.value || loadedKey === key) return
-    ids.value = []
+    // A newer revision of the same month keeps its thumbnails until the refetch lands.
+    if (!loadedKey.startsWith(`${props.month}:${props.order}:`)) ids.value = []
     const controller = new AbortController()
     cleanup(() => controller.abort())
     failed.value = false

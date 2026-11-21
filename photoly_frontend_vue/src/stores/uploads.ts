@@ -203,8 +203,10 @@ export const useUploadsStore = defineStore('uploads', () => {
         failedCount?: number
       }>(`/uploads?page=${page.value}`, 'get', undefined, sessionController.signal)
       if (seq !== refreshSequence) return
+      // Library views refetch on revision, so bump it only when photos may have landed.
+      const done = (b?: UploadBatch) => b?.counts.done?.count ?? 0
       if (
-        JSON.stringify(data.batches) !== JSON.stringify(batches.value) ||
+        data.batches.some((b) => done(b) > done(batches.value.find((o) => o.id === b.id))) ||
         (data.activeCount ?? 0) !== serverActive.value
       )
         revision.value++

@@ -32,7 +32,7 @@ const previewRevision = ref(0)
 let highlightTimer: ReturnType<typeof setTimeout> | undefined
 let jumpVersion = 0
 let fresh = true
-const { summary, loading, error, photos, pagesFor, setVisible, cancelDay, refresh, retry } =
+const { summary, loading, error, photos, pagesFor, setVisible, cancelDay, refresh, reload, retry } =
   useDateTimeline(() => order.value)
 const years = computed(() => {
   const grouped = new Map<
@@ -145,10 +145,7 @@ watch(
   },
   { immediate: true },
 )
-watch(
-  () => uploads.revision,
-  () => refresh(!!auth.token),
-)
+watch(() => uploads.revision, reload)
 onBeforeUnmount(() => {
   jumpVersion++
   clearTimeout(highlightTimer)
@@ -181,7 +178,7 @@ onBeforeUnmount(() => {
       context="Dates"
       heading="Photos"
       :total-count="summary?.totalCount"
-      @query-photos="refresh(!!auth.token)"
+      @query-photos="reload"
     >
       <template #content="{ actions, selectMode: selecting }">
         <p v-if="loading" role="status" class="text-muted-foreground text-sm">Loading dates…</p>
