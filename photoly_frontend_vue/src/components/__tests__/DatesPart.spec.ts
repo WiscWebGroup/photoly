@@ -125,13 +125,33 @@ it('jumps straight to a calendar day, remembers hiding, refreshes on uploads and
     expect(localStorage.getItem('photoly-dates-calendar-visible')).toBe('false'),
   )
   button('Show photo calendar').click()
-  useUploadsStore().revision++
-  await vi.waitFor(() => expect(pageText()).not.toContain('2020-03-01-first.jpg'))
-  await vi.waitFor(() =>
-    expect(document.querySelector('[data-date-page="2020-03-01:0"]')).toBeTruthy(),
+  // An upload that changes nothing keeps the timeline on screen without refetching.
+  let summaries = 0
+  server.use(
+    http.get(`${API}/photo/getDateSummary`, () => {
+      summaries++
+      return ok(summary)
+    }),
   )
-  visibility('2020-03-01:0')
+  useUploadsStore().revision++
+  await vi.waitFor(() => expect(summaries).toBe(1))
+  expect(pageText()).toContain('2020-03-01-first.jpg')
+  expect(requests).toHaveLength(1)
+  // A new photo on that day refetches only that day, keeping its photos visible meanwhile.
+  server.use(
+    http.get(`${API}/photo/getDateSummary`, () =>
+      ok({
+        ...summary,
+        totalCount: 105,
+        days: [{ date: '2020-03-01', count: 2 }, summary.days[1]],
+      }),
+    ),
+  )
+  useUploadsStore().revision++
+  await vi.waitFor(() => expect(pageText()).toContain('105 photos'))
+  expect(pageText()).toContain('2020-03-01-first.jpg')
   await vi.waitFor(() => expect(requests).toHaveLength(2))
+  expect(requests[1]!.searchParams.get('day')).toBe('2020-03-01')
   useAuthStore().clear()
   await vi.waitFor(() => expect(pageText()).not.toContain('2020-03-01-first.jpg'))
   expect(document.querySelector('[aria-label="Photo calendar"]')).toBeNull()

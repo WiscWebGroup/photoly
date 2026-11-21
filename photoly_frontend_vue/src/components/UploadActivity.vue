@@ -50,7 +50,15 @@ async function loadItems() {
     if (seq === detailSeq) detailError.value = 'Could not load upload details. Try again.'
   }
 }
-watch([selected, itemPage, () => uploads.revision, () => uploads.open], loadItems)
+watch(
+  [
+    selected,
+    itemPage,
+    () => uploads.open,
+    () => JSON.stringify(uploads.batches.find((b) => b.id === selected.value?.id)?.counts),
+  ],
+  loadItems,
+)
 watch(
   () => auth.token,
   () => {

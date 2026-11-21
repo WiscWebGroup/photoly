@@ -151,6 +151,38 @@ export function useDateTimeline(order: () => 'latest' | 'oldest') {
       if (current === generation) loading.value = false
     }
   }
+  /** Background refresh: keeps what is on screen and refetches only days whose count changed. */
+  async function reload() {
+    if (disposed || !summary.value) return refresh()
+    const current = generation
+    try {
+      const data = await call<DateSummary>({ url: '/photo/getDateSummary' })
+      if (current !== generation || JSON.stringify(data) === JSON.stringify(summary.value)) return
+      const counts = (s: DateSummary) =>
+        new Map([...s.days.map((d) => [d.date, d.count] as const), ['undated', s.undatedCount]])
+      const before = counts(summary.value)
+      const after = counts(data)
+      summary.value = data
+      for (const [day, list] of pages) {
+        if (before.get(day) === after.get(day)) continue
+        if (!after.get(day)) {
+          pages.delete(day)
+          continue
+        }
+        // ponytail: later pages are dropped, so a changed day over 100 photos reloads its tail.
+        list.splice(1)
+        const first = list[0]!
+        first.error = false
+        if (!first.visible) first.items = undefined
+        else if (!first.loading && !queue.includes(first)) {
+          queue.push(first)
+          pump()
+        }
+      }
+    } catch {
+      /* Keep the current timeline; the next change retries. */
+    }
+  }
   const photos = computed(() =>
     [...pages.entries()]
       .sort(([a], [b]) =>
@@ -177,6 +209,7 @@ export function useDateTimeline(order: () => 'latest' | 'oldest') {
     setVisible,
     cancelDay,
     refresh,
+    reload,
     photos,
     retry: (p: DatePage) => enqueue(p, true),
   }

@@ -699,7 +699,7 @@ watch(
             >
           </p>
           <div
-            v-else-if="pageLoading || library.loading.value"
+            v-else-if="pageLoading"
             role="status"
             aria-label="Loading folder"
             class="flex justify-center py-10"
