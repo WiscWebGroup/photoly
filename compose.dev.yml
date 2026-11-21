@@ -6,7 +6,12 @@ services:
     extends:
       file: docker-compose.yml
       service: backend
+    volumes:
+      # Named volume, not ./upload_data: some macOS runtimes' bind mounts report a new
+      # inode on every stat, which trips the folder/root identity guards.
+      - photoly_uploads:/photoly
 volumes:
   photoly_backups:
   photoly_models:
+  photoly_uploads:
   postgres_data:

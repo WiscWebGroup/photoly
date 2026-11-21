@@ -6,19 +6,23 @@ FROM golang:1.26.10-bookworm AS build
 ARG TARGETARCH
 # Must match the C API version onnxruntime_go (go.mod) was written for.
 ARG ORT_VERSION=1.29.0
+# The microsoft/onnxruntime GitHub releases are gone; the official NuGet package
+# ships the same Linux builds. Bump ORT_SHA256 with ORT_VERSION.
+ARG ORT_SHA256=4557021fec4da3924e2e12ff44b1cc50b176de0d2c5c7daa89ab11c208b3a454
 RUN case "$TARGETARCH" in \
-      amd64) arch=x64 sum=c3fddc4f139a045b0c4902c57410f0694f1c2fdf9b6939fbe38b1aeae7cd14ba ;; \
-      arm64) arch=aarch64 sum=e1799098ebc054b370f6176a450f158720f297818c613e5dc99b92e2ec82346f ;; \
+      amd64) rid=linux-x64 ;; \
+      arm64) rid=linux-arm64 ;; \
       *) echo "no ONNX Runtime build for $TARGETARCH" >&2; exit 1 ;; \
     esac \
-    && curl -fsSL -o /tmp/ort.tgz "https://github.com/microsoft/onnxruntime/releases/download/v$ORT_VERSION/onnxruntime-linux-$arch-$ORT_VERSION.tgz" \
-    && echo "$sum  /tmp/ort.tgz" | sha256sum -c - \
-    && tar -xzf /tmp/ort.tgz -C /tmp && ort=/tmp/onnxruntime-linux-$arch-$ORT_VERSION \
+    && apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL -o /tmp/ort.nupkg "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/$ORT_VERSION/microsoft.ml.onnxruntime.$ORT_VERSION.nupkg" \
+    && echo "$ORT_SHA256  /tmp/ort.nupkg" | sha256sum -c - \
+    && ort=/tmp/ort && unzip -q /tmp/ort.nupkg "runtimes/$rid/native/libonnxruntime.so" LICENSE ThirdPartyNotices.txt -d $ort \
     && mkdir -p /out/lib /out/data /out/tmp \
-    && cp -L $ort/lib/libonnxruntime.so.1 /out/lib/ \
+    && cp $ort/runtimes/$rid/native/libonnxruntime.so /out/lib/libonnxruntime.so.1 \
     && cp $ort/LICENSE /out/lib/LICENSE.onnxruntime.txt \
     && cp $ort/ThirdPartyNotices.txt /out/lib/ThirdPartyNotices.onnxruntime.txt \
-    && rm -rf /tmp/ort.tgz $ort
+    && rm -rf /tmp/ort.nupkg $ort
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY third_party ./third_party
