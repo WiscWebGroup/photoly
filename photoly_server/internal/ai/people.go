@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	dbgen "github.com/WiscWebGroup/photoly/photoly_server/internal/db/gen"
@@ -159,6 +160,17 @@ func (p *People) clear(ctx context.Context, uid int64) (any, error) {
 	}
 	return map[string]bool{"cleared": true}, tx.Commit(ctx)
 }
+
+// blockers returns why face jobs may not start now. Browser placement runs inference on
+// the client, so server CPU and RAM don't gate it; disk still does (results are stored here).
+func (p *People) blockers(cfg Settings, placement string) []string {
+	reasons := p.policy.Decide(SystemUsage(p.root).toMap(), cfg).Reasons
+	if placement == "browser" {
+		reasons = slices.DeleteFunc(reasons, func(r string) bool { return r == "cpu_busy_or_unknown" || r == "memory_pressure" })
+	}
+	return reasons
+}
+
 func (p *People) status(ctx context.Context, uid int64) (any, error) {
 	pref, cfg, err := p.preference(ctx, p.pool, uid, false)
 	if err != nil {
@@ -166,10 +178,7 @@ func (p *People) status(ctx context.Context, uid int64) (any, error) {
 	}
 	waiting := pref.Reason
 	if waiting == "" {
-		decision := p.policy.Decide(SystemUsage(p.root).toMap(), cfg)
-		if !decision.Allowed {
-			waiting = strings.Join(decision.Reasons, ", ")
-		}
+		waiting = strings.Join(p.blockers(cfg, pref.Placement), ", ")
 		if waiting == "" {
 			if used, e := usage(ctx, p.pool); e == nil && max(used.Estimated+used.Reserved+int64(faceMaxCount)*faceStorageCharge, used.Physical) > cfg.Int("quota_bytes") {
 				waiting = "quota_exceeded"
