@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { call } from '@/lib/http'
 import { LayoutGrid } from '@lucide/vue'
+import { vCollapse } from '@/lib/collapse'
 import DetailRowLabel, { rowBody, rowTrigger } from './DetailRowLabel.vue'
 import { mediaCategories, type CategoryOverride } from '@/lib/mediaCategories'
 const props = defineProps<{ photoId: number }>()
@@ -56,7 +57,7 @@ async function change(item: CategoryOverride, event: Event) {
 }
 </script>
 <template>
-  <details class="group">
+  <details v-collapse class="group">
     <summary :class="rowTrigger">
       <DetailRowLabel
         :icon="LayoutGrid"
