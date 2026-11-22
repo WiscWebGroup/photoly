@@ -28,6 +28,16 @@ func readMemory() (total, avail int64, ok bool) {
 			avail = kb << 10
 		}
 	}
+	// Hypervisors (Docker Desktop, VZ) reclaim idle guest RAM with a virtio balloon; the guest
+	// counts those pages as used, yet the balloon deflates as soon as the guest needs memory.
+	// Without this, an idle VM reads ~0 available and background work never starts.
+	if vm, err := os.ReadFile("/proc/vmstat"); err == nil {
+		if _, rest, ok := strings.Cut(string(vm), "nr_balloon_pages "); ok {
+			line, _, _ := strings.Cut(rest, "\n")
+			n, _ := strconv.ParseInt(line, 10, 64)
+			avail = min(total, avail+n*int64(os.Getpagesize()))
+		}
+	}
 	if limit, err := readInt("/sys/fs/cgroup/memory.max"); err == nil {
 		used, _ := readInt("/sys/fs/cgroup/memory.current")
 		total = min(total, limit)

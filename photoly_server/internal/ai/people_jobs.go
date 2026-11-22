@@ -99,7 +99,7 @@ func (p *People) claim(ctx context.Context, uid int64, placement string) (*Peopl
 	if pref.Reason != "" || pref.Placement != placement {
 		return nil, nil
 	}
-	if !p.policy.Decide(SystemUsage(p.root).toMap(), cfg).Allowed {
+	if len(p.blockers(cfg, placement)) > 0 {
 		return nil, nil
 	}
 	_, err = tx.Exec(ctx, `UPDATE ai_job SET status=CASE WHEN attempts>=3 THEN 'failed' ELSE 'queued' END,lease_token=NULL,reserved_bytes=0 WHERE kind='people' AND payload->>'user_id'=$1 AND status='running' AND lease_expires_at<now()`, fmt.Sprint(uid))
