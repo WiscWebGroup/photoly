@@ -4,6 +4,8 @@ import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { pinColor, type PinPoint } from '@/lib/notePins'
 import { ApiError, call } from '@/lib/http'
 import { Button } from '@/components/ui/button'
+import { NotebookPen } from '@lucide/vue'
+import DetailRowLabel, { rowBody, rowTrigger } from './DetailRowLabel.vue'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -252,15 +254,16 @@ defineExpose({
 })
 </script>
 <template>
-  <section class="border-t px-5 py-4 md:px-6" aria-label="Notes">
-    <button
-      class="flex w-full items-center justify-between text-sm font-medium"
-      :aria-expanded="open"
-      @click="open = !open"
-    >
-      <span>Notes</span><span>{{ loaded ? items.length : '…' }}</span>
+  <section aria-label="Notes">
+    <button type="button" :class="rowTrigger" :aria-expanded="open" @click="open = !open">
+      <DetailRowLabel
+        :icon="NotebookPen"
+        label="Notes"
+        :value="loaded ? items.length : '…'"
+        :open="open"
+      />
     </button>
-    <div v-show="open" class="mt-4 flex flex-col gap-3">
+    <div v-show="open" :class="rowBody">
       <p class="text-muted-foreground text-xs">
         Private to your account. Never included in public shares.
       </p>

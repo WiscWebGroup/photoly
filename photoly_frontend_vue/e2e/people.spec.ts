@@ -154,11 +154,9 @@ test('viewer and gallery open the whole-library person page', async ({ page }) =
   await expect(page).toHaveURL(/PeoplePart\?person=1/)
   await page.getByRole('button', { name: 'portrait.jpg', exact: true }).click()
   await openDetails(page)
-  await page.getByRole('button', { name: 'People in this photo' }).click()
-  await expect(
-    page.getByRole('dialog').last().getByRole('button', { name: 'Alice', exact: true }),
-  ).toBeVisible()
-  await page.getByRole('dialog').last().getByRole('button', { name: 'Alice', exact: true }).click()
+  const people = page.getByRole('region', { name: 'People in this photo' })
+  await expect(people.getByRole('button', { name: 'Alice', exact: true })).toBeVisible()
+  await people.getByRole('button', { name: 'Alice', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Alicia', exact: true })).toHaveCount(0)
   await page.goBack()
   await expect(page).toHaveURL(/GalleryPart\?gallery=1/)

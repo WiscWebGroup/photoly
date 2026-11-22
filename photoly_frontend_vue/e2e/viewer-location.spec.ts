@@ -38,8 +38,8 @@ test('Location sits between Notes and Category, stays 2D and remembers folding f
   expect(
     await section.evaluate((el) => {
       const notes = document.querySelector('[aria-label="Notes"]')!
-      const category = [...document.querySelectorAll('summary')].find(
-        (s) => s.textContent === 'Category',
+      const category = [...document.querySelectorAll('summary')].find((s) =>
+        s.textContent?.trim().startsWith('Category'),
       )!
       return (
         !!(notes.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) &&

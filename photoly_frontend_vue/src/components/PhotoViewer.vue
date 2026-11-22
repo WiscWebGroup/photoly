@@ -47,6 +47,7 @@ import {
   VolumeX,
   Share2,
   Sparkles,
+  Fingerprint,
   Trash2,
   Undo2,
   X,
@@ -55,6 +56,7 @@ import { usePhotoZoom } from '@/composables/usePhotoZoom'
 import ImageEditor from '@/components/ImageEditor.vue'
 import PhotoLabelPicker from '@/components/PhotoLabelPicker.vue'
 import PhotoText from '@/components/PhotoText.vue'
+import DetailRowLabel, { rowBody, rowTrigger } from '@/components/DetailRowLabel.vue'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -1760,14 +1762,6 @@ const overlay = 'dark text-foreground'
                 </div>
               </div>
 
-              <div v-if="kind === 'photo'" class="border-b px-5 py-4 md:px-6">
-                <PhotoText
-                  :key="`${info.photoId}:${version}`"
-                  ref="photoText"
-                  :photo-id="info.photoId"
-                />
-              </div>
-
               <div v-if="canSimilar" :class="[section, 'gap-3']">
                 <div class="flex items-center gap-2">
                   <h3 :class="heading">Similar</h3>
@@ -1793,34 +1787,57 @@ const overlay = 'dark text-foreground'
                 />
               </div>
 
-              <MediaNotes
-                :key="`notes:${info.photoId}:${version}`"
-                ref="notesPanel"
-                :photo-id="info.photoId"
-                :can-pin="kind === 'photo'"
-                @placing="startNotePosition"
-                @positioned="notePositioned"
-              />
-              <LocationMap
-                v-if="location"
-                v-model:open="locationOpen"
-                :latitude="location[1]"
-                :longitude="location[0]"
-                :active="showDetails && !locationClosing"
-                :ready="openingSettled"
-              />
-              <MediaCategoryEditor
-                :key="`category:${info.photoId}:${version}`"
-                :photo-id="info.photoId"
-                @changed="emit('changed', { type: 'category', photo: info })"
-              />
               <PeopleInMedia
                 v-if="kind === 'photo'"
                 :photo-id="info.photoId"
                 :before-navigate="leaveText"
-                class="px-5 py-4 md:px-6"
                 @navigate="emit('close')"
               />
+              <div class="border-b py-1">
+                <MediaNotes
+                  :key="`notes:${info.photoId}:${version}`"
+                  ref="notesPanel"
+                  :photo-id="info.photoId"
+                  :can-pin="kind === 'photo'"
+                  @placing="startNotePosition"
+                  @positioned="notePositioned"
+                />
+                <PhotoText
+                  v-if="kind === 'photo'"
+                  :key="`${info.photoId}:${version}`"
+                  ref="photoText"
+                  :photo-id="info.photoId"
+                />
+                <LocationMap
+                  v-if="location"
+                  v-model:open="locationOpen"
+                  :latitude="location[1]"
+                  :longitude="location[0]"
+                  :active="showDetails && !locationClosing"
+                  :ready="openingSettled"
+                />
+                <MediaCategoryEditor
+                  :key="`category:${info.photoId}:${version}`"
+                  :photo-id="info.photoId"
+                  @changed="emit('changed', { type: 'category', photo: info })"
+                />
+                <details v-collapse class="group">
+                  <summary :class="rowTrigger">
+                    <DetailRowLabel :icon="Fingerprint" label="File IDs" />
+                  </summary>
+                  <dl
+                    :class="[
+                      rowBody,
+                      'grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs',
+                    ]"
+                  >
+                    <dt class="text-muted-foreground">Token</dt>
+                    <dd class="break-all">{{ info.token }}</dd>
+                    <dt class="text-muted-foreground">UUID</dt>
+                    <dd class="break-all">{{ info.photoUuid }}</dd>
+                  </dl>
+                </details>
+              </div>
               <div class="flex flex-col gap-3 px-5 py-5 md:px-6">
                 <label class="flex items-center gap-3 text-sm">
                   <span class="flex flex-1 flex-col">
@@ -1849,23 +1866,6 @@ const overlay = 'dark text-foreground'
                     ><Copy aria-hidden="true" /> Copy</Button
                   >
                 </div>
-                <details v-collapse class="group text-sm">
-                  <summary
-                    class="text-muted-foreground hover:text-foreground flex cursor-pointer list-none items-center gap-1 text-xs transition-colors [&::-webkit-details-marker]:hidden"
-                  >
-                    Technical details
-                    <ChevronRight
-                      class="size-3 transition-transform group-open:rotate-90"
-                      aria-hidden="true"
-                    />
-                  </summary>
-                  <dl class="text-muted-foreground mt-2 space-y-1 text-xs">
-                    <dt class="text-foreground font-medium">Token</dt>
-                    <dd class="break-all">{{ info.token }}</dd>
-                    <dt class="text-foreground font-medium">UUID</dt>
-                    <dd class="break-all">{{ info.photoUuid }}</dd>
-                  </dl>
-                </details>
               </div>
             </div>
           </div>
