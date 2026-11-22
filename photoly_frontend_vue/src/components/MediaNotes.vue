@@ -4,6 +4,9 @@ import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { pinColor, type PinPoint } from '@/lib/notePins'
 import { ApiError, call } from '@/lib/http'
 import { Button } from '@/components/ui/button'
+import { NotebookPen } from '@lucide/vue'
+import DetailRowLabel, { rowBody, rowTrigger } from './DetailRowLabel.vue'
+import { collapseTransition } from '@/lib/collapse'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -252,129 +255,140 @@ defineExpose({
 })
 </script>
 <template>
-  <section class="border-t px-5 py-4 md:px-6" aria-label="Notes">
-    <button
-      class="flex w-full items-center justify-between text-sm font-medium"
-      :aria-expanded="open"
-      @click="open = !open"
-    >
-      <span>Notes</span><span>{{ loaded ? items.length : '…' }}</span>
+  <section aria-label="Notes">
+    <button type="button" :class="rowTrigger" :aria-expanded="open" @click="open = !open">
+      <DetailRowLabel
+        :icon="NotebookPen"
+        label="Notes"
+        :value="loaded ? items.length : '…'"
+        :open="open"
+      />
     </button>
-    <div v-show="open" class="mt-4 flex flex-col gap-3">
-      <p class="text-muted-foreground text-xs">
-        Private to your account. Never included in public shares.
-      </p>
-      <div v-if="error" role="alert" class="text-sm">
-        {{ error }} <button class="underline" @click="load">Reload saved notes</button>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" :disabled="busy || !loaded" @click="edit(null)"
-          >Add note</Button
-        >
-        <Button
-          v-if="canPin"
-          size="sm"
-          variant="outline"
-          :disabled="busy || !loaded"
-          @click="edit(null, true)"
-          >Pin on photo</Button
-        >
-      </div>
-      <div v-if="editing !== undefined" class="flex flex-col gap-2 rounded-lg border p-3">
-        <p v-if="placing" role="status" class="text-sm">Tap a point on the photo.</p>
-        <label class="text-sm" for="media-note-draft">{{
-          editing ? 'Edit note' : 'New note'
-        }}</label>
-        <textarea
-          id="media-note-draft"
-          v-model="draft"
-          :disabled="busy"
-          maxlength="100000"
-          rows="7"
-          class="bg-background min-h-32 w-full resize-y rounded-md border p-2 text-sm"
-          placeholder="What makes this moment special?"
-        />
-        <div class="flex flex-wrap gap-2">
-          <Button v-if="canPin" size="sm" variant="ghost" :disabled="busy" @click="move">{{
-            x === null ? 'Add a point' : 'Reposition'
-          }}</Button>
-          <Button v-if="x !== null" size="sm" variant="ghost" :disabled="busy" @click="general"
-            >Remove point</Button
-          >
-          <Button size="sm" :disabled="busy || placing || !draft.trim()" @click="save">Save</Button>
-          <Button size="sm" variant="outline" :disabled="busy" @click="requestLeave">Cancel</Button>
-        </div>
-      </div>
-      <p
-        v-if="loaded && !items.length && editing === undefined"
-        class="text-muted-foreground text-sm"
-      >
-        Record a memory or add a note to a point on this photo.
-      </p>
-      <Button size="sm" variant="outline" :aria-expanded="showPointNotes" @click="togglePoints">
-        {{ showAllBubbles ? 'Hide Pin-point notes' : 'See all Pin-point notes' }} ({{
-          pointNotes.length
-        }})
-      </Button>
-      <template v-for="section in sections" :key="section.title">
-        <section
-          v-if="section.visible"
-          :aria-label="section.title"
-          class="flex flex-col gap-3 border-t pt-3"
-        >
-          <h3 class="flex justify-between text-sm font-medium">
-            <span>{{ section.title }}</span
-            ><span class="text-muted-foreground">{{ section.notes.length }}</span>
-          </h3>
-          <p v-if="!section.notes.length" class="text-muted-foreground text-sm">
-            {{
-              section.title === 'General Notes'
-                ? 'No general notes yet.'
-                : 'No pin-point notes yet.'
-            }}
+    <Transition v-bind="collapseTransition">
+      <div v-show="open">
+        <div :class="rowBody">
+          <p class="text-muted-foreground text-xs">
+            Private to your account. Never included in public shares.
           </p>
-          <article
-            v-for="note in section.notes"
-            :id="`media-note-${note.id}`"
-            :key="note.id"
-            class="rounded-lg border p-3"
-            :class="selectedId === note.id ? 'border-primary bg-primary/5' : ''"
-            @click="selectedId = note.x !== null ? note.id : 0"
-          >
-            <button
-              v-if="note.x !== null"
-              :style="{ color: pinColor(note.id) }"
-              class="mb-2 text-xs underline"
-              @click="select(note.id)"
+          <div v-if="error" role="alert" class="text-sm">
+            {{ error }} <button class="underline" @click="load">Reload saved notes</button>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" :disabled="busy || !loaded" @click="edit(null)"
+              >Add note</Button
             >
-              {{
-                note.needsReposition
-                  ? 'Point needs repositioning'
-                  : `Point ${pointNotes.find((p) => p.id === note.id)?.number}`
-              }}
-            </button>
-            <p class="whitespace-pre-wrap break-words text-sm">{{ note.body }}</p>
-            <p class="text-muted-foreground mt-2 text-xs">
-              {{ new Date(note.updatedAt).toLocaleString() }}
-            </p>
-            <div class="mt-2 flex flex-wrap gap-2">
-              <Button size="sm" variant="ghost" :disabled="busy" @click="edit(note)">Edit</Button>
-              <Button
-                v-if="canPin && note.needsReposition"
-                size="sm"
-                variant="ghost"
-                :disabled="busy"
-                @click="edit(note, true)"
-                >Reposition</Button
+            <Button
+              v-if="canPin"
+              size="sm"
+              variant="outline"
+              :disabled="busy || !loaded"
+              @click="edit(null, true)"
+              >Pin on photo</Button
+            >
+          </div>
+          <div v-if="editing !== undefined" class="flex flex-col gap-2 rounded-lg border p-3">
+            <p v-if="placing" role="status" class="text-sm">Tap a point on the photo.</p>
+            <label class="text-sm" for="media-note-draft">{{
+              editing ? 'Edit note' : 'New note'
+            }}</label>
+            <textarea
+              id="media-note-draft"
+              v-model="draft"
+              :disabled="busy"
+              maxlength="100000"
+              rows="7"
+              class="bg-background min-h-32 w-full resize-y rounded-md border p-2 text-sm"
+              placeholder="What makes this moment special?"
+            />
+            <div class="flex flex-wrap gap-2">
+              <Button v-if="canPin" size="sm" variant="ghost" :disabled="busy" @click="move">{{
+                x === null ? 'Add a point' : 'Reposition'
+              }}</Button>
+              <Button v-if="x !== null" size="sm" variant="ghost" :disabled="busy" @click="general"
+                >Remove point</Button
               >
-              <Button size="sm" variant="ghost" :disabled="busy" @click="deleting = note"
-                >Delete</Button
+              <Button size="sm" :disabled="busy || placing || !draft.trim()" @click="save"
+                >Save</Button
+              >
+              <Button size="sm" variant="outline" :disabled="busy" @click="requestLeave"
+                >Cancel</Button
               >
             </div>
-          </article>
-        </section>
-      </template>
-    </div>
+          </div>
+          <p
+            v-if="loaded && !items.length && editing === undefined"
+            class="text-muted-foreground text-sm"
+          >
+            Record a memory or add a note to a point on this photo.
+          </p>
+          <Button size="sm" variant="outline" :aria-expanded="showPointNotes" @click="togglePoints">
+            {{ showAllBubbles ? 'Hide Pin-point notes' : 'See all Pin-point notes' }} ({{
+              pointNotes.length
+            }})
+          </Button>
+          <template v-for="section in sections" :key="section.title">
+            <section
+              v-if="section.visible"
+              :aria-label="section.title"
+              class="flex flex-col gap-3 border-t pt-3"
+            >
+              <h3 class="flex justify-between text-sm font-medium">
+                <span>{{ section.title }}</span
+                ><span class="text-muted-foreground">{{ section.notes.length }}</span>
+              </h3>
+              <p v-if="!section.notes.length" class="text-muted-foreground text-sm">
+                {{
+                  section.title === 'General Notes'
+                    ? 'No general notes yet.'
+                    : 'No pin-point notes yet.'
+                }}
+              </p>
+              <article
+                v-for="note in section.notes"
+                :id="`media-note-${note.id}`"
+                :key="note.id"
+                class="rounded-lg border p-3"
+                :class="selectedId === note.id ? 'border-primary bg-primary/5' : ''"
+                @click="selectedId = note.x !== null ? note.id : 0"
+              >
+                <button
+                  v-if="note.x !== null"
+                  :style="{ color: pinColor(note.id) }"
+                  class="mb-2 text-xs underline"
+                  @click="select(note.id)"
+                >
+                  {{
+                    note.needsReposition
+                      ? 'Point needs repositioning'
+                      : `Point ${pointNotes.find((p) => p.id === note.id)?.number}`
+                  }}
+                </button>
+                <p class="whitespace-pre-wrap break-words text-sm">{{ note.body }}</p>
+                <p class="text-muted-foreground mt-2 text-xs">
+                  {{ new Date(note.updatedAt).toLocaleString() }}
+                </p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <Button size="sm" variant="ghost" :disabled="busy" @click="edit(note)"
+                    >Edit</Button
+                  >
+                  <Button
+                    v-if="canPin && note.needsReposition"
+                    size="sm"
+                    variant="ghost"
+                    :disabled="busy"
+                    @click="edit(note, true)"
+                    >Reposition</Button
+                  >
+                  <Button size="sm" variant="ghost" :disabled="busy" @click="deleting = note"
+                    >Delete</Button
+                  >
+                </div>
+              </article>
+            </section>
+          </template>
+        </div>
+      </div>
+    </Transition>
     <AlertDialog :open="leaving" @update:open="!$event && resolveLeave(false)">
       <AlertDialogContent class="dark text-foreground"
         ><AlertDialogHeader

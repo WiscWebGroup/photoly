@@ -39,7 +39,7 @@ async function setup(
 }
 async function expand(page: import('@playwright/test').Page) {
   await openDetails(page)
-  await page.locator('summary').filter({ hasText: 'Extract Text' }).click()
+  await page.locator('summary').filter({ hasText: 'Text in photo' }).click()
   await expect(page.getByLabel('Image text')).toBeVisible()
 }
 

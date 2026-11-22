@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { call } from '@/lib/http'
+import { LayoutGrid } from '@lucide/vue'
+import { vCollapse } from '@/lib/collapse'
+import DetailRowLabel, { rowBody, rowTrigger } from './DetailRowLabel.vue'
 import { mediaCategories, type CategoryOverride } from '@/lib/mediaCategories'
 const props = defineProps<{ photoId: number }>()
 const emit = defineEmits<{ changed: [] }>()
@@ -54,25 +57,35 @@ async function change(item: CategoryOverride, event: Event) {
 }
 </script>
 <template>
-  <details class="border-t px-5 py-4 md:px-6">
-    <summary class="cursor-pointer text-sm font-medium">Category</summary>
-    <p v-if="error" role="alert" class="mt-3 text-sm">{{ error }}</p>
-    <label
-      v-for="item in items"
-      :key="item.category"
-      class="mt-3 flex items-center justify-between gap-3 text-sm"
-    >
-      {{ mediaCategories.find((c) => c.id === item.category)?.name }}
-      <select
-        :value="item.override === null ? 'auto' : item.override ? 'yes' : 'no'"
-        :disabled="busy"
-        class="bg-background rounded border p-1.5"
-        @change="change(item, $event)"
+  <details v-collapse class="group">
+    <summary :class="rowTrigger">
+      <DetailRowLabel
+        :icon="LayoutGrid"
+        label="Category"
+        :value="
+          items.length ? (items.some((i) => i.override !== null) ? 'Custom' : 'Automatic') : ''
+        "
+      />
+    </summary>
+    <div :class="rowBody">
+      <p v-if="error" role="alert">{{ error }}</p>
+      <label
+        v-for="item in items"
+        :key="item.category"
+        class="flex items-center justify-between gap-3"
       >
-        <option value="auto">Auto ({{ item.automatic ? 'included' : 'not included' }})</option>
-        <option value="yes">Include</option>
-        <option value="no">Exclude</option>
-      </select>
-    </label>
+        {{ mediaCategories.find((c) => c.id === item.category)?.name }}
+        <select
+          :value="item.override === null ? 'auto' : item.override ? 'yes' : 'no'"
+          :disabled="busy"
+          class="bg-background rounded border p-1.5"
+          @change="change(item, $event)"
+        >
+          <option value="auto">Auto ({{ item.automatic ? 'included' : 'not included' }})</option>
+          <option value="yes">Include</option>
+          <option value="no">Exclude</option>
+        </select>
+      </label>
+    </div>
   </details>
 </template>

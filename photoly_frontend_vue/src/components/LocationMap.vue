@@ -4,6 +4,8 @@ import { useIntersectionObserver, useResizeObserver } from '@vueuse/core'
 import type { Map as LeafletMap, Marker } from 'leaflet'
 import { attribution, tileURL } from '@/lib/mapEngine'
 import { Button } from '@/components/ui/button'
+import { MapPin } from '@lucide/vue'
+import DetailRowLabel, { rowTrigger } from './DetailRowLabel.vue'
 
 const props = defineProps<{
   latitude: number
@@ -111,14 +113,14 @@ onBeforeUnmount(dispose)
 </script>
 
 <template>
-  <details :open="open" class="border-t px-5 py-4 md:px-6" data-location-section>
+  <details :open="open" class="group" data-location-section>
     <!-- Commit the preference synchronously: a queued native toggle can arrive after a fast switch. -->
-    <summary class="cursor-pointer text-sm font-medium" @click.prevent="open = !open">
-      Location
+    <summary :class="rowTrigger" @click.prevent="open = !open">
+      <DetailRowLabel :icon="MapPin" label="Location" />
     </summary>
     <div
       v-show="open"
-      class="bg-muted relative isolate mt-3 h-[200px] overflow-hidden rounded-lg border"
+      class="bg-muted relative isolate mx-5 mb-4 h-[200px] overflow-hidden rounded-lg border md:mx-6"
       data-location-map
       @touchstart.stop
       @touchmove.stop

@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/alert-dialog'
 
 import { vCollapse } from '@/lib/collapse'
+import { ScanText } from '@lucide/vue'
+import DetailRowLabel, { rowBody, rowTrigger } from './DetailRowLabel.vue'
 const props = defineProps<{ photoId: number }>()
 interface OCRResult {
   photoId: number
@@ -30,6 +32,13 @@ const error = ref('')
 const conflict = ref(false)
 const confirmRecognize = ref(false)
 const leaving = ref(false)
+const status = computed(() => {
+  const text = result.value?.text
+  if (text === undefined) return undefined
+  if (text === null) return 'Not scanned'
+  const lines = text.split('\n').filter((l) => l.trim()).length
+  return lines ? `${lines} ${lines === 1 ? 'line' : 'lines'}` : 'No text'
+})
 const dirty = computed(() => !!result.value && draft.value !== (result.value.text ?? ''))
 let sequence = 0
 let controller: AbortController | undefined
@@ -157,12 +166,10 @@ defineExpose({ requestLeave, reset })
 
 <template>
   <details v-collapse class="group" @toggle="opened">
-    <summary
-      class="text-muted-foreground hover:text-foreground flex cursor-pointer list-none items-center justify-between rounded-sm text-xs font-semibold tracking-[0.025em] uppercase transition-colors outline-none [&::-webkit-details-marker]:hidden focus-visible:ring-3 focus-visible:ring-ring/50 after:text-base after:leading-none after:transition-transform after:content-['›'] group-open:after:rotate-90"
-    >
-      Extract Text
+    <summary :class="rowTrigger">
+      <DetailRowLabel :icon="ScanText" label="Text in photo" :value="status" />
     </summary>
-    <div class="space-y-3 pt-3 text-sm" :aria-busy="busy">
+    <div :class="rowBody" :aria-busy="busy">
       <p class="text-muted-foreground">
         Recognize Simplified Chinese, Traditional Chinese, English and Japanese. Animated and
         multi-page images use the first frame or page.

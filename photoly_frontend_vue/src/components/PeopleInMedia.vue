@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Users } from '@lucide/vue'
 import { call } from '@/lib/http'
@@ -60,18 +60,34 @@ async function load(more = false) {
     if (seq === sequence) loading.value = false
   }
 }
+// A photo's faces show inline, so they load with the photo; a gallery's people load on open.
+const shown = 8
+const pendingText = computed(() =>
+  loading.value && !faces.value.length
+    ? ''
+    : state.value === 'failed'
+      ? 'Face processing failed. Retry from People settings.'
+      : state.value === 'processing'
+        ? 'Finding faces in this photo…'
+        : state.value === 'ready'
+          ? ''
+          : 'This photo is waiting for face processing.',
+)
 watch(open, (on) => {
-  if (on) void load()
+  if (on && !props.photoId) void load()
 })
 watch(
-  () => [props.photoId, props.galleryId],
+  () => [props.photoId, props.galleryId, store.visible] as const,
   () => {
     sequence++
     open.value = false
     editing.value = null
     faces.value = []
     people.value = []
+    state.value = 'pending'
+    if (props.photoId && store.visible) void load()
   },
+  { immediate: true },
 )
 watch(
   () => store.visible,
@@ -86,7 +102,7 @@ watch(
 watch(
   () => store.revision,
   () => {
-    if (open.value) void load()
+    if (open.value || props.photoId) void load()
   },
 )
 async function visit(id: number) {
@@ -98,8 +114,45 @@ async function visit(id: number) {
 </script>
 <template>
   <div v-if="store.visible">
-    <Button variant="outline" @click="open = true"
-      ><Users class="size-4" />{{ photoId ? 'People in this photo' : 'People' }}</Button
+    <section
+      v-if="photoId && (faces.length || error || pendingText)"
+      class="flex flex-col gap-3 border-b px-5 py-5 md:px-6"
+      aria-label="People in this photo"
+    >
+      <div class="flex items-center gap-2">
+        <h3 class="text-muted-foreground text-xs font-semibold tracking-[0.025em] uppercase">
+          People
+        </h3>
+        <button
+          v-if="faces.length"
+          type="button"
+          class="text-primary focus-visible:ring-ring/50 ml-auto rounded-sm text-[13px] font-medium outline-none hover:underline focus-visible:ring-3"
+          @click="open = true"
+        >
+          {{ faces.length > shown ? `All ${faces.length}` : 'Edit' }}
+        </button>
+      </div>
+      <ul v-if="faces.length" class="grid grid-cols-4 gap-1">
+        <li v-for="face in faces.slice(0, shown)" :key="face.id">
+          <button
+            type="button"
+            class="focus-visible:ring-ring/60 flex w-full flex-col items-center gap-1.5 rounded-lg px-0.5 py-1.5 outline-none transition-colors hover:bg-white/5 focus-visible:ring-2"
+            @click="face.name ? visit(face.personId) : (editing = face)"
+          >
+            <PeopleAvatar :face-id="face.id" class="size-12" />
+            <span :class="['w-full truncate text-xs', !face.name && 'text-muted-foreground']">{{
+              face.name || 'Add name'
+            }}</span>
+          </button>
+        </li>
+      </ul>
+      <p v-else-if="error" role="alert" class="text-sm">
+        {{ error }} <button class="underline" @click="load()">Retry</button>
+      </p>
+      <p v-else class="text-muted-foreground text-sm">{{ pendingText }}</p>
+    </section>
+    <Button v-else-if="!photoId" variant="outline" @click="open = true"
+      ><Users class="size-4" />People</Button
     >
     <Dialog :open="open" @update:open="open = $event"
       ><DialogContent class="max-h-[85dvh] overflow-auto"
